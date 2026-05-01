@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
-// 這裡最好使用 Service Role Key 來繞過 RLS，因為是後台批次作業
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 // 階級考核條件 (順序由高到低)
 const TIERS = [

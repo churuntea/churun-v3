@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// 初始化 Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 // 定價策略 (一元化控價 + 大宗批發)
 function calculatePrice(quantity: number) {

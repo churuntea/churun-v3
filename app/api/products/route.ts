@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabaseAdmin } from '@/app/supabase-admin';
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('products')
       .select('*')
       .eq('status', 'active')
@@ -28,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '品名與嘗鮮價為必填' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('products')
       .insert({
         name,

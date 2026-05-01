@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabaseAdmin } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing phone' }, { status: 400 });
     }
 
-    const { data: member, error } = await supabase
+    const { data: member, error } = await supabaseAdmin
       .from('members')
       .select('id, name')
       .eq('phone', phone)
