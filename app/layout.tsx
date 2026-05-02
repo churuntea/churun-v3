@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
+import PageTransition from "@/components/PageTransition";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
   subsets: ["latin"],
+  variable: "--font-outfit",
+  weight: ["100", "300", "400", "700", "900"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoLabels = Noto_Sans_TC({
   subsets: ["latin"],
+  variable: "--font-noto",
+  weight: ["100", "300", "400", "700", "900"],
 });
 
 export const metadata: Metadata = {
-  title: "CHURUN-MEMBER | 初潤製茶所",
-  description: "CHURUN-MEMBER 初潤製茶所會員中心與數位營運系統",
+  title: "CHURUN TEA | 初潤製茶所",
+  description: "初潤製茶所精品會員中心 - 數位化營運與分潤系統",
 };
 
 export default function RootLayout({
@@ -25,9 +28,13 @@ export default function RootLayout({
   return (
     <html
       lang="zh-TW"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${outfit.variable} ${notoLabels.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#FDFBF7]">
+        <PageTransition>
+          {children}
+        </PageTransition>
+      </body>
     </html>
   );
 }

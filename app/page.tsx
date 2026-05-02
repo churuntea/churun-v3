@@ -4,291 +4,343 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "./supabase";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
-  User, 
-  ShoppingBag, 
   Wallet, 
-  Award, 
-  LogOut, 
+  Star, 
+  Users, 
+  ShoppingBag, 
   ChevronRight, 
+  LayoutDashboard, 
+  Zap, 
+  User, 
   Plus, 
-  Minus, 
-  CreditCard,
-  Zap,
-  Star,
-  CheckCircle2,
+  ArrowUpRight, 
+  Share2, 
+  QrCode,
+  Bell,
+  Sparkles,
   Loader2,
-  Phone,
-  LayoutDashboard
+  Gift
 } from "lucide-react";
 
 function DashboardContent() {
   const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [isOrdering, setIsOrdering] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
-    checkAuth();
-    fetchProducts();
-  }, []);
-
-  const checkAuth = async () => {
     const savedId = localStorage.getItem("churun_member_id");
-    if (savedId) {
-      await fetchMemberData(savedId);
-      setIsAuthenticated(true);
+    if (!savedId) {
+      router.replace("/login");
+      return;
+    }
+    setCurrentUserId(savedId);
+  }, [router]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!currentUserId) return;
+      setIsLoading(true);
       
-      const hasSeenWelcome = sessionStorage.getItem("has_seen_welcome");
-      if (!hasSeenWelcome) {
-        setShowWelcomeModal(true);
-        sessionStorage.setItem("has_seen_welcome", "true");
-      }
-    } else {
-      router.push("/login");
-    }
-    setIsCheckingAuth(false);
-  };
+      const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
+      setMemberInfo(mData);
 
-  const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').eq('status', 'active').order('created_at', { ascending: false });
-    setProducts(data || []);
-  };
+      const { data: pData } = await supabase.from("products").select("*").eq("status", "active").limit(4);
+      setProducts(pData || []);
 
-  const fetchMemberData = async (userId: string) => {
-    const { data: memberData } = await supabase.from("members").select("*").eq("id", userId).single();
-    if (memberData) {
-      setMemberInfo(memberData);
-    } else {
-      handleLogout();
-    }
-  };
+      setIsLoading(false);
+    };
+    fetchData();
+  }, [currentUserId]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("churun_member_id");
-    sessionStorage.removeItem("has_seen_welcome");
-    router.push("/login");
-  };
-
-  const updateQuantity = (productId: string, delta: number) => {
-    setQuantities(prev => ({ ...prev, [productId]: Math.max(0, (prev[productId] || 0) + delta) }));
-  };
-
-  const handleOrder = async () => {
-    const items = Object.entries(quantities).filter(([_, q]) => q > 0).map(([id, quantity]) => ({ id, quantity }));
-    if (items.length === 0) return alert("請先選擇商品");
-    
-    setIsOrdering(true);
-    try {
-      const res = await fetch('/api/orders/dynamic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buyer_id: memberInfo.id, items })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.message);
-        setQuantities({});
-        fetchMemberData(memberInfo.id);
-      } else {
-        alert(data.error || "下單失敗");
-      }
-    } catch (err) { alert("下單失敗"); }
-    setIsOrdering(false);
-  };
-
-  if (isCheckingAuth) return (
+  if (isLoading || !memberInfo) return (
     <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-emerald-900" />
+      <motion.div 
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+      >
+        <Loader2 className="w-10 h-10 text-emerald-900" />
+      </motion.div>
     </div>
   );
 
-  if (!memberInfo) return null;
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "out" } }
+  };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-32">
+    <div className="min-h-screen bg-[#FDFBF7] pb-32 overflow-x-hidden">
       
       {/* Premium Header */}
-      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-4 flex justify-between items-center max-w-lg mx-auto">
-        <div className="flex items-center gap-2">
-           <div className="w-8 h-8 bg-emerald-900 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-900/20">
-              <span className="text-white text-[10px] font-black tracking-tighter">CR</span>
-           </div>
-           <h1 className="text-sm font-black tracking-widest text-emerald-900">CHURUN-MEMBER</h1>
-        </div>
-        <div className="flex items-center gap-4">
-           <Link href="/profile" className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-             <User className="w-5 h-5" />
-           </Link>
-           <button onClick={handleLogout} className="text-slate-300 hover:text-rose-500 transition">
-             <LogOut className="w-5 h-5" />
-           </button>
-        </div>
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
+         <motion.div 
+           initial={{ opacity: 0, x: -20 }}
+           animate={{ opacity: 1, x: 0 }}
+           className="flex items-center gap-3"
+         >
+            <div className="w-10 h-10 bg-emerald-900 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-900/20">
+               <span className="text-white font-black text-sm tracking-tighter">CR</span>
+            </div>
+            <div>
+               <h1 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase leading-none">Churun Tea</h1>
+               <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
+            </div>
+         </motion.div>
+         <div className="flex items-center gap-4">
+            <motion.button whileTap={{ scale: 0.9 }} className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+               <Bell className="w-4 h-4 text-slate-400" />
+               <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+            </motion.button>
+         </div>
       </nav>
 
-      <main className="max-w-lg mx-auto p-6 space-y-8">
+      <motion.main 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="max-w-lg mx-auto px-6 pt-24 space-y-10"
+      >
         
         {/* Profile Card */}
-        <section className="bg-emerald-900 rounded-[3rem] p-8 text-white shadow-2xl shadow-emerald-900/30 relative overflow-hidden">
-           {/* Decorative elements */}
-           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-700/30 rounded-full blur-2xl"></div>
-           <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl"></div>
-           
-           <div className="relative z-10">
-              <div className="flex justify-between items-start mb-10">
-                 <div>
-                    <h2 className="text-2xl font-bold">{memberInfo.name}</h2>
-                    <div className="flex items-center gap-2 mt-2">
-                       <Award className="w-4 h-4 text-amber-400" />
-                       <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-400/80">{memberInfo.tier}</span>
+        <motion.section variants={itemVariants} className="relative group">
+           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-[3rem] blur-3xl opacity-20 group-hover:opacity-40 transition duration-500"></div>
+           <div className="relative bg-mesh-emerald rounded-[3rem] p-10 text-white shadow-2xl shadow-emerald-900/20 overflow-hidden">
+              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
+              
+              <div className="flex justify-between items-start mb-12">
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                       <Sparkles className="w-3 h-3 text-amber-300" />
+                       <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
                     </div>
+                    <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
                  </div>
-                 <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">UID</p>
-                    <p className="text-xs font-mono font-medium opacity-80">{memberInfo.member_code}</p>
+                 <motion.button 
+                   whileHover={{ scale: 1.1, rotate: 5 }}
+                   whileTap={{ scale: 0.9 }}
+                   onClick={() => setShowShare(true)}
+                   className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/10 shadow-inner"
+                 >
+                    <Share2 className="w-6 h-6" />
+                 </motion.button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                 <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">虛擬預收貨款</p>
+                    <h3 className="text-2xl font-black tracking-tighter">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
+                 </div>
+                 <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">紅利點數餘額</p>
+                    <h3 className="text-2xl font-black tracking-tighter">{memberInfo.points_balance.toLocaleString()} <span className="text-[10px] font-medium ml-1">pts</span></h3>
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 text-emerald-200">紅利點數</p>
-                    <div className="flex items-baseline gap-1">
-                       <span className="text-2xl font-black">{memberInfo.points_balance.toLocaleString()}</span>
-                       <span className="text-[10px] font-bold opacity-40">PTS</span>
+              {/* Tier Progress Bar */}
+              <Link href="/rewards" className="mt-12 space-y-3 block group/prog cursor-pointer">
+                 <div className="flex justify-between items-end">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">升級進度 (本季累積)</p>
+                    <div className="flex items-center gap-2">
+                       <p className="text-[10px] font-black text-amber-300">${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
+                       <ChevronRight className="w-3 h-3 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
                     </div>
                  </div>
-                 <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 text-emerald-200">虛擬餘額</p>
-                    <div className="flex items-baseline gap-1">
-                       <span className="text-[10px] font-bold opacity-40">$</span>
-                       <span className="text-2xl font-black">{Number(memberInfo.virtual_balance).toLocaleString()}</span>
-                    </div>
+                 <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-amber-200 to-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]"
+                    />
                  </div>
-              </div>
-           </div>
-        </section>
-
-        {/* Quick Shopping Section */}
-        <section className="space-y-6">
-           <div className="flex justify-between items-center px-2">
-              <h3 className="text-xl font-bold tracking-tight">精選商品</h3>
-              <Link href="/store" className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                 全部商品 <ChevronRight className="w-3 h-3" />
+                 <p className="text-[8px] text-white/40 text-right italic group-hover/prog:text-white/60 transition">點擊查看下一階分潤特權</p>
               </Link>
            </div>
+        </motion.section>
 
-           <div className="space-y-4">
-              {products.map(p => (
-                <div key={p.id} className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-slate-50 flex items-center gap-4 group hover:border-emerald-100 transition duration-500">
-                   <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden relative shadow-inner">
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover:scale-110" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-slate-200"><ShoppingBag className="w-8 h-8" /></div>
-                      )}
+        {/* Quick Actions */}
+        <motion.section variants={itemVariants} className="grid grid-cols-4 gap-4 px-2">
+           {[
+             { label: "大宗批發", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
+             { label: "點數商城", icon: Gift, href: "/store", color: "bg-emerald-50 text-emerald-600" },
+             { label: "組織管理", icon: Users, href: "/organization", color: "bg-amber-50 text-amber-600" },
+             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" }
+           ].map((act, i) => (
+             <Link href={act.href} key={i} className="flex flex-col items-center gap-3">
+                <motion.div 
+                  whileHover={{ y: -5, scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-16 h-16 ${act.color} rounded-[2rem] flex items-center justify-center shadow-sm border border-white transition-all`}
+                >
+                   <act.icon className="w-6 h-6" />
+                </motion.div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{act.label}</span>
+             </Link>
+           ))}
+        </motion.section>
+
+        {/* Brand Pulse Announcements */}
+        <motion.section variants={itemVariants} className="space-y-6">
+           <div className="flex justify-between items-center px-2">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動</h3>
+              <div className="flex gap-1">
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Updates</span>
+              </div>
+           </div>
+           
+           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
+              {[
+                { title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" },
+                { title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600" },
+                { title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600" }
+              ].map((news, i) => (
+                <div key={i} className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group">
+                   <div className={`absolute top-0 right-0 w-24 h-24 ${news.color} opacity-5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition duration-700`}></div>
+                   <div className="flex justify-between items-start mb-6">
+                      <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest ${news.color}`}>
+                         {news.tag}
+                      </span>
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{news.date}</span>
                    </div>
-                   <div className="flex-1">
-                      <h4 className="font-bold text-slate-800">{p.name}</h4>
-                      <p className="text-xs text-slate-400 mt-1">${p.price.toLocaleString()}</p>
-                   </div>
-                   <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl">
-                      <button 
-                        onClick={() => updateQuantity(p.id, -1)} 
-                        className="w-8 h-8 rounded-xl bg-white text-slate-400 shadow-sm flex items-center justify-center hover:text-rose-500 transition active:scale-90"
-                      >
-                         <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-6 text-center font-black text-sm text-slate-700">{quantities[p.id] || 0}</span>
-                      <button 
-                        onClick={() => updateQuantity(p.id, 1)} 
-                        className="w-8 h-8 rounded-xl bg-emerald-900 text-white shadow-lg shadow-emerald-900/20 flex items-center justify-center transition active:scale-90"
-                      >
-                         <Plus className="w-4 h-4" />
-                      </button>
+                   <h4 className="font-bold text-slate-800 leading-relaxed mb-4">{news.title}</h4>
+                   <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      了解詳情 <ChevronRight className="w-3 h-3" />
                    </div>
                 </div>
               ))}
            </div>
+        </motion.section>
 
-           <button 
-             onClick={handleOrder} 
-             disabled={isOrdering || Object.values(quantities).every(q => q === 0)}
-             className="w-full bg-slate-900 text-white py-6 rounded-3xl font-bold text-sm hover:bg-slate-800 transition shadow-2xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:shadow-none"
-           >
-              {isOrdering ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-5 h-5" /> 立即下單結帳</>}
-           </button>
-        </section>
+        {/* Featured Store */}
+        <motion.section variants={itemVariants} className="space-y-6">
+           <div className="flex justify-between items-center px-2">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">精品嚴選商城</h3>
+              <Link href="/store" className="text-[10px] font-black text-emerald-600 flex items-center gap-1 hover:gap-2 transition-all">
+                 VIEW ALL <ChevronRight className="w-3 h-3" />
+              </Link>
+           </div>
+           
+           <div className="grid grid-cols-2 gap-6">
+              {products.map((p, i) => (
+                <motion.div 
+                  key={p.id}
+                  whileHover={{ y: -8 }}
+                  className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-slate-50 flex flex-col group"
+                >
+                   <div className="aspect-[4/5] w-full bg-slate-50 relative overflow-hidden">
+                      <img src={p.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=400"} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-1000" />
+                      <div className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition">
+                         <Plus className="w-4 h-4 text-emerald-900" />
+                      </div>
+                   </div>
+                   <div className="p-6 space-y-2">
+                      <h4 className="font-bold text-slate-800 text-sm truncate">{p.name}</h4>
+                      <div className="flex justify-between items-center">
+                         <span className="text-emerald-600 font-black text-sm">${p.price}</span>
+                         <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Buy Now</span>
+                      </div>
+                   </div>
+                </motion.div>
+              ))}
+           </div>
+        </motion.section>
 
-        {/* Promotion Banner */}
-        <section className="bg-amber-50 rounded-[2.5rem] p-8 border border-amber-100/50 flex items-center gap-6 relative overflow-hidden">
-           <div className="absolute -right-4 -bottom-4 opacity-5 rotate-12">
-              <Zap className="w-32 h-32 text-amber-500" />
-           </div>
-           <div className="w-12 h-12 bg-amber-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-400/20">
-              <Star className="w-6 h-6 fill-current" />
-           </div>
-           <div>
-              <h4 className="font-black text-amber-900 text-sm tracking-tight">升級夥伴計畫</h4>
-              <p className="text-xs text-amber-700 mt-1 opacity-70">提升階級，獲得更高的分紅比例與專屬特權。</p>
-           </div>
-           <ChevronRight className="w-5 h-5 text-amber-400 ml-auto" />
-        </section>
+      </motion.main>
 
-      </main>
+      {/* Share Modal */}
+      <AnimatePresence>
+        {showShare && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-8"
+            onClick={() => setShowShare(false)}
+          >
+             <motion.div 
+               initial={{ scale: 0.9, y: 20 }}
+               animate={{ scale: 1, y: 0 }}
+               exit={{ scale: 0.9, y: 20 }}
+               className="bg-white rounded-[3rem] p-12 w-full max-w-sm text-center shadow-2xl relative overflow-hidden"
+               onClick={e => e.stopPropagation()}
+             >
+                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+                
+                <div className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-900/20 rotate-3">
+                   <QrCode className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">專屬推薦代碼</h3>
+                <p className="text-sm text-slate-400 mb-10">分享您的代碼，與夥伴一同開啟數位茶飲之旅。</p>
+                
+                <div className="bg-slate-50 p-8 rounded-[2rem] mb-10 border border-slate-100">
+                   <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase">{memberInfo.referral_code}</span>
+                </div>
+
+                <div className="flex gap-4">
+                   <button onClick={() => setShowShare(false)} className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition">
+                      關閉視窗
+                   </button>
+                   <button className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20">
+                      複製連結
+                   </button>
+                </div>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
-         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
-            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white">
+         <motion.div 
+           initial={{ y: 100 }}
+           animate={{ y: 0 }}
+           className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5"
+         >
+            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white transition">
                <LayoutDashboard className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">首頁</span>
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">Dashboard</span>
             </Link>
             <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <ShoppingBag className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">商城</span>
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">Shop</span>
             </Link>
-            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7]">
+            <motion.div 
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7] cursor-pointer"
+            >
                <Plus className="w-6 h-6 text-white" />
-            </div>
+            </motion.div>
             <Link href="/organization" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <Zap className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">組織</span>
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">Team</span>
             </Link>
             <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <User className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">我的</span>
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">Me</span>
             </Link>
-         </div>
+         </motion.div>
       </div>
-
-      {/* Welcome Modal */}
-      {showWelcomeModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl relative p-10 text-center animate-in zoom-in-95 duration-500">
-             <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <CheckCircle2 className="w-10 h-10" />
-             </div>
-             <h3 className="text-2xl font-bold text-slate-900 mb-2">歡迎回來</h3>
-             <p className="text-sm text-slate-400 mb-10">我們已經為您更新了最新的帳務與積分資訊。</p>
-             
-             <button onClick={() => setShowWelcomeModal(false)} className="w-full py-6 bg-emerald-900 text-white rounded-3xl font-bold text-sm shadow-2xl shadow-emerald-900/20 hover:bg-emerald-800 transition">
-                進入儀表板
-             </button>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
 
-export default function Home() {
+export default function Dashboard() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-900" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>}>
       <DashboardContent />
     </Suspense>
   );

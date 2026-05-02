@@ -1,221 +1,257 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabase";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Phone, 
+  User, 
+  UserPlus, 
+  ArrowRight, 
+  Loader2, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Hash,
+  Sparkles,
+  AlertCircle,
+  XCircle
+} from "lucide-react";
 import Link from "next/link";
-import { User, Lock, Phone, Mail, Home, CreditCard, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 
-function RegisterForm() {
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    password: "",
-    email: "",
-    id_card_number: "",
-    address: "",
-    bank_code: "",
-    bank_account: "",
-    upline_id: "" 
+    referral_code: "",
+    password: ""
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uplineName, setUplineName] = useState<string | null>(null);
-
   useEffect(() => {
-    const phone = searchParams.get("phone") || "";
-    const ref = searchParams.get("ref") || "";
-    setFormData(prev => ({ ...prev, phone, upline_id: ref }));
-    
-    if (ref) {
-      fetchUpline(ref);
-    }
+    // 取得 URL 中的推薦碼並自動填入
+    const ref = searchParams.get("ref");
+    if (ref) setFormData(prev => ({ ...prev, referral_code: ref.trim().toUpperCase() }));
   }, [searchParams]);
-
-  const fetchUpline = async (ref: string) => {
-    const { data } = await supabase
-      .from("members")
-      .select("name, id")
-      .eq("referral_code", ref)
-      .maybeSingle();
-    
-    if (data) {
-      setUplineName(data.name);
-      setFormData(prev => ({ ...prev, upline_id: data.id }));
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
-    
-    setIsSubmitting(true);
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    // 隨機生成會員代碼與自己的推薦碼
+    const memberCode = `CR26M${Math.floor(100000 + Math.random() * 900000)}`;
+    const myReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     try {
-      // 1. 產生會員編碼與推薦碼
-      const now = new Date();
-      const year = now.getFullYear().toString().slice(-2);
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
-      
-      const { count } = await supabase
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", new Date(now.getFullYear(), now.getMonth(), 1).toISOString());
-        
-      const seq = String((count || 0) + 1).padStart(4, '0');
-      const memberCode = `CR${year}M${month}${seq}`;
-      const referralCode = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      let uplineId = null;
+      const refCode = formData.referral_code?.trim().toUpperCase();
 
-      // 2. 寫入資料庫
+      // 1. 處理推薦碼邏輯：確保只有當代碼非空時才去查詢
+      if (refCode && refCode !== "") {
+        const { data: upline, error: uplineErr } = await supabase
+          .from("members")
+          .select("id")
+          .eq("referral_code", refCode)
+          .single();
+        
+        if (uplineErr || !upline) {
+          setErrorMsg("找不到該推薦人代碼，請確認後再試一次。");
+          setIsLoading(false);
+          return;
+        }
+        uplineId = upline.id;
+      }
+
+      // 2. 執行註冊：明確處理 upline_id，確保絕不傳入空字串 ""
       const { data, error } = await supabase
-        .from('members')
+        .from("members")
         .insert({
-          ...formData,
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          password: formData.password,
+          referral_code: myReferralCode,
           member_code: memberCode,
-          referral_code: referralCode,
-          tier: '初潤寶寶',
+          upline_id: uplineId || null, // 極重要：如果是空就強制給 null
+          tier: "初潤寶寶",
           is_b2b: false,
-          points_balance: 0,
-          virtual_balance: 0,
           lifetime_spend: 0,
-          referral_count: 0
+          quarterly_spend: 0,
+          points_balance: 0,
+          virtual_balance: 0
         })
         .select()
         .single();
 
-      if (error) throw error;
-
-      // 3. 更新推薦人
-      if (formData.upline_id) {
-        const { data: upline } = await supabase
-          .from('members')
-          .select('referral_count')
-          .eq('id', formData.upline_id)
-          .single();
-        
-        if (upline) {
-          await supabase
-            .from('members')
-            .update({ referral_count: (upline.referral_count || 0) + 1 })
-            .eq('id', formData.upline_id);
+      if (error) {
+        // 處理資料庫拋出的錯誤
+        if (error.message.includes("unique_phone") || error.code === "23505") {
+          setErrorMsg("此手機號碼已被註冊過，請直接登入或更換號碼。");
+        } else if (error.message.includes("uuid")) {
+          setErrorMsg("系統參數格式異常 (UUID)，請聯繫客服。");
+        } else {
+          setErrorMsg(`註冊失敗: ${error.message}`);
         }
+      } else {
+        // 註冊成功，存入 LocalStorage
+        localStorage.setItem("churun_member_id", data.id);
+        localStorage.setItem("churun_member_name", data.name);
+        router.push("/");
       }
-
-      alert("🎉 註冊成功！歡迎加入初潤。");
-      localStorage.setItem("churun_member_id", data.id);
-      router.push("/");
     } catch (err: any) {
-      alert("註冊失敗: " + err.message);
+      console.error(err);
+      setErrorMsg("網路連線異常，請稍後再試。");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
   return (
-    <div className="min-h-screen bg-[#FDFBF7] py-12 px-6 font-sans">
-      <main className="max-w-md mx-auto bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] p-10 border border-slate-50 relative overflow-hidden">
-        
-        <div className="absolute top-0 left-0 -ml-16 -mt-16 w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-60"></div>
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6 relative overflow-hidden">
+      
+      {/* Background Orbs */}
+      <div className="absolute inset-0 pointer-events-none">
+         <motion.div 
+           animate={{ y: [0, -50, 0], x: [0, 30, 0] }}
+           transition={{ duration: 15, repeat: Infinity }}
+           className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-50/50 rounded-full blur-[120px]"
+         />
+         <motion.div 
+           animate={{ y: [0, 40, 0], x: [0, -20, 0] }}
+           transition={{ duration: 18, repeat: Infinity }}
+           className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-50/30 rounded-full blur-[100px]"
+         />
+      </div>
 
-        <div className="relative z-10 text-center mb-10">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">建立帳號</h2>
-          <p className="text-slate-400 mt-2 font-medium">填寫資料，開始您的初潤之旅</p>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xl relative z-10"
+      >
+        <div className="bg-white/80 backdrop-blur-3xl rounded-[4rem] p-12 lg:p-16 shadow-[0_32px_64px_-16px_rgba(6,78,59,0.08)] border border-white">
+           
+           <div className="flex justify-between items-start mb-16">
+              <div className="space-y-4">
+                 <div className="w-16 h-16 bg-emerald-900 rounded-[2rem] flex items-center justify-center shadow-xl shadow-emerald-900/20">
+                    <UserPlus className="w-8 h-8 text-white" />
+                 </div>
+                 <h1 className="text-4xl font-black text-slate-900 tracking-tight">加入初潤</h1>
+                 <p className="text-sm text-slate-400 font-medium">成為初潤會員，開啟您的專屬權益</p>
+              </div>
+              <Link href="/login" className="px-6 py-3 bg-slate-50 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition">
+                 已有帳號？
+              </Link>
+           </div>
+
+           <form onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">姓名</label>
+                 <div className="relative">
+                    <User className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
+                    <input name="name" type="text" value={formData.name} onChange={handleChange} placeholder="您的姓名" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" required />
+                 </div>
+              </div>
+
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">手機號碼</label>
+                 <div className="relative">
+                    <Phone className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
+                    <input name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="0912345678" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" required />
+                 </div>
+              </div>
+
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">自訂密碼</label>
+                 <div className="relative">
+                    <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
+                    <input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="請輸入密碼" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" required />
+                 </div>
+              </div>
+
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">推薦代碼 (選填)</label>
+                 <div className="relative">
+                    <Hash className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
+                    <input name="referral_code" type="text" value={formData.referral_code} onChange={handleChange} placeholder="REFCODE" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" />
+                 </div>
+              </div>
+
+              <div className="md:col-span-2 pt-6">
+                 <motion.button 
+                   whileHover={{ scale: 1.02 }}
+                   whileTap={{ scale: 0.98 }}
+                   disabled={isLoading}
+                   type="submit" 
+                   className="w-full bg-emerald-900 text-white p-7 rounded-[2.5rem] font-black text-sm tracking-[0.2em] flex items-center justify-center gap-4 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
+                 >
+                    {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                      <>
+                        立即完成註冊 <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                      </>
+                    )}
+                 </motion.button>
+              </div>
+           </form>
+
+           <div className="mt-12 flex justify-center gap-8">
+              <div className="flex items-center gap-2">
+                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">隱私保護</span>
+              </div>
+              <div className="flex items-center gap-2">
+                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">條款同意</span>
+              </div>
+           </div>
         </div>
+      </motion.div>
 
-        {uplineName && (
-          <div className="relative z-10 bg-emerald-50 border border-emerald-100 p-4 rounded-2xl mb-8 flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-200 rounded-full flex items-center justify-center text-emerald-700">
-               <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">推薦人</p>
-              <p className="text-sm font-bold text-emerald-800">{uplineName}</p>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="space-y-6 relative z-10">
-          <div className="space-y-4">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">基本帳戶資訊</p>
-             
-             <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-widest">真實姓名</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <input name="name" value={formData.name} onChange={handleChange} required className="w-full bg-slate-50 border-none p-4 pl-11 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 transition" placeholder="王小明" />
-                </div>
-             </div>
-
-             <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-widest">手機號碼</label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <input name="phone" value={formData.phone} onChange={handleChange} required className="w-full bg-slate-50 border-none p-4 pl-11 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 transition" placeholder="0912 345 678" />
-                </div>
-             </div>
-
-             <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase tracking-widest">設定密碼</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <input name="password" type="password" value={formData.password} onChange={handleChange} required className="w-full bg-slate-50 border-none p-4 pl-11 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 transition" placeholder="設定登入密碼" />
-                </div>
-             </div>
-          </div>
-
-          <div className="space-y-4 pt-6 border-t border-slate-50">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">進階資訊 (選填)</p>
-             
-             <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <input name="email" value={formData.email} onChange={handleChange} placeholder="電子郵件" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-2xl text-sm font-medium" />
-             </div>
-
-             <div className="relative">
-                <Home className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                <input name="address" value={formData.address} onChange={handleChange} placeholder="通訊地址" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-2xl text-sm font-medium" />
-             </div>
-
-             <div className="grid grid-cols-2 gap-3">
-                <input name="bank_code" value={formData.bank_code} onChange={handleChange} placeholder="銀行代碼" className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-medium" />
-                <input name="bank_account" value={formData.bank_account} onChange={handleChange} placeholder="銀行帳號" className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-medium" />
-             </div>
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-sm hover:bg-slate-800 transition shadow-2xl shadow-slate-900/10 flex items-center justify-center gap-2 mt-8"
+      {/* Premium Error Modal */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-6"
           >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>完成註冊 <ArrowRight className="w-4 h-4" /></>}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center relative z-10">
-          <p className="text-slate-400 text-sm">
-            已經有帳號了？{" "}
-            <Link href="/login" className="text-emerald-700 font-bold hover:underline">
-              立即登入
-            </Link>
-          </p>
-        </div>
-      </main>
+             <motion.div 
+               initial={{ scale: 0.9, y: 20 }}
+               animate={{ scale: 1, y: 0 }}
+               exit={{ scale: 0.9, y: 20 }}
+               className="bg-white rounded-[3rem] p-12 w-full max-w-sm text-center shadow-2xl relative overflow-hidden"
+             >
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-rose-50 rounded-full blur-3xl opacity-50"></div>
+                <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                   <AlertCircle className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-4">註冊遇到問題</h3>
+                <p className="text-sm text-slate-500 mb-10 leading-relaxed">{errorMsg}</p>
+                <button 
+                  onClick={() => setErrorMsg(null)}
+                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition"
+                >
+                  返回修改
+                </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-export default function RegisterPage() {
+export default function Register() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-900" /></div>}>
-      <RegisterForm />
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>}>
+      <RegisterContent />
     </Suspense>
   );
 }

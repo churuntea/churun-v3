@@ -1,19 +1,75 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 253, 251, 247;
+  --background-end-rgb: 255, 255, 255;
+  
+  --primary-emerald: 6, 78, 59;
+  --accent-gold: 234, 179, 8;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Premium Glassmorphism Utilities */
+@layer components {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+  }
+
+  .glass-card {
+    @apply bg-white/40 backdrop-blur-xl border border-white/30 shadow-[0_4px_16px_0_rgba(31,38,135,0.05)];
+  }
+
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500;
+  }
+}
+
+.bg-mesh-emerald {
+  background-color: #064e3b;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(161, 80%, 30%, 1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(170, 70%, 40%, 1) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(180, 60%, 30%, 1) 0, transparent 50%);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth Page Transitions Helper */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 500ms, transform 500ms;
 }
