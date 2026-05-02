@@ -1,18 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
-export async function POST(request: Request) {
-  // 這個 API 預計會在每月的 5 號與 20 號被 Cron Job 呼叫
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'secret'}`) {
-    // 測試用，先不擋
-  }
-
+async function performSettlement() {
   try {
     // 找出所有狀態為 'pending' 的虛擬帳戶交易 (例如尚未結算的退傭)
-    // 根據企劃書：「差價利潤即時退回虛擬帳戶。每月 5 號與 20 號結算匯款。」
-    // 這裡我們模擬將 'pending' 轉為 'completed'
-    
     const { data: pendingTx, error: fetchError } = await supabase
       .from('wallet_transactions')
       .select('id')
@@ -21,7 +12,7 @@ export async function POST(request: Request) {
     if (fetchError) throw fetchError;
 
     if (!pendingTx || pendingTx.length === 0) {
-      return NextResponse.json({ message: 'No pending transactions to settle.' });
+      return { success: true, message: 'No pending transactions to settle.' };
     }
 
     const txIds = pendingTx.map(tx => tx.id);
@@ -33,12 +24,24 @@ export async function POST(request: Request) {
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ 
+    return { 
       success: true, 
       message: `Successfully settled ${txIds.length} transactions.` 
-    });
+    };
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return { success: false, error: error.message };
   }
+}
+
+export async function POST(request: Request) {
+  const result = await performSettlement();
+  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
+}
+
+export async function GET() {
+  const result = await performSettlement();
+  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
 }

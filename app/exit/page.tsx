@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
+import { 
+  ChevronLeft, 
+  ShieldAlert, 
+  FileText, 
+  AlertCircle, 
+  ArrowRight, 
+  Loader2,
+  CheckCircle2,
+  History,
+  Info
+} from "lucide-react";
 
-export default function Exit() {
+function ExitContent() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -39,7 +50,6 @@ export default function Exit() {
         return;
       }
 
-      // Fetch simulation
       try {
         const res = await fetch('/api/b2b/exit', {
           method: 'POST',
@@ -50,9 +60,7 @@ export default function Exit() {
         if (result.success) {
           setSimulation(result.details);
         }
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
       setIsLoading(false);
     };
     fetchUser();
@@ -60,8 +68,7 @@ export default function Exit() {
 
   const handleApplyExit = async () => {
     if (!currentUserId) return;
-    const confirmed = confirm("退出申請送出後，將無法再享有 B2B 專屬的批發價與對碰獎金，且須等候總部審核。確定要送出申請嗎？");
-    if (!confirmed) return;
+    if (!confirm("⚠️ 退出申請送出後，將無法再享有 B2B 專屬權益，且須等候總部審核。確定要送出申請嗎？")) return;
 
     setIsSubmitting(true);
     try {
@@ -77,92 +84,112 @@ export default function Exit() {
       } else {
         alert("申請失敗: " + data.error);
       }
-    } catch (err) {
-      alert("系統錯誤");
-    }
+    } catch (err) { alert("系統錯誤"); }
     setIsSubmitting(false);
   };
 
-  if (isLoading || !memberInfo) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">載入中...</div>;
+  if (isLoading || !memberInfo) return (
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-emerald-900" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-800 font-sans pb-24">
-      {/* 頂部導覽列 */}
-      <nav className="bg-slate-900 text-white sticky top-0 z-50 p-4 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-3">
-          <Link href="/organization">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-          </Link>
-          <h1 className="text-lg font-medium tracking-widest">無憂退出申請</h1>
-        </div>
+    <div className="min-h-screen bg-[#FDFBF7] pb-24">
+      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-4 flex items-center gap-4 max-w-lg mx-auto">
+        <button onClick={() => router.push("/organization")} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 transition">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">無憂退出申請</h1>
       </nav>
 
-      <main className="p-5 max-w-md mx-auto space-y-6 mt-4">
+      <main className="p-6 max-w-lg mx-auto space-y-8 mt-2">
+        
         {memberInfo.status === 'exit_pending' ? (
-          <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-amber-800 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <h2 className="text-lg font-semibold mb-2">您的退出申請正在審核中</h2>
-            <p className="text-sm">總部正在為您核算最終退款金額，請耐心等候。</p>
+          <div className="bg-amber-50 rounded-[3rem] p-12 text-center border border-amber-100/50 shadow-sm space-y-6">
+             <div className="w-20 h-20 bg-amber-400 rounded-full flex items-center justify-center mx-auto text-white shadow-xl shadow-amber-400/20">
+                <History className="w-10 h-10" />
+             </div>
+             <div>
+                <h2 className="text-xl font-bold text-amber-900">審核程序中</h2>
+                <p className="text-xs text-amber-700/60 mt-2 leading-relaxed">總部正在為您核算最終退款金額，<br/>請留意手機通知或客服訊息。</p>
+             </div>
           </div>
         ) : memberInfo.status === 'exited' ? (
-          <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-emerald-800 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <h2 className="text-lg font-semibold mb-2">您已完成退出程序</h2>
-            <p className="text-sm">感謝您過去的參與，若有任何問題請聯繫客服。</p>
+          <div className="bg-emerald-50 rounded-[3rem] p-12 text-center border border-emerald-100/50 shadow-sm space-y-6">
+             <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto text-white shadow-xl shadow-emerald-500/20">
+                <CheckCircle2 className="w-10 h-10" />
+             </div>
+             <div>
+                <h2 className="text-xl font-bold text-emerald-900">已完成退出</h2>
+                <p className="text-xs text-emerald-700/60 mt-2 leading-relaxed">感謝您過去的參與，您的夥伴帳號已正式結案。</p>
+             </div>
           </div>
         ) : simulation ? (
           <>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-medium text-slate-800 mb-6">財務試算報告</h2>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <div>
-                    <p className="text-sm text-slate-500">當前虛擬帳戶餘額</p>
-                    <p className="text-xs text-slate-400 mt-1">您尚未使用的預收款</p>
+            <section className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+               
+               <div className="relative z-10 flex items-center gap-4 mb-10">
+                  <FileText className="w-6 h-6 text-indigo-400" />
+                  <h3 className="text-lg font-black tracking-tight">結算財務報告</h3>
+               </div>
+
+               <div className="space-y-6 relative z-10">
+                  <div className="flex justify-between items-center opacity-80">
+                     <span className="text-xs font-medium">預收款餘額</span>
+                     <span className="font-mono font-bold">${Number(simulation.virtualBalance).toLocaleString()}</span>
                   </div>
-                  <span className="font-medium text-slate-800">${Number(simulation.virtualBalance).toLocaleString()}</span>
-                </div>
-
-                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <div>
-                    <p className="text-sm text-slate-500">已領取之退傭總額</p>
-                    <p className="text-xs text-slate-400 mt-1">提領商品之原價價差補償需扣回</p>
+                  <div className="flex justify-between items-center text-rose-400">
+                     <span className="text-xs font-medium">需扣回之獎金總額</span>
+                     <span className="font-mono font-bold">-${Number(simulation.totalCommissionReceived).toLocaleString()}</span>
                   </div>
-                  <span className="font-medium text-red-500">-${Number(simulation.totalCommissionReceived).toLocaleString()}</span>
-                </div>
-
-                <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <div>
-                    <p className="text-sm text-slate-500">行政數位設定成本</p>
-                    <p className="text-xs text-slate-400 mt-1">無憂退出固定手續費</p>
+                  <div className="flex justify-between items-center text-rose-400">
+                     <span className="text-xs font-medium">行政手續費</span>
+                     <span className="font-mono font-bold">-${Number(simulation.adminFee).toLocaleString()}</span>
                   </div>
-                  <span className="font-medium text-red-500">-${Number(simulation.adminFee).toLocaleString()}</span>
-                </div>
-              </div>
+                  
+                  <div className="pt-8 border-t border-white/10 flex justify-between items-end">
+                     <p className="text-xs font-black uppercase tracking-[0.2em] text-white/40">預計退還總額</p>
+                     <p className="text-4xl font-black tracking-tighter text-emerald-400">${Number(simulation.finalRefundAmount).toLocaleString()}</p>
+                  </div>
+               </div>
+            </section>
 
-              <div className="mt-6 pt-6 border-t-2 border-slate-900 flex justify-between items-end">
-                <p className="text-sm font-medium text-slate-800">試算可退還金額</p>
-                <span className="text-3xl font-light text-slate-900">${Number(simulation.finalRefundAmount).toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div className="bg-red-50 text-red-800 p-4 rounded-xl text-xs leading-relaxed border border-red-100">
-              ⚠️ **請注意：** 送出退出申請後，您的 B2B 創業夥伴資格將被暫停，系統會停止計算您的對碰獎金，且無法再登入「大宗批發專區」。總部審核通過後，上述金額將匯入您綁定的實體銀行帳戶。
+            <div className="bg-rose-50 rounded-[2rem] p-6 border border-rose-100 flex items-start gap-4">
+               <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+               <p className="text-[10px] text-rose-700 leading-relaxed font-bold">
+                 退出申請送出後，您的 B2B 創業夥伴資格將立即暫停。總部核算後會將款項匯入您綁定的實體銀行帳戶，此動作無法復原。
+               </p>
             </div>
 
             <button 
               onClick={handleApplyExit}
               disabled={isSubmitting}
-              className="w-full relative bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-medium transition flex items-center justify-center shadow-lg shadow-slate-900/20 disabled:opacity-50"
+              className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-sm hover:bg-slate-800 transition shadow-2xl shadow-slate-900/10 flex items-center justify-center gap-3"
             >
-              {isSubmitting ? "送出中..." : "確認並送出退出申請"}
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>確認並送出申請 <ArrowRight className="w-4 h-4" /></>}
             </button>
           </>
         ) : (
-          <div className="text-center text-slate-500">無法載入試算資料</div>
+          <div className="text-center py-20 bg-white rounded-[3rem] border border-slate-50">
+             <Loader2 className="w-8 h-8 animate-spin text-slate-200 mx-auto" />
+          </div>
         )}
+
+        <div className="flex items-center gap-2 justify-center px-6">
+           <Info className="w-3 h-3 text-slate-300" />
+           <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">如有疑問請聯繫夥伴專屬客服</p>
+        </div>
       </main>
     </div>
+  );
+}
+
+export default function Exit() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-900" /></div>}>
+      <ExitContent />
+    </Suspense>
   );
 }

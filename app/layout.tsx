@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "初潤製茶所 - 會員中心",
-  description: "初潤製茶所會員中心與獎金系統",
+  title: "CHURUN-MEMBER | 初潤製茶所",
+  description: "CHURUN-MEMBER 初潤製茶所會員中心與數位營運系統",
 };
 
 export default function RootLayout({

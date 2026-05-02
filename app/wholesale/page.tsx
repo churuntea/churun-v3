@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
+import { 
+  ChevronLeft, 
+  Package, 
+  CheckCircle2, 
+  LayoutDashboard, 
+  ShoppingBag, 
+  Plus, 
+  Zap, 
+  User, 
+  Loader2,
+  Image as ImageIcon,
+  CreditCard,
+  ArrowRight
+} from "lucide-react";
 
-export default function Wholesale() {
+function WholesaleContent() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -44,8 +58,7 @@ export default function Wholesale() {
       return;
     }
 
-    const confirmed = confirm(`確定要下單 ${quantity} 盒嗎？系統將從您的虛擬帳戶扣除款項。`);
-    if (!confirmed) return;
+    if (!confirm(`確定要下單 ${quantity} 盒嗎？系統將從您的虛擬帳戶扣除款項。`)) return;
 
     setIsSubmitting(true);
     try {
@@ -66,103 +79,154 @@ export default function Wholesale() {
       } else {
         alert("下單失敗: " + data.error);
       }
-    } catch (err) {
-      alert("系統錯誤");
-    }
+    } catch (err) { alert("系統錯誤"); }
     setIsSubmitting(false);
   };
 
-  if (!memberInfo) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">載入中...</div>;
+  if (!memberInfo) return (
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-emerald-900" />
+    </div>
+  );
+
+  const orderTotal = quantity === 100 ? 32900 : 89100;
+  const balanceAfter = Number(memberInfo.virtual_balance) - orderTotal;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-800 font-sans pb-24">
-      {/* 頂部導覽列 */}
-      <nav className="bg-indigo-900 text-white sticky top-0 z-50 p-4 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-          </Link>
-          <h1 className="text-lg font-medium tracking-widest">大宗批發專區</h1>
-        </div>
+    <div className="min-h-screen bg-[#FDFBF7] pb-32">
+      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-4 flex items-center gap-4 max-w-lg mx-auto">
+        <button onClick={() => router.push("/")} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 transition">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">大宗批發專區</h1>
       </nav>
 
-      <main className="p-5 max-w-md mx-auto space-y-6 mt-4">
+      <main className="p-6 max-w-lg mx-auto space-y-8 mt-2">
         
-        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-indigo-800 text-sm">
-          💡 **創業夥伴專屬**：單筆下單滿 100 盒享批發價 73 折；滿 300 盒享尊榮價 66 折，並**免費提供專屬 LOGO 客製化輸出服務**！
-        </div>
-
-        <section className="space-y-4">
-          <h3 className="font-semibold text-slate-700">選擇批發數量</h3>
-          
-          <label className={`block p-4 rounded-2xl border-2 cursor-pointer transition ${quantity === 100 ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-indigo-200'}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <input type="radio" name="qty" checked={quantity === 100} onChange={() => setQuantity(100)} className="text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
-                <div>
-                  <h4 className="font-medium text-slate-800">100 盒 (一般批發)</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">每盒 $329 (原價 $450)</p>
-                </div>
+        {/* Banner */}
+        <section className="bg-indigo-900 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/20">
+           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
+           <div className="relative z-10 flex items-center gap-6">
+              <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md">
+                 <Package className="w-8 h-8 text-indigo-200" />
               </div>
-              <span className="font-semibold text-indigo-700">$32,900</span>
-            </div>
-          </label>
-
-          <label className={`block p-4 rounded-2xl border-2 cursor-pointer transition ${quantity === 300 ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-indigo-200'}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <input type="radio" name="qty" checked={quantity === 300} onChange={() => setQuantity(300)} className="text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
-                <div>
-                  <h4 className="font-medium text-slate-800">300 盒 (尊榮客製)</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">每盒 $297 (原價 $450)</p>
-                </div>
+              <div>
+                 <h2 className="text-xl font-bold tracking-tight">批量進貨中心</h2>
+                 <p className="text-xs text-white/40 mt-1">單筆滿額享 66 折優惠，專屬 LOGO 客製化服務。</p>
               </div>
-              <span className="font-semibold text-indigo-700">$89,100</span>
-            </div>
-            
-            {quantity === 300 && (
-              <div className="mt-4 pt-4 border-t border-indigo-200/50 animate-fade-in-down">
-                <label className="text-xs font-medium text-indigo-800 flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  專屬 LOGO 客製化資訊
-                </label>
-                <textarea 
-                  value={customLogo}
-                  onChange={(e) => setCustomLogo(e.target.value)}
-                  placeholder="請貼上您的 LOGO 圖檔網址，或描述您的客製化文字需求..."
-                  className="w-full mt-2 bg-white border border-indigo-200 p-3 rounded-xl text-sm focus:outline-none focus:border-indigo-500 min-h-[80px]"
-                />
-              </div>
-            )}
-          </label>
+           </div>
         </section>
 
-        <section className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-500">目前虛擬餘額</span>
-            <span className="font-medium text-slate-700">${Number(memberInfo.virtual_balance).toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm mb-4">
-            <span className="text-slate-500">本次訂單總額</span>
-            <span className="font-medium text-red-500">-${(quantity === 100 ? 32900 : 89100).toLocaleString()}</span>
-          </div>
-          <div className="pt-3 border-t border-gray-100 flex justify-between font-semibold">
-            <span className="text-slate-800">結帳後餘額</span>
-            <span className={Number(memberInfo.virtual_balance) - (quantity === 100 ? 32900 : 89100) < 0 ? "text-red-500" : "text-emerald-600"}>
-              ${(Number(memberInfo.virtual_balance) - (quantity === 100 ? 32900 : 89100)).toLocaleString()}
-            </span>
-          </div>
+        {/* Wholesale Selection */}
+        <div className="space-y-4">
+           <div className="flex justify-between items-center px-2">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">選擇批發方案</h3>
+           </div>
+
+           <div className="grid grid-cols-1 gap-4">
+              {[
+                { qty: 100, label: "100 盒 (一般批發)", price: "32,900", unit: "329" },
+                { qty: 300, label: "300 盒 (尊榮客製)", price: "89,100", unit: "297", featured: true }
+              ].map((item) => (
+                <div 
+                  key={item.qty}
+                  onClick={() => setQuantity(item.qty)}
+                  className={`p-8 rounded-[2.5rem] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden ${quantity === item.qty ? 'border-indigo-600 bg-white shadow-2xl shadow-indigo-600/10' : 'border-slate-100 bg-white hover:border-indigo-200'}`}
+                >
+                   {item.featured && (
+                      <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-bl-2xl">
+                         Best Value
+                      </div>
+                   )}
+                   <div className="flex justify-between items-start">
+                      <div className="space-y-2">
+                         <h4 className={`font-black text-lg ${quantity === item.qty ? 'text-indigo-900' : 'text-slate-800'}`}>{item.label}</h4>
+                         <p className="text-xs text-slate-400 font-medium">每盒約 ${item.unit} (零售價 $450)</p>
+                      </div>
+                      <div className="text-right">
+                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">總金額</p>
+                         <p className={`text-xl font-black ${quantity === item.qty ? 'text-indigo-600' : 'text-slate-700'}`}>${item.price}</p>
+                      </div>
+                   </div>
+
+                   {quantity === item.qty && item.qty === 300 && (
+                      <div className="mt-8 pt-8 border-t border-slate-50 animate-in slide-in-from-top-4">
+                         <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2 mb-4">
+                            <ImageIcon className="w-3 h-3" /> 專屬客製化需求
+                         </label>
+                         <textarea 
+                           value={customLogo}
+                           onChange={(e) => setCustomLogo(e.target.value)}
+                           placeholder="請描述您的客製化 LOGO 需求或提供圖片連結..."
+                           className="w-full bg-slate-50 border-none p-5 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/10 min-h-[100px] transition"
+                         />
+                      </div>
+                   )}
+                </div>
+              ))}
+           </div>
+        </div>
+
+        {/* Checkout Summary */}
+        <section className="bg-white rounded-[2.5rem] p-8 shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-slate-50 space-y-6">
+           <div className="flex justify-between items-center text-sm">
+              <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">當前餘額</span>
+              <span className="font-mono font-bold text-slate-700">${Number(memberInfo.virtual_balance).toLocaleString()}</span>
+           </div>
+           <div className="flex justify-between items-center text-sm">
+              <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">訂單總計</span>
+              <span className="font-mono font-bold text-rose-500">-${orderTotal.toLocaleString()}</span>
+           </div>
+           <div className="pt-6 border-t border-slate-50 flex justify-between items-center">
+              <span className="font-black text-slate-800 text-sm">預計剩餘餘額</span>
+              <span className={`font-mono text-lg font-black ${balanceAfter < 0 ? "text-rose-500" : "text-emerald-600"}`}>
+                ${balanceAfter.toLocaleString()}
+              </span>
+           </div>
         </section>
 
         <button 
           onClick={handleSubmit}
-          disabled={isSubmitting || Number(memberInfo.virtual_balance) < (quantity === 100 ? 32900 : 89100)}
-          className="w-full relative bg-indigo-900 hover:bg-indigo-800 text-white py-4 rounded-xl font-medium transition flex items-center justify-center shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSubmitting || balanceAfter < 0}
+          className="w-full bg-slate-900 text-white py-6 rounded-3xl font-bold text-sm hover:bg-slate-800 transition shadow-2xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50"
         >
-          {isSubmitting ? "處理中..." : "確認扣款並送出訂單"}
+          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-5 h-5" /> 確認扣款並送出訂單 <ArrowRight className="w-4 h-4" /></>}
         </button>
 
       </main>
+
+      {/* Bottom Nav */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
+            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <LayoutDashboard className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">首頁</span>
+            </Link>
+            <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <ShoppingBag className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">商城</span>
+            </Link>
+            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7]">
+               <Plus className="w-6 h-6 text-white" />
+            </div>
+            <Link href="/organization" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <Zap className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">組織</span>
+            </Link>
+            <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <User className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">我的</span>
+            </Link>
+         </div>
+      </div>
     </div>
+  );
+}
+
+export default function Wholesale() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-900" /></div>}>
+      <WholesaleContent />
+    </Suspense>
   );
 }

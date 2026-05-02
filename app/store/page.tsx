@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
+import { 
+  ShoppingBag, 
+  ChevronRight, 
+  LayoutDashboard, 
+  Zap, 
+  User, 
+  Plus, 
+  Loader2,
+  CheckCircle2,
+  Gift,
+  Star
+} from "lucide-react";
 
 const STORE_ITEMS = [
   { id: 1, name: "初潤黑金特製保溫瓶", points: 300, image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80" },
@@ -11,7 +23,7 @@ const STORE_ITEMS = [
   { id: 3, name: "品牌限量帆布袋", points: 150, image: "https://images.unsplash.com/photo-1597554904261-0d359b3fb07c?w=500&q=80" }
 ];
 
-export default function Store() {
+function StoreContent() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -46,8 +58,7 @@ export default function Store() {
       return;
     }
 
-    const confirmed = confirm(`確定要花費 ${item.points} 點兌換「${item.name}」嗎？`);
-    if (!confirmed) return;
+    if (!confirm(`確定要花費 ${item.points} 點兌換「${item.name}」嗎？`)) return;
 
     setIsRedeeming(true);
     try {
@@ -59,78 +70,114 @@ export default function Store() {
       const data = await res.json();
       
       if (data.success) {
-        alert("兌換成功！商品將寄送至您的預設地址。");
-        fetchUser(); // 重新抓取餘額
+        alert("🎉 兌換成功！商品將寄送至您的預設地址。");
+        fetchUser();
       } else {
         alert("兌換失敗: " + data.error);
       }
-    } catch (err) {
-      alert("系統錯誤");
-    }
+    } catch (err) { alert("系統錯誤"); }
     setIsRedeeming(false);
   };
 
+  if (!memberInfo) return (
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-emerald-900" />
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-800 font-sans pb-24">
-      {/* 頂部導覽列 */}
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 p-4 flex justify-between items-center">
-        <h1 className="text-lg font-medium tracking-widest text-slate-700">點數換購商城</h1>
+    <div className="min-h-screen bg-[#FDFBF7] pb-32">
+      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-4 flex justify-between items-center max-w-lg mx-auto">
+        <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">點數商城</h1>
+        <div className="bg-emerald-50 px-3 py-1.5 rounded-full flex items-center gap-2">
+           <Star className="w-3 h-3 text-emerald-600 fill-current" />
+           <span className="text-xs font-black text-emerald-700">{memberInfo.points_balance} PTS</span>
+        </div>
       </nav>
 
-      <main className="p-5 max-w-md mx-auto space-y-6">
-        {memberInfo && !memberInfo.is_b2b ? (
-          <div className="bg-emerald-800 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-emerald-500/30 blur-2xl"></div>
-            <p className="text-white/70 text-sm mb-1 relative z-10">目前可用點數</p>
-            <h3 className="text-4xl font-light relative z-10">{memberInfo.points_balance} <span className="text-lg">pts</span></h3>
-          </div>
-        ) : (
-          <div className="bg-slate-200 text-slate-500 p-6 rounded-3xl text-center text-sm">
-            B2B 創業夥伴無法使用點數換購商城。
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          {STORE_ITEMS.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col">
-              <div className="h-32 w-full bg-slate-100">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+      <main className="max-w-lg mx-auto p-6 space-y-8 mt-2">
+        
+        {/* Banner */}
+        <section className="bg-slate-900 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-900/20">
+           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
+           <div className="relative z-10 flex items-center gap-6">
+              <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md">
+                 <Gift className="w-8 h-8 text-amber-400" />
               </div>
-              <div className="p-3 flex flex-col flex-1">
-                <h4 className="font-medium text-sm text-slate-800 mb-1 leading-tight">{item.name}</h4>
-                <p className="text-emerald-600 font-semibold text-sm mb-3 mt-auto">{item.points} 點</p>
+              <div>
+                 <h2 className="text-xl font-bold tracking-tight">專屬好禮兌換</h2>
+                 <p className="text-xs text-white/40 mt-1">使用消費累積的點數，帶走品牌限量周邊。</p>
+              </div>
+           </div>
+        </section>
+
+        {/* Store Items Grid */}
+        <div className="grid grid-cols-2 gap-6">
+          {STORE_ITEMS.map((item) => (
+            <div key={item.id} className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-slate-50 flex flex-col group hover:border-emerald-100 transition duration-500">
+              <div className="h-40 w-full bg-slate-50 relative overflow-hidden">
+                <img src={item.image} alt={item.name} className="w-full h-full object-cover transition duration-700 group-hover:scale-110" />
+                <div className="absolute top-4 left-4">
+                   <div className="bg-white/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black text-emerald-800 shadow-sm">
+                      {item.points} PTS
+                   </div>
+                </div>
+              </div>
+              <div className="p-5 flex flex-col flex-1">
+                <h4 className="font-bold text-slate-800 text-sm mb-4 leading-tight min-h-[2.5rem]">{item.name}</h4>
                 <button 
                   onClick={() => handleRedeem(item)}
-                  disabled={isRedeeming || !memberInfo || memberInfo.is_b2b || memberInfo.points_balance < item.points}
-                  className="w-full py-2 rounded-xl text-xs font-medium transition disabled:bg-slate-100 disabled:text-slate-400 bg-slate-900 text-white hover:bg-slate-800"
+                  disabled={isRedeeming || memberInfo.is_b2b || memberInfo.points_balance < item.points}
+                  className="w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition disabled:bg-slate-50 disabled:text-slate-300 bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10 active:scale-95"
                 >
-                  立即兌換
+                  {isRedeeming ? "處理中..." : "立即兌換"}
                 </button>
               </div>
             </div>
           ))}
         </div>
+
+        {memberInfo.is_b2b && (
+           <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100/50 text-center">
+              <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                 溫馨提示：B2B 創業夥伴不適用點數兌換商城，<br/>您的獎金已全數回饋至虛擬帳戶餘額。
+              </p>
+           </div>
+        )}
       </main>
 
-      {/* 底部導覽列 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 p-3 flex justify-around items-center max-w-md mx-auto">
-        <Link href="/" className="text-slate-400 hover:text-slate-600 transition flex flex-col items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-          <span className="text-[10px] mt-1">首頁</span>
-        </Link>
-        <Link href="/organization" className="text-slate-400 hover:text-slate-600 transition flex flex-col items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-          <span className="text-[10px] mt-1">組織</span>
-        </Link>
-        <Link href="/materials" className="text-slate-400 hover:text-slate-600 transition flex flex-col items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-          <span className="text-[10px] mt-1">素材</span>
-        </Link>
-        <Link href="/store" className="text-slate-800 flex flex-col items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-          <span className="text-[10px] mt-1 font-medium">商城</span>
-        </Link>
+      {/* Bottom Nav */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
+            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <LayoutDashboard className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">首頁</span>
+            </Link>
+            <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white">
+               <ShoppingBag className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">商城</span>
+            </Link>
+            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7]">
+               <Plus className="w-6 h-6 text-white" />
+            </div>
+            <Link href="/organization" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <Zap className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">組織</span>
+            </Link>
+            <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
+               <User className="w-5 h-5" />
+               <span className="text-[8px] font-black uppercase tracking-[0.2em]">我的</span>
+            </Link>
+         </div>
       </div>
     </div>
+  );
+}
+
+export default function Store() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-900" /></div>}>
+      <StoreContent />
+    </Suspense>
   );
 }
