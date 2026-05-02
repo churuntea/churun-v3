@@ -82,14 +82,14 @@ export default function AdminDashboard() {
   };
 
   const runEvaluateTiers = async () => {
-    const confirmed = confirm("即將掃描全體 B2C 會員並更新階級，確定執行？");
+    const confirmed = confirm("即將掃描全體會員並更新階級，確定執行？");
     if (!confirmed) return;
     
     setIsProcessing(true);
     try {
-      const res = await fetch('/api/cron/evaluate-tiers');
+      const res = await fetch('/api/cron/evaluate-tiers', { method: 'POST' });
       const data = await res.json();
-      alert(data.message);
+      alert(data.message || data.error);
     } catch (err) {
       alert("執行失敗");
     }
@@ -102,9 +102,9 @@ export default function AdminDashboard() {
     
     setIsProcessing(true);
     try {
-      const res = await fetch('/api/cron/settlement');
+      const res = await fetch('/api/cron/settlement', { method: 'POST' });
       const data = await res.json();
-      alert(data.message);
+      alert(data.message || data.error);
       fetchStats(); // 重新抓取數據
     } catch (err) {
       alert("執行失敗");
@@ -179,8 +179,8 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <div>
-                <h4 className="font-medium text-slate-800">執行八階滾動考核 (B2C)</h4>
-                <p className="text-xs text-slate-500 mt-1">系統將掃描全體 B2C 會員的直推人數與累積消費，並重新計算其所屬階級。</p>
+                <h4 className="font-medium text-slate-800">執行全體階級考核</h4>
+                <p className="text-xs text-slate-500 mt-1">系統將掃描全體會員的直推人數與累積消費，並重新計算其所屬階級。</p>
               </div>
               <button 
                 onClick={runEvaluateTiers}
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <div>
-                <h4 className="font-medium text-slate-800">執行雙週結算 (B2B)</h4>
+                <h4 className="font-medium text-slate-800">執行獎金結算</h4>
                 <p className="text-xs text-slate-500 mt-1">將所有超過 14 天鑑賞期的 pending 獎金轉為 completed，正式發放至虛擬帳戶。</p>
               </div>
               <button 

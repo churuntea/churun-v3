@@ -85,7 +85,7 @@ export default function Profile() {
     const confirmed = confirm("確定要登出嗎？");
     if (confirmed) {
       localStorage.removeItem("churun_member_id");
-      router.replace("/login");
+      router.replace("/");
     }
   };
 
@@ -126,12 +126,12 @@ export default function Profile() {
               <span className="font-mono text-sm tracking-wider">{memberInfo.member_code || '處理中...'}</span>
             </div>
             <div className="bg-black/20 p-3 rounded-xl backdrop-blur-sm flex justify-between items-center border border-white/10">
-              <span className="text-xs text-white/60">手機號碼</span>
-              <span className="font-mono text-sm tracking-wider">{memberInfo.phone}</span>
+              <span className="text-xs text-white/60">專屬推薦碼</span>
+              <span className="font-mono text-sm font-bold text-amber-400 tracking-widest">{memberInfo.referral_code || '無'}</span>
             </div>
             <div className="bg-black/20 p-3 rounded-xl backdrop-blur-sm flex justify-between items-center border border-white/10">
-              <span className="text-xs text-white/60">註冊日期</span>
-              <span className="text-sm">{new Date(memberInfo.created_at).toLocaleDateString()}</span>
+              <span className="text-xs text-white/60">手機號碼</span>
+              <span className="font-mono text-sm tracking-wider">{memberInfo.phone}</span>
             </div>
           </div>
         </section>

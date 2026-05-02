@@ -31,6 +31,7 @@ CREATE TABLE public.members (
     address TEXT,                                                    -- 通訊地址 (預設收件)
     line_id TEXT,                                                    -- LINE ID (聯絡/社群用)
     beneficiary TEXT,                                                -- 法定繼承人/受益人 (直銷世襲用)
+    password TEXT,                                                   -- 登入密碼 (自管)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
 
@@ -92,7 +93,7 @@ CREATE POLICY "Allow public update access on members" ON public.members FOR UPDA
 -- 6. 商品 (Products)
 DROP TABLE IF EXISTS products;
 CREATE TABLE products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,                                              -- 品名
     original_price INTEGER,                                          -- 售價 (原價)
     price INTEGER NOT NULL,                                          -- 嘗鮮價 (實際結帳價)

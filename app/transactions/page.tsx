@@ -89,6 +89,10 @@ export default function Transactions() {
             <div className="bg-indigo-900 text-white p-6 rounded-3xl shadow-sm relative overflow-hidden">
               <p className="text-indigo-200 text-sm mb-1">目前可用預收款餘額</p>
               <h3 className="text-4xl font-light">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
+              <Link href="/transactions/commissions" className="inline-flex items-center gap-1 text-[10px] bg-white/10 px-3 py-1.5 rounded-full mt-4 hover:bg-white/20 transition">
+                查看推廣獎金明細
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+              </Link>
             </div>
 
             <div className="space-y-3">

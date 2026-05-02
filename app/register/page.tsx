@@ -39,12 +39,13 @@ function RegisterForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. 產生會員編碼 (範例邏輯)
+      // 1. 產生會員編碼與推薦碼
       const now = new Date();
       const year = now.getFullYear().toString().slice(-2);
       const month = (now.getMonth() + 1).toString().padStart(2, '0');
       const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
       const memberCode = `CR${year}M${month}${random}`;
+      const referralCode = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
       // 2. 寫入資料庫
       const { data, error } = await supabase
@@ -52,16 +53,34 @@ function RegisterForm() {
         .insert({
           ...formData,
           member_code: memberCode,
+          referral_code: referralCode,
           tier: '初潤寶寶',
           is_b2b: false,
           points_balance: 0,
           virtual_balance: 0,
-          lifetime_spend: 0
+          lifetime_spend: 0,
+          referral_count: 0
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // 3. 如果有推薦人，更新推薦人的推薦人數
+      if (formData.upline_id) {
+        const { data: upline } = await supabase
+          .from('members')
+          .select('referral_count')
+          .eq('id', formData.upline_id)
+          .single();
+        
+        if (upline) {
+          await supabase
+            .from('members')
+            .update({ referral_count: (upline.referral_count || 0) + 1 })
+            .eq('id', formData.upline_id);
+        }
+      }
 
       alert("註冊成功！歡迎加入初潤。");
       localStorage.setItem("churun_member_id", data.id);

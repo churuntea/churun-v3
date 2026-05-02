@@ -13,23 +13,15 @@ const TIERS = [
   { name: '初潤寶寶', reqType: 'lifetime', amount: 0 }
 ];
 
-export async function POST(request: Request) {
-  // 檢查簡單的 Authorization 標頭，防止外部隨意呼叫
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'secret'}`) {
-    // 為了測試方便先不擋，但正式環境需啟用
-    // return new NextResponse('Unauthorized', { status: 401 });
-  }
-
+async function evaluateTiers() {
   try {
-    // 1. 抓取所有 B2C 會員
+    // 1. 抓取所有會員 (包含 B2B 與 B2C，因為 B2B 也可能有階級變動需求，但主要針對 B2C)
     const { data: members, error } = await supabase
       .from('members')
-      .select('*')
-      .eq('is_b2b', false);
+      .select('*');
 
     if (error) throw error;
-    if (!members) return NextResponse.json({ message: 'No members found' });
+    if (!members) return { success: true, message: 'No members found' };
 
     let updatedCount = 0;
 
@@ -38,14 +30,14 @@ export async function POST(request: Request) {
       let newTier = '初潤寶寶';
       
       // 人頭抵扣機制：推薦 1 位 = $1000，上限 50%
-      const headDeduction = member.referral_count * 1000;
+      const headDeduction = (member.referral_count || 0) * 1000;
 
       for (const tierConfig of TIERS) {
         if (tierConfig.reqType === 'quarterly') {
-          // 季消費考核
+          // 季消費考核 (適用人頭抵扣)
           const maxDeduction = tierConfig.amount * 0.5; // 上限 50%
           const actualDeduction = Math.min(headDeduction, maxDeduction);
-          const effectiveSpend = Number(member.quarterly_spend) + actualDeduction;
+          const effectiveSpend = (Number(member.quarterly_spend) || 0) + actualDeduction;
 
           if (effectiveSpend >= tierConfig.amount) {
             newTier = tierConfig.name;
@@ -53,14 +45,14 @@ export async function POST(request: Request) {
           }
         } else {
           // 終身消費考核 (不適用人頭抵扣)
-          if (Number(member.lifetime_spend) >= tierConfig.amount) {
+          if ((Number(member.lifetime_spend) || 0) >= tierConfig.amount) {
             newTier = tierConfig.name;
             break;
           }
         }
       }
 
-      // 如果有升降級，更新資料庫
+      // 如果有升級，更新資料庫 (V2 邏輯通常只升不降，除非是特定週期清算，這裡先實作變動即更新)
       if (newTier !== member.tier) {
         await supabase
           .from('members')
@@ -70,9 +62,21 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, message: `Successfully evaluated tiers. Updated ${updatedCount} members.` });
+    return { success: true, message: `Successfully evaluated tiers. Updated ${updatedCount} members.` };
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return { success: false, error: error.message };
   }
+}
+
+export async function GET() {
+  const result = await evaluateTiers();
+  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
+}
+
+export async function POST() {
+  const result = await evaluateTiers();
+  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json(result);
 }

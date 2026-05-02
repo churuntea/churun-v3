@@ -105,11 +105,29 @@ export default function Home() {
 
   const handleLoginFinal = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 這裡簡化邏輯：假設密碼正確或串接 Supabase Auth
-    const { data: member } = await supabase.from('members').select('id').eq('phone', loginPhone).single();
-    if (member) {
+    if (!loginPassword) return;
+
+    try {
+      const { data: member, error } = await supabase
+        .from('members')
+        .select('id, password')
+        .eq('phone', loginPhone)
+        .single();
+      
+      if (error || !member) {
+        alert("帳號不存在");
+        return;
+      }
+
+      if (member.password !== loginPassword) {
+        alert("密碼錯誤");
+        return;
+      }
+
       localStorage.setItem("churun_member_id", member.id);
       checkAuth();
+    } catch (err) {
+      alert("登入失敗");
     }
   };
 

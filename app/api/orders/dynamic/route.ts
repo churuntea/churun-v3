@@ -78,7 +78,12 @@ export async function POST(request: Request) {
         status: 'completed'
       });
 
-      await supabase.from('members').update({ virtual_balance: buyer.virtual_balance - totalAmount }).eq('id', buyer.id);
+      await supabase.from('members').update({ 
+        virtual_balance: buyer.virtual_balance - totalAmount,
+        lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
+        quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
+      }).eq('id', buyer.id);
+      
       message += ' 已從虛擬帳戶扣除。';
     } else {
       // B2C 會員：增加積分
@@ -92,7 +97,8 @@ export async function POST(request: Request) {
 
         await supabase.from('members').update({ 
           points_balance: buyer.points_balance + totalB2CPoints,
-          lifetime_spend: buyer.lifetime_spend + totalAmount
+          lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
+          quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
         }).eq('id', buyer.id);
         
         message += ` 獲得 ${totalB2CPoints} 點回饋。`;
@@ -109,7 +115,7 @@ export async function POST(request: Request) {
             transaction_type: 'commission_refund',
             status: 'completed'
           });
-          await supabase.from('members').update({ virtual_balance: upline.virtual_balance + totalB2BCommission }).eq('id', upline.id);
+          await supabase.from('members').update({ virtual_balance: (Number(upline.virtual_balance) || 0) + totalB2BCommission }).eq('id', upline.id);
           message += ` 上線獲得 $${totalB2BCommission} 退傭。`;
         }
       }
