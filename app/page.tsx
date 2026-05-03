@@ -1,5 +1,7 @@
 "use client";
 
+export const revalidate = 0; // Force dynamic rendering, no cache
+
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
