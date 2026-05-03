@@ -16,8 +16,8 @@ const notoLabels = Noto_Sans_TC({
 });
 
 export const metadata: Metadata = {
-  title: "CHURUN TEA | 初潤製茶所",
-  description: "初潤製茶所精品會員中心 - 數位化營運與分潤系統",
+  title: "CHURUN - PREMIUM V2",
+  description: "初潤製茶所 - 精品級會員系統",
 };
 
 export default function RootLayout({
