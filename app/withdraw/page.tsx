@@ -13,7 +13,8 @@ import {
   Loader2,
   DollarSign,
   ArrowRight,
-  Info
+  Info,
+  History
 } from "lucide-react";
 import Link from "next/link";
 import Toast from "@/components/Toast";
@@ -109,10 +110,10 @@ function WithdrawContent() {
           </p>
        </div>
        <button 
-         onClick={() => router.push("/transactions")}
+         onClick={() => router.push("/transactions/withdrawals")}
          className="w-full max-w-xs bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm tracking-[0.2em] shadow-xl"
        >
-          查看帳本紀錄
+          查看提領明細
        </button>
     </div>
   );
@@ -128,6 +129,12 @@ function WithdrawContent() {
             <h1 className="text-xl font-black tracking-tight text-slate-800">資產提領</h1>
             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Secure Withdrawal</p>
          </div>
+         <button 
+           onClick={() => router.push("/transactions/withdrawals")}
+           className="ml-auto w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 text-slate-400 hover:text-emerald-600 transition"
+         >
+            <History className="w-5 h-5" />
+         </button>
       </nav>
 
       <main className="max-w-lg mx-auto p-8 space-y-10">
