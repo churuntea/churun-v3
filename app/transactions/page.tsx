@@ -54,17 +54,19 @@ function TransactionContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] pb-32">
+    <div className="bg-[#FDFBF7] min-h-screen">
       
       {/* Header */}
-      <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
-        <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">精品數位帳本</h1>
+      <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
+        <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100">v2.2 FIX</span>
+        </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
         </div>
       </nav>
 
-      <main className="max-w-lg mx-auto p-6 space-y-10 mt-4">
+      <main className="max-w-lg mx-auto p-6 space-y-12 mt-4 pb-60">
         
         {/* Swippable Asset Cards */}
         <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
