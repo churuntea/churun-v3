@@ -16,7 +16,9 @@ import {
   Star,
   Zap,
   LayoutDashboard,
-  Package
+  Package,
+  Hash,
+  Boxes
 } from "lucide-react";
 
 function AdminProductsContent() {
@@ -33,7 +35,9 @@ function AdminProductsContent() {
     creator: "陳總經理",
     b2c_reward_percent: "10",
     b2b_commission_percent: "15",
-    category: "極萃系列"
+    category: "極萃系列",
+    stock_count: "100",
+    sku: ""
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
@@ -109,7 +113,9 @@ function AdminProductsContent() {
       creator: product.creator || "陳總經理",
       b2c_reward_percent: product.b2c_reward_percent.toString(),
       b2b_commission_percent: product.b2b_commission_percent.toString(),
-      category: product.category || "極萃系列"
+      category: product.category || "極萃系列",
+      stock_count: product.stock_count?.toString() || "0",
+      sku: product.sku || ""
     });
     setActiveTab("add");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -125,7 +131,9 @@ function AdminProductsContent() {
       creator: "陳總經理",
       b2c_reward_percent: "10",
       b2b_commission_percent: "15",
-      category: "極萃系列"
+      category: "極萃系列",
+      stock_count: "100",
+      sku: ""
     });
   };
 
@@ -143,7 +151,8 @@ function AdminProductsContent() {
           original_price: formData.original_price ? Number(formData.original_price) : null,
           price: Number(formData.price),
           b2c_reward_percent: Number(formData.b2c_reward_percent),
-          b2b_commission_percent: Number(formData.b2b_commission_percent)
+          b2b_commission_percent: Number(formData.b2b_commission_percent),
+          stock_count: Number(formData.stock_count)
         })
       });
       const data = await res.json();
@@ -247,9 +256,15 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
-                   <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品名稱</label>
-                      <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="請輸入完整商品品名" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition" required />
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品名稱</label>
+                         <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="請輸入完整商品品名" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
+                      </div>
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2"><Hash className="w-3 h-3" /> 商品貨號 (SKU)</label>
+                         <input type="text" name="sku" value={formData.sku} onChange={handleChange} placeholder="例: CRT-001" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" />
+                      </div>
                    </div>
 
                    <div className="space-y-3">
@@ -279,7 +294,7 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
-                   <div className="grid grid-cols-2 gap-8">
+                   <div className="grid grid-cols-3 gap-8">
                       <div className="space-y-3">
                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">官方定價 (原價)</label>
                          <input type="number" name="original_price" value={formData.original_price} onChange={handleChange} placeholder="例: 1200" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" />
@@ -287,6 +302,10 @@ function AdminProductsContent() {
                       <div className="space-y-3">
                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">結帳售價 (必填)</label>
                          <input type="number" name="price" value={formData.price} onChange={handleChange} placeholder="例: 800" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" required />
+                      </div>
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-indigo-600 ml-1 uppercase tracking-widest flex items-center gap-2"><Boxes className="w-3 h-3" /> 目前庫存量</label>
+                         <input type="number" name="stock_count" value={formData.stock_count} onChange={handleChange} placeholder="100" className="w-full bg-indigo-50/30 border-none p-6 rounded-3xl text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
                       </div>
                    </div>
 
@@ -350,14 +369,22 @@ function AdminProductsContent() {
                                )}
                             </div>
                             <div className="flex-1 space-y-2">
-                               <h4 className="text-lg font-black text-slate-800">{product.name}</h4>
+                               <div className="flex items-center gap-3">
+                                  <h4 className="text-lg font-black text-slate-800">{product.name}</h4>
+                                  {product.sku && <span className="text-[8px] font-black bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-widest">{product.sku}</span>}
+                               </div>
                                <div className="flex items-center gap-4">
                                   <span className="text-xl font-black text-indigo-600">${product.price.toLocaleString()}</span>
                                   {product.original_price && <span className="text-sm font-medium text-slate-300 line-through">${product.original_price.toLocaleString()}</span>}
                                </div>
-                               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                                  {product.category} | 建檔：{product.creator}
-                               </p>
+                               <div className="flex items-center gap-4">
+                                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                     {product.category} | 建檔：{product.creator}
+                                  </p>
+                                  <div className="flex items-center gap-1.5 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                                     <Boxes className="w-3 h-3" /> 庫存: {product.stock_count || 0}
+                                  </div>
+                               </div>
                             </div>
                             <div className="flex flex-col gap-3 items-end">
                                <div className="flex gap-2">

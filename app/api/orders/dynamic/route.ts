@@ -79,8 +79,16 @@ export async function POST(request: Request) {
 
     if (itemsError) {
       console.error('Order Items Error:', itemsError);
-      // Even if items fail, we don't necessarily want to roll back the whole order 
-      // in this simple demo, but in production we should use a transaction.
+    }
+
+    // 3.6 扣除庫存
+    for (const item of items) {
+      const product = products.find(p => p.id === item.id);
+      if (product) {
+        await supabase.from('products')
+          .update({ stock_count: Math.max(0, (product.stock_count || 0) - item.quantity) })
+          .eq('id', item.id);
+      }
     }
 
     let message = `結帳成功！總計 $${totalAmount.toLocaleString()}。`;

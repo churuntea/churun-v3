@@ -247,7 +247,38 @@ function OrganizationContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-           <TeamPerformanceChart data={downlines} />
+        {/* Team Stats Summary */}
+        <section className="grid grid-cols-2 gap-6">
+           <div className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm space-y-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                 <Users className="w-6 h-6" />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">團隊規模</p>
+                 <h4 className="text-2xl font-black text-slate-800">{downlines.length} <span className="text-xs font-medium text-slate-400">人</span></h4>
+              </div>
+              <div className="flex gap-2">
+                 <span className="text-[8px] font-black bg-indigo-50 text-indigo-500 px-2 py-1 rounded-full uppercase tracking-tighter">{downlines.filter(d => d.is_b2b).length} B2B</span>
+                 <span className="text-[8px] font-black bg-slate-50 text-slate-400 px-2 py-1 rounded-full uppercase tracking-tighter">{downlines.filter(d => !d.is_b2b).length} B2C</span>
+              </div>
+           </div>
+           
+           <div className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm space-y-4">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                 <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">下線總業績</p>
+                 <h4 className="text-2xl font-black text-slate-800"><span className="text-sm font-medium text-slate-400">$</span>{downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0).toLocaleString()}</h4>
+              </div>
+              <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                 <Sparkles className="w-2 h-2 text-amber-400" /> Lifetime Performance
+              </p>
+           </div>
+        </section>
+
+        {/* Performance Chart */}
+        <TeamPerformanceChart data={downlines} />
         </motion.section>
 
         {/* Team Tree Visualization */}

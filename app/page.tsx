@@ -374,7 +374,14 @@ function DashboardContent() {
                    <button onClick={() => setShowShare(false)} className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition">
                       關閉視窗
                    </button>
-                   <button className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20">
+                   <button 
+                     onClick={() => {
+                       const link = `${window.location.origin}/register?ref=${memberInfo.referral_code}`;
+                       navigator.clipboard.writeText(link);
+                       alert("推薦連結已複製！");
+                     }}
+                     className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20"
+                   >
                       複製連結
                    </button>
                 </div>
@@ -400,6 +407,7 @@ function DashboardContent() {
             </Link>
             <motion.div 
               whileHover={{ scale: 1.1, rotate: 90 }}
+              onClick={() => setShowShare(true)}
               className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7] cursor-pointer"
             >
                <Plus className="w-6 h-6 text-white" />
