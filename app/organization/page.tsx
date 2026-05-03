@@ -26,6 +26,7 @@ import {
   BarChart3
 } from "lucide-react";
 import ReferralCard from "@/components/ReferralCard";
+import TeamTree from "@/components/TeamTree";
 import { 
   BarChart, 
   Bar, 
@@ -249,58 +250,9 @@ function OrganizationContent() {
            <TeamPerformanceChart data={downlines} />
         </motion.section>
 
-        {/* Partners List */}
-        <div className="space-y-6 pt-4">
-           <div className="flex justify-between items-center px-4">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">直屬核心團隊</h3>
-              <div className="flex items-center gap-2 text-emerald-600">
-                 <Users className="w-4 h-4" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">{downlines.length}</span>
-              </div>
-           </div>
-
-           {downlines.length === 0 ? (
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               className="bg-white rounded-[4rem] p-16 text-center border border-slate-50 shadow-sm"
-             >
-                <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8">
-                   <UserPlus className="w-12 h-12 text-slate-200" />
-                </div>
-                <h4 className="text-xl font-black text-slate-800">擴展您的版圖</h4>
-                <p className="text-xs text-slate-400 mt-3 leading-relaxed px-10">
-                   分享精品邀請函，讓您的團隊與業績同步起飛。
-                </p>
-             </motion.div>
-           ) : (
-             <div className="space-y-4">
-                {downlines.map((member, i) => (
-                  <motion.div 
-                    key={member.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="bg-white rounded-[2.5rem] p-6 shadow-[0_15px_40px_rgba(0,0,0,0.02)] border border-slate-50 flex items-center gap-6 group hover:border-emerald-100 transition duration-500"
-                  >
-                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-2xl ${member.is_b2b ? 'bg-indigo-600 shadow-indigo-600/20' : 'bg-emerald-800 shadow-emerald-800/20'}`}>
-                        {member.name.charAt(0)}
-                     </div>
-                     <div className="flex-1 space-y-1">
-                        <h4 className="text-base font-black text-slate-800 tracking-tight">{member.name}</h4>
-                        <div className="flex items-center gap-2">
-                           <Award className="w-3 h-3 text-amber-400 fill-current" />
-                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">{member.tier}</span>
-                        </div>
-                     </div>
-                     <div className="text-right">
-                        <p className="text-base font-black text-slate-900 tracking-tighter">${Number(member.lifetime_spend).toLocaleString()}</p>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">SPENT</p>
-                     </div>
-                  </motion.div>
-                ))}
-             </div>
-           )}
+        {/* Team Tree Visualization */}
+        <div className="pt-4">
+           <TeamTree rootMember={memberInfo} />
         </div>
 
         {/* Invite CTA */}
