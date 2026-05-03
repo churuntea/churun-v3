@@ -13,11 +13,17 @@ import {
   LayoutDashboard, 
   Zap, 
   User, 
-  Plus, 
   Star,
   Loader2,
-  ArrowUpRight
+  ArrowUpRight,
+  X,
+  Minus,
+  Trash2,
+  ShoppingCart,
+  Check
 } from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { AnimatePresence } from "framer-motion";
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +34,11 @@ function StoreContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
   useEffect(() => {
     // Force cache break
@@ -81,6 +92,37 @@ function StoreContent() {
     setIsLoading(false);
   };
 
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+    setIsCheckingOut(true);
+    try {
+      const res = await fetch("/api/orders/dynamic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyer_id: memberInfo.id,
+          items: cart.map(item => ({ id: item.id, quantity: item.quantity }))
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowSuccess(true);
+        clearCart();
+        setTimeout(() => {
+          setShowSuccess(false);
+          setIsCartOpen(false);
+          fetchData(memberInfo.id); // Refresh balance
+        }, 2000);
+      } else {
+        alert(data.error || "結帳失敗");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("系統錯誤");
+    }
+    setIsCheckingOut(false);
+  };
+
   const categories = ["全部商品", "極萃系列", "精品茶具", "典藏禮盒"];
 
   return (
@@ -89,8 +131,18 @@ function StoreContent() {
         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase flex items-center gap-2">
            精品嚴選商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.1.2</span>
         </h1>
-        <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-           <Search className="w-4 h-4" />
+        <div className="flex items-center gap-3">
+          <div onClick={() => setIsCartOpen(true)} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer relative hover:bg-slate-100 transition">
+             <ShoppingCart className="w-4 h-4" />
+             {totalItems > 0 && (
+               <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                 {totalItems}
+               </span>
+             )}
+          </div>
+          <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+             <Search className="w-4 h-4" />
+          </div>
         </div>
       </nav>
 
@@ -171,8 +223,11 @@ function StoreContent() {
                        </div>
 
                        <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-4">
-                          <button className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all flex items-center justify-center gap-2">
-                             加入購物車 <ArrowUpRight className="w-4 h-4" />
+                          <button 
+                            onClick={() => addToCart(product)}
+                            className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all flex items-center justify-center gap-2 active:scale-95"
+                          >
+                             {cart.find(i => i.id === product.id) ? "繼續添加" : "加入購物車"} <Plus className="w-3 h-3" />
                           </button>
                        </div>
                     </div>
@@ -206,6 +261,103 @@ function StoreContent() {
             </Link>
          </div>
       </div>
+
+      {/* Cart Overlay */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60]"
+            />
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 w-full max-w-md bg-white z-[70] shadow-2xl flex flex-col"
+            >
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">我的購物車</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {totalItems} 件精品整備中
+                  </p>
+                </div>
+                <button onClick={() => setIsCartOpen(false)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center">
+                      <ShoppingBag className="w-8 h-8 text-slate-200" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">您的購物車是空的</p>
+                      <p className="text-xs text-slate-400 mt-1">快去挑選一些精品吧！</p>
+                    </div>
+                  </div>
+                ) : (
+                  cart.map(item => (
+                    <div key={item.id} className="flex gap-4">
+                      <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
+                        <img src={item.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80"} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-slate-800 truncate text-sm">{item.name}</h4>
+                        <p className="text-emerald-600 font-black text-sm mt-1">${item.price.toLocaleString()}</p>
+                        <div className="flex items-center gap-3 mt-3">
+                          <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition">
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-sm font-black w-6 text-center">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition">
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)} className="text-slate-200 hover:text-rose-500 transition self-start p-2">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-8 bg-slate-50 space-y-6">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <span>商品小計</span>
+                    <span>${totalPrice.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <span>預計回饋紅利</span>
+                    <span className="text-emerald-600">+{cart.reduce((sum, i) => sum + Math.floor(i.price * i.quantity * (i.b2c_reward_percent || 0) / 100), 0)} pts</span>
+                  </div>
+                  <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
+                    <span className="text-sm font-black text-slate-800 uppercase tracking-widest">總計金額</span>
+                    <span className="text-2xl font-black text-slate-900">${totalPrice.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleCheckout}
+                  disabled={cart.length === 0 || isCheckingOut}
+                  className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
+                >
+                  {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : showSuccess ? <><Check className="w-5 h-5" /> 結帳成功</> : "確認結帳並支付"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

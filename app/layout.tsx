@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   description: "初潤製茶所 - 精品級會員系統",
 };
 
+import { CartProvider } from "./context/CartContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,9 +27,11 @@ export default function RootLayout({
       className={`${outfit.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans">
-        <PageTransition>
-          {children}
-        </PageTransition>
+        <CartProvider>
+          <PageTransition>
+            {children}
+          </PageTransition>
+        </CartProvider>
       </body>
     </html>
   );
