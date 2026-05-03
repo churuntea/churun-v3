@@ -104,53 +104,136 @@ function TransactionContent() {
            </motion.div>
         </div>
 
-        {/* Transaction Feed */}
-        <section className="space-y-6">
-           <div className="flex justify-between items-center px-4">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">交易動態回報</h3>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">近期</span>
-           </div>
+         {/* Transaction Feed */}
+         <section className="space-y-6">
+            <div className="flex justify-between items-center px-4">
+               <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">交易動態回報</h3>
+               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">近期</span>
+            </div>
 
-           <div className="space-y-3">
-              {isLoading ? (
-                <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
-              ) : transactions.length === 0 ? (
-                <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50 shadow-sm">
-                   <History className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                   <p className="text-xs text-slate-300 font-bold">目前尚無交易紀錄</p>
-                </div>
-              ) : (
-                transactions.map((tx, i) => {
-                  const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
-                  return (
-                    <motion.div 
-                      key={tx.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition"
-                    >
-                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${isIncome ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
-                          {isIncome ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
-                       </div>
-                       <div className="flex-1">
-                          <h4 className="font-bold text-slate-800 text-sm">{tx.transaction_type}</h4>
-                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
-                             {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                       </div>
-                       <div className="text-right">
-                          <p className={`text-lg font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
-                             {isIncome ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
-                          </p>
-                          <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Completed</p>
-                       </div>
-                    </motion.div>
-                  );
-                })
-              )}
-           </div>
-        </section>
+            <div className="space-y-3">
+               {isLoading ? (
+                 <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
+               ) : transactions.length === 0 ? (
+                 <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50 shadow-sm">
+                    <History className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                    <p className="text-xs text-slate-300 font-bold">目前尚無交易紀錄</p>
+                 </div>
+               ) : (
+                 transactions.map((tx, i) => {
+                   const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
+                   return (
+                     <motion.div 
+                       key={tx.id}
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       transition={{ delay: i * 0.05 }}
+                       className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition"
+                     >
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${isIncome ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                           {isIncome ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                        </div>
+                        <div className="flex-1">
+                           <h4 className="font-bold text-slate-800 text-sm">{tx.transaction_type}</h4>
+                           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
+                              {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                           </p>
+                        </div>
+                        <div className="text-right">
+                           <p className={`text-lg font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
+                              {isIncome ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                           </p>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Completed</p>
+                        </div>
+                     </motion.div>
+                   );
+                 })
+               )}
+            </div>
+         </section>
+
+         {/* Bank Account Settings */}
+         <section className="space-y-6">
+            <div className="flex justify-between items-center px-4">
+               <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">提領帳戶設定</h3>
+               <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Secure Link</span>
+               </div>
+            </div>
+
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-50 shadow-[0_20px_50px_rgba(0,0,0,0.02)] space-y-8 relative overflow-hidden">
+               <div className="absolute top-0 right-0 -mr-10 -mt-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
+               
+               <div className="space-y-6 relative z-10">
+                  <div className="grid grid-cols-1 gap-6">
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶名稱 (戶名)</label>
+                        <input 
+                           type="text" 
+                           defaultValue={memberInfo?.beneficiary || memberInfo?.name}
+                           id="bank_account_name"
+                           className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
+                           placeholder="請輸入銀行戶名"
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼 (預設國泰世華)</label>
+                        <div className="flex gap-4">
+                           <input 
+                              type="text" 
+                              defaultValue={memberInfo?.bank_code || "013"}
+                              id="bank_code"
+                              className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition text-center"
+                              placeholder="013"
+                           />
+                           <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-xs font-black text-slate-400 flex items-center px-6">
+                              國泰世華商業銀行
+                           </div>
+                        </div>
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號</label>
+                        <input 
+                           type="text" 
+                           defaultValue={memberInfo?.bank_account}
+                           id="bank_account"
+                           className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
+                           placeholder="請輸入匯款帳號"
+                        />
+                     </div>
+                  </div>
+
+                  <button 
+                    onClick={async () => {
+                      const nameInput = document.getElementById('bank_account_name') as HTMLInputElement;
+                      const codeInput = document.getElementById('bank_code') as HTMLInputElement;
+                      const accountInput = document.getElementById('bank_account') as HTMLInputElement;
+                      
+                      setIsLoading(true);
+                      const { error } = await supabase.from('members').update({
+                        beneficiary: nameInput.value,
+                        bank_code: codeInput.value,
+                        bank_account: accountInput.value
+                      }).eq('id', memberInfo.id);
+                      
+                      if (!error) {
+                        alert('帳戶資訊已成功加密儲存！');
+                        // Refresh data locally
+                        const { data: updated } = await supabase.from("members").select("*").eq("id", memberInfo.id).single();
+                        setMemberInfo(updated);
+                      } else {
+                        alert('更新失敗，請檢查網路連線。');
+                      }
+                      setIsLoading(false);
+                    }}
+                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition"
+                  >
+                     更新匯款帳戶資訊
+                  </button>
+               </div>
+            </div>
+         </section>
 
       </main>
 
