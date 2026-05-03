@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Award,
   ArrowRight,
-  Share2
+  Share2,
+  Activity
 } from "lucide-react";
 
 function OrganizationContent() {

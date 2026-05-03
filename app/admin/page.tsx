@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -23,7 +24,8 @@ import {
   Database,
   RefreshCcw,
   TrendingUp,
-  Activity
+  Activity,
+  AlertTriangle
 } from "lucide-react";
 import { 
   AreaChart, 

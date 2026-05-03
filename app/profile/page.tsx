@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion } from "framer-motion";
 import { 
+  Package,
   User, 
   Settings, 
   CreditCard, 
@@ -103,10 +104,10 @@ function ProfileContent() {
            {[
              { title: "我的訂單紀錄", icon: Package, color: "text-blue-500 bg-blue-50", href: "/orders" },
              { title: "提領與銀行設定", icon: CreditCard, color: "text-indigo-500 bg-indigo-50", href: "/transactions" },
-             {!memberInfo.is_b2b && { title: "申請升級創業夥伴", icon: Zap, color: "text-amber-500 bg-amber-50", href: "/upgrade" }},
+             memberInfo.is_b2b ? null : { title: "申請升級創業夥伴", icon: Zap, color: "text-amber-500 bg-amber-50", href: "/upgrade" },
              { title: "世襲與受益人", icon: Shield, color: "text-emerald-500 bg-emerald-50", href: "#" },
              { title: "帳號安全設定", icon: Settings, color: "text-slate-500 bg-slate-50", href: "#" },
-           ].filter(Boolean).map((item: any, i) => (
+           ].filter((item): item is any => item !== null).map((item, i) => (
              <Link 
                href={item.href}
                key={i}
