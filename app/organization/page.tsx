@@ -21,9 +21,21 @@ import {
   Target,
   Sparkles,
   Trophy,
-  Heart
+  Heart,
+  UserPlus,
+  BarChart3
 } from "lucide-react";
 import ReferralCard from "@/components/ReferralCard";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 
 // 考核配置 (同步後端)
 const TIERS = [
@@ -36,6 +48,52 @@ const TIERS = [
   { name: '初潤幼兒園', reqType: 'lifetime', amount: 1 },
   { name: '初潤寶寶', reqType: 'lifetime', amount: 0 }
 ];
+
+function TeamPerformanceChart({ data }: { data: any[] }) {
+  const chartData = data.slice(0, 5).map(m => ({
+    name: m.name.length > 4 ? m.name.substring(0, 4) + '...' : m.name,
+    amount: Number(m.lifetime_spend) || 0
+  }));
+
+  if (chartData.length === 0) return null;
+
+  return (
+    <div className="h-64 w-full bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm">
+       <div className="flex items-center justify-between mb-6">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+             <BarChart3 className="w-4 h-4 text-emerald-500" /> 核心夥伴表現
+          </h4>
+          <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">TOP 5 PERFORMANCE</span>
+       </div>
+       <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+             <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                   <stop offset="0%" stopColor="#064e3b" stopOpacity={1}/>
+                   <stop offset="100%" stopColor="#059669" stopOpacity={0.8}/>
+                </linearGradient>
+             </defs>
+             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+             <XAxis 
+               dataKey="name" 
+               axisLine={false} 
+               tickLine={false} 
+               tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
+             />
+             <Tooltip 
+               cursor={{ fill: '#f8fafc' }}
+               contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', fontSize: '10px', fontWeight: '900' }}
+             />
+             <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={24}>
+                {chartData.map((entry, index) => (
+                   <Cell key={`cell-${index}`} fill="url(#barGradient)" />
+                ))}
+             </Bar>
+          </BarChart>
+       </ResponsiveContainer>
+    </div>
+  );
+}
 
 function OrganizationContent() {
   const router = useRouter();
@@ -182,6 +240,15 @@ function OrganizationContent() {
            </div>
         </div>
 
+        {/* Team Performance Visualization */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+           <TeamPerformanceChart data={downlines} />
+        </motion.section>
+
         {/* Partners List */}
         <div className="space-y-6 pt-4">
            <div className="flex justify-between items-center px-4">
@@ -281,8 +348,6 @@ function OrganizationContent() {
     </div>
   );
 }
-
-import { UserPlus } from "lucide-react";
 
 export default function Organization() {
   return (

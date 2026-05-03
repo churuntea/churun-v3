@@ -1,6 +1,5 @@
 "use client";
 
-export const revalidate = 0; // Force dynamic rendering, no cache
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
@@ -195,44 +194,39 @@ function DashboardContent() {
         </motion.section>
 
         {/* Brand Pulse Announcements */}
-        <motion.section variants={itemVariants} className="space-y-6">
+        <section className="space-y-6 relative z-[200]">
            <div className="flex justify-between items-center px-2">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動 (V2.5)</h3>
-              <div className="flex gap-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Updates</span>
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動 (DIAGNOSTIC V3)</h3>
+              <div className="flex gap-1 items-center">
+                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></div>
+                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Diagnostic Mode</span>
               </div>
            </div>
            
-           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
+           <div className="space-y-4 relative z-[210]">
               {[
-                { id: "spring-tea", title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" },
-                { id: "dividend-plan", title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600" },
-                { id: "taipei-event", title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600" }
+                { id: "spring-tea", title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" }
               ].map((news, i) => (
                 <div 
-                  key={i} 
+                  key={i}
                   onClick={() => {
-                    console.log('User clicked:', news.id);
-                    router.push(`/brand/news/${news.id}`);
+                    alert('點擊成功！正在嘗試跳轉...');
+                    window.location.href = `/brand/news/${news.id}`;
                   }}
-                  className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group hover:border-emerald-200 transition-all duration-500 cursor-pointer active:scale-95 z-50"
+                  className="bg-white rounded-[2rem] p-8 border-2 border-emerald-500 shadow-2xl cursor-pointer relative z-[220]"
                 >
-                   <div className={`absolute top-0 right-0 w-24 h-24 ${news.color} opacity-5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition duration-700`}></div>
-                   <div className="flex justify-between items-start mb-6">
-                      <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest ${news.color}`}>
+                   <div className="flex justify-between items-center mb-4">
+                      <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white ${news.color}`}>
                          {news.tag}
                       </span>
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{news.date}</span>
+                      <span className="text-[10px] font-black text-slate-300">{news.date}</span>
                    </div>
-                   <h4 className="font-bold text-slate-800 leading-relaxed mb-4">{news.title}</h4>
-                   <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest group-hover:gap-4 transition-all">
-                      了解詳情 <ChevronRight className="w-3 h-3" />
-                   </div>
+                   <h4 className="font-bold text-slate-800 text-lg">{news.title}</h4>
+                   <p className="text-[10px] text-emerald-600 font-black mt-4 uppercase tracking-widest">點擊此處測試跳轉 →</p>
                 </div>
               ))}
            </div>
-        </motion.section>
+        </section>
 
         {/* Featured Store */}
         <motion.section variants={itemVariants} className="space-y-6">

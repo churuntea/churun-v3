@@ -16,6 +16,7 @@ import {
   Info
 } from "lucide-react";
 import Link from "next/link";
+import Toast from "@/components/Toast";
 
 function WithdrawContent() {
   const router = useRouter();
@@ -24,6 +25,7 @@ function WithdrawContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"input" | "success">("input");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" as "success" | "error" | "info" });
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -42,9 +44,18 @@ function WithdrawContent() {
   };
 
   const handleWithdraw = async () => {
-    if (!amount || Number(amount) <= 0) return alert("請輸入正確金額");
-    if (Number(amount) > Number(memberInfo.virtual_balance)) return alert("餘額不足");
-    if (!memberInfo.bank_account) return alert("請先設定銀行帳號");
+    if (!amount || Number(amount) <= 0) {
+      setToast({ show: true, message: "請輸入正確金額", type: "error" });
+      return;
+    }
+    if (Number(amount) > Number(memberInfo.virtual_balance)) {
+      setToast({ show: true, message: "餘額不足，請調整提領金額", type: "error" });
+      return;
+    }
+    if (!memberInfo.bank_account) {
+      setToast({ show: true, message: "請先設定銀行帳號以完成提領", type: "error" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -72,7 +83,7 @@ function WithdrawContent() {
 
       setStep("success");
     } catch (err: any) {
-      alert("提領失敗: " + err.message);
+      setToast({ show: true, message: "提領失敗: " + err.message, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -185,6 +196,13 @@ function WithdrawContent() {
            {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "確認申請提領"} 
            {!isSubmitting && <ShieldCheck className="w-5 h-5" />}
         </motion.button>
+
+        <Toast 
+          isVisible={toast.show}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
 
       </main>
     </div>

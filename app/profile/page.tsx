@@ -25,7 +25,8 @@ import {
   Award,
   Star,
   Target,
-  Trophy
+  Trophy,
+  Users
 } from "lucide-react";
 
 function ProfileContent() {

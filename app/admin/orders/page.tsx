@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../supabase";
+import { supabase } from "@/app/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Package, 
