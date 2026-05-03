@@ -162,29 +162,31 @@ function AdminDashboardContent() {
 
       <main className="max-w-7xl mx-auto p-10 space-y-12">
         
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* HQ Stats Dashboard */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 px-2">
            {[
-             { label: "總註冊會員", val: stats.totalMembers, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
-             { label: "創業夥伴數", val: stats.totalB2B, icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-             { label: "待結算獎金", val: `$${stats.pendingSettlement.toLocaleString()}`, icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" },
-             { label: "當日訂單量", val: stats.activeOrders, icon: Package, color: "text-indigo-500", bg: "bg-indigo-50" }
-           ].map((s, i) => (
-             <motion.div 
-               key={i}
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ delay: i * 0.1 }}
-               className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm hover:shadow-xl transition-all duration-500 group"
-             >
-                <div className={`${s.bg} ${s.color} w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition duration-500`}>
-                   <s.icon className="w-6 h-6" />
-                </div>
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{s.label}</p>
-                <h3 className="text-3xl font-black text-slate-800 tracking-tight">{s.val}</h3>
-             </motion.div>
+             { label: "待核准提領", val: "12", icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
+             { label: "待處理訂單", val: "08", icon: Package, color: "text-blue-500", href: "/admin/orders" },
+             { label: "本月總業績", val: "$12.4M", icon: TrendingUp, color: "text-emerald-500", href: "/admin/products" },
+             { label: "異常警報", val: "0", icon: AlertTriangle, color: "text-rose-500", href: "#" }
+           ].map((stat, i) => (
+             <Link href={stat.href} key={i}>
+                <motion.div 
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-4 cursor-pointer"
+                >
+                   <div className="flex justify-between items-center">
+                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                      <ChevronRight className="w-4 h-4 text-slate-200" />
+                   </div>
+                   <div className="space-y-1">
+                      <h4 className="text-2xl font-black text-slate-800 tracking-tighter">{stat.val}</h4>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{stat.label}</p>
+                   </div>
+                </motion.div>
+             </Link>
            ))}
-        </section>
+        </div>
 
         {/* Analytics Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-10">
