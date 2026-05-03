@@ -19,6 +19,8 @@ import {
   ArrowUpRight
 } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
@@ -29,7 +31,7 @@ function StoreContent() {
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "1.1.0";
+    const currentVersion = "1.1.1";
     const savedVersion = localStorage.getItem("churun_store_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_store_version", currentVersion);
@@ -72,7 +74,7 @@ function StoreContent() {
       {/* Header */}
       <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase flex items-center gap-2">
-           精品嚴選商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.1.0</span>
+           精品嚴選商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.1.1</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Search className="w-4 h-4" />
