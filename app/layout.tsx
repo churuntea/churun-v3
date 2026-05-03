@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Outfit, Noto_Sans_TC } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-outfit",
-  weight: ["100", "300", "400", "700", "900"],
-});
-
-const notoLabels = Noto_Sans_TC({
-  subsets: ["latin"],
-  variable: "--font-noto",
   weight: ["100", "300", "400", "700", "900"],
 });
 
@@ -28,9 +22,9 @@ export default function RootLayout({
   return (
     <html
       lang="zh-TW"
-      className={`${outfit.variable} ${notoLabels.variable} h-full antialiased`}
+      className={`${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#FDFBF7]">
+      <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans">
         <PageTransition>
           {children}
         </PageTransition>
