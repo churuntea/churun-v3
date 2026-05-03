@@ -82,6 +82,14 @@ function WithdrawContent() {
 
       if (txError) throw txError;
 
+      // 3. 新增通知
+      await supabase.from("notifications").insert({
+        member_id: memberInfo.id,
+        title: "提領申請已送出",
+        content: `您的提領申請 $${withdrawAmount.toLocaleString()} 已進入審核階段，預計 1-3 個工作天撥款。`,
+        type: "withdrawal"
+      });
+
       setStep("success");
     } catch (err: any) {
       setToast({ show: true, message: "提領失敗: " + err.message, type: "error" });

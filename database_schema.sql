@@ -129,3 +129,19 @@ CREATE TABLE public.order_items (
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on order_items" ON public.order_items FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on order_items" ON public.order_items FOR INSERT WITH CHECK (true);
+
+-- 8. 系統通知 (Notifications)
+CREATE TABLE public.notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    member_id UUID REFERENCES public.members(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL,                                              -- 'order', 'withdrawal', 'referral', 'system'
+    is_read BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on notifications" ON public.notifications FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on notifications" ON public.notifications FOR UPDATE USING (true);

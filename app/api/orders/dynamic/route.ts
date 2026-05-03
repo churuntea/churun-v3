@@ -146,10 +146,26 @@ export async function POST(request: Request) {
             virtual_balance: (Number(upline.virtual_balance) || 0) + totalB2BCommission 
           }).eq('id', upline.id);
           
+          // 新增推薦獎金通知
+          await supabase.from('notifications').insert({
+            member_id: upline.id,
+            title: '獲得推薦獎金！',
+            content: `您的下線夥伴 ${buyer.name} 完成了訂單，您獲得 $${totalB2BCommission.toLocaleString()} 推薦獎金。`,
+            type: 'referral'
+          });
+          
           // message += ` (上線獎金已發放)`;
         }
       }
     }
+
+    // 新增買家結帳通知
+    await supabase.from('notifications').insert({
+      member_id: buyer.id,
+      title: '訂單結帳成功',
+      content: `您的訂單總計 $${totalAmount.toLocaleString()} 已結帳成功。`,
+      type: 'order'
+    });
 
     return NextResponse.json({ success: true, message });
 

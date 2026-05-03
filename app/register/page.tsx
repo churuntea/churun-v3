@@ -99,6 +99,17 @@ function RegisterContent() {
       } else {
         localStorage.setItem("churun_member_id", data.id);
         localStorage.setItem("churun_member_name", data.name);
+        
+        // 新增上線通知
+        if (uplineId) {
+          await supabase.from("notifications").insert({
+            member_id: uplineId,
+            title: "新夥伴加入！",
+            content: `您的團隊有新夥伴 ${formData.name} 透過您的代碼加入了。`,
+            type: "referral"
+          });
+        }
+
         router.push("/");
       }
     } catch (err: any) {

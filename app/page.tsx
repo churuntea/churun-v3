@@ -24,6 +24,7 @@ import {
   Loader2,
   Gift
 } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 
 function DashboardSkeleton() {
   return (
@@ -134,16 +135,9 @@ function DashboardContent() {
                <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
             </div>
          </motion.div>
-         <div className="flex items-center gap-4">
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.9 }} 
-              className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50"
-            >
-               <Bell className="w-4 h-4 text-slate-400" />
-               <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
-            </motion.button>
-         </div>
+          <div className="flex items-center gap-4">
+             {currentUserId && <NotificationBell memberId={currentUserId} />}
+          </div>
       </nav>
 
       <motion.main 
