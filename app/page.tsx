@@ -25,6 +25,40 @@ import {
   Gift
 } from "lucide-react";
 
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] pb-32 animate-pulse">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
+         <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-200 rounded-2xl"></div>
+            <div className="space-y-2">
+               <div className="w-20 h-2 bg-slate-200 rounded"></div>
+               <div className="w-24 h-1.5 bg-slate-100 rounded"></div>
+            </div>
+         </div>
+      </nav>
+      <main className="max-w-lg mx-auto px-6 pt-24 space-y-10">
+         <div className="w-full aspect-[1.6/1] bg-slate-200 rounded-[3rem]"></div>
+         <div className="grid grid-cols-4 gap-4 px-2">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="flex flex-col items-center gap-3">
+                 <div className="w-16 h-16 bg-slate-200 rounded-[2rem]"></div>
+                 <div className="w-10 h-2 bg-slate-100 rounded"></div>
+              </div>
+            ))}
+         </div>
+         <div className="space-y-4">
+            <div className="w-32 h-4 bg-slate-200 rounded ml-2"></div>
+            <div className="flex gap-6 overflow-hidden">
+               <div className="min-w-[300px] h-60 bg-slate-200 rounded-[3rem]"></div>
+               <div className="min-w-[300px] h-60 bg-slate-100 rounded-[3rem]"></div>
+            </div>
+         </div>
+      </main>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -32,6 +66,7 @@ function DashboardContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showShare, setShowShare] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -58,16 +93,15 @@ function DashboardContent() {
     fetchData();
   }, [currentUserId]);
 
-  if (isLoading || !memberInfo) return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-      <motion.div 
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-      >
-        <Loader2 className="w-10 h-10 text-emerald-900" />
-      </motion.div>
-    </div>
-  );
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  if (isLoading || !memberInfo) return <DashboardSkeleton />;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -101,7 +135,11 @@ function DashboardContent() {
             </div>
          </motion.div>
          <div className="flex items-center gap-4">
-            <motion.button whileTap={{ scale: 0.9 }} className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }} 
+              className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50"
+            >
                <Bell className="w-4 h-4 text-slate-400" />
                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
             </motion.button>
@@ -116,60 +154,86 @@ function DashboardContent() {
       >
         
         {/* Profile Card */}
-        <motion.section variants={itemVariants} className="relative group">
+        <motion.section 
+          variants={itemVariants} 
+          className="relative group"
+          onMouseMove={handleMouseMove}
+        >
            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-[3rem] blur-3xl opacity-20 group-hover:opacity-40 transition duration-500"></div>
-           <div className="relative bg-mesh-emerald rounded-[3rem] p-10 text-white shadow-2xl shadow-emerald-900/20 overflow-hidden">
+           <motion.div 
+             whileHover={{ rotateX: (mousePos.y - 100) / 10, rotateY: -(mousePos.x - 150) / 15 }}
+             style={{ perspective: 1000 }}
+             className="relative bg-mesh-emerald rounded-[3rem] p-10 text-white shadow-2xl shadow-emerald-900/20 overflow-hidden"
+           >
+              {/* Holographic Shine Effect */}
+              <motion.div 
+                className="absolute inset-0 z-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity duration-500"
+                style={{
+                  background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255,255,255,0.4), transparent 60%)`
+                }}
+              />
               <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
               
-              <div className="flex justify-between items-start mb-12">
-                 <div className="space-y-4">
-                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                       <Sparkles className="w-3 h-3 text-amber-300" />
-                       <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
-                    </div>
-                    <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
-                 </div>
-                 <motion.button 
-                   whileHover={{ scale: 1.1, rotate: 5 }}
-                   whileTap={{ scale: 0.9 }}
-                   onClick={() => setShowShare(true)}
-                   className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/10 shadow-inner"
-                 >
-                    <Share2 className="w-6 h-6" />
-                 </motion.button>
+              <div className="relative z-10 h-full flex flex-col">
+                <div className="flex justify-between items-start mb-12">
+                   <div className="space-y-4">
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }}
+                        className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-fit"
+                      >
+                         <Sparkles className="w-3 h-3 text-amber-300" />
+                         <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
+                      </motion.div>
+                      <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
+                   </div>
+                   <motion.button 
+                     whileHover={{ scale: 1.1, rotate: 5 }}
+                     whileTap={{ scale: 0.9 }}
+                     onClick={() => setShowShare(true)}
+                     className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/10 shadow-inner"
+                   >
+                      <Share2 className="w-6 h-6" />
+                   </motion.button>
+                </div>
+  
+                <div className="grid grid-cols-2 gap-6 relative z-10">
+                   <div className="space-y-1">
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">虛擬預收貨款</p>
+                      <h3 className="text-2xl font-black tracking-tighter">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">紅利點數餘額</p>
+                      <h3 className="text-2xl font-black tracking-tighter">{memberInfo.points_balance.toLocaleString()} <span className="text-[10px] font-medium ml-1">pts</span></h3>
+                   </div>
+                </div>
+  
+                {/* Tier Progress Bar */}
+                <Link href="/rewards" className="mt-12 space-y-3 block group/prog cursor-pointer relative z-10">
+                   <div className="flex justify-between items-end">
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">升級進度 (本季累積)</p>
+                      <div className="flex items-center gap-2">
+                         <p className="text-[10px] font-black text-amber-300">${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
+                         <ChevronRight className="w-3 h-3 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
+                      </div>
+                   </div>
+                   <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%` }}
+                        transition={{ duration: 1.5, ease: "circOut" }}
+                        className="h-full bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 relative"
+                      >
+                         <motion.div 
+                           animate={{ x: ["-100%", "100%"] }}
+                           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-1/2"
+                         />
+                      </motion.div>
+                   </div>
+                   <p className="text-[8px] text-white/40 text-right italic group-hover/prog:text-white/60 transition">點擊查看下一階分潤特權</p>
+                </Link>
               </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">虛擬預收貨款</p>
-                    <h3 className="text-2xl font-black tracking-tighter">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">紅利點數餘額</p>
-                    <h3 className="text-2xl font-black tracking-tighter">{memberInfo.points_balance.toLocaleString()} <span className="text-[10px] font-medium ml-1">pts</span></h3>
-                 </div>
-              </div>
-
-              {/* Tier Progress Bar */}
-              <Link href="/rewards" className="mt-12 space-y-3 block group/prog cursor-pointer">
-                 <div className="flex justify-between items-end">
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">升級進度 (本季累積)</p>
-                    <div className="flex items-center gap-2">
-                       <p className="text-[10px] font-black text-amber-300">${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
-                       <ChevronRight className="w-3 h-3 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
-                    </div>
-                 </div>
-                 <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full bg-gradient-to-r from-amber-200 to-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]"
-                    />
-                 </div>
-                 <p className="text-[8px] text-white/40 text-right italic group-hover/prog:text-white/60 transition">點擊查看下一階分潤特權</p>
-              </Link>
-           </div>
+           </motion.div>
         </motion.section>
 
         {/* Quick Actions */}
