@@ -163,21 +163,39 @@ function ProfileContent() {
              { title: "資產提領與帳戶", icon: CreditCard, color: "text-indigo-500 bg-indigo-50", href: "/transactions" },
              { title: "查看職級特權", icon: Award, color: "text-emerald-500 bg-emerald-50", href: "/rewards" },
              { title: "帳號安全設定", icon: Shield, color: "text-slate-400 bg-slate-50", href: "/profile/security" },
+             { title: "安全登出帳號", icon: LogOut, color: "text-rose-500 bg-rose-50", action: "logout" },
            ].map((item, i) => (
-             <Link 
-               href={item.href}
-               key={i}
-               className="bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
-             >
-                <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
-                   <item.icon className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                   <h4 className="font-black text-slate-800">{item.title}</h4>
-                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Member Service</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition" />
-             </Link>
+             item.action === "logout" ? (
+               <button 
+                 key={i}
+                 onClick={handleLogout}
+                 className="w-full bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-rose-100 transition cursor-pointer"
+               >
+                  <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
+                     <item.icon className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                     <h4 className="font-black text-slate-800">{item.title}</h4>
+                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">End Session</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-rose-500 transition" />
+               </button>
+             ) : (
+               <Link 
+                 href={item.href || "#"}
+                 key={i}
+                 className="bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
+               >
+                  <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
+                     <item.icon className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                     <h4 className="font-black text-slate-800">{item.title}</h4>
+                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Member Service</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition" />
+               </Link>
+             )
            ))}
         </div>
 
