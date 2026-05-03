@@ -66,25 +66,33 @@ function RegisterContent() {
         uplineId = upline.id;
       }
 
-      // 2. 執行註冊：明確處理 upline_id，確保絕不傳入空字串 ""
+      // 2. 執行註冊：極端防禦邏輯，確保絕不傳入任何格式不對的 UUID
+      const insertData: any = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        password: formData.password,
+        referral_code: myReferralCode,
+        member_code: memberCode,
+        tier: "初潤寶寶",
+        is_b2b: false,
+        lifetime_spend: 0,
+        quarterly_spend: 0,
+        points_balance: 0,
+        virtual_balance: 0
+      };
+
+      // 只有當 uplineId 真正存在且不是空的時候，才加入這個欄位
+      if (uplineId) {
+        insertData.upline_id = uplineId;
+      }
+
       const { data, error } = await supabase
         .from("members")
-        .insert({
-          name: formData.name.trim(),
-          phone: formData.phone.trim(),
-          password: formData.password,
-          referral_code: myReferralCode,
-          member_code: memberCode,
-          upline_id: uplineId || null, // 極重要：如果是空就強制給 null
-          tier: "初潤寶寶",
-          is_b2b: false,
-          lifetime_spend: 0,
-          quarterly_spend: 0,
-          points_balance: 0,
-          virtual_balance: 0
-        })
+        .insert(insertData)
         .select()
         .single();
+
+      // Force Build Timestamp: 2026-05-03 11:51:00
 
       if (error) {
         // 處理資料庫拋出的錯誤
