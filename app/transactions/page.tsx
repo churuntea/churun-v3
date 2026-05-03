@@ -54,7 +54,7 @@ function TransactionContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] pb-32 overflow-hidden">
+    <div className="min-h-screen bg-[#FDFBF7] pb-32">
       
       {/* Header */}
       <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
