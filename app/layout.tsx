@@ -10,7 +10,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "CHURUN - PREMIUM V2",
+  title: "CHURUN - PREMIUM V2.2",
   description: "初潤製茶所 - 精品級會員系統",
 };
 
