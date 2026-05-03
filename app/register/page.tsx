@@ -122,7 +122,12 @@ function RegisterContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-blue-50 flex items-center justify-center p-6 relative overflow-hidden">
+      
+      {/* VERSION TAG FOR DEPLOYMENT VERIFICATION */}
+      <div className="fixed top-4 left-4 z-[200] bg-black text-white text-[8px] px-2 py-1 rounded-full opacity-50">
+        v1.0.1-FORCE-DEPLOY
+      </div>
       
       {/* Background Orbs */}
       <div className="absolute inset-0 pointer-events-none">
