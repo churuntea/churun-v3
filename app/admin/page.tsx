@@ -188,6 +188,32 @@ function AdminDashboardContent() {
            ))}
         </div>
 
+        {/* Brand Voice & Marketing */}
+        <section className="bg-slate-900 rounded-[4rem] p-12 text-white relative overflow-hidden">
+           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-emerald-500 rounded-full blur-[120px] opacity-20"></div>
+           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-10">
+              <div className="space-y-4 text-center md:text-left">
+                 <h3 className="text-3xl font-black tracking-tight">掌控品牌脈動</h3>
+                 <p className="text-white/40 text-sm max-w-md leading-relaxed">
+                    透過即時快訊系統，將總部的最新政策、產品動向秒速傳遞給每一位合作夥伴。
+                 </p>
+                 <Link href="/admin/news" className="inline-flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition">
+                    進入公告編輯器 <ArrowUpRight className="w-4 h-4" />
+                 </Link>
+              </div>
+              <div className="flex gap-4">
+                 <div className="w-32 h-40 bg-white/5 rounded-3xl border border-white/10 p-6 flex flex-col justify-end">
+                    <p className="text-[8px] font-black uppercase text-white/30 mb-2">Live News</p>
+                    <p className="text-xl font-black">24+</p>
+                 </div>
+                 <div className="w-32 h-40 bg-white/5 rounded-3xl border border-white/10 p-6 flex flex-col justify-end">
+                    <p className="text-[8px] font-black uppercase text-white/30 mb-2">Reach</p>
+                    <p className="text-xl font-black">1.2K</p>
+                 </div>
+              </div>
+           </div>
+        </section>
+
         {/* Analytics Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-10">
            
