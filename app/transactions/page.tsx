@@ -28,10 +28,11 @@ function TransactionContent() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"wallet" | "points">("wallet");
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "2.2";
+    const currentVersion = "2.3";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -53,14 +54,26 @@ function TransactionContent() {
     setMemberInfo(mData);
 
     if (activeTab === "wallet") {
-      const { data } = await supabase.from("wallet_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false });
+      const { data } = await supabase.from("wallet_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
       setTransactions(data || []);
     } else {
-      const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false });
+      const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
       setTransactions(data || []);
     }
     setIsLoading(false);
   };
+
+  // Helper to parse beneficiary into branch and name
+  const parseBeneficiary = () => {
+    const val = memberInfo?.beneficiary || "";
+    if (val.includes("|")) {
+      const parts = val.split("|");
+      return { branch: parts[0].trim(), name: parts[1].trim() };
+    }
+    return { branch: "", name: val };
+  };
+
+  const bankInfo = parseBeneficiary();
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen">
@@ -68,7 +81,7 @@ function TransactionContent() {
       {/* Header */}
       <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
-           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100">v2.2 FIX</span>
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100">v2.3</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
@@ -81,39 +94,74 @@ function TransactionContent() {
         <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
            <motion.div 
              whileTap={{ scale: 0.95 }}
-             onClick={() => setActiveTab("wallet")}
-             className={`min-w-[280px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
+             onClick={() => {
+               setActiveTab("wallet");
+               setShowHistory(!showHistory);
+             }}
+             className={`min-w-[300px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">虛擬預收餘額</p>
-              <h2 className="text-3xl font-black tracking-tighter">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
+              <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">虛擬預收餘額 (點擊查看明細)</p>
+              <h2 className="text-4xl font-black tracking-tighter">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
               <div className="mt-8 flex justify-between items-center">
                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-4 h-4 text-emerald-400" />
                     <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
                  </div>
-                 {activeTab === 'wallet' && memberInfo?.is_b2b && (
-                   <Link href="/withdraw" className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl text-[8px] font-black uppercase tracking-widest border border-white/10 hover:bg-white/20 transition">
-                      申請提領
-                   </Link>
-                 )}
+                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
 
            <motion.div 
              whileTap={{ scale: 0.95 }}
-             onClick={() => setActiveTab("points")}
-             className={`min-w-[280px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
+             onClick={() => {
+               setActiveTab("points");
+               setShowHistory(!showHistory);
+             }}
+             className={`min-w-[300px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">紅利點數</p>
-              <h2 className="text-3xl font-black tracking-tighter">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
-              <div className="mt-8 flex items-center gap-2">
-                 <Gift className="w-4 h-4" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">獎勵計畫</span>
+              <h2 className="text-4xl font-black tracking-tighter">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
+              <div className="mt-8 flex justify-between items-center">
+                 <div className="flex items-center gap-2">
+                    <Gift className="w-4 h-4 text-amber-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">獎勵計畫</span>
+                 </div>
+                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
         </div>
+
+        {/* Expandable History Section */}
+        <AnimatePresence>
+          {showHistory && (
+            <motion.section 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden bg-slate-50/50 rounded-[2.5rem] border border-slate-100"
+            >
+               <div className="p-8 space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最近十筆存入/變動明細</h3>
+                     <span className="text-[8px] bg-slate-200 px-2 py-0.5 rounded text-slate-500">Auto Sync</span>
+                  </div>
+                  {transactions.slice(0, 10).map((tx, idx) => (
+                    <div key={tx.id} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-slate-600">{tx.transaction_type}</p>
+                          <p className="text-[8px] text-slate-400">{new Date(tx.created_at).toLocaleDateString()}</p>
+                       </div>
+                       <p className={`text-xs font-black ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {tx.amount > 0 ? '+' : ''}{Number(tx.amount).toLocaleString()}
+                       </p>
+                    </div>
+                  ))}
+               </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
          {/* Transaction Feed */}
          <section className="space-y-6">
@@ -131,7 +179,7 @@ function TransactionContent() {
                     <p className="text-xs text-slate-300 font-bold">目前尚無交易紀錄</p>
                  </div>
                ) : (
-                 transactions.map((tx, i) => {
+                 transactions.slice(0, 10).map((tx, i) => {
                    const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
                    return (
                      <motion.div 
@@ -169,7 +217,7 @@ function TransactionContent() {
                <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">提領帳戶設定</h3>
                <div className="flex items-center gap-1">
                   <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Secure Link</span>
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Identity Verified</span>
                </div>
             </div>
 
@@ -178,69 +226,106 @@ function TransactionContent() {
                
                <div className="space-y-6 relative z-10">
                   <div className="grid grid-cols-1 gap-6">
-                     <div className="space-y-2">
-                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶名稱 (戶名)</label>
-                        <input 
-                           type="text" 
-                           defaultValue={memberInfo?.beneficiary || memberInfo?.name}
-                           id="bank_account_name"
-                           className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
-                           placeholder="請輸入銀行戶名"
-                        />
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                           <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶姓名 (戶名)</label>
+                           <input 
+                              type="text" 
+                              defaultValue={bankInfo.name}
+                              id="bank_account_name"
+                              className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
+                              placeholder="請輸入姓名"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">分行名稱 (選填)</label>
+                           <input 
+                              type="text" 
+                              defaultValue={bankInfo.branch}
+                              id="bank_branch"
+                              className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
+                              placeholder="例: 信義分行"
+                           />
+                        </div>
                      </div>
+                     
                      <div className="space-y-2">
-                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼 (預設國泰世華)</label>
+                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼 (國泰預設 013)</label>
                         <div className="flex gap-4">
                            <input 
                               type="text" 
                               defaultValue={memberInfo?.bank_code || "013"}
                               id="bank_code"
+                              maxLength={3}
                               className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition text-center"
                               placeholder="013"
                            />
-                           <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-xs font-black text-slate-400 flex items-center px-6">
+                           <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-[10px] font-black text-slate-400 flex items-center px-6">
                               國泰世華商業銀行
                            </div>
                         </div>
                      </div>
+
                      <div className="space-y-2">
-                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號</label>
+                        <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號 (10-14 碼數字)</label>
                         <input 
-                           type="text" 
+                           type="tel" 
                            defaultValue={memberInfo?.bank_account}
                            id="bank_account"
+                           onChange={(e) => {
+                             const val = e.target.value.replace(/\D/g, '');
+                             e.target.value = val;
+                             const label = document.getElementById('account-status');
+                             if (label) {
+                               if (val.length >= 10 && val.length <= 14) {
+                                 label.innerText = "格式正確";
+                                 label.className = "text-[8px] font-black text-emerald-500 uppercase tracking-widest ml-2";
+                               } else {
+                                 label.innerText = "長度需為 10-14 碼";
+                                 label.className = "text-[8px] font-black text-rose-400 uppercase tracking-widest ml-2";
+                               }
+                             }
+                           }}
                            className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
                            placeholder="請輸入匯款帳號"
                         />
+                        <div id="account-status" className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">請輸入純數字帳號</div>
                      </div>
                   </div>
 
                   <button 
                     onClick={async () => {
                       const nameInput = document.getElementById('bank_account_name') as HTMLInputElement;
+                      const branchInput = document.getElementById('bank_branch') as HTMLInputElement;
                       const codeInput = document.getElementById('bank_code') as HTMLInputElement;
                       const accountInput = document.getElementById('bank_account') as HTMLInputElement;
                       
+                      const fullName = branchInput.value ? `${branchInput.value} | ${nameInput.value}` : nameInput.value;
+                      
+                      if (accountInput.value.length < 10) {
+                        alert('銀行帳號格式似乎不正確，請檢查長度。');
+                        return;
+                      }
+
                       setIsLoading(true);
                       const { error } = await supabase.from('members').update({
-                        beneficiary: nameInput.value,
+                        beneficiary: fullName,
                         bank_code: codeInput.value,
                         bank_account: accountInput.value
                       }).eq('id', memberInfo.id);
                       
                       if (!error) {
-                        alert('帳戶資訊已成功加密儲存！');
-                        // Refresh data locally
+                        alert('帳戶資訊已成功更新！');
                         const { data: updated } = await supabase.from("members").select("*").eq("id", memberInfo.id).single();
                         setMemberInfo(updated);
                       } else {
-                        alert('更新失敗，請檢查網路連線。');
+                        alert('更新失敗。');
                       }
                       setIsLoading(false);
                     }}
                     className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition"
                   >
-                     更新匯款帳戶資訊
+                     確認儲存匯款資訊
                   </button>
                </div>
             </div>
