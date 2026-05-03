@@ -61,6 +61,28 @@ export async function POST(request: Request) {
 
     if (orderError) throw orderError;
 
+    // 3.5 建立訂單明細
+    const orderItemsData = items.map(item => {
+      const product = products.find(p => p.id === item.id);
+      return {
+        order_id: order.id,
+        product_id: item.id,
+        name: product?.name || '未知商品',
+        quantity: item.quantity,
+        price: product?.price || 0
+      };
+    });
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItemsData);
+
+    if (itemsError) {
+      console.error('Order Items Error:', itemsError);
+      // Even if items fail, we don't necessarily want to roll back the whole order 
+      // in this simple demo, but in production we should use a transaction.
+    }
+
     let message = `結帳成功！總計 $${totalAmount.toLocaleString()}。`;
 
     // 4. 處理不同身份的結算邏輯

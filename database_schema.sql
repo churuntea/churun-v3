@@ -114,3 +114,18 @@ CREATE POLICY "Allow public update access on products" ON public.products FOR UP
 CREATE POLICY "Allow public read access on orders" ON public.orders FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on point_transactions" ON public.point_transactions FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on wallet_transactions" ON public.wallet_transactions FOR SELECT USING (true);
+
+-- 7. 訂單明細 (Order Items)
+CREATE TABLE public.order_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE NOT NULL,
+    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,                                              -- 備份品名以免商品被刪除或改名
+    quantity INTEGER NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,                                   -- 購買當下的價格
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
+);
+
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on order_items" ON public.order_items FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on order_items" ON public.order_items FOR INSERT WITH CHECK (true);

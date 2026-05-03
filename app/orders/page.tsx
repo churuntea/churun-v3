@@ -42,6 +42,9 @@ function OrdersContent() {
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
+  const [loadingItems, setLoadingItems] = useState<string | null>(null);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -62,6 +65,25 @@ function OrdersContent() {
     
     setOrders(data || []);
     setIsLoading(false);
+  };
+
+  const fetchOrderItems = async (orderId: string) => {
+    if (orderItems[orderId]) {
+      setExpandedOrder(expandedOrder === orderId ? null : orderId);
+      return;
+    }
+    
+    setLoadingItems(orderId);
+    const { data } = await supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", orderId);
+    
+    if (data) {
+      setOrderItems(prev => ({ ...prev, [orderId]: data }));
+    }
+    setExpandedOrder(orderId);
+    setLoadingItems(null);
   };
 
   const filteredOrders = orders.filter(order => {
@@ -173,17 +195,45 @@ function OrdersContent() {
                         </div>
                      </div>
 
-                     <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                        <div className="flex items-center gap-3">
-                           <Clock className="w-4 h-4 text-slate-300" />
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              {new Date(order.created_at).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                           </span>
-                        </div>
-                        <button className="bg-slate-50 text-slate-900 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 hover:text-white transition flex items-center gap-2">
-                           訂單詳情 <ChevronRight className="w-4 h-4" />
-                        </button>
-                     </div>
+                      {/* Expanded Items */}
+                      <AnimatePresence>
+                        {expandedOrder === order.id && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                             <div className="pt-6 space-y-4">
+                                {orderItems[order.id]?.map((item: any) => (
+                                  <div key={item.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                     <div className="flex flex-col gap-1">
+                                        <span className="text-sm font-black text-slate-800">{item.name}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">數量: {item.quantity}</span>
+                                     </div>
+                                     <span className="text-sm font-black text-slate-900">${Number(item.price * item.quantity).toLocaleString()}</span>
+                                  </div>
+                                ))}
+                             </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                         <div className="flex items-center gap-3">
+                            <Clock className="w-4 h-4 text-slate-300" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                               {new Date(order.created_at).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                         </div>
+                         <button 
+                           onClick={() => fetchOrderItems(order.id)}
+                           className="bg-slate-50 text-slate-900 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 hover:text-white transition flex items-center gap-2"
+                         >
+                            {loadingItems === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : expandedOrder === order.id ? "收起詳情" : "訂單詳情"} 
+                            <ChevronRight className={`w-4 h-4 transition-transform ${expandedOrder === order.id ? 'rotate-90' : ''}`} />
+                         </button>
+                      </div>
                   </motion.div>
                 ))}
              </div>
