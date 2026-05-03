@@ -30,6 +30,15 @@ function TransactionContent() {
   const [activeTab, setActiveTab] = useState<"wallet" | "points">("wallet");
 
   useEffect(() => {
+    // Force cache break
+    const currentVersion = "2.2";
+    const savedVersion = localStorage.getItem("churun_trans_version");
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem("churun_trans_version", currentVersion);
+      window.location.reload();
+      return;
+    }
+
     const savedId = localStorage.getItem("churun_member_id");
     if (!savedId) {
       router.replace("/login");
