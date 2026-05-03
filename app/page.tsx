@@ -194,36 +194,45 @@ function DashboardContent() {
         </motion.section>
 
         {/* Brand Pulse Announcements */}
-        <section className="space-y-6 relative z-[200]">
+        <section className="space-y-6 relative z-10">
            <div className="flex justify-between items-center px-2">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動 (DIAGNOSTIC V3)</h3>
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動</h3>
               <div className="flex gap-1 items-center">
-                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></div>
-                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Diagnostic Mode</span>
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Updates</span>
               </div>
            </div>
            
-           <div className="space-y-4 relative z-[210]">
+           <div className="flex gap-6 overflow-x-auto pb-10 -mx-6 px-6 relative no-scrollbar">
               {[
-                { id: "spring-tea", title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" }
+                { id: "spring-tea", title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900", img: "/spring_tea_premium_banner_1777786729443.png" },
+                { id: "dividend-plan", title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600", img: "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400" },
+                { id: "taipei-event", title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600", img: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400" }
               ].map((news, i) => (
-                <div 
+                <a 
                   key={i}
-                  onClick={() => {
-                    alert('點擊成功！正在嘗試跳轉...');
-                    window.location.href = `/brand/news/${news.id}`;
-                  }}
-                  className="bg-white rounded-[2rem] p-8 border-2 border-emerald-500 shadow-2xl cursor-pointer relative z-[220]"
+                  href={`/brand/news/${news.id}`}
+                  className="min-w-[300px] flex-shrink-0 block relative group"
                 >
-                   <div className="flex justify-between items-center mb-4">
-                      <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white ${news.color}`}>
-                         {news.tag}
-                      </span>
-                      <span className="text-[10px] font-black text-slate-300">{news.date}</span>
-                   </div>
-                   <h4 className="font-bold text-slate-800 text-lg">{news.title}</h4>
-                   <p className="text-[10px] text-emerald-600 font-black mt-4 uppercase tracking-widest">點擊此處測試跳轉 →</p>
-                </div>
+                  <div className="bg-white rounded-[3rem] p-0 border border-slate-50 shadow-xl relative overflow-hidden transition-all duration-500 hover:border-emerald-200 active:scale-[0.98]">
+                     <div className="h-44 w-full relative overflow-hidden">
+                        <img src={news.img} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-1000" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
+                        <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest ${news.color}`}>
+                           {news.tag}
+                        </div>
+                     </div>
+                     <div className="p-8 space-y-4">
+                        <div className="flex justify-between items-center">
+                           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{news.date}</span>
+                           <ArrowUpRight className="w-4 h-4 text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
+                        </div>
+                        <h4 className="font-bold text-slate-800 leading-tight text-lg">{news.title}</h4>
+                     </div>
+                  </div>
+                  {/* Invisible overlay for perfect interaction */}
+                  <div className="absolute inset-0 z-20 cursor-pointer"></div>
+                </a>
               ))}
            </div>
         </section>
