@@ -1,165 +1,247 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabaseAdmin as supabase } from "@/app/supabase-admin";
+import { supabase } from "../../supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Package, 
-  Truck, 
-  CheckCircle2, 
+  Search, 
+  Filter, 
+  ChevronRight, 
   ArrowLeft, 
-  Loader2, 
-  Search,
-  ExternalLink,
-  ShoppingBag,
-  Clock
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  MoreVertical,
+  Loader2,
+  Calendar,
+  DollarSign,
+  User,
+  ExternalLink
 } from "lucide-react";
+import Link from "next/link";
 
 function AdminOrdersContent() {
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const isAdmin = sessionStorage.getItem("is_admin");
-    if (!isAdmin) router.push("/admin");
+    const auth = sessionStorage.getItem("churun_admin_auth");
+    if (auth !== "true") {
+      router.replace("/admin");
+      return;
+    }
+    setIsAdmin(true);
     fetchOrders();
   }, [router]);
 
   const fetchOrders = async () => {
     setIsLoading(true);
-    const { data } = await supabase
-      .from("orders")
-      .select(`
-        *,
-        members (name, phone)
-      `)
-      .order("created_at", { ascending: false });
-    
-    setOrders(data || []);
-    setIsLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          members (
+            name,
+            phone,
+            member_code
+          )
+        `)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
     const { error } = await supabase
       .from("orders")
-      .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
-      .eq("id", id);
+      .update({ status: newStatus })
+      .eq("id", orderId);
     
-    if (!error) fetchOrders();
+    if (error) {
+      alert("更新失敗: " + error.message);
+    } else {
+      fetchOrders();
+    }
   };
 
-  const filteredOrders = orders.filter(o => filter === 'all' ? true : o.status === filter);
+  const filteredOrders = orders.filter(order => {
+    const matchesStatus = filterStatus === "all" || order.status === filterStatus;
+    const matchesSearch = 
+      order.members?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.members?.phone.includes(searchTerm) ||
+      order.id.includes(searchTerm);
+    return matchesStatus && matchesSearch;
+  });
+
+  if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32">
-      
-      {/* Admin Nav */}
-      <nav className="bg-slate-900 text-white sticky top-0 z-50 px-8 py-6 flex items-center justify-between">
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-20">
+      {/* Top Header */}
+      <nav className="bg-white border-b border-slate-100 sticky top-0 z-50 px-8 py-6 flex items-center justify-between shadow-sm">
          <div className="flex items-center gap-6">
-            <Link href="/admin" className="p-2 -ml-2 text-white/40 hover:text-white transition">
-               <ArrowLeft className="w-5 h-5" />
+            <Link href="/admin" className="p-2 hover:bg-slate-50 rounded-full transition">
+               <ArrowLeft className="w-5 h-5 text-slate-400" />
             </Link>
-            <h1 className="text-sm font-black tracking-[0.3em] uppercase">訂單總調度中心</h1>
+            <div>
+               <h1 className="text-xl font-black tracking-tight">訂單指揮中心</h1>
+               <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Order Management Console</p>
+            </div>
          </div>
-         <div className="flex items-center gap-4">
-            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Global Logistics</span>
-         </div>
+         <button onClick={fetchOrders} className="p-2 text-slate-400 hover:text-indigo-600 transition">
+            <Clock className="w-5 h-5" />
+         </button>
       </nav>
 
-      <main className="max-w-5xl mx-auto p-8 space-y-8">
+      <main className="max-w-7xl mx-auto p-10 space-y-10">
         
-        {/* Filters */}
-        <div className="flex overflow-x-auto gap-2 p-1 bg-slate-100 rounded-2xl w-fit no-scrollbar">
-           {['all', 'processing', 'shipped', 'completed'].map((t) => (
-             <button 
-               key={t}
-               onClick={() => setFilter(t)}
-               className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition whitespace-nowrap ${filter === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-             >
-                {t === 'all' ? '全部訂單' : t === 'processing' ? '處理中' : t === 'shipped' ? '已發貨' : '已完成'}
-             </button>
-           ))}
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-6">
+           <div className="flex-1 relative">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+              <input 
+                type="text" 
+                placeholder="搜尋會員姓名、電話或訂單編號..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-slate-100 p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-indigo-500/5 transition shadow-sm"
+              />
+           </div>
+           <div className="flex gap-2 p-2 bg-slate-100 rounded-[2rem]">
+              {["all", "pending", "completed", "cancelled"].map((s) => (
+                <button 
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition ${filterStatus === s ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                   {s === "all" ? "全部" : s === "pending" ? "待處理" : s === "completed" ? "已完成" : "已取消"}
+                </button>
+              ))}
+           </div>
         </div>
 
-        {/* Order Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           {isLoading ? (
-             <div className="col-span-2 flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
-           ) : filteredOrders.map((order, i) => (
-             <motion.div 
-               key={order.id}
-               initial={{ opacity: 0, scale: 0.98 }}
-               animate={{ opacity: 1, scale: 1 }}
-               className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm flex flex-col justify-between group"
-             >
-                <div className="space-y-6">
-                   <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                         <div className="flex items-center gap-3">
-                            <span className="text-sm font-black text-slate-900">Order #{order.id.slice(-6).toUpperCase()}</span>
-                            <div className={`w-2 h-2 rounded-full ${order.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`}></div>
+        {/* Orders Table */}
+        <div className="bg-white rounded-[3rem] border border-slate-50 shadow-sm overflow-hidden">
+           <table className="w-full text-left border-collapse">
+              <thead>
+                 <tr className="bg-slate-50/50 border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="p-8">訂單日期 / 編號</th>
+                    <th className="p-8">會員資訊</th>
+                    <th className="p-8 text-right">結帳金額</th>
+                    <th className="p-8 text-center">目前狀態</th>
+                    <th className="p-8 text-right">操作管理</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                 {isLoading ? (
+                   <tr>
+                      <td colSpan={5} className="p-20 text-center">
+                         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
+                      </td>
+                   </tr>
+                 ) : filteredOrders.length === 0 ? (
+                   <tr>
+                      <td colSpan={5} className="p-20 text-center">
+                         <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Package className="w-8 h-8 text-slate-200" />
                          </div>
-                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{new Date(order.created_at).toLocaleString()}</p>
-                      </div>
-                      <h4 className="text-xl font-black text-slate-900 tracking-tighter">${Number(order.total_amount).toLocaleString()}</h4>
-                   </div>
-
-                   <div className="p-6 bg-slate-50 rounded-[2rem] space-y-3">
-                      <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                            <User className="w-4 h-4 text-slate-400" />
-                         </div>
-                         <span className="text-sm font-bold text-slate-700">{order.members?.name}</span>
-                         <span className="text-[10px] font-bold text-slate-300">({order.members?.phone})</span>
-                      </div>
-                   </div>
-                </div>
-
-                <div className="mt-8 flex gap-3">
-                   {order.status === 'processing' && (
-                     <button 
-                       onClick={() => updateStatus(order.id, 'shipped')}
-                       className="flex-1 bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2"
+                         <p className="text-sm font-bold text-slate-400">目前沒有符合條件的訂單</p>
+                      </td>
+                   </tr>
+                 ) : (
+                   filteredOrders.map((order) => (
+                     <motion.tr 
+                       key={order.id}
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       className="hover:bg-slate-50/50 transition group"
                      >
-                        <Truck className="w-4 h-4" /> 標記為發貨
-                     </button>
-                   )}
-                   {order.status === 'shipped' && (
-                     <button 
-                       onClick={() => updateStatus(order.id, 'completed')}
-                       className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
-                     >
-                        <CheckCircle2 className="w-4 h-4" /> 完成訂單
-                     </button>
-                   )}
-                   {order.status === 'completed' && (
-                     <div className="flex-1 bg-emerald-50 text-emerald-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center">
-                        ✓ 訂單已結案
-                     </div>
-                   )}
-                   <button className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 transition">
-                      <ExternalLink className="w-5 h-5" />
-                   </button>
-                </div>
-             </motion.div>
-           ))}
+                        <td className="p-8">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                                 <Calendar className="w-5 h-5" />
+                              </div>
+                              <div className="space-y-1">
+                                 <p className="text-sm font-black text-slate-800">{new Date(order.created_at).toLocaleDateString()}</p>
+                                 <p className="text-[9px] font-mono text-slate-300">ID: {order.id.substring(0, 8)}...</p>
+                              </div>
+                           </div>
+                        </td>
+                        <td className="p-8">
+                           <div className="space-y-1">
+                              <p className="text-sm font-black text-slate-800">{order.members?.name}</p>
+                              <p className="text-[10px] font-bold text-slate-400">{order.members?.phone}</p>
+                           </div>
+                        </td>
+                        <td className="p-8 text-right">
+                           <div className="space-y-1">
+                              <p className="text-lg font-black text-slate-900 tracking-tighter">${Number(order.total_amount).toLocaleString()}</p>
+                              <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TWD</p>
+                           </div>
+                        </td>
+                        <td className="p-8 text-center">
+                           <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                             order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
+                             order.status === 'pending' ? 'bg-amber-50 text-amber-600' :
+                             'bg-rose-50 text-rose-600'
+                           }`}>
+                              {order.status === 'completed' ? 'Success' :
+                               order.status === 'pending' ? 'Processing' : 'Cancelled'}
+                           </span>
+                        </td>
+                        <td className="p-8 text-right">
+                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                              {order.status === 'pending' && (
+                                <>
+                                  <button 
+                                    onClick={() => updateOrderStatus(order.id, 'completed')}
+                                    className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition"
+                                    title="標記為已完成"
+                                  >
+                                     <CheckCircle2 className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                    className="p-3 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-500/20 hover:scale-110 transition"
+                                    title="取消訂單"
+                                  >
+                                     <XCircle className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                              <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition">
+                                 <MoreVertical className="w-4 h-4" />
+                              </button>
+                           </div>
+                        </td>
+                     </motion.tr>
+                   ))
+                 )}
+              </tbody>
+           </table>
         </div>
 
       </main>
-
     </div>
   );
 }
 
-const User = ({ className }: { className?: string }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
-
 export default function AdminOrders() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-900" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center text-slate-400">Loading Orders...</div>}>
       <AdminOrdersContent />
     </Suspense>
   );
