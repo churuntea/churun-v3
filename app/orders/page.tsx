@@ -195,11 +195,6 @@ function OrdersContent() {
   );
 }
 
-      </main>
-
-    </div>
-  );
-}
 
 export default function Orders() {
   return (
