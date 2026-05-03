@@ -58,6 +58,15 @@ async function evaluateTiers() {
           .from('members')
           .update({ tier: newTier })
           .eq('id', member.id);
+        
+        // 新增升級通知
+        await supabase.from('notifications').insert({
+          member_id: member.id,
+          title: '會員等級晉升！',
+          content: `恭喜您！您的會員等級已晉升為「${newTier}」。感謝您的支持！`,
+          type: 'system'
+        });
+
         updatedCount++;
       }
     }

@@ -145,3 +145,19 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access on notifications" ON public.notifications FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on notifications" ON public.notifications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access on notifications" ON public.notifications FOR UPDATE USING (true);
+
+-- 9. 品牌快訊 (Announcements)
+CREATE TABLE public.announcements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title TEXT NOT NULL,
+    tag TEXT DEFAULT 'NEW' NOT NULL,                                 -- 'NEW', 'INFO', 'EVENT'
+    content TEXT,
+    color TEXT DEFAULT 'bg-emerald-900' NOT NULL,                    -- 標籤顏色
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
+);
+
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on announcements" ON public.announcements FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on announcements" ON public.announcements FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on announcements" ON public.announcements FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on announcements" ON public.announcements FOR DELETE USING (true);
