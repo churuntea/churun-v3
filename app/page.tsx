@@ -124,25 +124,27 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32 overflow-x-hidden">
       
-      {/* Premium Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
-         <motion.div 
-           initial={{ opacity: 0, x: -20 }}
-           animate={{ opacity: 1, x: 0 }}
-           className="flex items-center gap-3"
-         >
-            <div className="w-10 h-10 bg-emerald-900 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-900/20">
-               <span className="text-white font-black text-sm tracking-tighter">CR</span>
-            </div>
-            <div>
-               <h1 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase leading-none">Churun Tea</h1>
-               <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
-            </div>
-         </motion.div>
-          <div className="flex items-center gap-4">
-             {currentUserId && <NotificationBell memberId={currentUserId} />}
-          </div>
-      </nav>
+      {/* Premium Header - Refactored for better click stability */}
+      <div className="fixed top-0 left-0 right-0 z-[60] pointer-events-none">
+        <nav className="max-w-lg mx-auto px-6 py-4 flex justify-between items-center bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-100 pointer-events-auto">
+           <motion.div 
+             initial={{ opacity: 0, x: -20 }}
+             animate={{ opacity: 1, x: 0 }}
+             className="flex items-center gap-3"
+           >
+              <div className="w-10 h-10 bg-emerald-900 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-900/20">
+                 <span className="text-white font-black text-sm tracking-tighter">CR</span>
+              </div>
+              <div>
+                 <h1 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase leading-none">Churun Tea</h1>
+                 <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
+              </div>
+           </motion.div>
+           <div className="flex items-center gap-4">
+              {currentUserId && <NotificationBell memberId={currentUserId} />}
+           </div>
+        </nav>
+      </div>
 
       <motion.main 
         variants={containerVariants}

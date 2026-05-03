@@ -105,11 +105,11 @@ export default function NotificationBell({ memberId }: { memberId: string }) {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center relative shadow-sm border border-slate-50 hover:bg-slate-50 transition active:scale-95"
+        className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center relative shadow-sm border border-slate-50 hover:bg-slate-50 transition active:scale-95 z-10"
       >
         <Bell className={`w-5 h-5 ${unreadCount > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
         {unreadCount > 0 && (
-          <span className="absolute top-3 right-3 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+          <span className="absolute top-3 right-3 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce pointer-events-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
