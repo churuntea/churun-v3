@@ -204,11 +204,11 @@ function DashboardContent() {
            
            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-6 px-6">
               {[
-                { title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" },
-                { title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600" },
-                { title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600" }
+                { id: "spring-tea", title: "春季極萃紅茶正式上市", date: "MAY 02", tag: "NEW", color: "bg-emerald-900" },
+                { id: "dividend-plan", title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600" },
+                { id: "taipei-event", title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600" }
               ].map((news, i) => (
-                <div key={i} className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group">
+                <Link href={`/brand/news/${news.id}`} key={i} className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group hover:border-emerald-200 transition-all duration-500">
                    <div className={`absolute top-0 right-0 w-24 h-24 ${news.color} opacity-5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition duration-700`}></div>
                    <div className="flex justify-between items-start mb-6">
                       <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest ${news.color}`}>
@@ -217,10 +217,10 @@ function DashboardContent() {
                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{news.date}</span>
                    </div>
                    <h4 className="font-bold text-slate-800 leading-relaxed mb-4">{news.title}</h4>
-                   <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                   <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest group-hover:gap-4 transition-all">
                       了解詳情 <ChevronRight className="w-3 h-3" />
                    </div>
-                </div>
+                </Link>
               ))}
            </div>
         </motion.section>
