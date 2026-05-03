@@ -27,24 +27,6 @@ import {
   Activity,
   AlertTriangle
 } from "lucide-react";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
-
-// 模擬趨勢數據
-const data = [
-  { name: 'Jan', members: 400, sales: 2400 },
-  { name: 'Feb', members: 600, sales: 3200 },
-  { name: 'Mar', members: 900, sales: 4800 },
-  { name: 'Apr', members: 1200, sales: 5600 },
-  { name: 'May', members: 1800, sales: 7200 },
-];
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -167,9 +149,9 @@ function AdminDashboardContent() {
         {/* HQ Stats Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 px-2">
            {[
-             { label: "待核准提領", val: "12", icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
-             { label: "待處理訂單", val: "08", icon: Package, color: "text-blue-500", href: "/admin/orders" },
-             { label: "本月總業績", val: "$12.4M", icon: TrendingUp, color: "text-emerald-500", href: "/admin/products" },
+             { label: "待核准提領", val: stats.pendingSettlement.toLocaleString(), icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
+             { label: "待處理訂單", val: stats.activeOrders, icon: Package, color: "text-blue-500", href: "/admin/orders" },
+             { label: "總會員數", val: stats.totalMembers, icon: Users, color: "text-emerald-500", href: "#" },
              { label: "異常警報", val: "0", icon: AlertTriangle, color: "text-rose-500", href: "#" }
            ].map((stat, i) => (
              <Link href={stat.href} key={i}>
@@ -190,142 +172,27 @@ function AdminDashboardContent() {
            ))}
         </div>
 
-        {/* Brand Voice & Marketing */}
-        <section className="bg-slate-900 rounded-[4rem] p-12 text-white relative overflow-hidden">
-           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-emerald-500 rounded-full blur-[120px] opacity-20"></div>
-           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-10">
-              <div className="space-y-4 text-center md:text-left">
-                 <h3 className="text-3xl font-black tracking-tight">掌控品牌脈動</h3>
-                 <p className="text-white/40 text-sm max-w-md leading-relaxed">
-                    透過即時快訊系統，將總部的最新政策、產品動向秒速傳遞給每一位合作夥伴。
-                 </p>
-                 <Link href="/admin/news" className="inline-flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition">
-                    進入公告編輯器 <ArrowUpRight className="w-4 h-4" />
-                 </Link>
-              </div>
-              <div className="flex gap-4">
-                 <div className="w-32 h-40 bg-white/5 rounded-3xl border border-white/10 p-6 flex flex-col justify-end">
-                    <p className="text-[8px] font-black uppercase text-white/30 mb-2">Live News</p>
-                    <p className="text-xl font-black">24+</p>
-                 </div>
-                 <div className="w-32 h-40 bg-white/5 rounded-3xl border border-white/10 p-6 flex flex-col justify-end">
-                    <p className="text-[8px] font-black uppercase text-white/30 mb-2">Reach</p>
-                    <p className="text-xl font-black">1.2K</p>
-                 </div>
-              </div>
-           </div>
-        </section>
+        <div className="bg-white rounded-[4rem] p-12 border border-slate-50 text-center">
+           <Activity className="w-12 h-12 text-indigo-500 mx-auto mb-6" />
+           <h3 className="text-xl font-black text-slate-900">核心系統監控中</h3>
+           <p className="text-sm text-slate-400 mt-2">分析模組正在同步雲端數據...</p>
+        </div>
 
-        {/* Analytics Section */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-           
-           <div className="lg:col-span-2 space-y-6">
-              <div className="flex justify-between items-center px-4">
-                 <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase flex items-center gap-2">
-                    <Activity className="w-4 h-4" /> 業績與成長趨勢
-                 </h3>
-                 <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                       <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                       <span className="text-[10px] font-black text-slate-400 uppercase">Members</span>
-                    </div>
-                 </div>
-              </div>
-              <div className="bg-white rounded-[4rem] p-10 border border-slate-50 shadow-sm h-[400px]">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                       <defs>
-                          <linearGradient id="colorMembers" x1="0" y1="0" x2="0" y2="1">
-                             <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                             <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                       </defs>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 900, fill: '#cbd5e1'}} dy={10} />
-                       <YAxis hide />
-                       <Tooltip 
-                         contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '12px' }}
-                         itemStyle={{ color: '#818cf8', fontWeight: 900 }}
-                       />
-                       <Area 
-                         type="monotone" 
-                         dataKey="members" 
-                         stroke="#6366f1" 
-                         strokeWidth={4} 
-                         fillOpacity={1} 
-                         fill="url(#colorMembers)" 
-                         animationDuration={2000}
-                       />
-                    </AreaChart>
-                 </ResponsiveContainer>
-              </div>
-           </div>
-
-           <div className="space-y-6">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">快捷管理操作</h3>
-              <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
-                 {[
-                   { label: "全體階級考核", icon: LayoutDashboard, action: "/api/cron/evaluate-tiers" },
-                   { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
-                   { label: "商品參數管理", icon: Settings, action: "/admin/products" },
-                   { label: "數據庫備份", icon: Database, action: "#" }
-                 ].map((act, i) => (
-                   <button 
-                     key={i}
-                     onClick={async () => {
-                        if (act.action.startsWith('/')) {
-                           if (act.action.includes('/api/')) {
-                              const res = await fetch(act.action, { method: 'POST' });
-                              const d = await res.json();
-                              alert(d.message || d.error);
-                           } else {
-                              router.push(act.action);
-                           }
-                        }
-                     }}
-                     className="w-full flex items-center justify-between p-5 bg-slate-50 rounded-2xl hover:bg-slate-900 hover:text-white transition group"
-                   >
-                      <div className="flex items-center gap-4">
-                         <act.icon className="w-5 h-5 text-slate-400 group-hover:text-white" />
-                         <span className="text-sm font-bold">{act.label}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
-                   </button>
-                 ))}
-              </div>
-           </div>
-        </section>
-
-        {/* Proactive Alerts */}
-        <section className="space-y-6">
-           <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">智慧系統診斷</h3>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="flex items-center gap-6 p-8 bg-rose-50 rounded-[2.5rem] border border-rose-100">
-                 <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-sm">
-                    <XCircle className="w-8 h-8 text-rose-500" />
-                 </div>
-                 <div className="flex-1">
-                    <h4 className="font-black text-rose-900 tracking-tight">餘額風險警報</h4>
-                    <p className="text-xs text-rose-700 mt-1">目前有 3 位 B2B 夥伴預收款不足，建議手動提醒。</p>
-                 </div>
-                 <ArrowUpRight className="w-5 h-5 text-rose-300" />
-              </div>
-
-              <div className="flex items-center gap-6 p-8 bg-emerald-50 rounded-[2.5rem] border border-emerald-100">
-                 <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-sm">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                 </div>
-                 <div className="flex-1">
-                    <h4 className="font-black text-emerald-900 tracking-tight">伺服器健康度 100%</h4>
-                    <p className="text-xs text-emerald-700 mt-1">自動考核任務已在 00:00 順利執行完畢。</p>
-                 </div>
-                 <TrendingUp className="w-5 h-5 text-emerald-300" />
-              </div>
-           </div>
-        </section>
+        {/* Action Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <Link href="/admin/news" className="bg-slate-900 rounded-[3rem] p-10 text-white group hover:scale-[1.02] transition duration-500 relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20"></div>
+              <h3 className="text-2xl font-black mb-4">品牌快訊編輯器</h3>
+              <p className="text-white/40 text-xs uppercase tracking-widest">Publish News & Pulse</p>
+           </Link>
+           <Link href="/admin/orders" className="bg-indigo-600 rounded-[3rem] p-10 text-white group hover:scale-[1.02] transition duration-500 relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-32 h-32 bg-white rounded-full blur-3xl opacity-10"></div>
+              <h3 className="text-2xl font-black mb-4">訂單調度中心</h3>
+              <p className="text-white/80 text-xs uppercase tracking-widest">Manage Global Orders</p>
+           </Link>
+        </div>
 
       </main>
-
     </div>
   );
 }
