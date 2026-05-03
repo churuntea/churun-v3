@@ -32,11 +32,13 @@ function AdminProductsContent() {
     image_url: "", 
     creator: "陳總經理",
     b2c_reward_percent: "10",
-    b2b_commission_percent: "15"
+    b2b_commission_percent: "15",
+    category: "極萃系列"
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const creators = ["陳總經理", "王副總", "張主任", "系統管理員"];
 
@@ -55,7 +57,16 @@ function AdminProductsContent() {
       const res = await fetch("/api/products");
       const data = await res.json();
       if (data.success) {
-        setProducts(data.products);
+        const processed = (data.products || []).map((p: any) => {
+          if (!p.category && p.name.startsWith('[')) {
+            const match = p.name.match(/^\[(.*?)\] (.*)/);
+            if (match) {
+              return { ...p, category: match[1], name: match[2] };
+            }
+          }
+          return { ...p, category: p.category || "極萃系列" };
+        });
+        setProducts(processed);
       }
     } catch (err) { console.error(err); }
     setIsLoading(false);
@@ -91,14 +102,45 @@ function AdminProductsContent() {
     setShowConfirm(true);
   };
 
+  const handleEditClick = (product: any) => {
+    setEditingId(product.id);
+    setFormData({
+      name: product.name,
+      original_price: product.original_price?.toString() || "",
+      price: product.price.toString(),
+      image_url: product.image_url || "",
+      creator: product.creator || "陳總經理",
+      b2c_reward_percent: product.b2c_reward_percent.toString(),
+      b2b_commission_percent: product.b2b_commission_percent.toString(),
+      category: product.category || "極萃系列"
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      name: "",
+      original_price: "",
+      price: "",
+      image_url: "",
+      creator: "陳總經理",
+      b2c_reward_percent: "10",
+      b2b_commission_percent: "15",
+      category: "極萃系列"
+    });
+  };
+
   const handleConfirmSubmit = async () => {
     setShowConfirm(false);
     setIsSubmitting(true);
     try {
+      const method = editingId ? "PUT" : "POST";
       const res = await fetch("/api/products", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: editingId,
           ...formData,
           original_price: formData.original_price ? Number(formData.original_price) : null,
           price: Number(formData.price),
@@ -108,20 +150,31 @@ function AdminProductsContent() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("🎉 新增成功！");
-        setFormData({ 
-          name: "", 
-          original_price: "", 
-          price: "", 
-          image_url: "", 
-          creator: "陳總經理",
-          b2c_reward_percent: "10", 
-          b2b_commission_percent: "15" 
-        });
+        alert(editingId ? "🎉 更新成功！" : "🎉 新增成功！");
+        handleCancelEdit();
         fetchProducts();
-      } else { alert("新增失敗: " + data.error); }
+      } else { alert(editingId ? "更新失敗: " : "新增失敗: " + data.error); }
     } catch (err: any) { alert("系統錯誤: " + err.message); }
     setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("確定要刪除此商品嗎？")) return;
+    try {
+      const res = await fetch("/api/products", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProducts();
+      } else {
+        alert("刪除失敗: " + data.error);
+      }
+    } catch (err: any) {
+      alert("系統錯誤: " + err.message);
+    }
   };
 
   return (
@@ -131,8 +184,13 @@ function AdminProductsContent() {
            <button onClick={() => router.push("/admin")} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition backdrop-blur-md">
               <ChevronLeft className="w-5 h-5" />
            </button>
-           <h1 className="text-sm font-black tracking-[0.2em] uppercase">商品與參數管理</h1>
-        </div>
+            <h1 className="text-sm font-black tracking-[0.2em] uppercase">{editingId ? "編輯商品資料" : "商品與參數管理"}</h1>
+         </div>
+         {editingId && (
+            <button onClick={handleCancelEdit} className="px-6 py-2 bg-rose-500 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition">
+               取消編輯
+            </button>
+         )}
       </nav>
 
       <main className="max-w-6xl mx-auto p-10 grid grid-cols-1 lg:grid-cols-5 gap-10">
@@ -161,6 +219,18 @@ function AdminProductsContent() {
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品名稱</label>
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例：初潤頂級紅茶" className="w-full bg-slate-50 border-none p-5 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/10 transition" required />
+                 </div>
+                 
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品分類</label>
+                    <select 
+                      name="category" 
+                      value={formData.category} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/10 transition"
+                    >
+                      {["極萃系列", "精品茶具", "典藏禮盒"].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                  </div>
 
                  <div className="space-y-2">
@@ -214,9 +284,14 @@ function AdminProductsContent() {
                     </div>
                  </div>
 
-                 <button type="submit" disabled={isSubmitting} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-sm hover:bg-slate-800 transition shadow-2xl shadow-slate-900/10">
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "確認上架"}
-                 </button>
+                  <button type="submit" disabled={isSubmitting} className={`w-full py-6 rounded-3xl font-black text-sm transition shadow-2xl ${editingId ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-900/10' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/10'} text-white`}>
+                     {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : editingId ? "更新商品資訊" : "確認上架"}
+                  </button>
+                  {editingId && (
+                    <button type="button" onClick={handleCancelEdit} className="w-full py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-rose-500 transition">
+                       放棄變更
+                    </button>
+                  )}
               </form>
            </div>
         </section>
@@ -228,7 +303,10 @@ function AdminProductsContent() {
                  <LayoutDashboard className="w-5 h-5 text-slate-400" />
                  <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">已上架商品 ({products.length})</h3>
               </div>
-              <Plus className="w-5 h-5 text-slate-300 cursor-pointer hover:text-slate-900 transition" />
+              <Plus 
+                 onClick={() => { handleCancelEdit(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                 className="w-5 h-5 text-slate-300 cursor-pointer hover:text-slate-900 transition" 
+              />
            </div>
 
            <div className="bg-white rounded-[3rem] p-10 border border-slate-50 shadow-sm min-h-[600px]">
@@ -239,7 +317,11 @@ function AdminProductsContent() {
               ) : (
                  <div className="grid grid-cols-1 gap-4">
                     {products.map(product => (
-                       <div key={product.id} className="bg-slate-50 p-6 rounded-[2.5rem] flex items-center gap-6 border border-slate-100 transition hover:border-indigo-100 group">
+                       <div 
+                         key={product.id} 
+                         onClick={() => handleEditClick(product)}
+                         className={`bg-slate-50 p-6 rounded-[2.5rem] flex items-center gap-6 border transition cursor-pointer group ${editingId === product.id ? 'border-indigo-500 ring-4 ring-indigo-500/10 bg-white' : 'border-slate-100 hover:border-indigo-100'}`}
+                       >
                           <div className="w-20 h-20 bg-white rounded-3xl overflow-hidden shadow-inner flex items-center justify-center shrink-0">
                              {product.image_url ? (
                                 <img src={product.image_url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
@@ -253,7 +335,7 @@ function AdminProductsContent() {
                                 <span className="text-lg font-black text-indigo-600">${product.price.toLocaleString()}</span>
                                 {product.original_price && <span className="text-xs font-medium text-slate-300 line-through">${product.original_price.toLocaleString()}</span>}
                              </div>
-                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">建檔：{product.creator}</p>
+                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">建檔：{product.creator} | 分類：{product.category}</p>
                           </div>
                           <div className="flex flex-col gap-2 items-end">
                              <div className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border border-emerald-100">
@@ -262,6 +344,12 @@ function AdminProductsContent() {
                              <div className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border border-indigo-100">
                                 {product.b2b_commission_percent}% Comm
                              </div>
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}
+                               className="p-2 text-rose-300 hover:text-rose-600 transition"
+                             >
+                                <Trash2 className="w-4 h-4" />
+                             </button>
                           </div>
                        </div>
                     ))}
@@ -280,7 +368,7 @@ function AdminProductsContent() {
             <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
                <CheckCircle2 className="w-10 h-10" />
             </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-4">確認上架商品？</h3>
+             <h3 className="text-2xl font-black text-slate-900 mb-4">{editingId ? "確認更新商品？" : "確認上架商品？"}</h3>
             <div className="bg-slate-50 p-6 rounded-3xl text-left space-y-3 mb-10 border border-slate-100">
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">商品明細</p>
                <p className="text-sm font-bold text-slate-700">{formData.name}</p>

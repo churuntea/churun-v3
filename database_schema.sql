@@ -101,6 +101,7 @@ CREATE TABLE products (
     creator TEXT,                                                    -- 建檔者
     b2c_reward_percent INTEGER DEFAULT 0 NOT NULL,                   -- B2C 消費回饋點數比例 (%)
     b2b_commission_percent INTEGER DEFAULT 0 NOT NULL,               -- B2B 創業夥伴直推退傭比例 (%)
+    category TEXT DEFAULT '全部商品',                                  -- 商品分類
     status TEXT DEFAULT 'active',                                    -- 狀態 (active / inactive)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
