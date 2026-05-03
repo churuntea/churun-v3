@@ -32,7 +32,7 @@ function TransactionContent() {
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "1.0.4";
+    const currentVersion = "1.0.5";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -63,25 +63,13 @@ function TransactionContent() {
     setIsLoading(false);
   };
 
-  // Helper to parse beneficiary into branch and name
-  const parseBeneficiary = () => {
-    const val = memberInfo?.beneficiary || "";
-    if (val.includes("|")) {
-      const parts = val.split("|");
-      return { branch: parts[0].trim(), name: parts[1].trim() };
-    }
-    return { branch: "", name: val };
-  };
-
-  const bankInfo = parseBeneficiary();
-
   return (
     <div className="bg-[#FDFBF7] min-h-screen">
       
       {/* Header */}
       <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
-           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.0.4</span>
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.0.5</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
@@ -270,7 +258,7 @@ function TransactionContent() {
                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶姓名 (戶名)</label>
                            <input 
                               type="text" 
-                              defaultValue={bankInfo.name}
+                              defaultValue={memberInfo?.bank_account_name}
                               id="bank_account_name"
                               className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
                               placeholder="請輸入姓名"
@@ -280,7 +268,7 @@ function TransactionContent() {
                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">分行名稱 (選填)</label>
                            <input 
                               type="text" 
-                              defaultValue={bankInfo.branch}
+                              defaultValue={memberInfo?.bank_branch}
                               id="bank_branch"
                               className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20 transition"
                               placeholder="例: 信義分行"
@@ -339,8 +327,6 @@ function TransactionContent() {
                       const codeInput = document.getElementById('bank_code') as HTMLInputElement;
                       const accountInput = document.getElementById('bank_account') as HTMLInputElement;
                       
-                      const fullName = branchInput.value ? `${branchInput.value} | ${nameInput.value}` : nameInput.value;
-                      
                       if (accountInput.value.length < 10) {
                         alert('銀行帳號格式似乎不正確，請檢查長度。');
                         return;
@@ -348,13 +334,15 @@ function TransactionContent() {
 
                       setIsLoading(true);
                       const { error } = await supabase.from('members').update({
-                        beneficiary: fullName,
+                        bank_account_name: nameInput.value,
+                        bank_branch: branchInput.value,
                         bank_code: codeInput.value,
-                        bank_account: accountInput.value
+                        bank_account: accountInput.value,
+                        beneficiary: branchInput.value ? `${branchInput.value} | ${nameInput.value}` : nameInput.value // Keep for backward compat
                       }).eq('id', memberInfo.id);
                       
                       if (!error) {
-                        alert('帳戶資訊已成功更新！');
+                        alert('帳戶資訊已成功同步至資料庫！');
                         const { data: updated } = await supabase.from("members").select("*").eq("id", memberInfo.id).single();
                         setMemberInfo(updated);
                       } else {
