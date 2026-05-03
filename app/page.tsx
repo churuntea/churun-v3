@@ -208,7 +208,8 @@ function DashboardContent() {
                 { id: "dividend-plan", title: "年度分紅計畫已開啟審核", date: "MAY 01", tag: "INFO", color: "bg-amber-600" },
                 { id: "taipei-event", title: "全台夥伴大會 5/20 台北場", date: "APR 28", tag: "EVENT", color: "bg-indigo-600" }
               ].map((news, i) => (
-                <Link href={`/brand/news/${news.id}`} key={i} className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group hover:border-emerald-200 transition-all duration-500">
+                <Link href={`/brand/news/${news.id}`} key={i} legacyBehavior>
+                   <a className="min-w-[280px] bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group hover:border-emerald-200 transition-all duration-500 block">
                    <div className={`absolute top-0 right-0 w-24 h-24 ${news.color} opacity-5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition duration-700`}></div>
                    <div className="flex justify-between items-start mb-6">
                       <span className={`px-3 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest ${news.color}`}>
@@ -220,6 +221,7 @@ function DashboardContent() {
                    <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest group-hover:gap-4 transition-all">
                       了解詳情 <ChevronRight className="w-3 h-3" />
                    </div>
+                   </a>
                 </Link>
               ))}
            </div>
