@@ -39,6 +39,7 @@ function AdminProductsContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"add" | "list">("add");
 
   const creators = ["陳總經理", "王副總", "張主任", "系統管理員"];
 
@@ -114,6 +115,7 @@ function AdminProductsContent() {
       b2b_commission_percent: product.b2b_commission_percent.toString(),
       category: product.category || "極萃系列"
     });
+    setActiveTab("add"); // Switch to form when editing
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -153,6 +155,7 @@ function AdminProductsContent() {
         alert(editingId ? "🎉 更新成功！" : "🎉 新增成功！");
         handleCancelEdit();
         fetchProducts();
+        setActiveTab("list"); // Switch to list after success
       } else { alert(editingId ? "更新失敗: " : "新增失敗: " + data.error); }
     } catch (err: any) { alert("系統錯誤: " + err.message); }
     setIsSubmitting(false);
@@ -193,16 +196,31 @@ function AdminProductsContent() {
          )}
       </nav>
 
-      <main className="max-w-6xl mx-auto p-10 grid grid-cols-1 lg:grid-cols-5 gap-10">
+      <main className="max-w-6xl mx-auto p-10 space-y-10">
         
-        {/* Create Form */}
-        <section className="lg:col-span-2 space-y-6">
-           <div className="flex items-center gap-3 px-2">
-              <PackagePlus className="w-5 h-5 text-indigo-500" />
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">新增上架商品</h3>
-           </div>
-           
-           <div className="bg-white rounded-[3rem] p-10 border border-slate-50 shadow-sm">
+        {/* Navigation Tabs */}
+        <div className="flex gap-8 border-b border-slate-100 pb-4">
+           <button 
+             onClick={() => setActiveTab("add")}
+             className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all ${activeTab === 'add' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+              <PackagePlus className="w-5 h-5" />
+              <span className="text-sm font-black uppercase tracking-widest">{editingId ? "編輯商品" : "新增上架"}</span>
+           </button>
+           <button 
+             onClick={() => setActiveTab("list")}
+             className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all ${activeTab === 'list' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+              <FileText className="w-5 h-5" />
+              <span className="text-sm font-black uppercase tracking-widest">已上架品項</span>
+              <span className="ml-2 text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-bold">{products.length}</span>
+           </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+           {/* Create Form Section */}
+           <div className={`lg:col-span-2 space-y-6 ${activeTab === 'list' ? 'hidden lg:block' : 'block'}`}>
+              <div className="bg-white rounded-[3rem] p-10 border border-slate-50 shadow-sm">
               <form onSubmit={handleSubmitAttempt} className="space-y-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">建檔者身分</label>
@@ -294,10 +312,10 @@ function AdminProductsContent() {
                   )}
               </form>
            </div>
-        </section>
+        </div>
 
-        {/* Product List */}
-        <section className="lg:col-span-3 space-y-6">
+        {/* Product List Section */}
+        <div className={`lg:col-span-3 space-y-6 ${activeTab === 'add' ? 'hidden lg:block' : 'block'}`}>
            <div className="flex items-center gap-3 px-2 justify-between">
               <div className="flex items-center gap-3">
                  <LayoutDashboard className="w-5 h-5 text-slate-400" />
@@ -356,7 +374,7 @@ function AdminProductsContent() {
                  </div>
               )}
            </div>
-        </section>
+        </div>
 
       </main>
 
