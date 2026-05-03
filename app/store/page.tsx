@@ -20,7 +20,8 @@ import {
   Minus,
   Trash2,
   ShoppingCart,
-  Check
+  Check,
+  Plus
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";

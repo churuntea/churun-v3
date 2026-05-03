@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Target
 } from "lucide-react";
-import { supabase } from "../supabase";
+import { supabase } from "@/app/supabase";
 
 interface MemberNodeProps {
   member: any;
