@@ -22,10 +22,21 @@ import {
 function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [memberInfo, setMemberInfo] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState("全部商品");
 
   useEffect(() => {
+    // Force cache break
+    const currentVersion = "1.1.0";
+    const savedVersion = localStorage.getItem("churun_store_version");
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem("churun_store_version", currentVersion);
+      window.location.reload();
+      return;
+    }
+
     const savedId = localStorage.getItem("churun_member_id");
     if (!savedId) {
       router.replace("/login");
@@ -34,6 +45,14 @@ function StoreContent() {
     fetchData(savedId);
   }, [router]);
 
+  useEffect(() => {
+    if (selectedCategory === "全部商品") {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(products.filter(p => p.category === selectedCategory));
+    }
+  }, [selectedCategory, products]);
+
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     const { data: mData } = await supabase.from("members").select("*").eq("id", userId).single();
@@ -41,15 +60,20 @@ function StoreContent() {
 
     const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
     setProducts(pData || []);
+    setFilteredProducts(pData || []);
     setIsLoading(false);
   };
+
+  const categories = ["全部商品", "極萃系列", "精品茶具", "典藏禮盒"];
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
       
       {/* Header */}
       <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
-        <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">精品嚴選商城</h1>
+        <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase flex items-center gap-2">
+           精品嚴選商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.1.0</span>
+        </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Search className="w-4 h-4" />
         </div>
@@ -59,11 +83,12 @@ function StoreContent() {
         
         {/* Category Tabs */}
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-           {["全部商品", "極萃系列", "精品茶具", "典藏禮盒"].map((cat, i) => (
+           {categories.map((cat) => (
              <button 
-               key={i}
-               className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                 i === 0 ? 'bg-emerald-900 text-white shadow-xl shadow-emerald-900/20' : 'bg-white text-slate-400 border border-slate-50 hover:bg-slate-50'
+               key={cat}
+               onClick={() => setSelectedCategory(cat)}
+               className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300 ${
+                 selectedCategory === cat ? 'bg-emerald-900 text-white shadow-xl shadow-emerald-900/20 scale-105' : 'bg-white text-slate-400 border border-slate-50 hover:bg-slate-50'
                }`}
              >
                 {cat}
@@ -91,14 +116,34 @@ function StoreContent() {
         <div className="grid grid-cols-1 gap-12">
            {isLoading ? (
              <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-slate-200" /></div>
-           ) : products.map((product, i) => (
+           ) : filteredProducts.length === 0 ? (
              <motion.div 
-               key={product.id}
-               initial={{ opacity: 0, y: 30 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ delay: i * 0.1 }}
-               className="group relative"
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               className="bg-white rounded-[3.5rem] p-20 text-center border border-slate-50"
              >
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                   <ShoppingBag className="w-8 h-8 text-slate-200" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">精品整備中</h3>
+                <p className="text-xs text-slate-400 font-medium">該分類的嚴選商品即將上架，敬請期待。</p>
+                <button 
+                  onClick={() => setSelectedCategory("全部商品")}
+                  className="mt-8 text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b-2 border-emerald-600 pb-1"
+                >
+                   查看所有商品
+                </button>
+             </motion.div>
+           ) : (
+             filteredProducts.map((product, i) => (
+               <motion.div 
+                 key={product.id}
+                 layout
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 transition={{ delay: i * 0.05 }}
+                 className="group relative"
+               >
                 <div className="bg-white rounded-[3.5rem] overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.05)] border border-slate-50 relative flex flex-col">
                    {/* Product Image Area */}
                    <div className="aspect-[4/4] w-full bg-slate-50 relative overflow-hidden">
