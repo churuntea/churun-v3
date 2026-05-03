@@ -162,7 +162,7 @@ function ProfileContent() {
              { title: "我的訂單中心", icon: Package, color: "text-blue-500 bg-blue-50", href: "/orders" },
              { title: "資產提領與帳戶", icon: CreditCard, color: "text-indigo-500 bg-indigo-50", href: "/transactions" },
              { title: "查看職級特權", icon: Award, color: "text-emerald-500 bg-emerald-50", href: "/rewards" },
-             { title: "帳號安全設定", icon: Shield, color: "text-slate-400 bg-slate-50", href: "#" },
+             { title: "帳號安全設定", icon: Shield, color: "text-slate-400 bg-slate-50", href: "/profile/security" },
            ].map((item, i) => (
              <Link 
                href={item.href}
