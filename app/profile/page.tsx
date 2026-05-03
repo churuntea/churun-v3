@@ -101,15 +101,15 @@ function ProfileContent() {
         {/* Action List */}
         <div className="space-y-4">
            {[
-             { title: "提領與銀行設定", icon: CreditCard, color: "text-indigo-500 bg-indigo-50" },
-             { title: "世襲與受益人", icon: Shield, color: "text-emerald-500 bg-emerald-50" },
-             { title: "帳號安全設定", icon: Settings, color: "text-amber-500 bg-amber-50" },
-           ].map((item, i) => (
-             <motion.div 
+             { title: "我的訂單紀錄", icon: Package, color: "text-blue-500 bg-blue-50", href: "/orders" },
+             { title: "提領與銀行設定", icon: CreditCard, color: "text-indigo-500 bg-indigo-50", href: "/transactions" },
+             {!memberInfo.is_b2b && { title: "申請升級創業夥伴", icon: Zap, color: "text-amber-500 bg-amber-50", href: "/upgrade" }},
+             { title: "世襲與受益人", icon: Shield, color: "text-emerald-500 bg-emerald-50", href: "#" },
+             { title: "帳號安全設定", icon: Settings, color: "text-slate-500 bg-slate-50", href: "#" },
+           ].filter(Boolean).map((item: any, i) => (
+             <Link 
+               href={item.href}
                key={i}
-               initial={{ opacity: 0, x: -20 }}
-               animate={{ opacity: 1, x: 0 }}
-               transition={{ delay: i * 0.1 }}
                className="bg-white rounded-[2rem] p-6 flex items-center gap-5 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
              >
                 <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
@@ -120,7 +120,7 @@ function ProfileContent() {
                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Manage Settings</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition" />
-             </motion.div>
+             </Link>
            ))}
         </div>
 

@@ -76,9 +76,16 @@ function TransactionContent() {
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">虛擬預收餘額</p>
               <h2 className="text-3xl font-black tracking-tighter">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
-              <div className="mt-8 flex items-center gap-2">
-                 <CreditCard className="w-4 h-4" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
+              <div className="mt-8 flex justify-between items-center">
+                 <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
+                 </div>
+                 {activeTab === 'wallet' && memberInfo?.is_b2b && (
+                   <Link href="/withdraw" className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl text-[8px] font-black uppercase tracking-widest border border-white/10 hover:bg-white/20 transition">
+                      申請提領
+                   </Link>
+                 )}
               </div>
            </motion.div>
 
