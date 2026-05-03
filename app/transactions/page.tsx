@@ -32,7 +32,7 @@ function TransactionContent() {
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "1.0.3";
+    const currentVersion = "1.0.4";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -81,7 +81,7 @@ function TransactionContent() {
       {/* Header */}
       <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
-           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100">V1.0.3</span>
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V1.0.4</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
@@ -98,17 +98,34 @@ function TransactionContent() {
                setActiveTab("wallet");
                setShowHistory(!showHistory);
              }}
-             className={`min-w-[300px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`min-w-[310px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">虛擬預收餘額 (點擊查看明細)</p>
-              <h2 className="text-4xl font-black tracking-tighter">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
+              <div className="flex justify-between items-start mb-2">
+                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">虛擬預收餘額</p>
+                 <motion.div 
+                   animate={{ opacity: [0.4, 1, 0.4] }} 
+                   transition={{ duration: 2, repeat: Infinity }}
+                   className="flex items-center gap-1 bg-emerald-500/20 px-2 py-1 rounded-full"
+                 >
+                    <div className="w-1 h-1 bg-emerald-400 rounded-full"></div>
+                    <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest">TAP FOR HISTORY</span>
+                 </motion.div>
+              </div>
+              <h2 className="text-5xl font-black tracking-tighter leading-none">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
               <div className="mt-8 flex justify-between items-center">
                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                       <CreditCard className="w-4 h-4 text-emerald-400" />
+                    </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
                  </div>
-                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
+                 <motion.div
+                   animate={{ x: showHistory && activeTab === 'wallet' ? 0 : [0, 5, 0] }}
+                   transition={{ repeat: Infinity, duration: 1.5 }}
+                 >
+                    <ChevronRight className={`w-5 h-5 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
+                 </motion.div>
               </div>
            </motion.div>
 
@@ -118,17 +135,25 @@ function TransactionContent() {
                setActiveTab("points");
                setShowHistory(!showHistory);
              }}
-             className={`min-w-[300px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/30' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`min-w-[310px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-2 opacity-60">紅利點數</p>
-              <h2 className="text-4xl font-black tracking-tighter">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
+              <div className="flex justify-between items-start mb-2">
+                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">紅利點數</p>
+                 <div className="flex items-center gap-1 bg-amber-500/20 px-2 py-1 rounded-full">
+                    <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
+                    <span className="text-[6px] font-black text-amber-400 uppercase tracking-widest">LOYALTY PROGRAM</span>
+                 </div>
+              </div>
+              <h2 className="text-5xl font-black tracking-tighter leading-none">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
               <div className="mt-8 flex justify-between items-center">
                  <div className="flex items-center gap-2">
-                    <Gift className="w-4 h-4 text-amber-400" />
+                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                       <Gift className="w-4 h-4 text-amber-400" />
+                    </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">獎勵計畫</span>
                  </div>
-                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
+                 <ChevronRight className={`w-5 h-5 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
         </div>
@@ -137,27 +162,32 @@ function TransactionContent() {
         <AnimatePresence>
           {showHistory && (
             <motion.section 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden bg-slate-50/50 rounded-[2.5rem] border border-slate-100"
+              initial={{ height: 0, opacity: 0, scale: 0.95 }}
+              animate={{ height: "auto", opacity: 1, scale: 1 }}
+              exit={{ height: 0, opacity: 0, scale: 0.95 }}
+              className="overflow-hidden bg-white rounded-[3rem] border border-slate-50 shadow-xl shadow-slate-200/20"
             >
-               <div className="p-8 space-y-4">
-                  <div className="flex justify-between items-center mb-4">
-                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最近十筆存入/變動明細</h3>
-                     <span className="text-[8px] bg-slate-200 px-2 py-0.5 rounded text-slate-500">Auto Sync</span>
+               <div className="p-10 space-y-6">
+                  <div className="flex justify-between items-center">
+                     <div className="space-y-1">
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">資產變動明細</h3>
+                        <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Recent 10 Activities</p>
+                     </div>
+                     <History className="w-5 h-5 text-slate-200" />
                   </div>
-                  {transactions.slice(0, 10).map((tx, idx) => (
-                    <div key={tx.id} className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
-                       <div className="space-y-1">
-                          <p className="text-[10px] font-bold text-slate-600">{tx.transaction_type}</p>
-                          <p className="text-[8px] text-slate-400">{new Date(tx.created_at).toLocaleDateString()}</p>
-                       </div>
-                       <p className={`text-xs font-black ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                          {tx.amount > 0 ? '+' : ''}{Number(tx.amount).toLocaleString()}
-                       </p>
-                    </div>
-                  ))}
+                  <div className="space-y-2">
+                    {transactions.slice(0, 10).map((tx, idx) => (
+                      <div key={tx.id} className="flex justify-between items-center p-5 bg-slate-50/50 rounded-2xl group hover:bg-slate-50 transition">
+                         <div className="space-y-1">
+                            <p className="text-[10px] font-black text-slate-600">{tx.transaction_type}</p>
+                            <p className="text-[8px] font-bold text-slate-300">{new Date(tx.created_at).toLocaleDateString()}</p>
+                         </div>
+                         <p className={`text-sm font-black tracking-tighter ${tx.amount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {tx.amount > 0 ? '+' : ''}{Number(tx.amount).toLocaleString()}
+                         </p>
+                      </div>
+                    ))}
+                  </div>
                </div>
             </motion.section>
           )}
@@ -167,7 +197,7 @@ function TransactionContent() {
          <section className="space-y-6">
             <div className="flex justify-between items-center px-4">
                <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">交易動態回報</h3>
-               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">近期</span>
+               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Live Updates</span>
             </div>
 
             <div className="space-y-3">
@@ -181,28 +211,37 @@ function TransactionContent() {
                ) : (
                  transactions.slice(0, 10).map((tx, i) => {
                    const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
+                   const isBonus = tx.transaction_type?.includes("獎金");
+                   const isWholesale = tx.transaction_type?.includes("貨款");
+
                    return (
                      <motion.div 
                        key={tx.id}
-                       initial={{ opacity: 0, y: 10 }}
-                       animate={{ opacity: 1, y: 0 }}
+                       initial={{ opacity: 0, x: -10 }}
+                       animate={{ opacity: 1, x: 0 }}
                        transition={{ delay: i * 0.05 }}
-                       className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition"
+                       className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition relative overflow-hidden"
                      >
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${isIncome ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                        <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center shadow-inner relative z-10 
+                          ${isBonus ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 
+                            isWholesale ? 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400' :
+                            isIncome ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 'bg-gradient-to-br from-rose-50 to-rose-100 text-rose-500'}`}>
                            {isIncome ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
                         </div>
-                        <div className="flex-1">
-                           <h4 className="font-bold text-slate-800 text-sm">{tx.transaction_type}</h4>
+                        <div className="flex-1 relative z-10">
+                           <div className="flex items-center gap-2">
+                              <h4 className="font-black text-slate-800 text-sm tracking-tight">{tx.transaction_type}</h4>
+                              {isBonus && <span className="text-[6px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase">Bonus</span>}
+                           </div>
                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
-                              {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                            </p>
                         </div>
-                        <div className="text-right">
-                           <p className={`text-lg font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
+                        <div className="text-right relative z-10">
+                           <p className={`text-xl font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
                               {isIncome ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
                            </p>
-                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Completed</p>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Verified</p>
                         </div>
                      </motion.div>
                    );
