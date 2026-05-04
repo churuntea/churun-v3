@@ -508,13 +508,37 @@ END:VCARD`;
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        onClick={() => setShowQR(true)}
-                        className="bg-slate-50 p-8 rounded-[2rem] mb-6 border border-slate-100 cursor-pointer hover:bg-slate-100 transition relative group flex flex-col items-center justify-center"
+                        className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[2.5rem] mb-6 border border-emerald-900/5 shadow-inner relative group"
                       >
-                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">您的會員編號 (點擊切換 QR)</p>
-                         <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase pl-[0.3em] text-center w-full">{memberInfo.member_code}</span>
-                         <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 rounded-[2rem] transition flex items-center justify-center">
-                            <QrCode className="w-6 h-6 text-emerald-900/20" />
+                         <div className="flex flex-col items-center gap-4">
+                            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-900/5 rounded-full">
+                               <QrCode className="w-3 h-3 text-emerald-600" />
+                               <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">您的專屬編號</p>
+                            </div>
+                            
+                            <div className="relative py-2">
+                               <span className="text-4xl font-black tracking-[0.25em] text-emerald-900 uppercase pl-[0.25em] block text-center">
+                                  {memberInfo.member_code}
+                               </span>
+                            </div>
+
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(memberInfo.member_code);
+                                alert("編號已複製！");
+                              }}
+                              className="text-[8px] font-black text-slate-300 hover:text-emerald-600 transition uppercase tracking-[0.2em] flex items-center gap-2"
+                            >
+                               <Copy className="w-3 h-3" /> 點擊複製編號
+                            </button>
+                         </div>
+                         
+                         <div 
+                           onClick={() => setShowQR(true)}
+                           className="absolute top-4 right-6 text-[8px] font-black text-slate-200 uppercase tracking-widest cursor-pointer hover:text-emerald-500 transition flex items-center gap-1"
+                         >
+                            切換 QR <ChevronRight className="w-2 h-2" />
                          </div>
                       </motion.div>
                     ) : (
