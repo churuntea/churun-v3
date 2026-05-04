@@ -49,6 +49,8 @@ function StoreContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [lastOrderAmount, setLastOrderAmount] = useState(0);
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
@@ -118,13 +120,10 @@ function StoreContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setShowSuccess(true);
+        setLastOrderAmount(totalPrice);
+        setShowPaymentModal(true);
         clearCart();
-        setTimeout(() => {
-          setShowSuccess(false);
-          setIsCartOpen(false);
-          fetchData(memberInfo.id); // Refresh balance
-        }, 2000);
+        fetchData(memberInfo.id); // Refresh balance
       } else {
         alert(data.error || "結帳失敗");
       }
@@ -370,6 +369,74 @@ function StoreContent() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+      
+      {/* Payment Instruction Modal */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowPaymentModal(false);
+                setIsCartOpen(false);
+              }}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm text-center shadow-2xl relative overflow-hidden z-10"
+            >
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                 <Check className="w-10 h-10" />
+              </div>
+              
+              <h3 className="text-2xl font-black text-slate-900 mb-2">訂單已成立</h3>
+              <p className="text-sm text-slate-400 mb-8 font-medium italic">請完成匯款以進入配送流程</p>
+
+              <div className="bg-slate-50 rounded-[2rem] p-8 text-left space-y-4 mb-8 border border-slate-100">
+                 <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">應付總額</span>
+                    <span className="text-xl font-black text-emerald-600">${lastOrderAmount.toLocaleString()}</span>
+                 </div>
+                 
+                 <div className="space-y-3 pt-2">
+                    <div className="flex flex-col">
+                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">匯款銀行</span>
+                       <span className="text-sm font-black text-slate-700">國泰世華銀行 (013)</span>
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">帳戶名稱</span>
+                       <span className="text-sm font-black text-slate-700">初潤製茶所</span>
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">匯款帳號</span>
+                       <span className="text-sm font-black text-emerald-900 tracking-wider">123-456-789012</span>
+                    </div>
+                 </div>
+              </div>
+
+              <p className="text-[10px] font-medium text-slate-400 mb-8 leading-relaxed">
+                 ※ 匯款後請至「個人中心」回報帳號末五碼，<br/>
+                 以利系統快速為您進行對帳。
+              </p>
+
+              <button 
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setIsCartOpen(false);
+                }}
+                className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+              >
+                 我知道了，前往匯款
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
