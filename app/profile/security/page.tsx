@@ -40,9 +40,30 @@ export default function SecurityPage() {
   if (isLoading) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
 
   const securityItems = [
-    { title: "修改登入密碼", desc: "定期更換密碼以保護帳號安全", icon: Key, status: "已設定", color: "text-emerald-500 bg-emerald-50" },
-    { title: "手機號碼驗證", desc: memberInfo.phone || "尚未綁定", icon: Smartphone, status: "已驗證", color: "text-blue-500 bg-blue-50" },
-    { title: "登入紀錄查詢", desc: "查看最近的登入地點與時間", icon: History, status: "正常", color: "text-indigo-500 bg-indigo-50" },
+    { 
+      title: "修改登入密碼", 
+      desc: "定期更換密碼以保護帳號安全", 
+      icon: Key, 
+      status: "已設定", 
+      color: "text-emerald-500 bg-emerald-50",
+      action: () => router.push("/profile/security/password")
+    },
+    { 
+      title: "手機號碼驗證", 
+      desc: memberInfo.phone || "尚未綁定", 
+      icon: Smartphone, 
+      status: "已驗證", 
+      color: "text-blue-500 bg-blue-50",
+      action: () => alert("手機驗證功能開發中，敬請期待")
+    },
+    { 
+      title: "登入紀錄查詢", 
+      desc: "查看最近的登入地點與時間", 
+      icon: History, 
+      status: "正常", 
+      color: "text-indigo-500 bg-indigo-50",
+      action: () => alert("登入紀錄查詢功能開發中，敬請期待")
+    },
   ];
 
   return (
@@ -81,6 +102,7 @@ export default function SecurityPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
                 className="bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
+                onClick={item.action}
               >
                  <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
                     <item.icon className="w-6 h-6" />
