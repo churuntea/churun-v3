@@ -51,7 +51,8 @@ function ProfileContent() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("churun_member_id");
+    localStorage.removeItem("churun_member_name");
     router.push("/login");
   };
 
