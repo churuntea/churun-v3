@@ -166,32 +166,40 @@ function LoginContent() {
             </div>
 
             <form onSubmit={(e) => handleLogin(e)} className="space-y-8">
-               <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">手機號碼</label>
-                  <div className="relative group">
-                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
-                        <Phone className="w-5 h-5" />
-                     </div>
-                     <input 
-                       type="tel" 
-                       value={phone} 
-                       onChange={(e) => setPhone(e.target.value)} 
-                       placeholder="請輸入手機號碼" 
-                       className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
-                       required
-                     />
-                  </div>
-                  <div className="flex items-center gap-2 ml-6 mt-2">
-                     <input 
-                       type="checkbox" 
-                       id="rememberPhone"
-                       checked={rememberPhone}
-                       onChange={(e) => setRememberPhone(e.target.checked)}
-                       className="w-4 h-4 rounded border-slate-200 text-emerald-900 focus:ring-emerald-900/10 cursor-pointer"
-                     />
-                     <label htmlFor="rememberPhone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">記住我的手機號碼</label>
-                  </div>
-               </div>
+               {loginMode === 'password' && (
+                 <motion.div 
+                   initial={{ opacity: 0, y: -10 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   className="space-y-8"
+                 >
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">手機號碼</label>
+                      <div className="relative group">
+                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                            <Phone className="w-5 h-5" />
+                         </div>
+                         <input 
+                           type="tel" 
+                           value={phone} 
+                           onChange={(e) => setPhone(e.target.value)} 
+                           placeholder="請輸入手機號碼" 
+                           className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
+                           required
+                         />
+                      </div>
+                      <div className="flex items-center gap-2 ml-6 mt-2">
+                         <input 
+                           type="checkbox" 
+                           id="rememberPhone"
+                           checked={rememberPhone}
+                           onChange={(e) => setRememberPhone(e.target.checked)}
+                           className="w-4 h-4 rounded border-slate-200 text-emerald-900 focus:ring-emerald-900/10 cursor-pointer"
+                         />
+                         <label htmlFor="rememberPhone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">記住我的手機號碼</label>
+                      </div>
+                   </div>
+                 </motion.div>
+               )}
 
                {loginMode === 'password' ? (
                  <motion.div 
@@ -245,6 +253,12 @@ function LoginContent() {
                    animate={{ opacity: 1, x: 0 }}
                    className="space-y-10 py-4"
                  >
+                    {phone && (
+                       <div className="text-center space-y-1">
+                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在解鎖帳號</p>
+                          <p className="text-sm font-bold text-slate-600">{phone}</p>
+                       </div>
+                    )}
                     <div className="bg-slate-50/50 p-6 rounded-[3rem] border border-slate-100">
                        <PatternLock 
                          onComplete={(code) => handleLogin(undefined, code)}
@@ -256,6 +270,13 @@ function LoginContent() {
                       <p className="text-center text-[10px] font-black text-rose-500 uppercase tracking-widest">{error}</p>
                     )}
                     <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest">請繪製解鎖圖形</p>
+                    
+                    <button 
+                      onClick={() => setLoginMode('password')}
+                      className="w-full text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
+                    >
+                       使用手機號碼與密碼登入
+                    </button>
                  </motion.div>
                )}
             </form>
