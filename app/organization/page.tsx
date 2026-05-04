@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import Link from "next/link";
+import Link from "next/navigation";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,16 +38,16 @@ import {
   Cell
 } from 'recharts';
 
-// 考核配置 (同步後端)
+// 階級配置 (依照 2026/05/04 更新之職級榮耀殿堂表)
 const TIERS = [
-  { name: '初潤靈魂伴侶', reqType: 'quarterly', amount: 15000 },
-  { name: '初潤知己', reqType: 'quarterly', amount: 7500 },
-  { name: '初潤閨蜜', reqType: 'quarterly', amount: 3600 },
-  { name: '初潤好朋友', reqType: 'quarterly', amount: 1800 },
-  { name: '初潤青少年', reqType: 'lifetime', amount: 3000 },
-  { name: '初潤小朋友', reqType: 'lifetime', amount: 1500 },
-  { name: '初潤幼兒園', reqType: 'lifetime', amount: 1 },
-  { name: '初潤寶寶', reqType: 'lifetime', amount: 0 }
+  { name: '初潤靈魂伴侶', upgradeAmount: 50000 },
+  { name: '初潤知己', upgradeAmount: 25000 },
+  { name: '初潤閨蜜', upgradeAmount: 12000 },
+  { name: '初潤好朋友', upgradeAmount: 6000 },
+  { name: '初潤青少年', upgradeAmount: 3000 },
+  { name: '初潤小朋友', upgradeAmount: 1500 },
+  { name: '初潤幼兒園', upgradeAmount: 1 },
+  { name: '初潤寶寶', upgradeAmount: 0 }
 ];
 
 function TeamPerformanceChart({ data }: { data: any[] }) {
@@ -137,17 +137,9 @@ function OrganizationContent() {
       const target = TIERS[currentTierIdx - 1];
       setNextTier(target);
       
-      // 計算進度
-      let currentVal = 0;
-      if (target.reqType === 'quarterly') {
-        const headDeduction = (team.length || 0) * 1000;
-        const maxDeduction = target.amount * 0.5;
-        currentVal = (Number(me.quarterly_spend) || 0) + Math.min(headDeduction, maxDeduction);
-      } else {
-        currentVal = Number(me.lifetime_spend) || 0;
-      }
-      
-      const p = Math.min(Math.round((currentVal / target.amount) * 100), 100);
+      // 升級進度依據「終身累積金額」
+      const currentVal = Number(me.lifetime_spend) || 0;
+      const p = Math.min(Math.round((currentVal / target.upgradeAmount) * 100), 100);
       setProgress(p);
     }
   };
@@ -201,10 +193,10 @@ function OrganizationContent() {
                         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300"
                       />
                    </div>
-                   <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">
-                      目標：晉升「{nextTier.name}」<br/>
-                      提示：邀請 1 位夥伴可抵 $1,000 業績 (最高抵扣 50%)
-                   </p>
+                    <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">
+                       目標：晉升至「{nextTier.name}」<br/>
+                       達成條件：終身累積消費滿 ${nextTier.upgradeAmount.toLocaleString()} 元
+                    </p>
                 </div>
               )}
            </div>

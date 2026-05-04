@@ -1,69 +1,156 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
-// 階級考核條件 (順序由高到低)
+// 階級配置 (依照 2026/05/04 更新之職級榮耀殿堂表)
 const TIERS = [
-  { name: '初潤靈魂伴侶', reqType: 'quarterly', amount: 15000 },
-  { name: '初潤知己', reqType: 'quarterly', amount: 7500 },
-  { name: '初潤閨蜜', reqType: 'quarterly', amount: 3600 },
-  { name: '初潤好朋友', reqType: 'quarterly', amount: 1800 },
-  { name: '初潤青少年', reqType: 'lifetime', amount: 3000 },
-  { name: '初潤小朋友', reqType: 'lifetime', amount: 1500 },
-  { name: '初潤幼兒園', reqType: 'lifetime', amount: 1 }, // 大於0即完成首購
-  { name: '初潤寶寶', reqType: 'lifetime', amount: 0 }
+  { 
+    name: '初潤靈魂伴侶', 
+    rate: 30, 
+    upgradeAmount: 50000, 
+    maintainType: 'monthly', 
+    maintainSpend: 1000, 
+    maintainReferral: 3, 
+    downgradeTo: '初潤知己' 
+  },
+  { 
+    name: '初潤知己', 
+    rate: 40, 
+    upgradeAmount: 25000, 
+    maintainType: 'monthly', 
+    maintainSpend: 600, 
+    maintainReferral: 2, 
+    downgradeTo: '初潤閨蜜' 
+  },
+  { 
+    name: '初潤閨蜜', 
+    rate: 50, 
+    upgradeAmount: 12000, 
+    maintainType: 'quarterly', 
+    maintainSpend: 1200, 
+    maintainReferral: 2, 
+    downgradeTo: '初潤好朋友' 
+  },
+  { 
+    name: '初潤好朋友', 
+    rate: 60, 
+    upgradeAmount: 6000, 
+    maintainType: 'quarterly', 
+    maintainSpend: 600, 
+    maintainReferral: 1, 
+    downgradeTo: '初潤青少年' 
+  },
+  { 
+    name: '初潤青少年', 
+    rate: 70, 
+    upgradeAmount: 3000, 
+    maintainType: 'none'
+  },
+  { 
+    name: '初潤小朋友', 
+    rate: 80, 
+    upgradeAmount: 1500, 
+    maintainType: 'none'
+  },
+  { 
+    name: '初潤幼兒園', 
+    rate: 90, 
+    upgradeAmount: 1, 
+    maintainType: 'none'
+  },
+  { 
+    name: '初潤寶寶', 
+    rate: 100, 
+    upgradeAmount: 0, 
+    maintainType: 'none'
+  }
 ];
 
 async function evaluateTiers() {
   try {
-    // 1. 抓取所有會員 (包含 B2B 與 B2C，因為 B2B 也可能有階級變動需求，但主要針對 B2C)
     const { data: members, error } = await supabase
       .from('members')
-      .select('*');
+      .select('id, name, tier, lifetime_spend, quarterly_spend, initial_deposit, created_at');
 
     if (error) throw error;
     if (!members) return { success: true, message: 'No members found' };
 
     let updatedCount = 0;
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString();
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString();
 
-    // 2. 逐一結算考核
     for (const member of members) {
-      let newTier = '初潤寶寶';
+      let currentTierIdx = TIERS.findIndex(t => t.name === member.tier);
+      if (currentTierIdx === -1) currentTierIdx = TIERS.length - 1; // Default to baby
       
-      // 人頭抵扣機制：推薦 1 位 = $1000，上限 50%
-      const headDeduction = (member.referral_count || 0) * 1000;
+      const currentTier = TIERS[currentTierIdx];
+      let newTier = member.tier;
 
-      for (const tierConfig of TIERS) {
-        if (tierConfig.reqType === 'quarterly') {
-          // 季消費考核 (適用人頭抵扣)
-          const maxDeduction = tierConfig.amount * 0.5; // 上限 50%
-          const actualDeduction = Math.min(headDeduction, maxDeduction);
-          const effectiveSpend = (Number(member.quarterly_spend) || 0) + actualDeduction;
+      // 1. 檢查升級 (Upgrade Logic)
+      // 從最高階開始往回找，看是否符合終身金額
+      for (let i = 0; i < TIERS.length; i++) {
+        const tier = TIERS[i];
+        const isEligibleBySpend = Number(member.lifetime_spend) >= tier.upgradeAmount;
+        
+        // 特殊規則：儲值 1 萬方案直升 初潤閨蜜 (或更高)
+        const isEligibleByDeposit = (tier.name === '初潤閨蜜' || i > 2) && Number(member.initial_deposit) >= 10000;
 
-          if (effectiveSpend >= tierConfig.amount) {
-            newTier = tierConfig.name;
-            break; // 達到最高符合的階級，跳出
+        if (isEligibleBySpend || isEligibleByDeposit) {
+          // 如果符合更高階，則嘗試升級
+          if (i < currentTierIdx) {
+            newTier = tier.name;
           }
-        } else {
-          // 終身消費考核 (不適用人頭抵扣)
-          if ((Number(member.lifetime_spend) || 0) >= tierConfig.amount) {
-            newTier = tierConfig.name;
-            break;
-          }
+          break;
         }
       }
 
-      // 如果有升級，更新資料庫 (V2 邏輯通常只升不降，除非是特定週期清算，這裡先實作變動即更新)
+      // 2. 檢查保級 (Maintenance Logic) - 僅針對「好朋友」以上級別
+      if (currentTier.maintainType !== 'none' && newTier === member.tier) {
+        const checkDate = currentTier.maintainType === 'monthly' ? oneMonthAgo : threeMonthsAgo;
+        
+        // 取得期間內消費
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('total_amount')
+          .eq('member_id', member.id)
+          .eq('status', 'completed')
+          .gte('completed_at', checkDate);
+        
+        const periodSpend = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
+
+        // 取得期間內直推人數
+        const { count: newReferrals } = await supabase
+          .from('members')
+          .select('*', { count: 'exact', head: true })
+          .eq('upline_id', member.id)
+          .gte('created_at', checkDate);
+
+        const referralCount = newReferrals || 0;
+
+        // 保級判定：二擇一 (消費達標 OR 推薦達標)
+        const isMaintained = periodSpend >= (currentTier.maintainSpend || 0) || referralCount >= (currentTier.maintainReferral || 0);
+
+        if (!isMaintained) {
+          newTier = currentTier.downgradeTo || '初潤青少年';
+        }
+      }
+
+      // 更新資料庫
       if (newTier !== member.tier) {
+        const newTierIdx = TIERS.findIndex(t => t.name === newTier);
+        const isUpgrade = newTierIdx < currentTierIdx; // 索引越小等級越高
+
         await supabase
           .from('members')
           .update({ tier: newTier })
           .eq('id', member.id);
         
-        // 新增升級通知
         await supabase.from('notifications').insert({
           member_id: member.id,
-          title: '會員等級晉升！',
-          content: `恭喜您！您的會員等級已晉升為「${newTier}」。感謝您的支持！`,
+          title: isUpgrade ? '會員等級晉升！' : '會員等級變動通知',
+          content: isUpgrade 
+            ? `恭喜您！您的會員等級已晉升為「${newTier}」。`
+            : `提醒您，由於未達保級條件，您的等級已調整為「${newTier}」。繼續加油！`,
           type: 'system'
         });
 

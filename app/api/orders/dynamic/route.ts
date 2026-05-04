@@ -16,6 +16,17 @@ export async function POST(request: Request) {
       .eq('id', buyer_id)
       .single();
 
+    const TIER_RATES: Record<string, number> = {
+      '初潤靈魂伴侶': 30,
+      '初潤知己': 40,
+      '初潤閨蜜': 50,
+      '初潤好朋友': 60,
+      '初潤青少年': 70,
+      '初潤小朋友': 80,
+      '初潤幼兒園': 90,
+      '初潤寶寶': 100
+    };
+
     if (buyerError || !buyer) {
       return NextResponse.json({ error: '找不到買家資料' }, { status: 404 });
     }
@@ -40,10 +51,13 @@ export async function POST(request: Request) {
       const itemSubtotal = product.price * item.quantity;
       totalAmount += itemSubtotal;
       
-      // 計算回饋與退傭
-      totalB2CPoints += Math.floor(itemSubtotal * (product.b2c_reward_percent / 100));
+      // B2B 退傭仍依照商品設定 (不變)
       totalB2BCommission += Math.floor(itemSubtotal * (product.b2b_commission_percent / 100));
     }
+
+    // B2C 點數回饋改為依據「會員階級匯率」計算
+    const tierRate = TIER_RATES[buyer.tier] || 100;
+    totalB2CPoints = Math.floor(totalAmount / tierRate);
 
     // 3. 建立訂單 (使用 Transaction 概念)
     const { data: order, error: orderError } = await supabase

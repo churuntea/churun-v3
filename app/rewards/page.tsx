@@ -20,28 +20,92 @@ import { useRouter } from "next/navigation";
 const TIERS = [
   { 
     name: '初潤靈魂伴侶', 
-    privileges: ['直推分潤 50%', '團隊業績加成 10%', '專屬客製化 LOGO 服務', '年度股東分紅資格', '受邀參加全球領袖大會'],
+    privileges: [
+      '專屬匯率：30元 = 1點', 
+      '累積消費滿 $50,000 晉升', 
+      '每月保級：消費 $1,000 或 直推 3 人', 
+      '未達標降級至 初潤知己'
+    ],
     color: 'from-amber-400 via-amber-200 to-amber-500',
     icon: Crown,
     locked: true
   },
   { 
     name: '初潤知己', 
-    privileges: ['直推分潤 40%', '團隊業績加成 5%', '季度禮品驚喜包', '提領手續費減免'],
+    privileges: [
+      '專屬匯率：40元 = 1點', 
+      '累積消費滿 $25,000 晉升', 
+      '每月保級：消費 $600 或 直推 2 人', 
+      '未達標降級至 初潤閨蜜'
+    ],
     color: 'from-emerald-400 to-emerald-600',
     icon: Heart,
     locked: true
   },
   { 
-    name: '初潤好朋友', 
-    privileges: ['直推分潤 20%', '點數商城 8 折優惠', '專屬客服通道'],
-    color: 'from-indigo-400 to-indigo-600',
+    name: '初潤閨蜜', 
+    privileges: [
+      '專屬匯率：50元 = 1點', 
+      '累積滿 $12,000 (或儲值 1 萬直升)', 
+      '每季保級：消費 $1,200 或 直推 2 人', 
+      '未達標降級至 初潤好朋友'
+    ],
+    color: 'from-rose-400 to-rose-600',
     icon: Sparkles,
     locked: true
   },
   { 
+    name: '初潤好朋友', 
+    privileges: [
+      '專屬匯率：60元 = 1點', 
+      '累積消費滿 $6,000 晉升', 
+      '每季保級：消費 $600 或 直推 1 人', 
+      '未達標降級至 初潤青少年'
+    ],
+    color: 'from-indigo-400 to-indigo-600',
+    icon: Star,
+    locked: true
+  },
+  { 
+    name: '初潤青少年', 
+    privileges: [
+      '專屬匯率：70元 = 1點', 
+      '累積消費滿 $3,000 晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-blue-400 to-blue-600',
+    icon: TrendingUp,
+    locked: true
+  },
+  { 
+    name: '初潤小朋友', 
+    privileges: [
+      '專屬匯率：80元 = 1點', 
+      '累積消費滿 $1,500 晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-sky-400 to-sky-600',
+    icon: Award,
+    locked: true
+  },
+  { 
+    name: '初潤幼兒園', 
+    privileges: [
+      '專屬匯率：90元 = 1點', 
+      '完成首次消費即可晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-teal-400 to-teal-600',
+    icon: ShieldCheck,
+    locked: true
+  },
+  { 
     name: '初潤寶寶', 
-    privileges: ['首購禮包', '5% 積分回饋', '基礎推薦碼功能'],
+    privileges: [
+      '專屬匯率：100元 = 1點', 
+      '加入 LINE@ 註冊即可獲得', 
+      '無保級壓力'
+    ],
     color: 'from-slate-400 to-slate-600',
     icon: Zap,
     locked: false
