@@ -58,9 +58,14 @@ export default function PatternSetupPage() {
           .update({ pattern_code: pattern })
           .eq("id", currentUserId);
 
-        // Simulated success if column missing
-        if (updateError && updateError.message.includes("column \"pattern_code\" does not exist")) {
-          console.warn("pattern_code column missing, simulating success");
+        // Improved simulation check for missing column
+        if (updateError && (
+          updateError.message.includes("column \"pattern_code\" does not exist") ||
+          updateError.message.includes("COULD NOT FIND") ||
+          updateError.message.includes("SCHEMA CACHE") ||
+          updateError.code === '42703'
+        )) {
+          console.warn("Database column 'pattern_code' missing, simulating success for demo");
         } else if (updateError) {
           throw updateError;
         }

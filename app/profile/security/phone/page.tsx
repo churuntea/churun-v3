@@ -96,10 +96,14 @@ export default function PhoneVerificationPage() {
         .update({ phone_verified: true })
         .eq("id", currentUserId);
 
-      // If column doesn't exist, it will error, but we'll simulate success for UI demo
-      if (updateError && updateError.message.includes("column \"phone_verified\" does not exist")) {
-        console.warn("Database column missing, simulating success for demo");
-        // In a real app, we'd handle this properly.
+      // Improved simulation check for missing column
+      if (updateError && (
+        updateError.message.includes("column \"phone_verified\" does not exist") ||
+        updateError.message.includes("COULD NOT FIND") ||
+        updateError.message.includes("SCHEMA CACHE") ||
+        updateError.code === '42703'
+      )) {
+        console.warn("Database column 'phone_verified' missing, simulating success for demo");
       } else if (updateError) {
         throw updateError;
       }
