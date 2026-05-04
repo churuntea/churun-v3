@@ -28,6 +28,17 @@ import { AnimatePresence } from "framer-motion";
 
 export const dynamic = 'force-dynamic';
 
+const TIER_RATES: Record<string, number> = {
+  '初潤靈魂伴侶': 30,
+  '初潤知己': 40,
+  '初潤閨蜜': 50,
+  '初潤好朋友': 60,
+  '初潤青少年': 70,
+  '初潤小朋友': 80,
+  '初潤幼兒園': 90,
+  '初潤寶寶': 100
+};
+
 function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
@@ -339,7 +350,9 @@ function StoreContent() {
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
                     <span>預計回饋紅利</span>
-                    <span className="text-emerald-600">+{cart.reduce((sum, i) => sum + Math.floor(i.price * i.quantity * (i.b2c_reward_percent || 0) / 100), 0)} pts</span>
+                    <span className="text-emerald-600">
+                      +{memberInfo ? Math.floor(totalPrice / (TIER_RATES[memberInfo.tier] || 100)) : 0} pts
+                    </span>
                   </div>
                   <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-sm font-black text-slate-800 uppercase tracking-widest">總計金額</span>
