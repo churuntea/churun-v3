@@ -52,9 +52,9 @@ export default function SecurityPage() {
       title: "手機號碼驗證", 
       desc: memberInfo.phone || "尚未綁定", 
       icon: Smartphone, 
-      status: "已驗證", 
-      color: "text-blue-500 bg-blue-50",
-      action: () => alert("手機驗證功能開發中，敬請期待")
+      status: memberInfo.phone_verified ? "已驗證" : "未驗證", 
+      color: memberInfo.phone_verified ? "text-emerald-500 bg-emerald-50" : "text-blue-500 bg-blue-50",
+      action: () => router.push("/profile/security/phone")
     },
     { 
       title: "登入紀錄查詢", 
