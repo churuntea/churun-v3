@@ -48,15 +48,15 @@ function StoreContent() {
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
+  const [isOrderCreated, setIsOrderCreated] = useState(false);
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "1.1.2";
+    const currentVersion = "1.2.0";
     const savedVersion = localStorage.getItem("churun_store_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_store_version", currentVersion);
@@ -120,10 +120,9 @@ function StoreContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setLastOrderAmount(totalPrice);
-        setShowPaymentModal(true);
+        setIsOrderCreated(true);
         clearCart();
-        fetchData(memberInfo.id); // Refresh balance
+        fetchData(memberInfo.id); 
       } else {
         alert(data.error || "結帳失敗");
       }
@@ -359,13 +358,17 @@ function StoreContent() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={handleCheckout}
-                  disabled={cart.length === 0 || isCheckingOut}
-                  className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
-                >
-                  {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : showSuccess ? <><Check className="w-5 h-5" /> 結帳成功</> : "確認結帳並支付"}
-                </button>
+                 <button 
+                   onClick={() => {
+                     setLastOrderAmount(totalPrice);
+                     setIsOrderCreated(false);
+                     setShowPaymentModal(true);
+                   }}
+                   disabled={cart.length === 0 || isCheckingOut}
+                   className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
+                 >
+                   下一步：取得匯款資訊
+                 </button>
               </div>
             </motion.div>
           </>
@@ -393,11 +396,15 @@ function StoreContent() {
               className="bg-white rounded-[3rem] p-10 w-full max-w-sm text-center shadow-2xl relative overflow-hidden z-10"
             >
               <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                 <Check className="w-10 h-10" />
+                 {isOrderCreated ? <Check className="w-10 h-10" /> : <Plus className="w-10 h-10" />}
               </div>
               
-              <h3 className="text-2xl font-black text-slate-900 mb-2">訂單已成立</h3>
-              <p className="text-sm text-slate-400 mb-8 font-medium italic">請完成匯款以進入配送流程</p>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">
+                 {isOrderCreated ? "訂單已成功建立" : "結帳匯款資訊"}
+              </h3>
+              <p className="text-sm text-slate-400 mb-8 font-medium italic">
+                 {isOrderCreated ? "我們將在收到款項後儘速出貨" : "請確認以下金額並完成匯款"}
+              </p>
 
               <div className="bg-slate-50 rounded-[2rem] p-8 text-left space-y-4 mb-8 border border-slate-100">
                  <div className="flex justify-between items-center pb-4 border-b border-slate-200">
@@ -421,20 +428,37 @@ function StoreContent() {
                  </div>
               </div>
 
-              <p className="text-[10px] font-medium text-slate-400 mb-8 leading-relaxed">
-                 ※ 匯款後請至「個人中心」回報帳號末五碼，<br/>
-                 以利系統快速為您進行對帳。
-              </p>
-
-              <button 
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setIsCartOpen(false);
-                }}
-                className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
-              >
-                 我知道了，前往匯款
-              </button>
+              {!isOrderCreated ? (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-medium text-slate-400 mb-8 leading-relaxed">
+                     ※ 請先完成匯款後再點擊下方確認按鈕。<br/>
+                     下單後請至個人中心回報帳號末五碼。
+                  </p>
+                  <button 
+                    onClick={handleCheckout}
+                    disabled={isCheckingOut}
+                    className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-sm shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2"
+                  >
+                     {isCheckingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : "我已匯款，建立訂單"}
+                  </button>
+                  <button 
+                    onClick={() => setShowPaymentModal(false)}
+                    className="text-[10px] font-black text-slate-300 uppercase tracking-widest"
+                  >
+                     返回修改購物車
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setIsCartOpen(false);
+                  }}
+                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+                >
+                   完成結帳，前往查看
+                </button>
+              )}
             </motion.div>
           </div>
         )}
