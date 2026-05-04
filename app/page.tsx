@@ -414,10 +414,10 @@ function DashboardContent() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         onClick={() => setShowQR(true)}
-                        className="bg-slate-50 p-8 rounded-[2rem] mb-6 border border-slate-100 cursor-pointer hover:bg-slate-100 transition relative group"
+                        className="bg-slate-50 p-8 rounded-[2rem] mb-6 border border-slate-100 cursor-pointer hover:bg-slate-100 transition relative group flex flex-col items-center justify-center"
                       >
                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">您的會員編號 (點擊切換 QR)</p>
-                         <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase">{memberInfo.member_code}</span>
+                         <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase pl-[0.3em] text-center w-full">{memberInfo.member_code}</span>
                          <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 rounded-[2rem] transition flex items-center justify-center">
                             <QrCode className="w-6 h-6 text-emerald-900/20" />
                          </div>
