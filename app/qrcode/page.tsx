@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
+
 function QRCodeContent() {
   const searchParams = useSearchParams();
   const initialUrl = searchParams.get("url") || "";
@@ -123,6 +125,14 @@ function QRCodeContent() {
                     level={"H"}
                     includeMargin={true}
                     className="rounded-2xl"
+                    imageSettings={{
+                      src: CR_LOGO,
+                      x: undefined,
+                      y: undefined,
+                      height: 50,
+                      width: 50,
+                      excavate: true,
+                    }}
                   />
                 </div>
               </motion.div>

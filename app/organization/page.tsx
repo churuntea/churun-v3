@@ -105,6 +105,7 @@ function OrganizationContent() {
   const [nextTier, setNextTier] = useState<any>(null);
   const [progress, setProgress] = useState(0);
   const [isCardOpen, setIsCardOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -130,6 +131,11 @@ function OrganizationContent() {
     calculateProgress(mData, data || []);
     setIsLoading(false);
   };
+
+  const filteredDownlines = downlines.filter(d => 
+    d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (d.member_code && d.member_code.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const calculateProgress = (me: any, team: any[]) => {
     const currentTierIdx = TIERS.findIndex(t => t.name === me.tier);
@@ -233,7 +239,21 @@ function OrganizationContent() {
            </div>
         </div>
 
-        {/* Team Performance Visualization */}
+         {/* Team Search & Performance Visualization */}
+         <div className="space-y-6">
+            <div className="relative group">
+               <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                  <Users className="w-5 h-5" />
+               </div>
+               <input 
+                 type="text" 
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 placeholder="搜尋夥伴姓名或會員編號..." 
+                 className="w-full bg-white border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-sm"
+               />
+            </div>
+         </div>
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -270,7 +290,7 @@ function OrganizationContent() {
         </section>
 
         {/* Performance Chart */}
-        <TeamPerformanceChart data={downlines} />
+        <TeamPerformanceChart data={filteredDownlines} />
         </motion.section>
 
         {/* Team Tree Visualization */}

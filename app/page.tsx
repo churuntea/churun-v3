@@ -30,6 +30,8 @@ import {
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
 
+const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
+
 
 function DashboardSkeleton() {
   return (
@@ -443,6 +445,14 @@ function DashboardContent() {
                            size={180}
                            level={"H"}
                            includeMargin={true}
+                           imageSettings={{
+                             src: CR_LOGO,
+                             x: undefined,
+                             y: undefined,
+                             height: 40,
+                             width: 40,
+                             excavate: true,
+                           }}
                          />
                          <div className="absolute top-2 right-2 text-[8px] font-black text-slate-200 uppercase tracking-widest">點擊返回代碼</div>
                       </motion.div>
