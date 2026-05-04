@@ -38,11 +38,24 @@ function LoginContent() {
     setIsLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
+    // Try selecting with pattern_code first
+    let { data, error: fetchError }: { data: any, error: any } = await supabase
       .from("members")
       .select("id, name, password, pattern_code")
       .eq("phone", phone)
       .single();
+
+    // Fallback if column missing
+    if (fetchError && (fetchError.message.includes("pattern_code") || fetchError.message.includes("SCHEMA CACHE"))) {
+      console.warn("pattern_code column missing, falling back to basic select");
+      const fallback = await supabase
+        .from("members")
+        .select("id, name, password")
+        .eq("phone", phone)
+        .single();
+      data = fallback.data;
+      fetchError = fallback.error;
+    }
 
     if (fetchError || !data) {
       alert("查無此會員，請確認手機號碼是否正確");
