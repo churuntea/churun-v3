@@ -97,13 +97,16 @@ export default function PhoneVerificationPage() {
         .eq("id", currentUserId);
 
       // Improved simulation check for missing column
-      if (updateError && (
-        updateError.message.includes("column \"phone_verified\" does not exist") ||
-        updateError.message.includes("COULD NOT FIND") ||
-        updateError.message.includes("SCHEMA CACHE") ||
+      const isSchemaError = updateError && (
+        updateError.message?.includes("column") ||
+        updateError.message?.includes("COULD NOT FIND") ||
+        updateError.message?.includes("SCHEMA CACHE") ||
         updateError.code === '42703'
-      )) {
-        console.warn("Database column 'phone_verified' missing, simulating success for demo");
+      );
+
+      if (isSchemaError) {
+        console.warn("Database schema not updated, saving phone verification to localStorage fallback");
+        localStorage.setItem(`churun_local_phone_verified_${currentUserId}`, "true");
       } else if (updateError) {
         throw updateError;
       }

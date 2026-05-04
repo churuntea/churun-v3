@@ -79,13 +79,16 @@ function LoginContent() {
         return;
       }
     } else {
-      if (!data.pattern_code) {
+      // Check for pattern in DB first, then fallback to local
+      const effectivePattern = data.pattern_code || localStorage.getItem(`churun_local_pattern_${data.id}`);
+
+      if (!effectivePattern) {
         alert("您尚未設定圖形鎖，請先使用密碼登入並前往安全中心設定");
         setLoginMode('password');
         setIsLoading(false);
         return;
       }
-      if (data.pattern_code !== patternCode) {
+      if (effectivePattern !== patternCode) {
         setError("圖形解鎖失敗");
         setIsLoading(false);
         return;

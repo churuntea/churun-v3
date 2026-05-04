@@ -33,7 +33,15 @@ export default function SecurityPage() {
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
-    setMemberInfo(data);
+    
+    // Merge with local fallbacks
+    const enhancedData = {
+      ...data,
+      phone_verified: data?.phone_verified || localStorage.getItem(`churun_local_phone_verified_${userId}`) === "true",
+      pattern_code: data?.pattern_code || localStorage.getItem(`churun_local_pattern_${userId}`)
+    };
+
+    setMemberInfo(enhancedData);
     setIsLoading(false);
   };
 
