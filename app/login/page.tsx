@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,11 +22,20 @@ import PatternLock from "@/components/PatternLock";
 function LoginContent() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberPhone, setRememberPhone] = useState(false);
   const [loginMode, setLoginMode] = useState<'password' | 'pattern'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const savedPhone = localStorage.getItem("churun_remembered_phone");
+    if (savedPhone) {
+      setPhone(savedPhone);
+      setRememberPhone(true);
+    }
+  }, []);
 
   const handleLogin = async (e?: React.FormEvent, patternCode?: string) => {
     if (e) e.preventDefault();
@@ -85,6 +94,13 @@ function LoginContent() {
 
     localStorage.setItem("churun_member_id", data.id);
     localStorage.setItem("churun_member_name", data.name);
+    
+    if (rememberPhone) {
+      localStorage.setItem("churun_remembered_phone", phone);
+    } else {
+      localStorage.removeItem("churun_remembered_phone");
+    }
+
     router.push("/");
     setIsLoading(false);
   };
@@ -161,6 +177,16 @@ function LoginContent() {
                        className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
                        required
                      />
+                  </div>
+                  <div className="flex items-center gap-2 ml-6 mt-2">
+                     <input 
+                       type="checkbox" 
+                       id="rememberPhone"
+                       checked={rememberPhone}
+                       onChange={(e) => setRememberPhone(e.target.checked)}
+                       className="w-4 h-4 rounded border-slate-200 text-emerald-900 focus:ring-emerald-900/10 cursor-pointer"
+                     />
+                     <label htmlFor="rememberPhone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">記住我的手機號碼</label>
                   </div>
                </div>
 
