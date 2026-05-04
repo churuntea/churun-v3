@@ -30,16 +30,24 @@ function LoginContent() {
   const router = useRouter();
 
   useEffect(() => {
-    const savedPhone = localStorage.getItem("churun_remembered_phone");
+    const savedPhone = localStorage.getItem("churun_remembered_phone") || localStorage.getItem("churun_last_phone");
     if (savedPhone) {
       setPhone(savedPhone);
-      setRememberPhone(true);
+      if (localStorage.getItem("churun_remembered_phone")) {
+        setRememberPhone(true);
+      }
     }
   }, []);
 
   const handleLogin = async (e?: React.FormEvent, patternCode?: string) => {
     if (e) e.preventDefault();
-    if (!phone) {
+    
+    let effectivePhone = phone;
+    if (!effectivePhone && patternCode) {
+      effectivePhone = localStorage.getItem("churun_last_phone") || "";
+    }
+
+    if (!effectivePhone) {
       alert("請先輸入手機號碼");
       return;
     }
@@ -97,9 +105,10 @@ function LoginContent() {
 
     localStorage.setItem("churun_member_id", data.id);
     localStorage.setItem("churun_member_name", data.name);
+    localStorage.setItem("churun_last_phone", effectivePhone);
     
     if (rememberPhone) {
-      localStorage.setItem("churun_remembered_phone", phone);
+      localStorage.setItem("churun_remembered_phone", effectivePhone);
     } else {
       localStorage.removeItem("churun_remembered_phone");
     }
@@ -271,12 +280,15 @@ function LoginContent() {
                     )}
                     <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest">請繪製解鎖圖形</p>
                     
-                    <button 
-                      onClick={() => setLoginMode('password')}
-                      className="w-full text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
-                    >
-                       使用手機號碼與密碼登入
-                    </button>
+                     <button 
+                       onClick={() => {
+                         setLoginMode('password');
+                         setPhone("");
+                       }}
+                       className="w-full text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
+                     >
+                        使用其他號碼或切換密碼登入
+                     </button>
                  </motion.div>
                )}
             </form>

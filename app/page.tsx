@@ -23,9 +23,12 @@ import {
   Sparkles,
   Loader2,
   Gift,
-  Megaphone
+  Megaphone,
+  Download
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import { QRCodeCanvas } from "qrcode.react";
+
 
 function DashboardSkeleton() {
   return (
@@ -69,6 +72,7 @@ function DashboardContent() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showShare, setShowShare] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -105,6 +109,37 @@ function DashboardContent() {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     });
+  };
+
+  const handleDownloadQR = () => {
+    const canvas = document.querySelector("#share-qr-canvas") as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `churun-referral-${memberInfo?.member_code}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    const link = `${window.location.origin}/register?ref=${memberInfo?.member_code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: '加入初潤製茶所',
+          text: `使用我的推薦代碼 ${memberInfo?.member_code} 加入初潤，開啟您的數位茶飲之旅！`,
+          url: link,
+        });
+      } catch (err) {
+        console.log('Share failed', err);
+      }
+    } else {
+      navigator.clipboard.writeText(link);
+      alert("推薦連結已複製！");
+    }
   };
 
   if (isLoading || !memberInfo) return <DashboardSkeleton />;
@@ -362,32 +397,77 @@ function DashboardContent() {
                onClick={e => e.stopPropagation()}
              >
                 <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
-                
-                <div className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-900/20 rotate-3">
-                   <QrCode className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">專屬推薦代碼</h3>
-                <p className="text-sm text-slate-400 mb-10">分享您的代碼，與夥伴一同開啟數位茶飲之旅。</p>
-                
-                <div className="bg-slate-50 p-8 rounded-[2rem] mb-10 border border-slate-100">
-                   <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase">{memberInfo.referral_code}</span>
-                </div>
+                 
+                 <div className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-900/20 rotate-3">
+                    <QrCode className="w-10 h-10 text-white" />
+                 </div>
+                 
+                 <h3 className="text-2xl font-black text-slate-900 mb-2">專屬推薦代碼</h3>
+                 <p className="text-sm text-slate-400 mb-8">分享您的代碼，與夥伴一同開啟數位茶飲之旅。</p>
+                 
+                 <AnimatePresence mode="wait">
+                    {!showQR ? (
+                      <motion.div 
+                        key="id-box"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        onClick={() => setShowQR(true)}
+                        className="bg-slate-50 p-8 rounded-[2rem] mb-6 border border-slate-100 cursor-pointer hover:bg-slate-100 transition relative group"
+                      >
+                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-3">您的會員編號 (點擊切換 QR)</p>
+                         <span className="text-3xl font-black tracking-[0.3em] text-emerald-900 uppercase">{memberInfo.member_code}</span>
+                         <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 rounded-[2rem] transition flex items-center justify-center">
+                            <QrCode className="w-6 h-6 text-emerald-900/20" />
+                         </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="qr-box"
+                        initial={{ opacity: 0, scale: 0.9, rotateY: 180 }}
+                        animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, rotateY: 180 }}
+                        onClick={() => setShowQR(false)}
+                        className="bg-white p-6 rounded-[2.5rem] mb-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)] border border-slate-50 flex items-center justify-center relative group mx-auto w-fit cursor-pointer"
+                      >
+                         <QRCodeCanvas 
+                           id="share-qr-canvas"
+                           value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`}
+                           size={180}
+                           level={"H"}
+                           includeMargin={true}
+                         />
+                         <div className="absolute top-2 right-2 text-[8px] font-black text-slate-200 uppercase tracking-widest">點擊返回代碼</div>
+                      </motion.div>
+                    )}
+                 </AnimatePresence>
 
-                <div className="flex gap-4">
-                   <button onClick={() => setShowShare(false)} className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition">
-                      關閉視窗
-                   </button>
-                   <button 
-                     onClick={() => {
-                       const link = `${window.location.origin}/register?ref=${memberInfo.referral_code}`;
-                       navigator.clipboard.writeText(link);
-                       alert("推薦連結已複製！");
-                     }}
-                     className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20"
-                   >
-                      複製連結
-                   </button>
-                </div>
+                 <div className="mb-10">
+                    <Link 
+                      href={`/qrcode?url=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`)}`}
+                      className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline flex items-center justify-center gap-2"
+                    >
+                       <Sparkles className="w-3 h-3" /> 開啟全螢幕掃描頁面
+                    </Link>
+                 </div>
+
+                 <div className="flex gap-4">
+                    <button 
+                      onClick={() => {
+                        setShowShare(false);
+                        setShowQR(false);
+                      }} 
+                      className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition"
+                    >
+                       關閉視窗
+                    </button>
+                    <button 
+                      onClick={handleNativeShare}
+                      className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2"
+                    >
+                       <Share2 className="w-4 h-4" /> 分享連結
+                    </button>
+                 </div>
              </motion.div>
           </motion.div>
         )}

@@ -15,7 +15,9 @@ import {
   Award,
   Zap
 } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import Link from "next/link";
+
 
 function DigitalCardContent() {
   const router = useRouter();
@@ -36,6 +38,24 @@ function DigitalCardContent() {
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     setMemberInfo(data);
     setIsLoading(false);
+  };
+
+  const handleNativeShare = async () => {
+    const link = `${window.location.origin}/register?ref=${memberInfo?.member_code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: '初潤製茶所 創業夥伴',
+          text: `我是初潤製茶所的夥伴 ${memberInfo?.name}，邀請您一同開啟數位茶飲之旅！`,
+          url: link,
+        });
+      } catch (err) {
+        console.log('Share failed', err);
+      }
+    } else {
+      navigator.clipboard.writeText(link);
+      alert("推薦連結已複製！");
+    }
   };
 
   if (isLoading || !memberInfo) return (
@@ -65,8 +85,10 @@ function DigitalCardContent() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, rotateY: 30 }}
         animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+        whileHover={{ rotateY: 10, rotateX: -5, scale: 1.02 }}
         transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-sm aspect-[1/1.6] relative group"
+        style={{ perspective: 2000 }}
+        className="w-full max-w-sm aspect-[1/1.6] relative group cursor-pointer"
       >
          {/* 3D Card Effect Container */}
          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-indigo-500/20 rounded-[3.5rem] blur-3xl opacity-30 group-hover:opacity-60 transition duration-1000"></div>
@@ -94,13 +116,18 @@ function DigitalCardContent() {
             </div>
 
             <div className="relative z-10 space-y-10">
-               <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-emerald-900/50 flex items-center justify-center mx-auto w-48 h-48 rotate-3">
-                  <QrCode className="w-full h-full text-slate-900" />
+               <div className="bg-white p-4 rounded-[2.5rem] shadow-2xl shadow-emerald-900/50 flex items-center justify-center mx-auto w-48 h-48 rotate-3">
+                  <QRCodeCanvas 
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`}
+                    size={160}
+                    level={"H"}
+                    includeMargin={false}
+                  />
                </div>
                
                <div className="text-center space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Referral Access Code</p>
-                  <p className="text-3xl font-black tracking-[0.4em] text-emerald-400 uppercase">{memberInfo.referral_code}</p>
+                  <p className="text-3xl font-black tracking-[0.4em] text-emerald-400 uppercase">{memberInfo.member_code}</p>
                </div>
             </div>
 
@@ -123,12 +150,13 @@ function DigitalCardContent() {
             <Download className="w-6 h-6 text-slate-400 group-hover:text-white transition" />
          </motion.button>
          <motion.button 
-           whileHover={{ y: -5 }}
-           whileTap={{ scale: 0.95 }}
-           className="px-10 py-6 bg-emerald-500 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl shadow-emerald-500/30 flex items-center gap-4"
-         >
-            Share Identity <Share2 className="w-5 h-5" />
-         </motion.button>
+            whileHover={{ y: -5 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleNativeShare}
+            className="px-10 py-6 bg-emerald-500 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl shadow-emerald-500/30 flex items-center gap-4"
+          >
+             Share Identity <Share2 className="w-5 h-5" />
+          </motion.button>
       </div>
 
       <p className="mt-12 text-[8px] font-black uppercase tracking-[0.5em] text-white/20">

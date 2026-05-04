@@ -17,7 +17,7 @@ export default function ReferralCard({
   const [toast, setToast] = useState({ show: false, message: "", type: "success" as "success" | "error" | "info" });
   const [copied, setCopied] = useState(false);
   
-  const referralUrl = typeof window !== 'undefined' ? `${window.location.origin}/register?ref=${memberInfo?.referral_code}` : '';
+  const referralUrl = typeof window !== 'undefined' ? `${window.location.origin}/register?ref=${memberInfo?.member_code}` : '';
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralUrl);
@@ -79,8 +79,8 @@ export default function ReferralCard({
                            <p className="text-sm font-black tracking-widest">{memberInfo?.tier}</p>
                         </div>
                         <div className="text-right space-y-1">
-                           <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Referral Code</p>
-                           <p className="text-xl font-black tracking-[0.2em]">{memberInfo?.referral_code}</p>
+                            <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Referral Code</p>
+                            <p className="text-xl font-black tracking-[0.2em]">{memberInfo?.member_code}</p>
                         </div>
                      </div>
                   </div>

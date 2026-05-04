@@ -33,11 +33,41 @@ function RegisterContent() {
     referral_code: "",
     password: ""
   });
+  const [uplineName, setUplineName] = useState<string | null>(null);
+  const [isValidatingRef, setIsValidatingRef] = useState(false);
 
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) setFormData(prev => ({ ...prev, referral_code: ref.trim().toUpperCase() }));
   }, [searchParams]);
+
+  // Real-time Referral Code Validation
+  useEffect(() => {
+    const checkUpline = async () => {
+      const refCode = formData.referral_code?.trim().toUpperCase();
+      if (!refCode || refCode.length < 3) {
+        setUplineName(null);
+        return;
+      }
+
+      setIsValidatingRef(true);
+      const { data, error } = await supabase
+        .from("members")
+        .select("name")
+        .or(`referral_code.eq.${refCode},member_code.eq.${refCode}`)
+        .single();
+      
+      if (data && !error) {
+        setUplineName(data.name);
+      } else {
+        setUplineName(null);
+      }
+      setIsValidatingRef(false);
+    };
+
+    const timer = setTimeout(checkUpline, 500);
+    return () => clearTimeout(timer);
+  }, [formData.referral_code]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +75,7 @@ function RegisterContent() {
     setErrorMsg(null);
 
     const memberCode = `CR26M${Math.floor(100000 + Math.random() * 900000)}`;
-    const myReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const myReferralCode = memberCode;
 
     try {
       let uplineId = null;
@@ -55,7 +85,7 @@ function RegisterContent() {
         const { data: upline, error: uplineErr } = await supabase
           .from("members")
           .select("id")
-          .eq("referral_code", refCode)
+          .or(`referral_code.eq.${refCode},member_code.eq.${refCode}`)
           .single();
         
         if (uplineErr || !upline) {
@@ -198,7 +228,26 @@ function RegisterContent() {
                  <div className="relative">
                     <Hash className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
                     <input name="referral_code" type="text" value={formData.referral_code} onChange={handleChange} placeholder="REFCODE" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" />
+                    <AnimatePresence>
+                      {isValidatingRef && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute right-6 top-1/2 -translate-y-1/2">
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                  </div>
+                 <AnimatePresence>
+                    {uplineName && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-[10px] font-bold text-emerald-600 ml-6 mt-2 flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" /> 推薦人：{uplineName} ✨
+                      </motion.p>
+                    )}
+                 </AnimatePresence>
               </div>
 
               <div className="md:col-span-2 pt-6">
