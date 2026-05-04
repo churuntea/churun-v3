@@ -22,7 +22,8 @@ import {
   Bell,
   Sparkles,
   Loader2,
-  Gift
+  Gift,
+  Megaphone
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 
