@@ -151,6 +151,93 @@ function DashboardContent() {
     window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const handleDownloadBusinessCard = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Card Dimensions
+    canvas.width = 1000;
+    canvas.height = 600;
+
+    // 1. Background Gradient
+    const gradient = ctx.createLinearGradient(0, 0, 1000, 600);
+    gradient.addColorStop(0, '#064e3b');
+    gradient.addColorStop(1, '#065f46');
+    ctx.fillStyle = gradient;
+    ctx.roundRect ? ctx.roundRect(0, 0, 1000, 600, 40) : ctx.fillRect(0, 0, 1000, 600);
+    ctx.fill();
+
+    // 2. Decorative Patterns
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for(let i = 0; i < 1000; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, 600);
+      ctx.stroke();
+    }
+
+    // 3. Brand Text
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.font = 'black 120px sans-serif';
+    ctx.fillText('CHURUN', 40, 560);
+
+    // 4. Member Info
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText('MEMBER IDENTITY CARD', 60, 80);
+
+    ctx.font = 'black 72px sans-serif';
+    ctx.fillText(memberInfo.name, 60, 260);
+
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText(memberInfo.member_code, 60, 320);
+
+    // 5. QR Code Area (White Background for QR)
+    ctx.fillStyle = '#ffffff';
+    ctx.roundRect ? ctx.roundRect(650, 150, 300, 300, 30) : ctx.fillRect(650, 150, 300, 300);
+    ctx.fill();
+
+    // Draw the actual QR from the existing canvas
+    const qrCanvas = document.getElementById('share-qr-canvas') as HTMLCanvasElement;
+    if (qrCanvas) {
+      ctx.drawImage(qrCanvas, 675, 175, 250, 250);
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('掃描加入初潤', 800, 490);
+
+    // Download
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `churun-card-${memberInfo.member_code}.png`;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  const handleDownloadVCard = () => {
+    const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:初潤夥伴 ${memberInfo?.name}
+TEL;TYPE=CELL:${memberInfo?.phone}
+NOTE:會員編號: ${memberInfo?.member_code}
+URL:${window.location.origin}/register?ref=${memberInfo?.member_code}
+END:VCARD`;
+    
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${memberInfo?.name}_電子名片.vcf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading || !memberInfo) return <DashboardSkeleton />;
 
   const containerVariants = {
@@ -475,6 +562,22 @@ function DashboardContent() {
                     >
                        LINE 分享連結
                     </button>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                       <button 
+                         onClick={handleDownloadBusinessCard}
+                         className="py-5 bg-indigo-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-800 transition shadow-xl shadow-indigo-900/20 flex items-center justify-center gap-2"
+                       >
+                          <Download className="w-4 h-4" /> 下載名片圖片
+                       </button>
+                       <button 
+                         onClick={handleDownloadVCard}
+                         className="py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                       >
+                          <UserPlus className="w-4 h-4" /> 導出聯繫檔案
+                       </button>
+                    </div>
+
                     <div className="flex gap-4">
                        <button 
                          onClick={() => {
