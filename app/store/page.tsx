@@ -416,7 +416,7 @@ function StoreContent() {
                     </div>
                     <div className="flex flex-col">
                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">匯款帳號</span>
-                       <span className="text-sm font-black text-emerald-900 tracking-wider">214035004505</span>
+                       <span className="text-sm font-black text-emerald-900 tracking-wider">214-03-500450-5</span>
                     </div>
                  </div>
               </div>
