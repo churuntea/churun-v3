@@ -143,6 +143,12 @@ function DashboardContent() {
     }
   };
 
+  const handleLineShare = () => {
+    const link = `${window.location.origin}/register?ref=${memberInfo?.member_code}`;
+    const text = `加入初潤製茶所！使用我的推薦代碼 ${memberInfo?.member_code} 領取專屬優惠：`;
+    window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   if (isLoading || !memberInfo) return <DashboardSkeleton />;
 
   const containerVariants = {
@@ -452,22 +458,30 @@ function DashboardContent() {
                     </Link>
                  </div>
 
-                 <div className="flex gap-4">
+                 <div className="flex flex-col gap-3">
                     <button 
-                      onClick={() => {
-                        setShowShare(false);
-                        setShowQR(false);
-                      }} 
-                      className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition"
+                      onClick={handleLineShare}
+                      className="w-full py-5 bg-[#00c300] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#00b300] transition shadow-xl shadow-emerald-500/10 flex items-center justify-center gap-2"
                     >
-                       關閉視窗
+                       LINE 分享連結
                     </button>
-                    <button 
-                      onClick={handleNativeShare}
-                      className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2"
-                    >
-                       <Share2 className="w-4 h-4" /> 分享連結
-                    </button>
+                    <div className="flex gap-4">
+                       <button 
+                         onClick={() => {
+                           setShowShare(false);
+                           setShowQR(false);
+                         }} 
+                         className="flex-1 py-5 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition"
+                       >
+                          關閉視窗
+                       </button>
+                       <button 
+                         onClick={handleNativeShare}
+                         className="flex-1 py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2"
+                       >
+                          <Share2 className="w-4 h-4" /> 其他方式
+                       </button>
+                    </div>
                  </div>
              </motion.div>
           </motion.div>

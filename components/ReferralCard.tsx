@@ -26,6 +26,11 @@ export default function ReferralCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleLineShare = () => {
+    const text = `加入初潤製茶所！使用我的推薦代碼 ${memberInfo?.member_code} 領取專屬優惠：`;
+    window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const getTierColor = (tier: string) => {
     if (tier?.includes('靈魂伴侶')) return 'from-amber-400 via-amber-200 to-amber-500';
     if (tier?.includes('知己')) return 'from-emerald-400 to-emerald-600';
@@ -107,20 +112,28 @@ export default function ReferralCard({
                      </button>
                   </div>
 
-                  <button 
-                    onClick={() => {
-                      if (navigator.share) {
-                        navigator.share({ title: '加入初潤', url: referralUrl }).catch(() => {
-                           setToast({ show: true, message: "您的瀏覽器不支援社群分享", type: "info" });
-                        });
-                      } else {
-                        copyLink();
-                      }
-                    }}
-                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition"
-                  >
-                     <Share className="w-4 h-4" /> 啟動社群擴散
-                  </button>
+                   <div className="flex gap-4">
+                      <button 
+                        onClick={handleLineShare}
+                        className="flex-1 bg-[#00c300] text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition"
+                      >
+                         LINE 分享
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({ title: '加入初潤', url: referralUrl }).catch(() => {
+                               setToast({ show: true, message: "您的瀏覽器不支援社群分享", type: "info" });
+                            });
+                          } else {
+                            copyLink();
+                          }
+                        }}
+                        className="flex-1 bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition"
+                      >
+                         <Share className="w-4 h-4" /> 其他分享
+                      </button>
+                   </div>
                </div>
 
             </div>
