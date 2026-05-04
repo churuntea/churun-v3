@@ -57,6 +57,14 @@ export default function SecurityPage() {
       action: () => router.push("/profile/security/phone")
     },
     { 
+      title: "圖形鎖設定", 
+      desc: "設定 3x3 九宮格快速登入", 
+      icon: Lock, 
+      status: memberInfo.pattern_code ? "已設定" : "未設定", 
+      color: memberInfo.pattern_code ? "text-amber-500 bg-amber-50" : "text-slate-500 bg-slate-50",
+      action: () => router.push("/profile/security/pattern")
+    },
+    { 
       title: "登入紀錄查詢", 
       desc: "查看最近的登入地點與時間", 
       icon: History, 
