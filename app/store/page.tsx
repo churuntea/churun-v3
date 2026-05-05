@@ -421,7 +421,7 @@ function StoreContent() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10"
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="w-16 h-16 bg-slate-50 text-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
                  <ShoppingCart className="w-6 h-6" />
@@ -489,7 +489,7 @@ function StoreContent() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm text-center shadow-2xl relative overflow-hidden z-10"
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm text-center shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
                  {isOrderCreated ? <Check className="w-10 h-10" /> : <Plus className="w-10 h-10" />}
