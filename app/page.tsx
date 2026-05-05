@@ -76,6 +76,7 @@ function DashboardContent() {
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [downlines, setDownlines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showShare, setShowShare] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -105,6 +106,9 @@ function DashboardContent() {
       
       const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
       setMemberInfo(mData);
+
+      const { data: dData } = await supabase.from("members").select("id").eq("upline_id", currentUserId);
+      setDownlines(dData || []);
 
       const { data: aData } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5);
       setAnnouncements(aData || []);
@@ -496,6 +500,41 @@ END:VCARD`;
               </div>
            </div>
         </motion.section>
+
+        {/* Honor Badges - NEW */}
+        <section className="space-y-6">
+           <div className="flex justify-between items-center px-4">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">榮譽成就勳章</h3>
+              <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest animate-pulse">New Achievements</span>
+           </div>
+           
+           <div className="flex gap-6 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+              {[
+                { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "bg-indigo-50 text-indigo-500", earned: true },
+                { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "bg-emerald-50 text-emerald-500", earned: Number(downlines?.length || 0) >= 5 },
+                { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "bg-amber-50 text-amber-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
+                { name: "品牌大使", desc: "分享推薦碼 10 次", icon: Share2, color: "bg-rose-50 text-rose-500", earned: false },
+                { name: "永續夥伴", desc: "維持職級 3 個月", icon: Heart, color: "bg-slate-50 text-slate-300", earned: false }
+              ].map((badge, i) => (
+                <motion.div 
+                  key={i}
+                  whileHover={{ y: -5, scale: 1.05 }}
+                  className={`min-w-[140px] p-6 rounded-[2.5rem] border flex flex-col items-center gap-4 transition-all duration-500 ${
+                    badge.earned ? 'bg-white border-slate-100 shadow-xl' : 'bg-slate-50/50 border-transparent grayscale opacity-40'
+                  }`}
+                >
+                   <div className={`w-14 h-14 ${badge.earned ? badge.color : 'bg-slate-100 text-slate-300'} rounded-[1.5rem] flex items-center justify-center shadow-inner relative`}>
+                      {badge.earned && <div className="absolute inset-0 bg-current opacity-20 blur-xl animate-pulse"></div>}
+                      <badge.icon className="w-7 h-7 relative z-10" />
+                   </div>
+                   <div className="text-center space-y-1">
+                      <h4 className={`text-[10px] font-black uppercase tracking-widest ${badge.earned ? 'text-slate-800' : 'text-slate-400'}`}>{badge.name}</h4>
+                      <p className="text-[7px] font-bold text-slate-300 leading-tight uppercase">{badge.desc}</p>
+                   </div>
+                </motion.div>
+              ))}
+           </div>
+        </section>
 
         {/* Brand Insights Feed */}
         <motion.section variants={itemVariants} className="grid grid-cols-4 gap-4 px-2">

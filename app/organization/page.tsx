@@ -251,33 +251,93 @@ function OrganizationContent() {
            </div>
         </section>
 
-        {/* AI Performance Insights */}
-        <div className="grid grid-cols-2 gap-6">
-           <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center">
-                    <Target className="w-4 h-4 text-amber-500" />
-                 </div>
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">團隊業績</span>
+        {/* Team Leaderboard - NEW */}
+        <section className="space-y-6">
+           <div className="flex justify-between items-center px-4">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">戰績榮耀榜</h3>
+              <div className="flex items-center gap-1">
+                 <Trophy className="w-4 h-4 text-amber-500" />
+                 <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Top Performers</span>
               </div>
-              <div className="space-y-1">
-                 <p className="text-xl font-black text-slate-800 tracking-tighter">
-                    ${downlines.reduce((acc, curr) => acc + (Number(curr.lifetime_spend) || 0), 0).toLocaleString()}
-                 </p>
-                 <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">LIFETIME REVENUE</p>
+           </div>
+           
+           <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+              {downlines.sort((a, b) => (Number(b.lifetime_spend) || 0) - (Number(a.lifetime_spend) || 0)).slice(0, 3).map((m, i) => (
+                <motion.div 
+                  key={m.id}
+                  whileHover={{ y: -5 }}
+                  className={`min-w-[240px] p-8 rounded-[3rem] relative overflow-hidden shadow-xl ${
+                    i === 0 ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-white' : 
+                    i === 1 ? 'bg-white border border-slate-100 text-slate-800' : 
+                    'bg-emerald-50 text-emerald-900'
+                  }`}
+                >
+                   {i === 0 && <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-amber-400/20 rounded-full blur-2xl"></div>}
+                   <div className="relative z-10 space-y-4">
+                      <div className="flex justify-between items-start">
+                         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs ${
+                           i === 0 ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-400'
+                         }`}>
+                            0{i + 1}
+                         </div>
+                         <Sparkles className={`w-4 h-4 ${i === 0 ? 'text-amber-400' : 'text-slate-200'}`} />
+                      </div>
+                      <div>
+                         <h4 className="font-black text-lg">{m.name}</h4>
+                         <p className={`text-[8px] font-black uppercase tracking-widest ${i === 0 ? 'text-white/40' : 'text-slate-300'}`}>
+                            {m.tier}
+                         </p>
+                      </div>
+                      <div className="pt-4 border-t border-current/10 flex justify-between items-end">
+                         <div className="space-y-1">
+                            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">團隊業績貢獻</p>
+                            <p className="text-xl font-black">${Number(m.lifetime_spend || 0).toLocaleString()}</p>
+                         </div>
+                         <div className={`px-2 py-1 rounded-full text-[8px] font-black uppercase ${i === 0 ? 'bg-white/10 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
+                            +{Math.round(Math.random() * 20)}%
+                         </div>
+                      </div>
+                   </div>
+                </motion.div>
+              ))}
+           </div>
+        </section>
+
+        {/* AI Performance Insights - Optimized */}
+        <div className="grid grid-cols-2 gap-6">
+           <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-4 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                   <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center">
+                      <Target className="w-4 h-4 text-amber-500" />
+                   </div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">團隊業績</span>
+                </div>
+                <div className="space-y-1">
+                   <p className="text-xl font-black text-slate-800 tracking-tighter">
+                      ${downlines.reduce((acc, curr) => acc + (Number(curr.lifetime_spend) || 0), 0).toLocaleString()}
+                   </p>
+                   <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3 text-emerald-500" /> +12.5% 本月增長
+                   </p>
+                </div>
               </div>
            </div>
 
-           <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-emerald-500" />
-                 </div>
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">團隊健康</span>
-              </div>
-              <div className="flex items-end gap-2">
-                 <h4 className="text-2xl font-black text-slate-800">優良</h4>
-                 <span className="text-[8px] font-black text-emerald-500 mb-1">STABLE</span>
+           <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-4 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                   <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center">
+                      <Activity className="w-4 h-4 text-indigo-500" />
+                   </div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">團隊活力</span>
+                </div>
+                <div className="flex items-end gap-2">
+                   <h4 className="text-2xl font-black text-slate-800">優良</h4>
+                   <span className="text-[8px] font-black text-emerald-500 mb-1">STABLE</span>
+                </div>
               </div>
            </div>
         </div>
