@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Image as ImageIcon, 
   ChevronRight, 
@@ -15,7 +16,9 @@ import {
   Loader2,
   Download,
   ExternalLink,
-  Star
+  Star,
+  ArrowLeft,
+  Copy
 } from "lucide-react";
 
 function MaterialsContent() {
@@ -45,47 +48,61 @@ function MaterialsContent() {
   };
 
   const categories = ["全部", ...Array.from(new Set(materials.map(m => m.category)))];
-  const filteredMaterials = activeCategory === "全部" 
-    ? materials 
-    : materials.filter(m => m.category === activeCategory);
+  const [activeTab, setActiveTab] = useState<"visual" | "copy">("visual");
 
-  const featuredMaterial = materials[0];
+  const filteredMaterials = materials.filter(m => {
+    const matchesCategory = activeCategory === "全部" || m.category === activeCategory;
+    const matchesTab = activeTab === "visual" 
+      ? m.file_type === "image" || m.file_type === "video"
+      : m.file_type === "text";
+    return matchesCategory && matchesTab;
+  });
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("文案已複製到剪貼簿！");
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
-      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-8 flex justify-between items-center max-w-lg mx-auto">
+      <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+            <Link href="/" className="p-2 hover:bg-slate-50 rounded-full transition">
                <ArrowLeft className="w-5 h-5 text-slate-400" />
-            </button>
-            <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">宣傳素材庫</h1>
+            </Link>
+            <div>
+               <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">品牌素材中心</h1>
+               <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Marketing Hub</p>
+            </div>
          </div>
       </nav>
 
       <main className="max-w-lg mx-auto p-6 space-y-8 mt-2">
         
-        {/* Banner */}
-        <section className="bg-emerald-900 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-emerald-900/20">
-           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
-           <div className="relative z-10 flex items-center gap-6">
-              <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center backdrop-blur-md">
-                 <ImageIcon className="w-8 h-8 text-emerald-200" />
-              </div>
-              <div>
-                 <h2 className="text-xl font-bold tracking-tight">數位素材中心</h2>
-                 <p className="text-xs text-white/40 mt-1">下載官方圖檔與文案，輕鬆分享初潤美學。</p>
-              </div>
-           </div>
-        </section>
+        {/* Content Type Tabs */}
+        <div className="flex p-2 bg-slate-100 rounded-3xl gap-2">
+           <button 
+             onClick={() => setActiveTab("visual")}
+             className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'visual' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
+           >
+              視覺素材
+           </button>
+           <button 
+             onClick={() => setActiveTab("copy")}
+             className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'copy' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
+           >
+              社群文案
+           </button>
+        </div>
 
         {/* Category Filter */}
-        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar px-2">
            {categories.map(cat => (
              <button 
                key={cat}
                onClick={() => setActiveCategory(cat)}
-               className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${
-                 activeCategory === cat ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/20' : 'bg-white text-slate-400 border border-slate-100'
+               className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition ${
+                 activeCategory === cat ? 'bg-emerald-900 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100'
                }`}
              >
                 {cat}
@@ -93,43 +110,83 @@ function MaterialsContent() {
            ))}
         </div>
 
-        {/* Materials List */}
-        <div className="grid grid-cols-1 gap-6">
+        {/* Dynamic Materials Grid */}
+        <div className="space-y-6">
            {isLoading ? (
              <div className="py-20 flex justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>
            ) : filteredMaterials.length === 0 ? (
-             <div className="py-20 text-center bg-white rounded-[3rem] border border-slate-50">
-                <p className="text-xs font-bold text-slate-300">目前尚無此分類素材</p>
+             <div className="py-20 text-center bg-white rounded-[3.5rem] border border-slate-50 shadow-sm">
+                <ImageIcon className="w-12 h-12 text-slate-100 mx-auto mb-6" />
+                <p className="text-xs font-black text-slate-300 uppercase tracking-widest">目前尚無素材內容</p>
              </div>
-           ) : filteredMaterials.map((mat) => (
-             <div key={mat.id} className="bg-white rounded-[3rem] overflow-hidden shadow-sm border border-slate-50 group">
-                <div className="aspect-video w-full bg-slate-100 relative overflow-hidden">
-                   <img 
-                     src={mat.thumbnail_url || mat.url} 
-                     alt={mat.title} 
-                     className="w-full h-full object-cover group-hover:scale-105 transition duration-700" 
-                   />
-                   <div className="absolute top-4 left-4 px-3 py-1 bg-white/80 backdrop-blur-md rounded-full text-[8px] font-black text-emerald-900 uppercase tracking-widest shadow-sm">
-                      {mat.category}
-                   </div>
-                </div>
-                <div className="p-8 flex justify-between items-center">
-                   <div>
-                      <h4 className="font-bold text-slate-800">{mat.title}</h4>
-                      <p className="text-xs text-slate-400 mt-1">{mat.description || '官方授權推廣素材'}</p>
-                   </div>
-                   <a 
-                     href={mat.url} 
-                     download 
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition"
-                   >
-                      <Download className="w-5 h-5" />
-                   </a>
-                </div>
+           ) : activeTab === "visual" ? (
+             <div className="grid grid-cols-1 gap-6">
+               {filteredMaterials.map((mat) => (
+                 <motion.div 
+                   key={mat.id} 
+                   initial={{ opacity: 0, y: 20 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   className="bg-white rounded-[3.5rem] overflow-hidden shadow-sm border border-slate-50 group hover:border-emerald-200 transition-all duration-500"
+                 >
+                    <div className="aspect-[4/3] w-full bg-slate-50 relative overflow-hidden">
+                       <img 
+                         src={mat.thumbnail_url || mat.url} 
+                         alt={mat.title} 
+                         className="w-full h-full object-cover group-hover:scale-110 transition duration-1000" 
+                       />
+                       <div className="absolute top-6 left-6 px-4 py-2 bg-white/90 backdrop-blur-md rounded-2xl text-[8px] font-black text-emerald-900 uppercase tracking-widest shadow-xl">
+                          {mat.category}
+                       </div>
+                    </div>
+                    <div className="p-8 flex justify-between items-center">
+                       <div className="space-y-1">
+                          <h4 className="font-black text-slate-800 text-lg tracking-tight">{mat.title}</h4>
+                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Official Assets</p>
+                       </div>
+                       <a 
+                         href={mat.url} 
+                         download 
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="w-14 h-14 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-900/20 active:scale-90 transition"
+                       >
+                          <Download className="w-6 h-6" />
+                       </a>
+                    </div>
+                 </motion.div>
+               ))}
              </div>
-           ))}
+           ) : (
+             <div className="space-y-4">
+               {filteredMaterials.map((mat) => (
+                 <motion.div 
+                   key={mat.id}
+                   initial={{ opacity: 0, scale: 0.95 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-6"
+                 >
+                    <div className="flex justify-between items-center">
+                       <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                             <Star className="w-4 h-4" />
+                          </div>
+                          <h4 className="font-black text-slate-800 tracking-tight">{mat.title}</h4>
+                       </div>
+                       <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{mat.category}</span>
+                    </div>
+                    <div className="bg-slate-50 rounded-2xl p-6 text-xs text-slate-500 leading-relaxed font-medium whitespace-pre-wrap italic">
+                       {mat.description}
+                    </div>
+                    <button 
+                      onClick={() => handleCopy(mat.description)}
+                      className="w-full bg-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-900/10 active:scale-95 transition"
+                    >
+                       <Copy className="w-4 h-4" /> 複製推廣文案
+                    </button>
+                 </motion.div>
+               ))}
+             </div>
+           )}
         </div>
 
       </main>
