@@ -26,13 +26,14 @@ function TransactionContent() {
   const router = useRouter();
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"wallet" | "points">("wallet");
+  const [activeTab, setActiveTab] = useState<"wallet" | "points" | "orders">("wallet");
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     // Force cache break
-    const currentVersion = "1.0.5";
+    const currentVersion = "1.0.6";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -56,9 +57,12 @@ function TransactionContent() {
     if (activeTab === "wallet") {
       const { data } = await supabase.from("wallet_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
       setTransactions(data || []);
-    } else {
+    } else if (activeTab === "points") {
       const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
       setTransactions(data || []);
+    } else {
+      const { data } = await supabase.from("orders").select("*").eq("buyer_id", userId).order("created_at", { ascending: false }).limit(10);
+      setOrders(data || []);
     }
     setIsLoading(false);
   };
@@ -86,21 +90,13 @@ function TransactionContent() {
                setActiveTab("wallet");
                setShowHistory(!showHistory);
              }}
-             className={`min-w-[310px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`min-w-[280px] p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <div className="flex justify-between items-start mb-2">
                  <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">虛擬預收餘額</p>
-                 <motion.div 
-                   animate={{ opacity: [0.4, 1, 0.4] }} 
-                   transition={{ duration: 2, repeat: Infinity }}
-                   className="flex items-center gap-1 bg-emerald-500/20 px-2 py-1 rounded-full"
-                 >
-                    <div className="w-1 h-1 bg-emerald-400 rounded-full"></div>
-                    <span className="text-[6px] font-black text-emerald-400 uppercase tracking-widest">TAP FOR HISTORY</span>
-                 </motion.div>
               </div>
-              <h2 className="text-5xl font-black tracking-tighter leading-none">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
+              <h2 className="text-4xl font-black tracking-tighter leading-none">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
               <div className="mt-8 flex justify-between items-center">
                  <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
@@ -108,12 +104,7 @@ function TransactionContent() {
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
                  </div>
-                 <motion.div
-                   animate={{ x: showHistory && activeTab === 'wallet' ? 0 : [0, 5, 0] }}
-                   transition={{ repeat: Infinity, duration: 1.5 }}
-                 >
-                    <ChevronRight className={`w-5 h-5 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
-                 </motion.div>
+                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
 
@@ -123,17 +114,13 @@ function TransactionContent() {
                setActiveTab("points");
                setShowHistory(!showHistory);
              }}
-             className={`min-w-[310px] p-10 rounded-[3rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`min-w-[280px] p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <div className="flex justify-between items-start mb-2">
                  <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">紅利點數</p>
-                 <div className="flex items-center gap-1 bg-amber-500/20 px-2 py-1 rounded-full">
-                    <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
-                    <span className="text-[6px] font-black text-amber-400 uppercase tracking-widest">LOYALTY PROGRAM</span>
-                 </div>
               </div>
-              <h2 className="text-5xl font-black tracking-tighter leading-none">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
+              <h2 className="text-4xl font-black tracking-tighter leading-none">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
               <div className="mt-8 flex justify-between items-center">
                  <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
@@ -141,7 +128,31 @@ function TransactionContent() {
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">獎勵計畫</span>
                  </div>
-                 <ChevronRight className={`w-5 h-5 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
+                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
+              </div>
+           </motion.div>
+
+           <motion.div 
+             whileTap={{ scale: 0.95 }}
+             onClick={() => {
+               setActiveTab("orders");
+               setShowHistory(false);
+             }}
+             className={`min-w-[280px] p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer ${activeTab === 'orders' ? 'bg-indigo-900 text-white shadow-2xl shadow-indigo-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
+           >
+              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+              <div className="flex justify-between items-start mb-2">
+                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">訂單追蹤</p>
+              </div>
+              <h2 className="text-4xl font-black tracking-tighter leading-none">{orders.length} <span className="text-xs font-medium ml-1">Orders</span></h2>
+              <div className="mt-8 flex justify-between items-center">
+                 <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                       <ShoppingBag className="w-4 h-4 text-indigo-300" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest">我的訂單</span>
+                 </div>
+                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${activeTab === 'orders' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
         </div>
@@ -181,59 +192,133 @@ function TransactionContent() {
           )}
         </AnimatePresence>
 
-         {/* Transaction Feed */}
+         {/* Dynamic Feed: Transactions or Orders */}
          <section className="space-y-6">
             <div className="flex justify-between items-center px-4">
-               <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">交易動態回報</h3>
+               <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">
+                  {activeTab === 'orders' ? '近期訂單進度' : '交易動態回報'}
+               </h3>
                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Live Updates</span>
             </div>
 
             <div className="space-y-3">
                {isLoading ? (
                  <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
-               ) : transactions.length === 0 ? (
-                 <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50 shadow-sm">
-                    <History className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                    <p className="text-xs text-slate-300 font-bold">目前尚無交易紀錄</p>
-                 </div>
-               ) : (
-                 transactions.slice(0, 10).map((tx, i) => {
-                   const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
-                   const isBonus = tx.transaction_type?.includes("獎金");
-                   const isWholesale = tx.transaction_type?.includes("貨款");
-
-                   return (
+               ) : activeTab === 'orders' ? (
+                 orders.length === 0 ? (
+                   <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50 shadow-sm">
+                      <ShoppingBag className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                      <p className="text-xs text-slate-300 font-bold">目前尚無訂單紀錄</p>
+                   </div>
+                 ) : (
+                   orders.map((order, i) => (
                      <motion.div 
-                       key={tx.id}
-                       initial={{ opacity: 0, x: -10 }}
-                       animate={{ opacity: 1, x: 0 }}
+                       key={order.id}
+                       initial={{ opacity: 0, y: 10 }}
+                       animate={{ opacity: 1, y: 0 }}
                        transition={{ delay: i * 0.05 }}
-                       className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition relative overflow-hidden"
+                       className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-6 relative overflow-hidden"
                      >
-                        <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center shadow-inner relative z-10 
-                          ${isBonus ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 
-                            isWholesale ? 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400' :
-                            isIncome ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 'bg-gradient-to-br from-rose-50 to-rose-100 text-rose-500'}`}>
-                           {isIncome ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
-                        </div>
-                        <div className="flex-1 relative z-10">
-                           <div className="flex items-center gap-2">
-                              <h4 className="font-black text-slate-800 text-sm tracking-tight">{tx.transaction_type}</h4>
-                              {isBonus && <span className="text-[6px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase">Bonus</span>}
+                        <div className="flex justify-between items-start">
+                           <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                 <h4 className="font-black text-slate-800 text-sm">訂單 #{order.id.substring(0, 8)}</h4>
+                                 <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest 
+                                   ${order.status === 'approved' ? 'bg-emerald-500 text-white' : 
+                                     order.status === 'rejected' ? 'bg-rose-500 text-white' : 'bg-amber-100 text-amber-600'}`}>
+                                   {order.status === 'approved' ? '已核准' : 
+                                    order.status === 'rejected' ? '已退回' : '待審核'}
+                                 </span>
+                              </div>
+                              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                 {new Date(order.created_at).toLocaleDateString()}
+                              </p>
                            </div>
-                           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
-                              {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                           </p>
+                           <p className="text-xl font-black text-slate-800">${Number(order.total_amount).toLocaleString()}</p>
                         </div>
-                        <div className="text-right relative z-10">
-                           <p className={`text-xl font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
-                              {isIncome ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
-                           </p>
-                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Verified</p>
-                        </div>
+
+                        {order.status === 'pending' && (
+                          <div className="pt-4 border-t border-slate-50 space-y-4">
+                             <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">回報匯款末五碼</span>
+                                {order.payment_last_five && <span className="text-[10px] font-black text-emerald-500">已回報: {order.payment_last_five}</span>}
+                             </div>
+                             <div className="flex gap-2">
+                                <input 
+                                  type="text" 
+                                  id={`last-five-${order.id}`}
+                                  placeholder="請輸入後五碼"
+                                  maxLength={5}
+                                  className="flex-1 bg-slate-50 border-none rounded-xl p-3 text-xs font-black text-slate-700 focus:ring-1 focus:ring-emerald-500/20"
+                                />
+                                <button 
+                                  onClick={async () => {
+                                    const input = document.getElementById(`last-five-${order.id}`) as HTMLInputElement;
+                                    if (input.value.length < 5) {
+                                      alert("請輸入完整的五位數字");
+                                      return;
+                                    }
+                                    const { error } = await supabase.from('orders').update({ payment_last_five: input.value }).eq('id', order.id);
+                                    if (!error) {
+                                      alert("回報成功！");
+                                      fetchData(memberInfo.id);
+                                    }
+                                  }}
+                                  className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 transition"
+                                >
+                                   送出
+                                </button>
+                             </div>
+                          </div>
+                        )}
                      </motion.div>
-                   );
-                 })
+                   ))
+                 )
+               ) : (
+                 transactions.length === 0 ? (
+                   <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50 shadow-sm">
+                      <History className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                      <p className="text-xs text-slate-300 font-bold">目前尚無交易紀錄</p>
+                   </div>
+                 ) : (
+                   transactions.slice(0, 10).map((tx, i) => {
+                     const isIncome = tx.amount > 0 || tx.transaction_type?.includes("獎金") || tx.transaction_type?.includes("儲值");
+                     const isBonus = tx.transaction_type?.includes("獎金");
+                     const isWholesale = tx.transaction_type?.includes("貨款");
+
+                     return (
+                       <motion.div 
+                         key={tx.id}
+                         initial={{ opacity: 0, x: -10 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         transition={{ delay: i * 0.05 }}
+                         className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex items-center gap-5 group hover:border-slate-200 transition relative overflow-hidden"
+                       >
+                          <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center shadow-inner relative z-10 
+                            ${isBonus ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 
+                              isWholesale ? 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400' :
+                              isIncome ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600' : 'bg-gradient-to-br from-rose-50 to-rose-100 text-rose-500'}`}>
+                             {isIncome ? <ArrowDownLeft className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                          </div>
+                          <div className="flex-1 relative z-10">
+                             <div className="flex items-center gap-2">
+                                <h4 className="font-black text-slate-800 text-sm tracking-tight">{tx.transaction_type}</h4>
+                                {isBonus && <span className="text-[6px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase">Bonus</span>}
+                             </div>
+                             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
+                                {new Date(tx.created_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                             </p>
+                          </div>
+                          <div className="text-right relative z-10">
+                             <p className={`text-xl font-black tracking-tighter ${isIncome ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                {isIncome ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                             </p>
+                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Verified</p>
+                          </div>
+                       </motion.div>
+                     );
+                   })
+                 )
                )}
             </div>
          </section>
