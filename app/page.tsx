@@ -237,7 +237,17 @@ function DashboardContent() {
         })
       });
       
-      const result = await response.json().catch(() => ({ success: false, error: '伺服器回應格式錯誤 (可能是資料庫欄位尚未建立)' }));
+      let result;
+      const responseText = await response.text();
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseErr) {
+        console.error('Raw response was:', responseText);
+        result = { 
+          success: false, 
+          error: `伺服器回應異常 (${response.status})。可能是 Vercel 正在部署或資料庫連線中斷。` 
+        };
+      }
       
       if (result.success) {
         if (result.avatarUrl) setMemberAvatar(result.avatarUrl);
