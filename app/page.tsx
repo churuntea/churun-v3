@@ -231,10 +231,10 @@ function DashboardContent() {
         })
       });
       
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ success: false, error: '伺服器回應格式錯誤 (可能是資料庫欄位尚未建立)' }));
+      
       if (result.success) {
         if (result.avatarUrl) setMemberAvatar(result.avatarUrl);
-        // Update local memberInfo to avoid mismatch
         setMemberInfo((prev: any) => ({ 
           ...prev, 
           avatar_url: result.avatarUrl || prev.avatar_url,
@@ -244,10 +244,12 @@ function DashboardContent() {
         alert('個人化設定已成功儲存！');
         setIsEditingAvatar(false);
       } else {
-        alert('儲存失敗: ' + result.error);
+        console.error('Save failed:', result.error);
+        alert('儲存失敗: ' + (result.error || '原因不明'));
       }
-    } catch (err) {
-      alert('發生錯誤，請稍後再試');
+    } catch (err: any) {
+      console.error('System error:', err);
+      alert('系統發生異常: ' + (err.message || '請檢查網路連線或聯絡管理員'));
     } finally {
       setIsSavingAvatar(false);
     }

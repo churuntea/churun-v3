@@ -59,7 +59,17 @@ export async function POST(request: Request) {
         .update(updateData)
         .eq('id', memberId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Supabase Update Error Details:', updateError);
+        // 如果錯誤訊息包含 column doesn't exist，提供具體提示
+        if (updateError.message.includes('column') && updateError.message.includes('does not exist')) {
+           return NextResponse.json({ 
+             success: false, 
+             error: `資料庫缺少欄位: ${updateError.message}。請執行 SQL ALTER TABLE 指令。` 
+           }, { status: 500 });
+        }
+        throw updateError;
+      }
     }
 
     return NextResponse.json({ 
@@ -69,7 +79,10 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Avatar Update Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Avatar Update Critical Error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || '伺服器內部錯誤' 
+    }, { status: 500 });
   }
 }
