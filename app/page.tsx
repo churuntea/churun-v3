@@ -160,6 +160,7 @@ function DashboardContent() {
   };
 
   const [memberAvatar, setMemberAvatar] = useState<string | null>(null);
+  const [avatarZoom, setAvatarZoom] = useState(1);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,7 +236,7 @@ function DashboardContent() {
        const img = new Image();
        img.src = memberAvatar;
        img.onload = () => {
-          // Draw Avatar
+          // Draw Avatar with Aspect Ratio Correction (Cover)
           ctx.save();
           ctx.beginPath();
           const avatarSize = 240;
@@ -243,7 +244,22 @@ function DashboardContent() {
           const avatarY = boxY + 40;
           ctx.roundRect ? ctx.roundRect(avatarX, avatarY, avatarSize, avatarSize, 40) : ctx.rect(avatarX, avatarY, avatarSize, avatarSize);
           ctx.clip();
-          ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+          
+          // Calculate source rectangle for "Cover" effect
+          const sW = img.width;
+          const sH = img.height;
+          const aspect = sW / sH;
+          let dx = 0, dy = 0, dW = avatarSize, dH = avatarSize;
+          
+          if (aspect > 1) { // Wide image
+            const targetW = avatarSize * aspect * avatarZoom;
+            const targetH = avatarSize * avatarZoom;
+            ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2, targetW, targetH);
+          } else { // Tall image
+            const targetH = (avatarSize / aspect) * avatarZoom;
+            const targetW = avatarSize * avatarZoom;
+            ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2, targetW, targetH);
+          }
           ctx.restore();
           
           // Draw QR Code below Avatar
@@ -582,7 +598,10 @@ END:VCARD`;
                      <div className="relative group">
                         <img src={memberAvatar} className="w-24 h-24 rounded-3xl object-cover shadow-lg border-2 border-white" alt="Avatar" />
                         <button 
-                          onClick={() => setMemberAvatar(null)}
+                          onClick={() => {
+                            setMemberAvatar(null);
+                            setAvatarZoom(1);
+                          }}
                           className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg"
                         >
                            <X className="w-3 h-3" />
@@ -593,6 +612,25 @@ END:VCARD`;
                         <User className="w-8 h-8 opacity-20" />
                      </div>
                    )}
+                   
+                   {memberAvatar && (
+                     <div className="w-full px-4 space-y-2">
+                        <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                           <span>縮放調整</span>
+                           <span>{Math.round(avatarZoom * 100)}%</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="3" 
+                          step="0.01" 
+                          value={avatarZoom} 
+                          onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
+                          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                        />
+                     </div>
+                   )}
+
                    <label className="bg-emerald-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-800 transition shadow-lg shadow-emerald-900/10">
                       {memberAvatar ? '更換照片' : '上傳個人照'}
                       <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
