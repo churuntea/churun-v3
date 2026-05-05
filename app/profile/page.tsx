@@ -131,10 +131,40 @@ function ProfileContent() {
                 memberInfo.tier.includes('靈魂伴侶') ? 'bg-slate-900' : 'bg-emerald-900'
               }`}>
                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                 
+                 {/* Avatar Background Layer (Premium Aesthetic) */}
+                 {memberInfo.avatar_url && (
+                   <div className="absolute top-0 right-0 w-64 h-64 overflow-hidden pointer-events-none opacity-10 blur-xl -mr-16 -mt-16">
+                      <img 
+                        src={memberInfo.avatar_url} 
+                        className="w-full h-full object-cover" 
+                        style={{ transform: `scale(${(memberInfo.avatar_settings?.zoom || 1) * 1.5}) translateY(${(memberInfo.avatar_settings?.offset || 0) / 2}px)` }}
+                      />
+                   </div>
+                 )}
+
                  <div className="flex justify-between items-start relative z-10">
-                    <div className="space-y-1">
-                       <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
-                       <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code}</p>
+                    <div className="flex items-center gap-5">
+                       {memberInfo.avatar_url ? (
+                         <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
+                            <img 
+                              src={memberInfo.avatar_url} 
+                              className="w-full h-full object-cover" 
+                              style={{ transform: `scale(${memberInfo.avatar_settings?.zoom || 1}) translateY(${(memberInfo.avatar_settings?.offset || 0) / 4}px)` }}
+                            />
+                         </div>
+                       ) : (
+                         <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10">
+                            <User className="w-8 h-8 text-white/20" />
+                         </div>
+                       )}
+                        <div className="space-y-1">
+                           <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
+                           <p className="text-[9px] font-bold text-white/50 tracking-[0.2em] italic mt-2">
+                              「{memberInfo.motto || '以初心、致潤澤'}」
+                           </p>
+                           <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code}</p>
+                        </div>
                     </div>
                     <div 
                       onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }}

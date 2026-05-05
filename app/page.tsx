@@ -4,7 +4,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "./supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -28,7 +28,10 @@ import {
   Download,
   Copy,
   UserPlus,
-  X
+  X,
+  TrendingUp,
+  Heart,
+  CheckCircle2
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
@@ -72,6 +75,8 @@ function DashboardSkeleton() {
 
 function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const toolParam = searchParams.get('tool');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -106,6 +111,18 @@ function DashboardContent() {
       
       const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
       setMemberInfo(mData);
+
+      // 載入頭像與設定
+      if (mData?.avatar_url) {
+        setMemberAvatar(mData.avatar_url);
+      }
+      if (mData?.avatar_settings) {
+        setAvatarZoom(mData.avatar_settings.zoom || 1);
+        setAvatarOffset(mData.avatar_settings.offset || 0);
+      }
+      if (mData?.motto) {
+        setMemberMotto(mData.motto);
+      }
 
       const { data: dData } = await supabase.from("members").select("id").eq("upline_id", currentUserId);
       setDownlines(dData || []);
@@ -165,6 +182,19 @@ function DashboardContent() {
 
   const [memberAvatar, setMemberAvatar] = useState<string | null>(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarOffset, setAvatarOffset] = useState(0); // Vertical offset
+  const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
+  const [isEditingAvatar, setIsEditingAvatar] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<'card' | 'poster'>('card');
+  const [selectedPosterIndex, setSelectedPosterIndex] = useState(0);
+
+  useEffect(() => {
+    if (toolParam === 'poster') {
+       setShowShare(true);
+       setSelectedTemplate('poster');
+    }
+  }, [toolParam]);
+
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,8 +202,54 @@ function DashboardContent() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setMemberAvatar(reader.result as string);
+        setAvatarZoom(1.2); 
+        setAvatarOffset(0);
+        setIsEditingAvatar(true); // Open adjustment view immediately
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const handleSaveAvatarSettings = async () => {
+    if (!currentUserId) return;
+    setIsSavingAvatar(true);
+    
+    try {
+      const isNewUpload = memberAvatar?.startsWith('data:image');
+      const response = await fetch('/api/member/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: currentUserId,
+          avatarBase64: isNewUpload ? memberAvatar : null,
+          avatarSettings: {
+            zoom: avatarZoom,
+            offset: avatarOffset
+          },
+          motto: memberMotto
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        if (result.avatarUrl) setMemberAvatar(result.avatarUrl);
+        // Update local memberInfo to avoid mismatch
+        setMemberInfo((prev: any) => ({ 
+          ...prev, 
+          avatar_url: result.avatarUrl || prev.avatar_url,
+          avatar_settings: { zoom: avatarZoom, offset: avatarOffset },
+          motto: memberMotto
+        }));
+        alert('個人化設定已成功儲存！');
+        setIsEditingAvatar(false);
+      } else {
+        alert('儲存失敗: ' + result.error);
+      }
+    } catch (err) {
+      alert('發生錯誤，請稍後再試');
+    } finally {
+      setIsSavingAvatar(false);
     }
   };
 
@@ -182,130 +258,237 @@ function DashboardContent() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Card Dimensions (High Res)
-    canvas.width = 1000;
-    canvas.height = 600;
+    // Card Dimensions (High Res for Print Quality)
+    canvas.width = 1200;
+    canvas.height = 700;
 
-    // 1. Background (Premium Emerald Mesh)
-    const gradient = ctx.createLinearGradient(0, 0, 1000, 600);
+    // 1. Background (Deep Emerald Luxury Gradient)
+    const gradient = ctx.createLinearGradient(0, 0, 1200, 700);
     gradient.addColorStop(0, '#064e3b');
-    gradient.addColorStop(1, '#065f46');
+    gradient.addColorStop(0.5, '#065f46');
+    gradient.addColorStop(1, '#022c22');
     ctx.fillStyle = gradient;
     
-    // Draw rounded rect
-    const radius = 60;
+    // Draw rounded card body
+    const radius = 80;
     ctx.beginPath();
-    ctx.moveTo(radius, 0);
-    ctx.lineTo(1000 - radius, 0);
-    ctx.quadraticCurveTo(1000, 0, 1000, radius);
-    ctx.lineTo(1000, 600 - radius);
-    ctx.quadraticCurveTo(1000, 600, 1000 - radius, 600);
-    ctx.lineTo(radius, 600);
-    ctx.quadraticCurveTo(0, 600, 0, 600 - radius);
-    ctx.lineTo(0, radius);
-    ctx.quadraticCurveTo(0, 0, radius, 0);
-    ctx.closePath();
+    ctx.roundRect ? ctx.roundRect(0, 0, 1200, 700, radius) : ctx.rect(0, 0, 1200, 700);
     ctx.fill();
 
-    // 2. Subtle Patterns
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    for(let i = 0; i < 1000; i += 50) {
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 600); ctx.stroke();
+    // 2. Artistic Background Elements (Subtle Tea leaf pattern simulation)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 2;
+    for(let i = 0; i < 1200; i += 60) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.bezierCurveTo(i + 100, 200, i - 100, 500, i + 50, 700);
+      ctx.stroke();
     }
 
-    // 3. Header Text
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('MEMBER IDENTITY CARD', 60, 80);
+    // 3. Branding Header
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = 'bold 24px "Inter", sans-serif';
+    ctx.letterSpacing = "8px";
+    ctx.fillText('CHURUN TEA HOUSE | OFFICIAL IDENTITY', 80, 80);
+    ctx.letterSpacing = "0px";
 
-    // 4. Member Name & ID
+    // 4. Main Identity Info (Left Side)
+    // Name
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 20;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'black 92px sans-serif'; // Bigger Name
-    ctx.fillText(memberInfo.name, 60, 320);
+    ctx.font = '900 110px "Inter", sans-serif';
+    ctx.fillText(memberInfo.name, 80, 340);
+    ctx.shadowBlur = 0;
 
+    // Member Code with Accent
     ctx.fillStyle = '#10b981';
-    ctx.font = 'black 48px monospace'; // Bigger ID
-    ctx.fillText(memberInfo.member_code, 60, 400);
+    ctx.font = '800 52px monospace';
+    ctx.letterSpacing = "4px";
+    ctx.fillText(memberInfo.member_code, 80, 430);
+    ctx.letterSpacing = "0px";
 
-    // 5. Right Side: Personal Identity Area
-    const boxX = 600, boxY = 80, boxW = 340, boxH = 440;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    // Tier Badge Label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(80, 470, 180, 40, 10) : ctx.rect(80, 470, 180, 40);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText(memberInfo.tier.toUpperCase(), 100, 497);
+
+    // 5. Right Side: Identity Box (Photo + QR)
+    const boxX = 700, boxY = 80, boxW = 420, boxH = 540;
+    
+    // Glassmorphism effect for the box
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 60) : ctx.rect(boxX, boxY, boxW, boxH);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-    // If there's an avatar, draw it (Circular or Rounded)
+    const finishIdentityCard = () => {
+       // Draw QR Code below Avatar
+       const qSize = 180;
+       const qX = boxX + (boxW - qSize) / 2;
+       const qY = boxY + 310;
+       
+       // White QR Background
+       ctx.fillStyle = '#ffffff';
+       ctx.beginPath();
+       ctx.roundRect ? ctx.roundRect(qX - 15, qY - 15, qSize + 30, qSize + 30, 30) : ctx.rect(qX - 15, qY - 15, qSize + 30, qSize + 30);
+       ctx.fill();
+
+       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+       if (hiddenQr) {
+         ctx.drawImage(hiddenQr, qX, qY, qSize, qSize);
+       }
+
+       ctx.fillStyle = '#ffffff';
+       ctx.font = 'bold 22px sans-serif';
+       ctx.textAlign = 'center';
+       ctx.fillText('掃描加入初潤', boxX + boxW/2, qY + qSize + 55);
+       
+       // Signature Line
+       ctx.textAlign = 'left';
+       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+       ctx.font = 'italic 20px serif';
+       ctx.fillText('Digital Authenticated Member', 80, 620);
+
+       // Final Download
+       const dataUrl = canvas.toDataURL('image/png');
+       const link = document.createElement('a');
+       link.download = `churun-identity-${memberInfo.member_code}.png`;
+       link.href = dataUrl;
+       link.click();
+    };
+
     if (memberAvatar) {
        const img = new Image();
+       img.crossOrigin = "anonymous";
        img.src = memberAvatar;
        img.onload = () => {
-          // Draw Avatar with Aspect Ratio Correction (Cover)
           ctx.save();
-          ctx.beginPath();
-          const avatarSize = 240;
+          const avatarSize = 340;
           const avatarX = boxX + (boxW - avatarSize) / 2;
           const avatarY = boxY + 40;
-          ctx.roundRect ? ctx.roundRect(avatarX, avatarY, avatarSize, avatarSize, 40) : ctx.rect(avatarX, avatarY, avatarSize, avatarSize);
+          
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(avatarX, avatarY, avatarSize, avatarSize, 45) : ctx.rect(avatarX, avatarY, avatarSize, avatarSize);
           ctx.clip();
           
-          // Calculate source rectangle for "Cover" effect
-          const sW = img.width;
-          const sH = img.height;
-          const aspect = sW / sH;
-          let dx = 0, dy = 0, dW = avatarSize, dH = avatarSize;
+          const sW = img.width, sH = img.height, aspect = sW / sH;
+          let targetW = avatarSize, targetH = avatarSize;
           
-          if (aspect > 1) { // Wide image
-            const targetW = avatarSize * aspect * avatarZoom;
-            const targetH = avatarSize * avatarZoom;
-            ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2, targetW, targetH);
-          } else { // Tall image
-            const targetH = (avatarSize / aspect) * avatarZoom;
-            const targetW = avatarSize * avatarZoom;
-            ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2, targetW, targetH);
+          if (aspect > 1) {
+            targetW = avatarSize * aspect * avatarZoom;
+            targetH = avatarSize * avatarZoom;
+          } else {
+            targetH = (avatarSize / aspect) * avatarZoom;
+            targetW = avatarSize * avatarZoom;
           }
+          
+          ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2 + avatarOffset, targetW, targetH);
           ctx.restore();
           
-          // Draw QR Code below Avatar
-          drawQRAndFinish(canvas, ctx, boxX + (boxW - 140) / 2, boxY + 300, 140);
+          // Border for avatar
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          finishIdentityCard();
        };
     } else {
-       // Draw QR Code centered in the box if no avatar
-       drawQRAndFinish(canvas, ctx, boxX + (boxW - 240) / 2, boxY + 80, 240);
+       finishIdentityCard();
     }
   };
 
-  const drawQRAndFinish = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, qX: number, qY: number, qSize: number) => {
-    // White background for QR
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(qX - 10, qY - 10, qSize + 20, qSize + 20, 20) : ctx.rect(qX - 10, qY - 10, qSize + 20, qSize + 20);
-    ctx.fill();
+  // Removed drawQRAndFinish as it's now integrated into the specific download handlers for better control
 
-    // Draw QR Code from the HIDDEN canvas to ensure it's always available
-    const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
-    if (hiddenQr) {
-      ctx.drawImage(hiddenQr, qX, qY, qSize, qSize);
+  const posterTemplates = [
+    { 
+      id: 1, 
+      name: '尊榮禮盒系列', 
+      url: 'https://i.ibb.co/Vp8nF6Y/dm-template.jpg',
+      config: {
+        qr: { x: 800, y: 1100, size: 160 },
+        name: { x: 380, y: 1120, size: 28, color: '#ffffff' },
+        phone: { x: 380, y: 1155, size: 24, color: '#ffffff' }
+      }
+    },
+    { 
+      id: 2, 
+      name: '品牌故事海報', 
+      url: 'https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=1200&q=80',
+      config: {
+        qr: { x: 50, y: 50, size: 120, overlay: true },
+        name: { x: 50, y: 200, size: 30, color: '#064e3b', overlay: true },
+        phone: { x: 50, y: 240, size: 24, color: '#064e3b', overlay: true }
+      }
     }
+  ];
 
-    // Label below QR
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('掃描加入初潤', qX + qSize/2, qY + qSize + 50);
+  const handleDownloadBrandPoster = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Footer Info
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText('CHURUN V2.6 | EXCLUSIVE IDENTITY', 60, 560);
+    const template = posterTemplates[selectedPosterIndex];
+    const config = template.config;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = template.url;
+    
+    img.onload = () => {
+       canvas.width = img.width;
+       canvas.height = img.height;
+       
+       // 1. 繪製樣板底圖
+       ctx.drawImage(img, 0, 0);
+       
+       // 2. 如果樣板需要下方的黑條遮罩（針對非特定設計的圖片）
+       if (config.name.overlay) {
+          const overlayH = canvas.height * 0.15;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+       }
 
-    // Download
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `churun-card-${memberInfo.member_code}.png`;
-    link.href = dataUrl;
-    link.click();
+       // 3. 繪製會員專屬 QR Code
+       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+       if (hiddenQr) {
+          const { x, y, size } = config.qr;
+          // QR 背景白底（確保掃描率）
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(x - 5, y - 5, size + 10, size + 10, 10) : ctx.rect(x - 5, y - 5, size + 10, size + 10);
+          ctx.fill();
+          ctx.drawImage(hiddenQr, x, y, size, size);
+       }
+
+       // 4. 繪製會員資訊
+       ctx.textAlign = 'left';
+       
+       // 姓名
+       ctx.fillStyle = config.name.color;
+       ctx.font = `bold ${config.name.size}px sans-serif`;
+       const nameY = config.name.overlay ? canvas.height - 80 : config.name.y;
+       ctx.fillText(`推廣顧問：${memberInfo.name}`, config.name.x, nameY);
+       
+       // 電話
+       ctx.fillStyle = config.phone.color;
+       ctx.font = `bold ${config.phone.size}px sans-serif`;
+       const phoneY = config.phone.overlay ? canvas.height - 40 : config.phone.y;
+       ctx.fillText(`服務專線：${memberInfo.phone || '0900-000-000'}`, config.phone.x, phoneY);
+
+       // 5. 下載
+       const dataUrl = canvas.toDataURL('image/png');
+       const link = document.createElement('a');
+       link.download = `churun-marketing-${memberInfo.member_code}.png`;
+       link.href = dataUrl;
+       link.click();
+    };
   };
 
   const handleDownloadVCard = () => {
@@ -399,15 +582,42 @@ END:VCARD`;
               
               <div className="relative z-10 h-full flex flex-col">
                 <div className="flex justify-between items-start mb-12">
-                   <div className="space-y-4">
-                      <motion.div 
-                        whileHover={{ scale: 1.05 }}
-                        className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-fit"
-                      >
-                         <Sparkles className="w-3 h-3 text-amber-300" />
-                         <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
-                      </motion.div>
-                      <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
+                   <div className="flex items-center gap-6">
+                      {memberAvatar ? (
+                        <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-white/20 shadow-2xl relative group/avatar">
+                           <img 
+                             src={memberAvatar} 
+                             className="w-full h-full object-cover origin-center" 
+                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset/4}px)` }}
+                             alt="Avatar" 
+                           />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10">
+                           <User className="w-8 h-8 text-white/40" />
+                        </div>
+                      )}
+                      <div className="space-y-3">
+                         <motion.div 
+                           whileHover={{ scale: 1.05 }}
+                           className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-fit"
+                         >
+                            <Sparkles className="w-3 h-3 text-amber-300" />
+                            <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
+                         </motion.div>
+                         <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
+                         <motion.div 
+                           initial={{ opacity: 0, y: 5 }}
+                           animate={{ opacity: 1, y: 0 }}
+                           className="flex items-center gap-3 mt-3"
+                         >
+                            <div className="w-5 h-[1px] bg-white/20"></div>
+                            <p className="text-[11px] font-bold text-white/80 tracking-[0.4em] uppercase italic">
+                               {memberMotto || '以初心、致潤澤'}
+                            </p>
+                            <div className="w-5 h-[1px] bg-white/20"></div>
+                         </motion.div>
+                      </div>
                    </div>
                    <motion.button 
                      whileHover={{ scale: 1.1, rotate: 5 }}
@@ -628,53 +838,179 @@ END:VCARD`;
              >
                 <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
                   
-                <h3 className="text-2xl font-black text-slate-900 mb-2">專屬推薦卡片</h3>
-                <p className="text-sm text-slate-400 mb-8">自定義您的名片圖像，建立更深厚的信任感。</p>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">專屬行銷工具</h3>
+                <p className="text-sm text-slate-400 mb-8">選擇您要生成的推廣形式</p>
+
+                {/* Template Selection */}
+                <div className="flex gap-4 mb-8 p-3 bg-slate-50 rounded-[2rem] border border-slate-100">
+                   {[
+                     { id: 'card', name: '尊榮會員卡', icon: LayoutDashboard },
+                     { id: 'poster', name: '品牌精美DM', icon: Megaphone }
+                   ].map((t) => (
+                     <button
+                       key={t.id}
+                       onClick={() => setSelectedTemplate(t.id as any)}
+                       className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-2 transition-all ${
+                         selectedTemplate === t.id ? 'bg-emerald-900 text-white shadow-xl shadow-emerald-900/20' : 'bg-white text-slate-400'
+                       }`}
+                     >
+                        <t.icon className="w-4 h-4" />
+                        {t.name}
+                     </button>
+                   ))}
+                </div>
                 
-                {/* Photo Upload Area */}
-                <div className="mb-8 p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex flex-col items-center gap-4">
+                {/* Photo Identity Area */}
+                <div className="mb-10 p-8 bg-gradient-to-br from-slate-50 to-white rounded-[3rem] border border-slate-100 shadow-inner flex flex-col items-center gap-6 relative">
+                   <div className="absolute top-4 left-6 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Identity Photo</span>
+                   </div>
+
                    {memberAvatar ? (
-                     <div className="relative group">
-                        <img src={memberAvatar} className="w-24 h-24 rounded-3xl object-cover shadow-lg border-2 border-white" alt="Avatar" />
+                     <div className="relative group w-32 h-32">
+                        <div className="absolute -inset-2 bg-emerald-500/10 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative overflow-hidden w-full h-full rounded-[2rem] border-2 border-white shadow-2xl">
+                           <img 
+                             src={memberAvatar} 
+                             className="w-full h-full object-cover origin-center" 
+                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset/4}px)` }}
+                             alt="Avatar" 
+                           />
+                           <button 
+                             onClick={() => setIsEditingAvatar(true)}
+                             className="absolute inset-0 bg-emerald-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white gap-1"
+                           >
+                              <Sparkles className="w-4 h-4 text-amber-300" />
+                              <span className="text-[8px] font-black uppercase tracking-widest">編輯調整</span>
+                           </button>
+                        </div>
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setMemberAvatar(null);
                             setAvatarZoom(1);
+                            setAvatarOffset(0);
                           }}
-                          className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg"
+                          className="absolute -top-3 -right-3 bg-white text-rose-500 w-8 h-8 rounded-full shadow-xl z-10 flex items-center justify-center border border-rose-50 transition hover:bg-rose-50"
                         >
-                           <X className="w-3 h-3" />
+                           <X className="w-4 h-4" />
                         </button>
                      </div>
                    ) : (
-                     <div className="w-24 h-24 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-slate-300">
-                        <User className="w-8 h-8 opacity-20" />
+                     <div className="w-24 h-24 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-slate-300 group hover:border-emerald-200 transition-colors">
+                        <User className="w-8 h-8 opacity-10 group-hover:opacity-30 transition-opacity" />
                      </div>
                    )}
                    
-                   {memberAvatar && (
-                     <div className="w-full px-4 space-y-2">
-                        <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                           <span>縮放調整</span>
-                           <span>{Math.round(avatarZoom * 100)}%</span>
-                        </div>
-                        <input 
-                          type="range" 
-                          min="1" 
-                          max="3" 
-                          step="0.01" 
-                          value={avatarZoom} 
-                          onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
-                          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                        />
-                     </div>
-                   )}
+                   <div className="flex flex-col gap-3 w-full">
+                      <label className="bg-emerald-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 group">
+                         <Plus className="w-3 h-3 group-hover:rotate-90 transition" />
+                         {memberAvatar ? '更換照片' : '上傳個人照'}
+                         <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                      </label>
 
-                   <label className="bg-emerald-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-800 transition shadow-lg shadow-emerald-900/10">
-                      {memberAvatar ? '更換照片' : '上傳個人照'}
-                      <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                   </label>
+                       <div className="w-full space-y-3 pt-2">
+                          <div className="flex justify-between items-center px-1">
+                             <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">我的個人座右銘</span>
+                          </div>
+                          <div className="flex gap-2">
+                             <input 
+                                type="text"
+                                value={memberMotto}
+                                onChange={(e) => setMemberMotto(e.target.value)}
+                                className="flex-1 bg-white border border-slate-100 px-4 py-3 rounded-xl text-[10px] font-bold text-slate-700 focus:outline-none focus:border-emerald-500 transition-colors"
+                                placeholder="輸入您的座右銘..."
+                             />
+                             <button 
+                                onClick={handleSaveAvatarSettings}
+                                disabled={isSavingAvatar}
+                                className="bg-emerald-50 px-4 rounded-xl text-[8px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-100 transition active:scale-95 disabled:opacity-50"
+                             >
+                                {isSavingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : "儲存"}
+                             </button>
+                          </div>
+                       </div>
+                   </div>
                 </div>
+
+                {/* Photo Adjustment Pop-up overlay */}
+                <AnimatePresence>
+                   {isEditingAvatar && memberAvatar && (
+                     <motion.div 
+                       initial={{ opacity: 0, scale: 0.9 }}
+                       animate={{ opacity: 1, scale: 1 }}
+                       exit={{ opacity: 0, scale: 0.9 }}
+                       className="absolute inset-0 z-[110] bg-white p-8 flex flex-col items-center justify-center"
+                     >
+                        <h4 className="text-sm font-black text-slate-900 mb-6 uppercase tracking-widest">調整您的頭像</h4>
+                        
+                        <div className="w-48 h-48 rounded-[3rem] overflow-hidden border-4 border-emerald-500/20 shadow-2xl mb-8 relative">
+                           <img 
+                             src={memberAvatar} 
+                             className="w-full h-full object-cover origin-center" 
+                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }}
+                           />
+                           <div className="absolute inset-0 border-2 border-white/50 rounded-[3rem] pointer-events-none"></div>
+                        </div>
+
+                        <div className="w-full space-y-6">
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                 <span>縮放調整</span>
+                                 <span>{Math.round(avatarZoom * 100)}%</span>
+                              </div>
+                              <input 
+                                type="range" min="1" max="3" step="0.01" value={avatarZoom} 
+                                onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
+                                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                              />
+                           </div>
+                           <div className="space-y-2">
+                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                 <span>位置偏移</span>
+                                 <span>{avatarOffset}px</span>
+                              </div>
+                              <input 
+                                type="range" min="-100" max="100" step="1" value={avatarOffset} 
+                                onChange={(e) => setAvatarOffset(parseInt(e.target.value))}
+                                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                              />
+                           </div>
+                        </div>
+
+                        <button 
+                          onClick={handleSaveAvatarSettings}
+                          disabled={isSavingAvatar}
+                          className="mt-8 w-full bg-emerald-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                           {isSavingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} 儲存並套用
+                        </button>
+                     </motion.div>
+                   )}
+                </AnimatePresence>
+
+                {selectedTemplate === 'poster' && (
+                  <div className="mb-8 space-y-4">
+                     <div className="flex justify-between items-center px-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇海報模板</span>
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{selectedPosterIndex + 1} / {posterTemplates.length}</span>
+                     </div>
+                     <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                        {posterTemplates.map((temp, idx) => (
+                          <button
+                            key={temp.id}
+                            onClick={() => setSelectedPosterIndex(idx)}
+                            className={`min-w-[100px] aspect-[1/1.4] rounded-2xl overflow-hidden border-4 transition-all ${
+                              selectedPosterIndex === idx ? 'border-emerald-500 scale-105 shadow-xl' : 'border-white opacity-60'
+                            }`}
+                          >
+                             <img src={temp.url} className="w-full h-full object-cover" alt={temp.name} />
+                          </button>
+                        ))}
+                     </div>
+                  </div>
+                )}
 
                 <AnimatePresence mode="wait">
                    {!showQR ? (
@@ -683,32 +1019,31 @@ END:VCARD`;
                        initial={{ opacity: 0, scale: 0.9 }}
                        animate={{ opacity: 1, scale: 1 }}
                        exit={{ opacity: 0, scale: 0.9 }}
-                       className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[2.5rem] mb-6 border border-emerald-900/5 shadow-inner relative group"
-                     >
-                        <div className="flex flex-col items-center gap-4">
-                           <div className="flex items-center gap-2 px-3 py-1 bg-emerald-900/5 rounded-full">
-                              <QrCode className="w-3 h-3 text-emerald-600" />
-                              <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">您的專屬編號</p>
-                           </div>
-                           
-                           <div className="relative py-2">
-                              <span className="text-4xl font-black tracking-[0.25em] text-emerald-900 uppercase pl-[0.25em] block text-center">
-                                 {memberInfo.member_code}
-                              </span>
-                           </div>
+                       className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[2.5rem] mb-8 p-10 text-white relative overflow-hidden group/card shadow-2xl shadow-slate-900/20"
+                      >
+                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover/card:bg-emerald-500/30 transition-colors"></div>
+                         
+                         <div className="relative z-10 flex flex-col items-center gap-6">
+                            <div className="flex flex-col items-center gap-2">
+                               <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em]">Official Member ID</span>
+                               <span className="text-3xl font-black tracking-[0.2em] text-emerald-400 uppercase">
+                                  {memberInfo.member_code}
+                               </span>
+                            </div>
 
-                           <button 
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               navigator.clipboard.writeText(memberInfo.member_code);
-                               alert("編號已複製！");
-                             }}
-                             className="text-[8px] font-black text-slate-300 hover:text-emerald-600 transition uppercase tracking-[0.2em] flex items-center gap-2"
-                           >
-                              <Copy className="w-3 h-3" /> 點擊複製編號
-                           </button>
-                        </div>
-                     </motion.div>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(memberInfo.member_code);
+                                alert("編號已複製！");
+                              }}
+                              className="text-[9px] font-black text-white/40 hover:text-white transition uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5 flex items-center gap-2"
+                            >
+                               <Copy className="w-3 h-3" /> 複製代碼
+                            </button>
+                         </div>
+                      </motion.div>
                    ) : (
                      <motion.div 
                        key="qr-box"
@@ -745,10 +1080,11 @@ END:VCARD`;
                       {showQR ? "顯示編號" : "顯示 QR Code"}
                    </button>
                    <button 
-                     onClick={handleDownloadBusinessCard}
-                     className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/10 active:scale-95 transition"
+                     onClick={selectedTemplate === 'card' ? handleDownloadBusinessCard : handleDownloadBrandPoster}
+                     className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/10 active:scale-95 transition flex items-center justify-center gap-3"
                    >
-                      下載我的專屬名片
+                      <Download className="w-4 h-4" />
+                      下載我的專屬{selectedTemplate === 'card' ? '名片' : '海報'}
                    </button>
                    <button 
                      onClick={() => setShowShare(false)}

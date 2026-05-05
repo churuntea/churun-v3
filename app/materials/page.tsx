@@ -18,7 +18,8 @@ import {
   ExternalLink,
   Star,
   ArrowLeft,
-  Copy
+  Copy,
+  Sparkles
 } from "lucide-react";
 
 function MaterialsContent() {
@@ -97,7 +98,13 @@ function MaterialsContent() {
 
         {/* Category Filter */}
         <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar px-2">
-           {categories.map(cat => (
+           <Link 
+              href="/?tool=poster"
+              className="px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center gap-2"
+            >
+               <Sparkles className="w-3 h-3" /> 專屬海報生成器
+            </Link>
+            {categories.map(cat => (
              <button 
                key={cat}
                onClick={() => setActiveCategory(cat)}
