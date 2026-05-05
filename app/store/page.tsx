@@ -183,19 +183,31 @@ function StoreContent() {
            ))}
         </div>
 
+        {/* Points Balance Card - Premium Optimized */}
         <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-emerald-900 rounded-[3rem] p-10 text-white shadow-2xl shadow-emerald-900/20 flex justify-between items-center relative overflow-hidden"
+          whileHover={{ y: -5 }}
+          className="bg-mesh-emerald rounded-[3.5rem] p-10 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden group mb-4"
         >
-           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-           <div className="space-y-1 relative z-10">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">可用紅利點數</p>
-              <h2 className="text-3xl font-black">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
-           </div>
-           <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/10 shadow-inner">
-              <Star className="w-8 h-8 text-amber-300 fill-current" />
-           </div>
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl opacity-50 group-hover:scale-110 transition duration-700"></div>
+          
+          <div className="relative z-10 flex justify-between items-center">
+            <div className="space-y-4">
+               <div className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit border border-white/10">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">可用紅利點數</span>
+               </div>
+               <div className="flex items-baseline gap-2">
+                  <h2 className="text-6xl font-black tracking-tighter">{memberInfo?.points_balance?.toLocaleString() || 0}</h2>
+                  <span className="text-xl font-medium text-white/60 italic">pts</span>
+               </div>
+            </div>
+            <motion.div 
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-inner"
+            >
+               <Star className="w-10 h-10 text-amber-300 fill-amber-300" />
+            </motion.div>
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 gap-8">

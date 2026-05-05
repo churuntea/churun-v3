@@ -210,22 +210,22 @@ function DashboardContent() {
     }
 
     // 3. Header Text
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.font = 'black 36px sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = 'bold 24px sans-serif';
     ctx.fillText('MEMBER IDENTITY CARD', 60, 80);
 
     // 4. Member Name & ID
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'black 72px sans-serif';
+    ctx.font = 'black 92px sans-serif'; // Bigger Name
     ctx.fillText(memberInfo.name, 60, 320);
 
     ctx.fillStyle = '#10b981';
-    ctx.font = 'black 42px monospace';
+    ctx.font = 'black 48px monospace'; // Bigger ID
     ctx.fillText(memberInfo.member_code, 60, 400);
 
     // 5. Right Side: Personal Identity Area
     const boxX = 600, boxY = 80, boxW = 340, boxH = 440;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 60) : ctx.rect(boxX, boxY, boxW, boxH);
     ctx.fill();
@@ -262,10 +262,10 @@ function DashboardContent() {
     ctx.roundRect ? ctx.roundRect(qX - 10, qY - 10, qSize + 20, qSize + 20, 20) : ctx.rect(qX - 10, qY - 10, qSize + 20, qSize + 20);
     ctx.fill();
 
-    // Draw QR Code
-    const qrCanvas = document.querySelector("#share-qr-canvas") as HTMLCanvasElement;
-    if (qrCanvas) {
-      ctx.drawImage(qrCanvas, qX, qY, qSize, qSize);
+    // Draw QR Code from the HIDDEN canvas to ensure it's always available
+    const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+    if (hiddenQr) {
+      ctx.drawImage(hiddenQr, qX, qY, qSize, qSize);
     }
 
     // Label below QR
@@ -276,7 +276,7 @@ function DashboardContent() {
 
     // Footer Info
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = 'bold 18px sans-serif';
     ctx.fillText('CHURUN V2.6 | EXCLUSIVE IDENTITY', 60, 560);
 
@@ -684,6 +684,15 @@ END:VCARD`;
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden QR for Generator */}
+      <div id="hidden-qr-canvas" className="hidden">
+         <QRCodeCanvas 
+           value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`}
+           size={512}
+           level="H"
+         />
+      </div>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
