@@ -202,15 +202,45 @@ function DashboardContent() {
   }, [toolParam]);
 
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (base64Str: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // 限制最大寬度為 800px，這對頭像來說綽綽有餘
+        const MAX_WIDTH = 800;
+        if (width > MAX_WIDTH) {
+          height = (MAX_WIDTH / width) * height;
+          width = MAX_WIDTH;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // 壓縮質量為 0.7
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+    });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setMemberAvatar(reader.result as string);
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        // 自動壓縮圖片以防止 413 錯誤
+        const compressed = await compressImage(base64);
+        setMemberAvatar(compressed);
         setAvatarZoom(1.2); 
         setAvatarOffset(0);
-        setIsEditingAvatar(true); // Open adjustment view immediately
+        setIsEditingAvatar(true);
       };
       reader.readAsDataURL(file);
     }
