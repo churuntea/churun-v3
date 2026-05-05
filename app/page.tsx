@@ -138,7 +138,7 @@ function DashboardContent() {
       setIsLoading(false);
     };
     fetchData();
-  }, [currentUserId]);
+  }, [currentUserId, supabase]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -380,6 +380,110 @@ function DashboardContent() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
+  const handleDownloadIdentityCard = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = 1200;
+    canvas.height = 700;
+
+    // 1. Draw Mesh Background
+    const gradient = ctx.createLinearGradient(0, 0, 1200, 700);
+    gradient.addColorStop(0, '#064e3b');
+    gradient.addColorStop(1, '#0f766e');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1200, 700);
+
+    // 2. Branding
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.font = '900 300px sans-serif';
+    ctx.fillText('CR', 800, 600);
+
+    // 3. Member Info
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 40;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 110px "Inter", sans-serif';
+    ctx.fillText(memberInfo.name, 80, 340);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#10b981';
+    ctx.font = '800 52px monospace';
+    ctx.letterSpacing = "4px";
+    ctx.fillText(memberInfo.member_code, 80, 430);
+    ctx.letterSpacing = "0px";
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(80, 470, 180, 40, 10) : ctx.rect(80, 470, 180, 40);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText(memberInfo.tier.toUpperCase(), 100, 497);
+
+    // 4. Identity Box
+    const boxX = 700, boxY = 80, boxW = 420, boxH = 540;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 60) : ctx.rect(boxX, boxY, boxW, boxH);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const finishIdentityCard = () => {
+       const qSize = 180;
+       const qX = boxX + (boxW - qSize) / 2;
+       const qY = boxY + 310;
+       ctx.fillStyle = '#ffffff';
+       ctx.beginPath();
+       ctx.roundRect ? ctx.roundRect(qX - 15, qY - 15, qSize + 30, qSize + 30, 30) : ctx.rect(qX - 15, qY - 15, qSize + 30, qSize + 30);
+       ctx.fill();
+       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+       if (hiddenQr) ctx.drawImage(hiddenQr, qX, qY, qSize, qSize);
+       ctx.fillStyle = '#ffffff';
+       ctx.font = 'bold 22px sans-serif';
+       ctx.textAlign = 'center';
+       ctx.fillText('掃描加入初潤', boxX + boxW/2, qY + qSize + 55);
+       
+       const dataUrl = canvas.toDataURL('image/png');
+       const link = document.createElement('a');
+       link.download = `churun-identity-${memberInfo.member_code}.png`;
+       link.href = dataUrl;
+       link.click();
+    };
+
+    if (memberAvatar) {
+       const img = new Image();
+       img.crossOrigin = "anonymous";
+       img.src = memberAvatar;
+       img.onload = () => {
+          ctx.save();
+          const avatarSize = 340;
+          const avatarX = boxX + (boxW - avatarSize) / 2;
+          const avatarY = boxY + 40;
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(avatarX, avatarY, avatarSize, avatarSize, 45) : ctx.rect(avatarX, avatarY, avatarSize, avatarSize);
+          ctx.clip();
+          const sW = img.width, sH = img.height, aspect = sW / sH;
+          let targetW = avatarSize, targetH = avatarSize;
+          if (aspect > 1) {
+            targetW = avatarSize * aspect * avatarZoom;
+            targetH = avatarSize * avatarZoom;
+          } else {
+            targetH = (avatarSize / aspect) * avatarZoom;
+            targetW = avatarSize * avatarZoom;
+          }
+          ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2 + avatarOffset, targetW, targetH);
+          ctx.restore();
+          finishIdentityCard();
+       };
+    } else {
+       finishIdentityCard();
+    }
+  };
+
   const handleGeneratePoster = async (template: any) => {
     setSelectedPoster(template);
     setShowPosterSelector(false);
@@ -397,33 +501,21 @@ function DashboardContent() {
     img.onload = () => {
       canvas.width = img.width;
       canvas.height = img.height;
-      
-      // Draw background
       ctx.drawImage(img, 0, 0);
-      
       const config = template.config || {
         qr: { x: 800, y: 1100, size: 160 },
         name: { x: 380, y: 1120, size: 28, color: "#ffffff" },
         phone: { x: 380, y: 1155, size: 24, color: "#ffffff" }
       };
-
-      // Draw QR Code
       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
-      if (hiddenQr) {
-        ctx.drawImage(hiddenQr, config.qr.x, config.qr.y, config.qr.size, config.qr.size);
-      }
-
-      // Draw Name
+      if (hiddenQr) ctx.drawImage(hiddenQr, config.qr.x, config.qr.y, config.qr.size, config.qr.size);
       ctx.fillStyle = config.name.color || '#ffffff';
       ctx.font = `black ${config.name.size}px sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText(memberInfo.name, config.name.x, config.name.y);
-
-      // Draw Phone
       ctx.fillStyle = config.phone.color || config.name.color || '#ffffff';
       ctx.font = `bold ${config.phone.size}px sans-serif`;
       ctx.fillText(memberInfo.phone || '', config.phone.x, config.phone.y);
-
       setPosterDataUrl(canvas.toDataURL('image/png'));
       setIsGeneratingPoster(false);
     };
