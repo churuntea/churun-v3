@@ -192,12 +192,15 @@ function DashboardContent() {
   const [posterTemplates, setPosterTemplates] = useState<any[]>([]);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<'card' | 'poster'>('card');
-  const [selectedPosterIndex, setSelectedPosterIndex] = useState(0);
+  const [showPosterSelector, setShowPosterSelector] = useState(false);
+  const [showPosterPreview, setShowPosterPreview] = useState(false);
+  const [selectedPoster, setSelectedPoster] = useState<any>(null);
+  const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
+  const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (toolParam === 'poster') {
-       setShowShare(true);
-       setSelectedTemplate('poster');
+       setShowPosterSelector(true);
     }
   }, [toolParam]);
 
@@ -377,80 +380,62 @@ function DashboardContent() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    const finishIdentityCard = () => {
-       // Draw QR Code below Avatar
-       const qSize = 180;
-       const qX = boxX + (boxW - qSize) / 2;
-       const qY = boxY + 310;
-       
-       // White QR Background
-       ctx.fillStyle = '#ffffff';
-       ctx.beginPath();
-       ctx.roundRect ? ctx.roundRect(qX - 15, qY - 15, qSize + 30, qSize + 30, 30) : ctx.rect(qX - 15, qY - 15, qSize + 30, qSize + 30);
-       ctx.fill();
+  const handleGeneratePoster = async (template: any) => {
+    setSelectedPoster(template);
+    setShowPosterSelector(false);
+    setIsGeneratingPoster(true);
+    setShowPosterPreview(true);
 
-       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
-       if (hiddenQr) {
-         ctx.drawImage(hiddenQr, qX, qY, qSize, qSize);
-       }
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-       ctx.fillStyle = '#ffffff';
-       ctx.font = 'bold 22px sans-serif';
-       ctx.textAlign = 'center';
-       ctx.fillText('掃描加入初潤', boxX + boxW/2, qY + qSize + 55);
-       
-       // Signature Line
-       ctx.textAlign = 'left';
-       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-       ctx.font = 'italic 20px serif';
-       ctx.fillText('Digital Authenticated Member', 80, 620);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = template.url;
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Draw background
+      ctx.drawImage(img, 0, 0);
+      
+      const config = template.config || {
+        qr: { x: 800, y: 1100, size: 160 },
+        name: { x: 380, y: 1120, size: 28, color: "#ffffff" },
+        phone: { x: 380, y: 1155, size: 24, color: "#ffffff" }
+      };
 
-       // Final Download
-       const dataUrl = canvas.toDataURL('image/png');
-       const link = document.createElement('a');
-       link.download = `churun-identity-${memberInfo.member_code}.png`;
-       link.href = dataUrl;
-       link.click();
+      // Draw QR Code
+      const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+      if (hiddenQr) {
+        ctx.drawImage(hiddenQr, config.qr.x, config.qr.y, config.qr.size, config.qr.size);
+      }
+
+      // Draw Name
+      ctx.fillStyle = config.name.color || '#ffffff';
+      ctx.font = `black ${config.name.size}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(memberInfo.name, config.name.x, config.name.y);
+
+      // Draw Phone
+      ctx.fillStyle = config.phone.color || config.name.color || '#ffffff';
+      ctx.font = `bold ${config.phone.size}px sans-serif`;
+      ctx.fillText(memberInfo.phone || '', config.phone.x, config.phone.y);
+
+      setPosterDataUrl(canvas.toDataURL('image/png'));
+      setIsGeneratingPoster(false);
     };
+  };
 
-    if (memberAvatar) {
-       const img = new Image();
-       img.crossOrigin = "anonymous";
-       img.src = memberAvatar;
-       img.onload = () => {
-          ctx.save();
-          const avatarSize = 340;
-          const avatarX = boxX + (boxW - avatarSize) / 2;
-          const avatarY = boxY + 40;
-          
-          ctx.beginPath();
-          ctx.roundRect ? ctx.roundRect(avatarX, avatarY, avatarSize, avatarSize, 45) : ctx.rect(avatarX, avatarY, avatarSize, avatarSize);
-          ctx.clip();
-          
-          const sW = img.width, sH = img.height, aspect = sW / sH;
-          let targetW = avatarSize, targetH = avatarSize;
-          
-          if (aspect > 1) {
-            targetW = avatarSize * aspect * avatarZoom;
-            targetH = avatarSize * avatarZoom;
-          } else {
-            targetH = (avatarSize / aspect) * avatarZoom;
-            targetW = avatarSize * avatarZoom;
-          }
-          
-          ctx.drawImage(img, avatarX - (targetW - avatarSize) / 2, avatarY - (targetH - avatarSize) / 2 + avatarOffset, targetW, targetH);
-          ctx.restore();
-          
-          // Border for avatar
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-          ctx.lineWidth = 4;
-          ctx.stroke();
-
-          finishIdentityCard();
-       };
-    } else {
-       finishIdentityCard();
-    }
+  const downloadGeneratedPoster = () => {
+    if (!posterDataUrl) return;
+    const link = document.createElement('a');
+    link.download = `churun-poster-${memberInfo.member_code}.png`;
+    link.href = posterDataUrl;
+    link.click();
+    setShowPosterPreview(false);
   };
 
   // Removed drawQRAndFinish as it's now integrated into the specific download handlers for better control
@@ -721,7 +706,7 @@ END:VCARD`;
 
                  <div className="mt-8 flex gap-3 relative z-10">
                     <button 
-                      onClick={() => setShowShare(true)}
+                      onClick={() => setShowPosterSelector(true)}
                       className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition flex items-center justify-center gap-2"
                     >
                        <QrCode className="w-4 h-4" /> 產生專屬海報
@@ -1061,13 +1046,120 @@ END:VCARD`;
       </AnimatePresence>
 
       {/* Hidden QR for Generator */}
+      {/* Hidden QR for Generator */}
       <div id="hidden-qr-canvas" className="hidden">
          <QRCodeCanvas 
-           value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`}
+           value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo?.member_code}`}
            size={512}
            level="H"
          />
       </div>
+
+      {/* Poster Template Selector */}
+      <AnimatePresence>
+        {showPosterSelector && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-8"
+            onClick={() => setShowPosterSelector(false)}
+          >
+             <motion.div 
+               initial={{ scale: 0.9, y: 20 }}
+               animate={{ scale: 1, y: 0 }}
+               exit={{ scale: 0.9, y: 20 }}
+               className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+               onClick={e => e.stopPropagation()}
+             >
+                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+                
+                <div className="relative z-10 mb-8 text-center">
+                   <h3 className="text-2xl font-black text-slate-900 mb-2">選擇行銷海報</h3>
+                   <p className="text-sm text-slate-400">請選擇一個您喜歡的海報樣板進行生成</p>
+                </div>
+
+                <div className="overflow-y-auto no-scrollbar grid grid-cols-2 gap-4 pb-4">
+                   {posterTemplates.map((temp) => (
+                     <motion.div
+                       key={temp.id}
+                       whileHover={{ scale: 1.02 }}
+                       whileTap={{ scale: 0.98 }}
+                       onClick={() => handleGeneratePoster(temp)}
+                       className="aspect-[1/1.4] rounded-2xl overflow-hidden border-4 border-white shadow-lg cursor-pointer relative group"
+                     >
+                        <img src={temp.url} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-emerald-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <Sparkles className="w-8 h-8 text-white" />
+                        </div>
+                     </motion.div>
+                   ))}
+                </div>
+
+                <button 
+                   onClick={() => setShowPosterSelector(false)}
+                   className="mt-6 w-full py-4 text-slate-300 font-black text-[10px] uppercase tracking-widest hover:text-slate-500 transition"
+                >
+                   取消
+                </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Poster Preview & Confirmation Modal */}
+      <AnimatePresence>
+        {showPosterPreview && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-3xl flex items-center justify-center p-4 sm:p-8"
+          >
+             <motion.div 
+               initial={{ scale: 0.8, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               exit={{ scale: 0.8, opacity: 0 }}
+               className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col items-center"
+             >
+                <div className="w-full flex justify-between items-center mb-6">
+                   <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Final Preview</span>
+                   </div>
+                   <button onClick={() => setShowPosterPreview(false)} className="text-slate-300 hover:text-slate-900"><X /></button>
+                </div>
+
+                <div className="w-full aspect-[1/1.4] bg-slate-100 rounded-2xl overflow-hidden shadow-2xl relative mb-8">
+                   {isGeneratingPoster ? (
+                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80">
+                        <Loader2 className="w-10 h-10 animate-spin text-emerald-900" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">正在合成專屬資料...</p>
+                     </div>
+                   ) : (
+                     <img src={posterDataUrl || ''} className="w-full h-full object-contain" />
+                   )}
+                </div>
+
+                <div className="w-full space-y-4">
+                   <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                      <p className="text-[10px] font-bold text-emerald-800 leading-relaxed">
+                         系統已自動將您的 <span className="font-black">姓名、電話</span> 與 <span className="font-black">個人推薦 QR碼</span> 合成至海報上。請確認預覽效果是否正確。
+                      </p>
+                   </div>
+                   
+                   <button 
+                     onClick={downloadGeneratedPoster}
+                     className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 active:scale-95 transition flex items-center justify-center gap-3"
+                   >
+                      <Download className="w-4 h-4" />
+                      確認無誤，下載儲存
+                   </button>
+                </div>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
