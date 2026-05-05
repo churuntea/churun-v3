@@ -23,7 +23,8 @@ import {
   Trophy,
   Heart,
   UserPlus,
-  BarChart3
+  BarChart3,
+  X
 } from "lucide-react";
 import ReferralCard from "@/components/ReferralCard";
 import TeamTree from "@/components/TeamTree";
@@ -150,6 +151,16 @@ function OrganizationContent() {
     }
   };
 
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
+
+  const getTierCount = (tierName: string) => {
+    return downlines.filter(d => d.tier === tierName).length;
+  };
+
+  const getTierMembers = (tierName: string) => {
+    return downlines.filter(d => d.tier === tierName);
+  };
+
   useEffect(() => {
     if (currentUserId) fetchOrganization(currentUserId);
   }, [currentUserId]);
@@ -172,6 +183,38 @@ function OrganizationContent() {
 
       <main className="max-w-lg mx-auto p-6 space-y-8 mt-4">
         
+        {/* Tier Distribution Summary */}
+        <section className="space-y-4">
+           <div className="flex justify-between items-center px-2">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">直推夥伴職級分佈</h3>
+              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest italic">點擊查看成員明細</span>
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+              {TIERS.filter(t => getTierCount(t.name) > 0).map((tier) => (
+                <motion.div 
+                  key={tier.name}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedTier(tier.name)}
+                  className="bg-white p-6 rounded-[2.5rem] border border-slate-50 shadow-sm flex justify-between items-center cursor-pointer group"
+                >
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{tier.name}</p>
+                      <h4 className="text-2xl font-black text-slate-800">{getTierCount(tier.name)}</h4>
+                   </div>
+                   <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
+                      <ChevronRight className="w-4 h-4" />
+                   </div>
+                </motion.div>
+              ))}
+              {downlines.length === 0 && (
+                <div className="col-span-2 py-10 bg-white rounded-[2.5rem] border border-dashed border-slate-200 text-center">
+                   <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">目前暫無直推夥伴</p>
+                </div>
+              )}
+           </div>
+        </section>
+
         {/* Tier Progress Radar */}
         <section className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/20">
            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-emerald-500 rounded-full blur-[100px] opacity-20"></div>
@@ -315,6 +358,72 @@ function OrganizationContent() {
         />
 
       </main>
+
+      {/* Tier Details Modal */}
+      <AnimatePresence>
+        {selectedTier && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end justify-center"
+            onClick={() => setSelectedTier(null)}
+          >
+             <motion.div 
+               initial={{ y: "100%" }}
+               animate={{ y: 0 }}
+               exit={{ y: "100%" }}
+               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+               className="bg-white w-full max-w-lg rounded-t-[3.5rem] p-10 shadow-2xl relative overflow-hidden"
+               onClick={e => e.stopPropagation()}
+             >
+                <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-10"></div>
+                
+                <div className="flex justify-between items-center mb-8">
+                   <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-slate-900">{selectedTier}</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                         共有 {getTierMembers(selectedTier).length} 位核心夥伴
+                      </p>
+                   </div>
+                   <button 
+                     onClick={() => setSelectedTier(null)}
+                     className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400"
+                   >
+                      <X className="w-5 h-5" />
+                   </button>
+                </div>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-10">
+                   {getTierMembers(selectedTier).map((m) => (
+                     <div key={m.id} className="bg-slate-50/50 p-6 rounded-3xl border border-slate-50 flex justify-between items-center group hover:bg-white hover:shadow-xl transition-all duration-300">
+                        <div className="flex items-center gap-4">
+                           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                              <User className="w-5 h-5 text-slate-400" />
+                           </div>
+                           <div className="space-y-1">
+                              <h4 className="font-bold text-slate-800">{m.name}</h4>
+                              <p className="text-[10px] font-black text-emerald-600 tracking-widest">{m.member_code}</p>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-sm font-black text-slate-900">${Number(m.lifetime_spend || 0).toLocaleString()}</p>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">LIFETIME SPEND</p>
+                        </div>
+                     </div>
+                   ))}
+                </div>
+
+                <button 
+                  onClick={() => setSelectedTier(null)}
+                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+                >
+                   關閉明細
+                </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
