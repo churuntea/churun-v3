@@ -97,9 +97,6 @@ function DashboardContent() {
       const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
       setMemberInfo(mData);
 
-      const { data: pData } = await supabase.from("products").select("*").eq("status", "active").limit(4);
-      setProducts(pData || []);
-
       const { data: aData } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5);
       setAnnouncements(aData || []);
 
@@ -440,40 +437,6 @@ END:VCARD`;
                ))}
            </div>
         </section>
-
-        {/* Featured Store */}
-        <motion.section variants={itemVariants} className="space-y-6">
-           <div className="flex justify-between items-center px-2">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">精品嚴選商城</h3>
-              <Link href="/store" className="text-[10px] font-black text-emerald-600 flex items-center gap-1 hover:gap-2 transition-all">
-                 VIEW ALL <ChevronRight className="w-3 h-3" />
-              </Link>
-           </div>
-           
-           <div className="grid grid-cols-2 gap-6">
-              {products.map((p, i) => (
-                <motion.div 
-                  key={p.id}
-                  whileHover={{ y: -8 }}
-                  className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-slate-50 flex flex-col group"
-                >
-                   <div className="aspect-[4/5] w-full bg-slate-50 relative overflow-hidden">
-                      <img src={p.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=400"} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-1000" />
-                      <div className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition">
-                         <Plus className="w-4 h-4 text-emerald-900" />
-                      </div>
-                   </div>
-                   <div className="p-6 space-y-2">
-                      <h4 className="font-bold text-slate-800 text-sm truncate">{p.name}</h4>
-                      <div className="flex justify-between items-center">
-                         <span className="text-emerald-600 font-black text-sm">${p.price}</span>
-                         <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Buy Now</span>
-                      </div>
-                   </div>
-                </motion.div>
-              ))}
-           </div>
-        </motion.section>
 
       </motion.main>
 
