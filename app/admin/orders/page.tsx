@@ -149,6 +149,7 @@ function AdminOrdersContent() {
                  <tr className="bg-slate-50/50 border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="p-8">訂單日期 / 編號</th>
                     <th className="p-8">會員資訊</th>
+                    <th className="p-8">匯款末五碼</th>
                     <th className="p-8 text-right">結帳金額</th>
                     <th className="p-8 text-right">預計回饋</th>
                     <th className="p-8 text-center">目前狀態</th>
@@ -195,6 +196,13 @@ function AdminOrdersContent() {
                               <p className="text-sm font-black text-slate-800">{order.members?.name}</p>
                               <p className="text-[10px] font-bold text-slate-400">{order.members?.phone}</p>
                            </div>
+                        </td>
+                        <td className="p-8">
+                           {order.payment_last_five ? (
+                             <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-black">{order.payment_last_five}</span>
+                           ) : (
+                             <span className="text-[10px] font-black text-slate-200">未回報</span>
+                           )}
                         </td>
                         <td className="p-8 text-right">
                            <div className="space-y-1">
