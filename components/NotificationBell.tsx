@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { 
   Bell, 
   X, 
@@ -10,7 +11,8 @@ import {
   CreditCard, 
   Info,
   CheckCircle2,
-  Clock
+  Clock,
+  ChevronRight
 } from "lucide-react";
 
 interface Notification {
@@ -180,11 +182,18 @@ export default function NotificationBell({ memberId }: { memberId: string }) {
                 )}
               </div>
               
-              <div className="p-4 bg-slate-50 border-t border-slate-100">
-                 <button onClick={() => setIsOpen(false)} className="w-full py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition shadow-sm">
-                    關閉視窗
+               <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+                 <button onClick={() => setIsOpen(false)} className="flex-1 py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-600 transition shadow-sm">
+                    關閉
                  </button>
-              </div>
+                 <Link 
+                   href="/notifications" 
+                   onClick={() => setIsOpen(false)}
+                   className="flex-[2] py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 text-center flex items-center justify-center gap-2"
+                 >
+                    查看全部消息 <ChevronRight className="w-3 h-3" />
+                 </Link>
+               </div>
             </motion.div>
           </>
         )}

@@ -367,7 +367,49 @@ END:VCARD`;
            </motion.div>
         </motion.section>
 
-        {/* Quick Actions */}
+        {/* Invite & Rewards Section */}
+        <motion.section variants={itemVariants} className="space-y-6">
+           <div className="flex justify-between items-center px-4">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">邀請夥伴・共享獎勵</h3>
+              <div className="flex items-center gap-1">
+                 <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Rewards</span>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 -mr-12 -mt-12 w-40 h-40 bg-indigo-50 rounded-full blur-3xl opacity-50 group-hover:bg-emerald-50 transition-colors duration-700"></div>
+                 
+                 <div className="flex items-center gap-6 relative z-10">
+                    <div className="w-16 h-16 bg-slate-900 rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-slate-900/20 rotate-3">
+                       <UserPlus className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="flex-1">
+                       <h4 className="text-lg font-black text-slate-800">分享您的推薦代碼</h4>
+                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">每成功邀請一位夥伴，解鎖專屬點數回饋</p>
+                    </div>
+                 </div>
+
+                 <div className="mt-8 flex gap-3 relative z-10">
+                    <button 
+                      onClick={() => setShowShare(true)}
+                      className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition flex items-center justify-center gap-2"
+                    >
+                       <QrCode className="w-4 h-4" /> 產生專屬海報
+                    </button>
+                    <button 
+                      onClick={handleNativeShare}
+                      className="flex-1 bg-white border border-slate-100 text-slate-800 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition flex items-center justify-center gap-2"
+                    >
+                       <Share2 className="w-4 h-4" /> 快速分享
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </motion.section>
+
+        {/* Brand Insights Feed */}
         <motion.section variants={itemVariants} className="grid grid-cols-4 gap-4 px-2">
            {[
              { label: "大宗批發", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
