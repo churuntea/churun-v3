@@ -804,10 +804,10 @@ END:VCARD`;
                        <QrCode className="w-4 h-4" /> 產生專屬海報
                     </button>
                     <button 
-                      onClick={handleNativeShare}
+                      onClick={() => setShowShare(true)}
                       className="flex-1 bg-white border border-slate-100 text-slate-800 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition flex items-center justify-center gap-2"
                     >
-                       <Share2 className="w-4 h-4" /> 快速分享
+                       <User className="w-4 h-4" /> 個人 VIP 卡
                     </button>
                  </div>
               </div>
