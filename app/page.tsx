@@ -130,6 +130,11 @@ function DashboardContent() {
       const { data: aData } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5);
       setAnnouncements(aData || []);
 
+      const { data: pData } = await supabase.from("poster_templates").select("*").eq("is_active", true).order("created_at", { ascending: false });
+      if (pData && pData.length > 0) {
+        setPosterTemplates(pData);
+      }
+
       setIsLoading(false);
     };
     fetchData();
@@ -184,6 +189,7 @@ function DashboardContent() {
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [avatarOffset, setAvatarOffset] = useState(0); // Vertical offset
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
+  const [posterTemplates, setPosterTemplates] = useState<any[]>([]);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<'card' | 'poster'>('card');
   const [selectedPosterIndex, setSelectedPosterIndex] = useState(0);
@@ -409,28 +415,6 @@ function DashboardContent() {
 
   // Removed drawQRAndFinish as it's now integrated into the specific download handlers for better control
 
-  const posterTemplates = [
-    { 
-      id: 1, 
-      name: '尊榮禮盒系列', 
-      url: 'https://i.ibb.co/Vp8nF6Y/dm-template.jpg',
-      config: {
-        qr: { x: 800, y: 1100, size: 160 },
-        name: { x: 380, y: 1120, size: 28, color: '#ffffff' },
-        phone: { x: 380, y: 1155, size: 24, color: '#ffffff' }
-      }
-    },
-    { 
-      id: 2, 
-      name: '品牌故事海報', 
-      url: 'https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=1200&q=80',
-      config: {
-        qr: { x: 50, y: 50, size: 120, overlay: true },
-        name: { x: 50, y: 200, size: 30, color: '#064e3b', overlay: true },
-        phone: { x: 50, y: 240, size: 24, color: '#064e3b', overlay: true }
-      }
-    }
-  ];
 
   const handleDownloadBrandPoster = () => {
     const canvas = document.createElement('canvas');
