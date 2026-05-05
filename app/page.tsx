@@ -379,6 +379,7 @@ function DashboardContent() {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 2;
     ctx.stroke();
+  };
 
   const handleDownloadIdentityCard = () => {
     const canvas = document.createElement('canvas');
