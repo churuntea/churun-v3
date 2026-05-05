@@ -614,7 +614,7 @@ END:VCARD`;
                            <img 
                              src={memberAvatar} 
                              className="w-full h-full object-cover origin-center" 
-                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset/4}px)` }}
+                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }}
                              alt="Avatar" 
                            />
                         </div>
