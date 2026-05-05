@@ -26,13 +26,18 @@ import {
   Star,
   Target,
   Trophy,
-  Users
+  Users,
+  Sparkles,
+  CheckCircle2,
+  X
 } from "lucide-react";
 
 function ProfileContent() {
   const router = useRouter();
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [showTierBenefits, setShowTierBenefits] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -42,8 +47,6 @@ function ProfileContent() {
     }
     fetchData(savedId);
   }, [router]);
-
-  const [isFlipped, setIsFlipped] = useState(false);
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
@@ -63,6 +66,25 @@ function ProfileContent() {
   );
 
   const isBankMissing = !memberInfo.bank_account || !memberInfo.bank_code;
+
+  const getTierBenefits = (tier: string) => {
+    if (tier.includes('靈魂伴侶')) return [
+      "個人消費 30% 點數回饋",
+      "直推夥伴 10% 分潤獎金",
+      "間接夥伴 5% 組織獎勵",
+      "專屬品牌素材優先下載",
+      "季度領袖培訓課程"
+    ];
+    if (tier.includes('知己')) return [
+      "個人消費 20% 點數回饋",
+      "直推夥伴 8% 分潤獎金",
+      "受邀參與品牌線下聚會"
+    ];
+    return [
+      "個人消費 10% 點數回饋",
+      "直推夥伴 5% 分潤獎金"
+    ];
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
@@ -114,9 +136,12 @@ function ProfileContent() {
                        <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code}</p>
                     </div>
-                    <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }}
+                      className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2 hover:bg-white/20 transition cursor-help"
+                    >
                        <Sparkles className="w-3 h-3 text-amber-300" />
-                       <span className="text-[10px] font-black uppercase tracking-widest">Elite Member</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
                     </div>
                  </div>
                  <div className="flex justify-between items-end relative z-10">
@@ -144,27 +169,57 @@ function ProfileContent() {
            </motion.div>
         </div>
 
-        {/* Referral Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col gap-3">
-              <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                 <Users className="w-5 h-5" />
-              </div>
-              <div>
-                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">推廣夥伴數</p>
-                 <h4 className="text-xl font-black text-slate-800">{memberInfo.referral_count} <span className="text-[10px] font-medium text-slate-400 ml-1">人</span></h4>
-              </div>
-           </div>
-           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col gap-3">
-              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                 <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">累積分潤獎金</p>
-                 <h4 className="text-xl font-black text-slate-800">${Number(memberInfo.lifetime_spend * 0.1).toLocaleString()} <span className="text-[10px] font-medium text-slate-400 ml-1">TWD</span></h4>
-              </div>
-           </div>
-        </div>
+        {/* Tier Benefits Modal */}
+        <AnimatePresence>
+           {showTierBenefits && (
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setShowTierBenefits(false)}
+               className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center p-0 sm:p-8"
+             >
+                <motion.div 
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  onClick={e => e.stopPropagation()}
+                  className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-sm p-10 pb-20 sm:pb-10 shadow-2xl relative overflow-hidden"
+                >
+                   <div className="absolute top-0 right-0 -mr-12 -mt-12 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+                   
+                   <div className="flex justify-between items-center mb-10">
+                      <div>
+                         <h3 className="text-2xl font-black text-slate-900 tracking-tight">{memberInfo.tier}</h3>
+                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">專屬職級特權</p>
+                      </div>
+                      <button onClick={() => setShowTierBenefits(false)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                         <X className="w-5 h-5" />
+                      </button>
+                   </div>
+
+                   <div className="space-y-4">
+                      {getTierBenefits(memberInfo.tier).map((benefit, i) => (
+                        <div key={i} className="flex items-center gap-4 p-5 bg-slate-50/50 rounded-3xl border border-slate-50">
+                           <div className="w-8 h-8 bg-emerald-900 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/10">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
+                           </div>
+                           <span className="text-xs font-black text-slate-700 tracking-tight">{benefit}</span>
+                        </div>
+                      ))}
+                   </div>
+
+                   <button 
+                     onClick={() => setShowTierBenefits(false)}
+                     className="w-full mt-10 bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition"
+                   >
+                      我知道了
+                   </button>
+                </motion.div>
+             </motion.div>
+           )}
+        </AnimatePresence>
 
         {/* Achievement Badge Wall */}
         <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm overflow-hidden">
