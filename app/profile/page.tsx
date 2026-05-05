@@ -43,6 +43,8 @@ function ProfileContent() {
     fetchData(savedId);
   }, [router]);
 
+  const [isFlipped, setIsFlipped] = useState(false);
+
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
@@ -95,44 +97,74 @@ function ProfileContent() {
           </motion.div>
         )}
 
-        {/* Elite Membership Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`relative aspect-[1.586/1] w-full rounded-[3rem] overflow-hidden shadow-2xl p-10 text-white flex flex-col justify-between ${
-            memberInfo.tier.includes('靈魂伴侶') ? 'bg-slate-900' : 'bg-emerald-900'
-          }`}
-        >
-           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-           <div className={`absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full blur-[100px] opacity-20 ${
-             memberInfo.tier.includes('靈魂伴侶') ? 'bg-amber-400' : 'bg-emerald-400'
-           }`}></div>
-           
-           <div className="flex justify-between items-start relative z-10">
-              <div className="space-y-1">
-                 <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
-                 <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code || 'CHURUN-MBR'}</p>
+        {/* 3D Flip Membership Card */}
+        <div className="perspective-1000 h-[220px] w-full" onClick={() => setIsFlipped(!isFlipped)}>
+           <motion.div 
+             animate={{ rotateY: isFlipped ? 180 : 0 }}
+             transition={{ duration: 0.8, type: "spring", stiffness: 100, damping: 20 }}
+             className="relative w-full h-full preserve-3d cursor-pointer"
+           >
+              {/* Card Front */}
+              <div className={`absolute inset-0 backface-hidden rounded-[3rem] p-10 text-white flex flex-col justify-between shadow-2xl ${
+                memberInfo.tier.includes('靈魂伴侶') ? 'bg-slate-900' : 'bg-emerald-900'
+              }`}>
+                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                 <div className="flex justify-between items-start relative z-10">
+                    <div className="space-y-1">
+                       <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
+                       <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                       <Sparkles className="w-3 h-3 text-amber-300" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Elite Member</span>
+                    </div>
+                 </div>
+                 <div className="flex justify-between items-end relative z-10">
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
+                       <span className={`text-2xl font-black tracking-tighter uppercase ${
+                         memberInfo.tier.includes('靈魂伴侶') ? 'text-amber-400' : 'text-emerald-400'
+                       }`}>{memberInfo.tier}</span>
+                    </div>
+                    <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
+                 </div>
               </div>
-              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
-                 <Star className={`w-5 h-5 ${memberInfo.tier.includes('靈魂伴侶') ? 'text-amber-400 fill-amber-400' : 'text-emerald-400'}`} />
-              </div>
-           </div>
 
-           <div className="relative z-10 flex justify-between items-end">
-              <div className="space-y-1">
-                 <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
-                 <Link href="/rewards" className="flex items-center gap-3 group">
-                    <span className={`text-2xl font-black tracking-tighter uppercase group-hover:underline underline-offset-8 transition ${
-                      memberInfo.tier.includes('靈魂伴侶') ? 'text-amber-400' : 'text-emerald-400'
-                    }`}>{memberInfo.tier}</span>
-                    <ArrowUpRight className="w-5 h-5 text-white/20 group-hover:text-white transition" />
-                 </Link>
+              {/* Card Back */}
+              <div className="absolute inset-0 backface-hidden rounded-[3rem] p-10 bg-white text-slate-800 flex flex-col items-center justify-center gap-4 shadow-2xl rotate-y-180 border border-slate-100">
+                 <div className="w-24 h-24 bg-slate-50 p-2 rounded-2xl border border-slate-100 flex items-center justify-center">
+                    <QrCode className="w-full h-full text-emerald-900" />
+                 </div>
+                 <div className="text-center space-y-1">
+                    <p className="text-lg font-black tracking-widest text-emerald-900">{memberInfo.member_code}</p>
+                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Identity QR Code</p>
+                 </div>
+                 <p className="text-[8px] font-black text-emerald-600 uppercase tracking-[0.3em] mt-4">CHURUN TEA DIGITAL SIGNATURE</p>
               </div>
-              <div className="w-16 h-16 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center">
-                 <Fingerprint className="w-8 h-8 text-white/10" />
+           </motion.div>
+        </div>
+
+        {/* Referral Quick Stats */}
+        <div className="grid grid-cols-2 gap-4">
+           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col gap-3">
+              <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                 <Users className="w-5 h-5" />
+              </div>
+              <div>
+                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">推廣夥伴數</p>
+                 <h4 className="text-xl font-black text-slate-800">{memberInfo.referral_count} <span className="text-[10px] font-medium text-slate-400 ml-1">人</span></h4>
               </div>
            </div>
-        </motion.div>
+           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col gap-3">
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                 <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">累積分潤獎金</p>
+                 <h4 className="text-xl font-black text-slate-800">${Number(memberInfo.lifetime_spend * 0.1).toLocaleString()} <span className="text-[10px] font-medium text-slate-400 ml-1">TWD</span></h4>
+              </div>
+           </div>
+        </div>
 
         {/* Achievement Badge Wall */}
         <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm overflow-hidden">
