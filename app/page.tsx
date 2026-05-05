@@ -82,6 +82,14 @@ function DashboardContent() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
+    const currentVersion = "2.0.0";
+    const savedVersion = localStorage.getItem("churun_home_version");
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem("churun_home_version", currentVersion);
+      window.location.reload();
+      return;
+    }
+
     const savedId = localStorage.getItem("churun_member_id");
     if (!savedId) {
       router.replace("/login");
@@ -328,10 +336,12 @@ END:VCARD`;
               <div className="w-10 h-10 bg-emerald-900 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-900/20">
                  <span className="text-white font-black text-sm tracking-tighter">CR</span>
               </div>
-              <div>
-                 <h1 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase leading-none">Churun Tea</h1>
-                 <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
-              </div>
+               <div>
+                  <h1 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase leading-none flex items-center gap-2">
+                     Churun Tea <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
+                  </h1>
+                  <p className="text-[8px] font-bold text-slate-400 tracking-widest mt-1 uppercase">Digital Member HQ</p>
+               </div>
            </motion.div>
            <div className="flex items-center gap-4">
               {currentUserId && <NotificationBell memberId={currentUserId} />}
