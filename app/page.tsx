@@ -25,7 +25,9 @@ import {
   Loader2,
   Gift,
   Megaphone,
-  Download
+  Download,
+  Copy,
+  UserPlus
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";

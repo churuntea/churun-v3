@@ -18,15 +18,12 @@ import {
   Star
 } from "lucide-react";
 
-const MATERIAL_CATEGORIES = [
-  { id: 1, name: "品牌主視覺", count: 12, icon: Star, color: "bg-amber-100 text-amber-600" },
-  { id: 2, name: "商品宣傳圖", count: 45, icon: ShoppingBag, color: "bg-emerald-100 text-emerald-600" },
-  { id: 3, name: "社群分享文案", count: 28, icon: Zap, color: "bg-indigo-100 text-indigo-600" },
-];
-
 function MaterialsContent() {
   const router = useRouter();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>("全部");
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -35,12 +32,34 @@ function MaterialsContent() {
       return;
     }
     setCurrentUserId(savedId);
+    fetchMaterials();
   }, [router]);
+
+  const fetchMaterials = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from("materials").select("*").order("created_at", { ascending: false });
+    if (data) {
+      setMaterials(data);
+    }
+    setIsLoading(false);
+  };
+
+  const categories = ["全部", ...Array.from(new Set(materials.map(m => m.category)))];
+  const filteredMaterials = activeCategory === "全部" 
+    ? materials 
+    : materials.filter(m => m.category === activeCategory);
+
+  const featuredMaterial = materials[0];
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
-      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-4 flex justify-between items-center max-w-lg mx-auto">
-        <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">宣傳素材庫</h1>
+      <nav className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-50 px-6 py-8 flex justify-between items-center max-w-lg mx-auto">
+         <div className="flex items-center gap-4">
+            <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+               <ArrowLeft className="w-5 h-5 text-slate-400" />
+            </button>
+            <h1 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">宣傳素材庫</h1>
+         </div>
       </nav>
 
       <main className="max-w-lg mx-auto p-6 space-y-8 mt-2">
@@ -59,40 +78,58 @@ function MaterialsContent() {
            </div>
         </section>
 
-        {/* Categories */}
-        <div className="space-y-4">
-           {MATERIAL_CATEGORIES.map((cat) => (
-             <div key={cat.id} className="bg-white rounded-[2.5rem] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-slate-50 flex items-center gap-5 group hover:border-emerald-100 transition duration-500 cursor-pointer">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${cat.color}`}>
-                   <cat.icon className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                   <h4 className="font-bold text-slate-800">{cat.name}</h4>
-                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">{cat.count} 個資源</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition" />
-             </div>
+        {/* Category Filter */}
+        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+           {categories.map(cat => (
+             <button 
+               key={cat}
+               onClick={() => setActiveCategory(cat)}
+               className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${
+                 activeCategory === cat ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/20' : 'bg-white text-slate-400 border border-slate-100'
+               }`}
+             >
+                {cat}
+             </button>
            ))}
         </div>
 
-        {/* Featured Material */}
-        <div className="space-y-4 pt-4">
-           <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">本週推薦素材</h3>
-           <div className="bg-white rounded-[3rem] overflow-hidden shadow-sm border border-slate-50">
-              <div className="aspect-video w-full bg-slate-100 relative">
-                 <img src="https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80" alt="Featured" className="w-full h-full object-cover" />
-                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
-              </div>
-              <div className="p-8 flex justify-between items-center">
-                 <div>
-                    <h4 className="font-bold text-slate-800">2026 春季形象主圖</h4>
-                    <p className="text-xs text-slate-400 mt-1">適合用於 IG / FB 貼文分享</p>
-                 </div>
-                 <button className="w-12 h-12 bg-emerald-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/20 active:scale-90 transition">
-                    <Download className="w-5 h-5" />
-                 </button>
-              </div>
-           </div>
+        {/* Materials List */}
+        <div className="grid grid-cols-1 gap-6">
+           {isLoading ? (
+             <div className="py-20 flex justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>
+           ) : filteredMaterials.length === 0 ? (
+             <div className="py-20 text-center bg-white rounded-[3rem] border border-slate-50">
+                <p className="text-xs font-bold text-slate-300">目前尚無此分類素材</p>
+             </div>
+           ) : filteredMaterials.map((mat) => (
+             <div key={mat.id} className="bg-white rounded-[3rem] overflow-hidden shadow-sm border border-slate-50 group">
+                <div className="aspect-video w-full bg-slate-100 relative overflow-hidden">
+                   <img 
+                     src={mat.thumbnail_url || mat.url} 
+                     alt={mat.title} 
+                     className="w-full h-full object-cover group-hover:scale-105 transition duration-700" 
+                   />
+                   <div className="absolute top-4 left-4 px-3 py-1 bg-white/80 backdrop-blur-md rounded-full text-[8px] font-black text-emerald-900 uppercase tracking-widest shadow-sm">
+                      {mat.category}
+                   </div>
+                </div>
+                <div className="p-8 flex justify-between items-center">
+                   <div>
+                      <h4 className="font-bold text-slate-800">{mat.title}</h4>
+                      <p className="text-xs text-slate-400 mt-1">{mat.description || '官方授權推廣素材'}</p>
+                   </div>
+                   <a 
+                     href={mat.url} 
+                     download 
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition"
+                   >
+                      <Download className="w-5 h-5" />
+                   </a>
+                </div>
+             </div>
+           ))}
         </div>
 
       </main>

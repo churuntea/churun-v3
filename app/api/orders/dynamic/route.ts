@@ -59,19 +59,38 @@ export async function POST(request: Request) {
     const tierRate = TIER_RATES[buyer.tier] || 100;
     totalB2CPoints = Math.floor(totalAmount / tierRate);
 
-    // 3. 建立訂單 (使用 Transaction 概念)
-    const { data: order, error: orderError } = await supabase
+    // 3. 建立訂單 (狀態改為 pending，待管理者確認)
+    const orderData: any = {
+      member_id: buyer.id,
+      total_amount: totalAmount,
+      original_amount: totalAmount,
+      status: 'pending',
+      reward_points: totalB2CPoints,
+      b2b_commission: totalB2BCommission
+    };
+
+    let { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        member_id: buyer.id,
-        total_amount: totalAmount,
-        original_amount: totalAmount,
-        status: 'completed',
-        paid_at: new Date().toISOString(),
-        completed_at: new Date().toISOString()
-      })
+      .insert(orderData)
       .select()
       .single();
+
+    // 如果失敗是因為欄位不存在，嘗試不帶新欄位再試一次
+    if (orderError && (orderError.message.includes('reward_points') || orderError.message.includes('b2b_commission'))) {
+      console.warn('DB columns missing, falling back to basic order info');
+      const fallbackData = { ...orderData };
+      delete fallbackData.reward_points;
+      delete fallbackData.b2b_commission;
+      
+      const { data: fallbackOrder, error: fallbackError } = await supabase
+        .from('orders')
+        .insert(fallbackData)
+        .select()
+        .single();
+      
+      order = fallbackOrder;
+      orderError = fallbackError;
+    }
 
     if (orderError) throw orderError;
 
@@ -95,7 +114,7 @@ export async function POST(request: Request) {
       console.error('Order Items Error:', itemsError);
     }
 
-    // 3.6 扣除庫存
+    // 3.6 扣除庫存 (預扣)
     for (const item of items) {
       const product = products.find(p => p.id === item.id);
       if (product) {
@@ -105,87 +124,14 @@ export async function POST(request: Request) {
       }
     }
 
-    let message = `結帳成功！總計 $${totalAmount.toLocaleString()}。`;
+    let message = `訂單建立成功！待管理員確認匯款後，系統將發放點數。`;
 
-    // 4. 處理不同身份的結算邏輯
-    if (buyer.is_b2b) {
-      // B2B 創業夥伴：使用虛擬帳戶扣款
-      if (Number(buyer.virtual_balance) < totalAmount) {
-        return NextResponse.json({ success: false, error: '虛擬帳戶餘額不足，請先儲值' }, { status: 400 });
-      }
-
-      // 扣款紀錄
-      await supabase.from('wallet_transactions').insert({
-        member_id: buyer.id,
-        order_id: order.id,
-        amount: -totalAmount,
-        transaction_type: 'order_deduction',
-        status: 'completed'
-      });
-
-      // 更新買家餘額與累積消費
-      await supabase.from('members').update({ 
-        virtual_balance: Number(buyer.virtual_balance) - totalAmount,
-        lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
-        quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
-      }).eq('id', buyer.id);
-      
-      message += ' 已從您的虛擬帳戶扣除。';
-    } else {
-      // B2C 會員：增加點數並處理上線退傭
-      if (totalB2CPoints > 0) {
-        await supabase.from('point_transactions').insert({
-          member_id: buyer.id,
-          order_id: order.id,
-          amount: totalB2CPoints,
-          transaction_type: 'earned_from_order'
-        });
-
-        await supabase.from('members').update({ 
-          points_balance: (buyer.points_balance || 0) + totalB2CPoints,
-          lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
-          quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
-        }).eq('id', buyer.id);
-        
-        message += ` 獲得 ${totalB2CPoints} 點紅利回饋。`;
-      }
-
-      // 5. 處理上線退傭 (MLM 核心)
-      if (buyer.upline_id && totalB2BCommission > 0) {
-        const { data: upline } = await supabase.from('members').select('*').eq('id', buyer.upline_id).single();
-        
-        // 只有 B2B 身份的上線可以領取現金退傭
-        if (upline && upline.is_b2b) {
-          await supabase.from('wallet_transactions').insert({
-            member_id: upline.id,
-            order_id: order.id,
-            amount: totalB2BCommission,
-            transaction_type: 'commission_refund',
-            status: 'completed'
-          });
-          
-          await supabase.from('members').update({ 
-            virtual_balance: (Number(upline.virtual_balance) || 0) + totalB2BCommission 
-          }).eq('id', upline.id);
-          
-          // 新增推薦獎金通知
-          await supabase.from('notifications').insert({
-            member_id: upline.id,
-            title: '獲得推薦獎金！',
-            content: `您的下線夥伴 ${buyer.name} 完成了訂單，您獲得 $${totalB2BCommission.toLocaleString()} 推薦獎金。`,
-            type: 'referral'
-          });
-          
-          // message += ` (上線獎金已發放)`;
-        }
-      }
-    }
-
-    // 新增買家結帳通知
+    // 4. 處理不同身份的結算邏輯 (此處暫停，移至管理員審核階段)
+    // 只有通知買家
     await supabase.from('notifications').insert({
       member_id: buyer.id,
-      title: '訂單結帳成功',
-      content: `您的訂單總計 $${totalAmount.toLocaleString()} 已結帳成功。`,
+      title: '訂單已建立，待審核',
+      content: `您的訂單 $${totalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
       type: 'order'
     });
 

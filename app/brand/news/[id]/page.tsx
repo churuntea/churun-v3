@@ -13,81 +13,66 @@ import {
   Sparkles,
   Award,
   Zap,
-  ShoppingBag
+  ShoppingBag,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-const NEWS_DATA: any = {
-  "spring-tea": {
-    title: "春季極萃紅茶正式上市",
-    date: "2026年5月02日",
-    tag: "NEW",
-    color: "emerald",
-    image: "/spring_tea_premium_banner_1777786729443.png",
-    content: `
-      在春意盎然的五月，初潤製茶所為您獻上本年度最值得期待的精品 —— 「春季極萃紅茶」。
-
-      我們走訪全台海拔 1200 公尺以上的秘密茶園，嚴選在晨露未乾時手採的嫩芽。透過初潤獨家的「低溫慢火極萃工藝」，完整保留了茶葉中的天然多酚與甘甜層次。
-
-      **【品飲筆記】**
-      - **前調**：清透的野薑花香。
-      - **中調**：厚實的成熟果實甜味。
-      - **尾韻**：如絲絨般的琥珀回甘，久久不散。
-
-      即日起，所有會員皆可透過商城進行預購，菁英等級以上夥伴更可享有獨家折扣與優先出貨權。
-    `,
-    action: { label: "立即前往商城選購", href: "/store" }
-  },
-  "dividend-plan": {
-    title: "年度分紅計畫已開啟審核",
-    date: "2026年5月01日",
-    tag: "INFO",
-    color: "amber",
-    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800",
-    content: `
-      初潤的成功，來自於每一位夥伴的辛勤耕耘。我們很高興宣布，2026年度的「全國分紅計畫」已正式啟動審核程序。
-
-      本次分紅計畫將針對達到「初潤知己」以上職級的夥伴進行利潤分配。系統將自動計算您團隊的季度總業績，並根據職級權重進行紅利撥放。
-
-      **【重要時程】**
-      - **審核期**：5月1日 - 5月10日
-      - **公告期**：5月12日
-      - **撥放期**：5月15日自動轉入您的虛擬帳戶。
-
-      請各位領導者務必在 5月10日前完成下線組織的最終確認，確保每一份努力都得到應有的回報。
-    `,
-    action: { label: "查看我的組織業績", href: "/organization" }
-  },
-  "taipei-event": {
-    title: "全台夥伴大會 5/20 台北場",
-    date: "2026年4月28日",
-    tag: "EVENT",
-    color: "indigo",
-    image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800",
-    content: `
-      這不只是一場大會，而是一次夢想的啟航。
-
-      我們邀請全台灣的初潤夥伴匯聚台北，共同見證品牌下一階段的全球布局計畫。創辦人將親自分享年度戰略，並舉辦盛大的職級晉升儀式。
-
-      **【活動資訊】**
-      - **地點**：台北萬豪酒店 大宴會廳
-      - **時間**：2026年5月20日 13:00 - 17:30
-      - **報名方式**：請洽您的上線推薦人或點擊下方按鈕預約。
-
-      現場將首度公開年度隱藏版產品，並有機會獲得高額團隊積分獎勵！
-    `,
-    action: { label: "立即預約席次", href: "/support" }
-  }
-};
+import { supabase } from "@/app/supabase";
 
 export default function NewsDetail({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const id = resolvedParams.id;
   const router = useRouter();
-  const news = NEWS_DATA[id] || NEWS_DATA["spring-tea"];
-
+  
+  const [news, setNews] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      setIsLoading(true);
+      // Try to fetch from Supabase
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (data) {
+        setNews({
+          title: data.title,
+          date: new Date(data.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+          tag: data.tag,
+          color: data.color.includes('emerald') ? 'emerald' : data.color.includes('amber') ? 'amber' : 'indigo',
+          image: data.image_url || "/spring_tea_premium_banner_1777786729443.png",
+          content: data.content,
+          action: { 
+            label: data.action_label || "立即查看", 
+            href: data.action_href || "/" 
+          }
+        });
+      } else {
+        // Fallback or Error
+        console.error("News not found", error);
+      }
+      setIsLoading(false);
+    };
+
+    fetchNews();
+  }, [id]);
+
+  if (isLoading) return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
+  
+  if (!news) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center space-y-6">
+       <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center">
+          <Tag className="w-10 h-10 text-slate-200" />
+       </div>
+       <h1 className="text-2xl font-black text-slate-800">找不到此快訊</h1>
+       <button onClick={() => router.back()} className="text-emerald-600 font-bold">返回上一頁</button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-32">

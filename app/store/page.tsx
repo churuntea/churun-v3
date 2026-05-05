@@ -49,14 +49,24 @@ function StoreContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
+  const getProductQty = (id: string) => productQuantities[id] || 1;
+  const updateProductQty = (id: string, delta: number) => {
+    setProductQuantities(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) + delta)
+    }));
+  };
+
   useEffect(() => {
-    // Force cache break
-    const currentVersion = "1.2.0";
+    const currentVersion = "1.2.1";
     const savedVersion = localStorage.getItem("churun_store_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_store_version", currentVersion);
@@ -109,6 +119,8 @@ function StoreContent() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsCheckingOut(true);
+    setOrderItems([...cart]);
+    
     try {
       const res = await fetch("/api/orders/dynamic", {
         method: "POST",
@@ -232,13 +244,36 @@ function StoreContent() {
                           </div>
                        </div>
 
-                       <div className="pt-6 border-t border-slate-50 flex items-center justify-between gap-4">
-                          <button 
-                            onClick={() => addToCart(product)}
-                            className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all flex items-center justify-center gap-2 active:scale-95"
-                          >
-                             {cart.find(i => i.id === product.id) ? "繼續添加" : "加入購物車"} <Plus className="w-3 h-3" />
-                          </button>
+                       <div className="pt-6 border-t border-slate-50 space-y-4">
+                           <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">數量</span>
+                              <div className="flex items-center gap-4">
+                                 <button 
+                                   onClick={() => updateProductQty(product.id, -1)}
+                                   className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition"
+                                 >
+                                    <Minus className="w-3 h-3" />
+                                 </button>
+                                 <span className="text-sm font-black w-8 text-center">{getProductQty(product.id)}</span>
+                                 <button 
+                                   onClick={() => updateProductQty(product.id, 1)}
+                                   className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition"
+                                 >
+                                    <Plus className="w-3 h-3" />
+                                 </button>
+                              </div>
+                           </div>
+                           <button 
+                             onClick={() => {
+                               for (let i = 0; i < getProductQty(product.id); i++) {
+                                 addToCart(product);
+                               }
+                               setProductQuantities(prev => ({ ...prev, [product.id]: 1 }));
+                             }}
+                             className="w-full bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all flex items-center justify-center gap-2 active:scale-95"
+                           >
+                              加入購物車 <Plus className="w-3 h-3" />
+                           </button>
                        </div>
                     </div>
                  </div>
@@ -359,15 +394,11 @@ function StoreContent() {
                 </div>
 
                  <button 
-                   onClick={() => {
-                     setLastOrderAmount(totalPrice);
-                     setIsOrderCreated(false);
-                     setShowPaymentModal(true);
-                   }}
+                   onClick={() => setShowConfirmModal(true)}
                    disabled={cart.length === 0 || isCheckingOut}
                    className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
                  >
-                   下一步：取得匯款資訊
+                   下一步：確認訂購明細
                  </button>
               </div>
             </motion.div>
@@ -375,7 +406,72 @@ function StoreContent() {
         )}
       </AnimatePresence>
       
-      {/* Payment Instruction Modal */}
+      {/* Step 1: Order Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10"
+            >
+              <div className="w-16 h-16 bg-slate-50 text-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                 <ShoppingCart className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 text-center mb-6">請確認訂購品項</h3>
+              
+              <div className="space-y-4 mb-8 max-h-60 overflow-y-auto no-scrollbar pr-2">
+                 {cart.map((item) => (
+                   <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100">
+                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                         </div>
+                         <span className="text-xs font-bold text-slate-600">{item.name}</span>
+                      </div>
+                      <span className="text-xs font-black text-slate-400 whitespace-nowrap">x {item.quantity}</span>
+                   </div>
+                 ))}
+              </div>
+
+              <div className="pt-6 border-t border-slate-100 mb-8 flex justify-between items-center">
+                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">應付總額</span>
+                 <span className="text-xl font-black text-slate-900">${totalPrice.toLocaleString()}</span>
+              </div>
+
+              <div className="space-y-4">
+                 <button 
+                   onClick={() => {
+                     setShowConfirmModal(false);
+                     setLastOrderAmount(totalPrice);
+                     setIsOrderCreated(false);
+                     setShowPaymentModal(true);
+                   }}
+                   className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+                 >
+                    品項正確，取得匯款資訊
+                 </button>
+                 <button 
+                   onClick={() => setShowConfirmModal(false)}
+                   className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
+                 >
+                    返回修改
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Step 2: Payment Instruction Modal */}
       <AnimatePresence>
         {showPaymentModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -408,7 +504,7 @@ function StoreContent() {
 
               <div className="bg-slate-50 rounded-[2rem] p-8 text-left space-y-4 mb-8 border border-slate-100">
                  <div className="flex justify-between items-center pb-4 border-b border-slate-200">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">應付總額</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">匯款總金額</span>
                     <span className="text-xl font-black text-emerald-600">${lastOrderAmount.toLocaleString()}</span>
                  </div>
                  
@@ -419,13 +515,33 @@ function StoreContent() {
                     </div>
                     <div className="flex flex-col">
                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">帳戶名稱</span>
-                       <span className="text-sm font-black text-slate-700">初潤製茶所</span>
+                       <span className="text-sm font-black text-slate-700">安信商業有限公司</span>
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col group/copy relative">
                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">匯款帳號</span>
-                       <span className="text-sm font-black text-emerald-900 tracking-wider">214-03-500450-5</span>
+                       <div className="flex justify-between items-center gap-2">
+                          <span id="bank-account-num" className="text-sm font-black text-emerald-900 tracking-wider">214-03-500450-5</span>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText("214-03-500450-5");
+                              alert("帳號已複製！");
+                            }}
+                            className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter hover:bg-emerald-600 hover:text-white transition"
+                          >
+                             複製帳號
+                          </button>
+                       </div>
                     </div>
                  </div>
+              </div>
+
+              <div className="bg-amber-50 rounded-2xl p-4 mb-8 flex gap-3 items-start border border-amber-100">
+                 <div className="w-5 h-5 bg-amber-200 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-[10px] font-black text-amber-700">!</span>
+                 </div>
+                 <p className="text-[10px] font-bold text-amber-700 text-left leading-relaxed">
+                    ※ 請務必匯入正確金額 <span className="underline">${lastOrderAmount.toLocaleString()}</span> 元，匯款完成後請點擊下方按鈕，管理員確認入帳後將自動發放紅利點數。
+                 </p>
               </div>
 
               {!isOrderCreated ? (
@@ -449,15 +565,27 @@ function StoreContent() {
                   </button>
                 </div>
               ) : (
-                <button 
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setIsCartOpen(false);
-                  }}
-                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
-                >
-                   完成結帳，前往查看
-                </button>
+                <div className="space-y-8">
+                  <div className="bg-slate-50 rounded-[2rem] p-6 space-y-4 border border-slate-100 max-h-48 overflow-y-auto no-scrollbar">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">訂購明細</p>
+                     {orderItems.map((item, idx) => (
+                       <div key={idx} className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-600">{item.name}</span>
+                          <span className="font-black text-slate-400">x{item.quantity}</span>
+                       </div>
+                     ))}
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      setIsCartOpen(false);
+                    }}
+                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+                  >
+                     完成結帳，前往查看
+                  </button>
+                </div>
               )}
             </motion.div>
           </div>

@@ -64,16 +64,25 @@ function AdminOrdersContent() {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
-    
-    if (error) {
-      alert("更新失敗: " + error.message);
-    } else {
-      fetchOrders();
+  const updateOrderStatus = async (orderId: string, action: 'approve' | 'cancel') => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/orders/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId, action })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchOrders();
+      } else {
+        alert(data.error || "操作失敗");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("系統錯誤");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,6 +150,7 @@ function AdminOrdersContent() {
                     <th className="p-8">訂單日期 / 編號</th>
                     <th className="p-8">會員資訊</th>
                     <th className="p-8 text-right">結帳金額</th>
+                    <th className="p-8 text-right">預計回饋</th>
                     <th className="p-8 text-center">目前狀態</th>
                     <th className="p-8 text-right">操作管理</th>
                  </tr>
@@ -148,7 +158,7 @@ function AdminOrdersContent() {
               <tbody className="divide-y divide-slate-50">
                  {isLoading ? (
                    <tr>
-                      <td colSpan={5} className="p-20 text-center">
+                      <td colSpan={6} className="p-20 text-center">
                          <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
                       </td>
                    </tr>
@@ -192,6 +202,13 @@ function AdminOrdersContent() {
                               <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TWD</p>
                            </div>
                         </td>
+                        <td className="p-8 text-right">
+                           <div className="space-y-1">
+                              {order.reward_points > 0 && <p className="text-sm font-black text-emerald-600">{order.reward_points} pts</p>}
+                              {order.b2b_commission > 0 && <p className="text-sm font-black text-indigo-600">${Number(order.b2b_commission).toLocaleString()} 退傭</p>}
+                              {(!order.reward_points && !order.b2b_commission) && <p className="text-sm text-slate-300">-</p>}
+                           </div>
+                        </td>
                         <td className="p-8 text-center">
                            <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${
                              order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
@@ -207,14 +224,14 @@ function AdminOrdersContent() {
                               {order.status === 'pending' && (
                                 <>
                                   <button 
-                                    onClick={() => updateOrderStatus(order.id, 'completed')}
+                                    onClick={() => updateOrderStatus(order.id, 'approve')}
                                     className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition"
-                                    title="標記為已完成"
+                                    title="確認匯款並發放點數"
                                   >
                                      <CheckCircle2 className="w-4 h-4" />
                                   </button>
                                   <button 
-                                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                    onClick={() => updateOrderStatus(order.id, 'cancel')}
                                     className="p-3 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-500/20 hover:scale-110 transition"
                                     title="取消訂單"
                                   >

@@ -1,9 +1,67 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
+async function evaluateTiers() {
+  try {
+    // Fetch all members
+    const { data: members, error: fetchError } = await supabase
+      .from('members')
+      .select('id, lifetime_spend, tier');
+
+    if (fetchError) throw fetchError;
+
+    const tierRules = [
+      { name: '初潤靈魂伴侶', minSpend: 50000 },
+      { name: '初潤知己', minSpend: 25000 },
+      { name: '初潤閨蜜', minSpend: 12000 },
+      { name: '初潤好朋友', minSpend: 6000 },
+      { name: '初潤青少年', minSpend: 3000 },
+      { name: '初潤小朋友', minSpend: 1500 },
+      { name: '初潤幼兒園', minSpend: 1 },
+      { name: '初潤寶寶', minSpend: 0 }
+    ];
+
+    let updatedCount = 0;
+
+    for (const member of members || []) {
+      const spend = Number(member.lifetime_spend);
+      let targetTier = '初潤寶寶';
+      
+      for (const rule of tierRules) {
+        if (spend >= rule.minSpend) {
+          targetTier = rule.name;
+          break;
+        }
+      }
+
+      if (targetTier !== member.tier) {
+        const { error: updateError } = await supabase
+          .from('members')
+          .update({ tier: targetTier })
+          .eq('id', member.id);
+        
+        if (!updateError) {
+          updatedCount++;
+          // Optional: Add a notification for tier upgrade
+          await supabase.from('notifications').insert({
+            member_id: member.id,
+            title: '職級晉升通知',
+            content: `恭喜！您的職級已正式晉升為「${targetTier}」。`,
+            type: 'system'
+          });
+        }
+      }
+    }
+
+    return { success: true, message: `Evaluated ${members?.length} members, updated ${updatedCount} tiers.` };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 async function performSettlement() {
   try {
-    // 找出所有狀態為 'pending' 的虛擬帳戶交易 (例如尚未結算的退傭)
+    // 1. Settle pending wallet transactions
     const { data: pendingTx, error: fetchError } = await supabase
       .from('wallet_transactions')
       .select('id')
@@ -11,22 +69,17 @@ async function performSettlement() {
 
     if (fetchError) throw fetchError;
 
-    if (!pendingTx || pendingTx.length === 0) {
-      return { success: true, message: 'No pending transactions to settle.' };
+    if (pendingTx && pendingTx.length > 0) {
+      const txIds = pendingTx.map(tx => tx.id);
+      await supabase.from('wallet_transactions').update({ status: 'completed' }).in('id', txIds);
     }
 
-    const txIds = pendingTx.map(tx => tx.id);
-
-    const { error: updateError } = await supabase
-      .from('wallet_transactions')
-      .update({ status: 'completed' })
-      .in('id', txIds);
-
-    if (updateError) throw updateError;
-
+    // 2. Evaluate tiers
+    const tierResult = await evaluateTiers();
+    
     return { 
       success: true, 
-      message: `Successfully settled ${txIds.length} transactions.` 
+      message: `Settlement completed. ${tierResult.message}` 
     };
 
   } catch (error: any) {

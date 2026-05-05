@@ -61,6 +61,20 @@ function WithdrawContent() {
     setIsSubmitting(true);
     try {
       const withdrawAmount = Number(amount);
+      const initialDeposit = Number(memberInfo.initial_deposit) || 0;
+      const currentBalance = Number(memberInfo.virtual_balance);
+      const lockAmount = initialDeposit * 0.3;
+      
+      // 30% 鎖倉邏輯：提領後餘額必須大於等於初始儲值的 30%
+      if (currentBalance - withdrawAmount < lockAmount) {
+        setToast({ 
+          show: true, 
+          message: `提領失敗：需保留 30% 鎖倉金額 ($${lockAmount.toLocaleString()})`, 
+          type: "error" 
+        });
+        setIsSubmitting(false);
+        return;
+      }
       
       // 1. 扣除餘額
       const { error: updateError } = await supabase
@@ -150,8 +164,16 @@ function WithdrawContent() {
         {/* Balance Display */}
         <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-slate-900/20">
            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-emerald-500 rounded-full blur-[80px] opacity-20"></div>
-           <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-3">可提領餘額</p>
-           <h2 className="text-4xl font-black tracking-tighter text-emerald-400">${Number(memberInfo.virtual_balance).toLocaleString()}</h2>
+           <div className="flex justify-between items-end">
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-3">可提領餘額</p>
+                 <h2 className="text-4xl font-black tracking-tighter text-emerald-400">${Number(memberInfo.virtual_balance).toLocaleString()}</h2>
+              </div>
+              <div className="text-right">
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-3">30% 鎖倉金額</p>
+                 <p className="text-sm font-black text-slate-400 tracking-tight">${(Number(memberInfo.initial_deposit) * 0.3).toLocaleString()}</p>
+              </div>
+           </div>
         </div>
 
         {/* Input Area */}
