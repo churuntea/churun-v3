@@ -852,272 +852,208 @@ END:VCARD`;
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-8"
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-8"
             onClick={() => setShowShare(false)}
           >
              <motion.div 
                initial={{ scale: 0.9, y: 20 }}
                animate={{ scale: 1, y: 0 }}
                exit={{ scale: 0.9, y: 20 }}
-               className="bg-white rounded-[3rem] p-12 w-full max-w-sm text-center shadow-2xl relative overflow-hidden"
+               className="bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
                onClick={e => e.stopPropagation()}
              >
                 <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
-                  
-                <h3 className="text-2xl font-black text-slate-900 mb-2">專屬行銷工具</h3>
-                <p className="text-sm text-slate-400 mb-8">選擇您要生成的推廣形式</p>
-
-                {/* Template Selection */}
-                <div className="flex gap-4 mb-8 p-3 bg-slate-50 rounded-[2rem] border border-slate-100">
-                   {[
-                     { id: 'card', name: '尊榮會員卡', icon: LayoutDashboard },
-                     { id: 'poster', name: '品牌精美DM', icon: Megaphone }
-                   ].map((t) => (
-                     <button
-                       key={t.id}
-                       onClick={() => setSelectedTemplate(t.id as any)}
-                       className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-2 transition-all ${
-                         selectedTemplate === t.id ? 'bg-emerald-900 text-white shadow-xl shadow-emerald-900/20' : 'bg-white text-slate-400'
-                       }`}
-                     >
-                        <t.icon className="w-4 h-4" />
-                        {t.name}
-                     </button>
-                   ))}
-                </div>
                 
-                {/* Photo Identity Area */}
-                <div className="mb-10 p-8 bg-gradient-to-br from-slate-50 to-white rounded-[3rem] border border-slate-100 shadow-inner flex flex-col items-center gap-6 relative">
-                   <div className="absolute top-4 left-6 flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Identity Photo</span>
+                {/* Scrollable Area */}
+                <div className="overflow-y-auto no-scrollbar flex-1 space-y-8 pr-1">
+                   <div className="text-center">
+                      <h3 className="text-2xl font-black text-slate-900 mb-2">個人形象設定</h3>
+                      <p className="text-sm text-slate-400 mb-8">設定您的數位名片與頭像</p>
                    </div>
 
-                   {memberAvatar ? (
-                     <div className="relative group w-32 h-32">
-                        <div className="absolute -inset-2 bg-emerald-500/10 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="relative overflow-hidden w-full h-full rounded-[2rem] border-2 border-white shadow-2xl">
-                           <img 
-                             src={memberAvatar} 
-                             className="w-full h-full object-cover origin-center" 
-                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset/4}px)` }}
-                             alt="Avatar" 
-                           />
+                   {/* Photo Section */}
+                   <div className="p-8 bg-gradient-to-br from-slate-50 to-white rounded-[2.5rem] border border-slate-100 shadow-inner flex flex-col items-center gap-6 relative">
+                      <div className="absolute top-4 left-6 flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                         <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Avatar Settings</span>
+                      </div>
+
+                      {memberAvatar ? (
+                        <div className="relative group w-32 h-32">
+                           <div className="relative overflow-hidden w-full h-full rounded-[2rem] border-4 border-white shadow-xl">
+                              <img 
+                                src={memberAvatar} 
+                                className="w-full h-full object-cover" 
+                                style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }}
+                                alt="Avatar" 
+                              />
+                           </div>
                            <button 
-                             onClick={() => setIsEditingAvatar(true)}
-                             className="absolute inset-0 bg-emerald-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white gap-1"
+                             onClick={() => setMemberAvatar(null)}
+                             className="absolute -top-2 -right-2 w-8 h-8 bg-white text-rose-500 rounded-full shadow-lg flex items-center justify-center border border-rose-50"
                            >
-                              <Sparkles className="w-4 h-4 text-amber-300" />
-                              <span className="text-[8px] font-black uppercase tracking-widest">編輯調整</span>
+                              <X className="w-4 h-4" />
                            </button>
                         </div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMemberAvatar(null);
-                            setAvatarZoom(1);
-                            setAvatarOffset(0);
-                          }}
-                          className="absolute -top-3 -right-3 bg-white text-rose-500 w-8 h-8 rounded-full shadow-xl z-10 flex items-center justify-center border border-rose-50 transition hover:bg-rose-50"
-                        >
-                           <X className="w-4 h-4" />
-                        </button>
-                     </div>
-                   ) : (
-                     <div className="w-24 h-24 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-slate-300 group hover:border-emerald-200 transition-colors">
-                        <User className="w-8 h-8 opacity-10 group-hover:opacity-30 transition-opacity" />
-                     </div>
-                   )}
-                   
-                   <div className="flex flex-col gap-3 w-full">
-                      <label className="bg-emerald-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-800 transition shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 group">
-                         <Plus className="w-3 h-3 group-hover:rotate-90 transition" />
-                         {memberAvatar ? '更換照片' : '上傳個人照'}
-                         <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                      </label>
-
-                       <div className="w-full space-y-3 pt-2">
-                          <div className="flex justify-between items-center px-1">
-                             <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">我的個人座右銘</span>
-                          </div>
-                          <div className="flex gap-2">
-                             <input 
-                                type="text"
-                                value={memberMotto}
-                                onChange={(e) => setMemberMotto(e.target.value)}
-                                className="flex-1 bg-white border border-slate-100 px-4 py-3 rounded-xl text-[10px] font-bold text-slate-700 focus:outline-none focus:border-emerald-500 transition-colors"
-                                placeholder="輸入您的座右銘..."
-                             />
-                             <button 
-                                onClick={handleSaveAvatarSettings}
-                                disabled={isSavingAvatar}
-                                className="bg-emerald-50 px-4 rounded-xl text-[8px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-100 transition active:scale-95 disabled:opacity-50"
-                             >
-                                {isSavingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : "儲存"}
-                             </button>
-                          </div>
-                       </div>
-                   </div>
-                </div>
-
-                {/* Photo Adjustment Pop-up overlay */}
-                <AnimatePresence>
-                   {isEditingAvatar && memberAvatar && (
-                     <motion.div 
-                       initial={{ opacity: 0, scale: 0.9 }}
-                       animate={{ opacity: 1, scale: 1 }}
-                       exit={{ opacity: 0, scale: 0.9 }}
-                       className="absolute inset-0 z-[110] bg-white p-8 flex flex-col items-center justify-center"
-                     >
-                        <h4 className="text-sm font-black text-slate-900 mb-6 uppercase tracking-widest">調整您的頭像</h4>
-                        
-                        <div className="w-48 h-48 rounded-[3rem] overflow-hidden border-4 border-emerald-500/20 shadow-2xl mb-8 relative">
-                           <img 
-                             src={memberAvatar} 
-                             className="w-full h-full object-cover origin-center" 
-                             style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }}
-                           />
-                           <div className="absolute inset-0 border-2 border-white/50 rounded-[3rem] pointer-events-none"></div>
+                      ) : (
+                        <div className="w-32 h-32 rounded-[2rem] bg-slate-100 flex items-center justify-center border-2 border-dashed border-slate-200">
+                           <User className="w-10 h-10 text-slate-200" />
                         </div>
+                      )}
 
-                        <div className="w-full space-y-6">
-                           <div className="space-y-2">
-                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                 <span>縮放調整</span>
-                                 <span>{Math.round(avatarZoom * 100)}%</span>
-                              </div>
-                              <input 
-                                type="range" min="1" max="3" step="0.01" value={avatarZoom} 
-                                onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
-                                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                              />
-                           </div>
-                           <div className="space-y-2">
-                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                 <span>位置偏移</span>
-                                 <span>{avatarOffset}px</span>
-                              </div>
-                              <input 
-                                type="range" min="-100" max="100" step="1" value={avatarOffset} 
-                                onChange={(e) => setAvatarOffset(parseInt(e.target.value))}
-                                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                              />
-                           </div>
-                        </div>
+                      <div className="w-full space-y-4">
+                         <label className="w-full h-12 bg-emerald-900 text-white rounded-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition shadow-lg shadow-emerald-900/20">
+                            <Plus className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">更換照片</span>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                         </label>
 
-                        <button 
-                          onClick={handleSaveAvatarSettings}
-                          disabled={isSavingAvatar}
-                          className="mt-8 w-full bg-emerald-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                           {isSavingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} 儲存並套用
-                        </button>
-                     </motion.div>
-                   )}
-                </AnimatePresence>
-
-                {selectedTemplate === 'poster' && (
-                  <div className="mb-8 space-y-4">
-                     <div className="flex justify-between items-center px-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇海報模板</span>
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{selectedPosterIndex + 1} / {posterTemplates.length}</span>
-                     </div>
-                     <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                        {posterTemplates.map((temp, idx) => (
-                          <button
-                            key={temp.id}
-                            onClick={() => setSelectedPosterIndex(idx)}
-                            className={`min-w-[100px] aspect-[1/1.4] rounded-2xl overflow-hidden border-4 transition-all ${
-                              selectedPosterIndex === idx ? 'border-emerald-500 scale-105 shadow-xl' : 'border-white opacity-60'
-                            }`}
-                          >
-                             <img src={temp.url} className="w-full h-full object-cover" alt={temp.name} />
-                          </button>
-                        ))}
-                     </div>
-                  </div>
-                )}
-
-                <AnimatePresence mode="wait">
-                   {!showQR ? (
-                     <motion.div 
-                       key="id-box"
-                       initial={{ opacity: 0, scale: 0.9 }}
-                       animate={{ opacity: 1, scale: 1 }}
-                       exit={{ opacity: 0, scale: 0.9 }}
-                       className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[2.5rem] mb-8 p-10 text-white relative overflow-hidden group/card shadow-2xl shadow-slate-900/20"
-                      >
-                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-                         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover/card:bg-emerald-500/30 transition-colors"></div>
-                         
-                         <div className="relative z-10 flex flex-col items-center gap-6">
-                            <div className="flex flex-col items-center gap-2">
-                               <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em]">Official Member ID</span>
-                               <span className="text-3xl font-black tracking-[0.2em] text-emerald-400 uppercase">
-                                  {memberInfo.member_code}
-                               </span>
+                         {isEditingAvatar && (
+                            <div className="space-y-4 pt-2">
+                               <div className="space-y-1">
+                                  <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                     <span>縮放比例</span>
+                                     <span>{Math.round(avatarZoom * 100)}%</span>
+                                  </div>
+                                  <input 
+                                    type="range" min="1" max="3" step="0.01" value={avatarZoom} 
+                                    onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
+                                    className="w-full accent-emerald-600"
+                                  />
+                               </div>
+                               <div className="space-y-1">
+                                  <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                     <span>上下偏移</span>
+                                     <span>{avatarOffset}px</span>
+                                  </div>
+                                  <input 
+                                    type="range" min="-100" max="100" step="1" value={avatarOffset} 
+                                    onChange={(e) => setAvatarOffset(parseInt(e.target.value))}
+                                    className="w-full accent-emerald-600"
+                                  />
+                               </div>
                             </div>
+                         )}
 
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(memberInfo.member_code);
-                                alert("編號已複製！");
-                              }}
-                              className="text-[9px] font-black text-white/40 hover:text-white transition uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5 flex items-center gap-2"
-                            >
-                               <Copy className="w-3 h-3" /> 複製代碼
-                            </button>
+                         <div className="pt-2">
+                            <div className="flex items-center gap-2 mb-2 ml-1">
+                               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">個人座右銘</span>
+                            </div>
+                            <div className="flex gap-2">
+                               <input 
+                                 type="text"
+                                 value={memberMotto}
+                                 onChange={(e) => setMemberMotto(e.target.value)}
+                                 className="flex-1 bg-white border border-slate-100 px-4 py-3 rounded-xl text-xs font-bold"
+                                 placeholder="輸入座右銘..."
+                               />
+                               <button 
+                                  onClick={handleSaveAvatarSettings}
+                                  disabled={isSavingAvatar}
+                                  className="bg-emerald-50 px-4 rounded-xl text-[8px] font-black text-emerald-600 uppercase tracking-widest"
+                               >
+                                  {isSavingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : "儲存"}
+                               </button>
+                            </div>
                          </div>
-                      </motion.div>
-                   ) : (
-                     <motion.div 
-                       key="qr-box"
-                       initial={{ opacity: 0, scale: 0.9 }}
-                       animate={{ opacity: 1, scale: 1 }}
-                       exit={{ opacity: 0, scale: 0.9 }}
-                       className="bg-white p-10 rounded-[2.5rem] mb-6 border border-slate-50 shadow-inner flex flex-col items-center gap-4 mx-auto w-fit"
-                     >
-                        <QRCodeCanvas 
-                          id="share-qr-canvas"
-                          value={`${window.location.origin}/register?ref=${memberInfo.member_code}`}
-                          size={180}
-                          level="H"
-                          includeMargin={false}
-                          imageSettings={{
-                              src: CR_LOGO,
-                              x: undefined,
-                              y: undefined,
-                              height: 40,
-                              width: 40,
-                              excavate: true,
-                          }}
-                        />
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">掃描立即加入</p>
-                     </motion.div>
-                   )}
-                </AnimatePresence>
+                      </div>
+                   </div>
 
-                <div className="flex flex-col gap-3">
-                   <button 
-                     onClick={() => setShowQR(!showQR)}
-                     className="w-full py-4 bg-slate-50 text-slate-800 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-100"
-                   >
-                      {showQR ? "顯示編號" : "顯示 QR Code"}
-                   </button>
-                   <button 
-                     onClick={selectedTemplate === 'card' ? handleDownloadBusinessCard : handleDownloadBrandPoster}
-                     className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/10 active:scale-95 transition flex items-center justify-center gap-3"
-                   >
-                      <Download className="w-4 h-4" />
-                      下載我的專屬{selectedTemplate === 'card' ? '名片' : '海報'}
-                   </button>
-                   <button 
-                     onClick={() => setShowShare(false)}
-                     className="w-full py-4 text-slate-300 font-black text-[10px] uppercase tracking-widest hover:text-slate-500 transition"
-                   >
-                      關閉視窗
-                   </button>
+                   {/* Preview */}
+                   <div className="pt-4">
+                      <div className="flex items-center gap-2 mb-4 px-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Identity Preview</span>
+                      </div>
+                      
+                      <AnimatePresence mode="wait">
+                         {!showQR ? (
+                           <motion.div 
+                             key="card"
+                             initial={{ opacity: 0, scale: 0.95 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             exit={{ opacity: 0, scale: 0.95 }}
+                             className="bg-gradient-to-br from-slate-900 to-emerald-950 p-8 rounded-[2.5rem] text-white relative overflow-hidden shadow-2xl"
+                           >
+                              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                              <div className="relative z-10 flex flex-col items-center gap-6">
+                                 <div className="text-center">
+                                    <p className="text-[8px] font-black text-emerald-400/60 uppercase tracking-[0.4em] mb-1">Official Member</p>
+                                    <p className="text-xl font-black tracking-[0.2em]">{memberInfo.member_code}</p>
+                                 </div>
+                                 <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-white/10 shadow-2xl">
+                                    {memberAvatar ? (
+                                      <img 
+                                        src={memberAvatar} 
+                                        className="w-full h-full object-cover" 
+                                        style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }}
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center bg-white/5">
+                                        <User className="w-10 h-10 text-white/10" />
+                                      </div>
+                                    )}
+                                 </div>
+                                 <div className="text-center">
+                                    <h4 className="text-lg font-black">{memberInfo.name}</h4>
+                                    <p className="text-[9px] text-emerald-400/80 italic mt-1">「 {memberMotto} 」</p>
+                                 </div>
+                              </div>
+                           </motion.div>
+                         ) : (
+                           <motion.div 
+                             key="qr"
+                             initial={{ opacity: 0, scale: 0.95 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             exit={{ opacity: 0, scale: 0.95 }}
+                             className="bg-white p-8 rounded-[2.5rem] border border-slate-100 flex flex-col items-center gap-6 shadow-xl"
+                           >
+                              <div className="p-4 bg-slate-50 rounded-3xl">
+                                 <QRCodeCanvas 
+                                   id="share-qr-canvas"
+                                   value={`${window.location.origin}/register?ref=${memberInfo.member_code}`}
+                                   size={160}
+                                   level="H"
+                                   includeMargin={false}
+                                   imageSettings={{
+                                       src: CR_LOGO,
+                                       x: undefined,
+                                       y: undefined,
+                                       height: 30,
+                                       width: 30,
+                                       excavate: true,
+                                   }}
+                                 />
+                              </div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">掃描推薦碼加入</p>
+                           </motion.div>
+                         )}
+                      </AnimatePresence>
+                   </div>
+
+                   {/* Actions */}
+                   <div className="space-y-3 pt-4">
+                      <div className="grid grid-cols-2 gap-3">
+                         <button 
+                           onClick={() => setShowQR(!showQR)}
+                           className="py-4 bg-slate-50 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-slate-100"
+                         >
+                            {showQR ? "顯示名片" : "推薦 QR碼"}
+                         </button>
+                         <button 
+                           onClick={handleDownloadIdentityCard}
+                           className="py-4 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/20"
+                         >
+                            下載存檔
+                         </button>
+                      </div>
+                      <button 
+                         onClick={() => setShowShare(false)}
+                         className="w-full py-4 text-slate-300 font-black text-[10px] uppercase tracking-widest hover:text-slate-500 transition"
+                      >
+                         關閉視窗
+                      </button>
+                   </div>
                 </div>
              </motion.div>
           </motion.div>
