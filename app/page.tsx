@@ -406,7 +406,7 @@ function DashboardContent() {
            <div className="flex justify-between items-center px-4">
               <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">榮譽成就勳章</h3>
            </div>
-           <div className="flex gap-6 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+           <div className="flex gap-6 overflow-x-auto pb-4 px-2 no-scrollbar">
               {[
                 { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "bg-indigo-50 text-indigo-500", earned: true },
                 { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "bg-emerald-50 text-emerald-500", earned: Number(downlines?.length || 0) >= 5 },
@@ -442,7 +442,7 @@ function DashboardContent() {
         {/* Announcements */}
         <section className="space-y-6">
            <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase px-2">初潤品牌脈動</h3>
-           <div className="flex gap-6 overflow-x-auto pb-10 -mx-6 px-6 no-scrollbar">
+           <div className="flex gap-6 overflow-x-auto pb-10 px-2 no-scrollbar">
                {announcements.length === 0 ? (
                  <div className="w-full py-20 text-center bg-white rounded-[3rem] border border-slate-50">
                     <Megaphone className="w-12 h-12 text-slate-100 mx-auto mb-4" />
@@ -467,8 +467,8 @@ function DashboardContent() {
       {/* Share Hub Modal */}
       <AnimatePresence>
         {showShareHub && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center" onClick={() => setShowShareHub(false)}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 220 }} onClick={e => e.stopPropagation()} className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-sm p-8 pb-16 sm:pb-10 shadow-2xl space-y-5">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center p-4" onClick={() => setShowShareHub(false)}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 220 }} onClick={e => e.stopPropagation()} className="bg-white rounded-[2.5rem] w-full max-w-sm p-6 pb-8 shadow-2xl space-y-5 mb-4 sm:mb-0">
               <div className="flex justify-between items-center mb-2">
                 <div>
                   <h3 className="text-xl font-black text-slate-900">分享中心</h3>
@@ -584,7 +584,7 @@ function DashboardContent() {
       </AnimatePresence>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+      <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">
          <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl border border-white/5">
             <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white transition"><LayoutDashboard className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Home</span></Link>
             <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition"><ShoppingBag className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Shop</span></Link>

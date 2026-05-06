@@ -25,7 +25,8 @@ import {
   RefreshCcw,
   TrendingUp,
   Activity,
-  AlertTriangle
+  AlertTriangle,
+  Ticket
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -230,6 +231,7 @@ function AdminDashboardContent() {
               <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">快捷管理操作</h3>
               <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
                  {[
+                   { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
                    { label: "全體階級考核", icon: LayoutDashboard, action: "/api/cron/evaluate-tiers" },
                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
                    { label: "商品參數管理", icon: Settings, action: "/admin/products" },

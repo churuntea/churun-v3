@@ -4,7 +4,7 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { memberId, avatarBase64, avatarSettings, motto } = body;
+    const { memberId, avatarBase64, avatarSettings, motto, address } = body;
 
     if (!memberId) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     if (avatarUrl) updateData.avatar_url = avatarUrl;
     if (avatarSettings) updateData.avatar_settings = avatarSettings;
     if (motto !== undefined) updateData.motto = motto;
+    if (address !== undefined) updateData.address = address;
 
     if (Object.keys(updateData).length > 0) {
       const { error: dbError } = await supabase

@@ -4,21 +4,67 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { memberId, bank_account_name, bank_branch, bank_code, bank_account } = body;
+    const { 
+      memberId, 
+      bank_account_name, 
+      bank_branch, 
+      bank_code, 
+      bank_account, 
+      bank_card_photo_base64,
+      bank_card_photo_url 
+    } = body;
 
     if (!memberId) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
     }
 
-    // 更新資料庫
+    let bankCardPhotoUrl = bank_card_photo_url || '';
+
+    // 1. Process bank card/passbook photo upload if provided
+    if (bank_card_photo_base64 && bank_card_photo_base64.startsWith('data:image')) {
+      const mimeType = bank_card_photo_base64.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+      const base64Data = bank_card_photo_base64.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const ext = mimeType.split('/')[1] || 'png';
+      const fileName = `bankcard_${memberId}_${Date.now()}.${ext}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, buffer, {
+          contentType: mimeType,
+          upsert: true
+        });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+        bankCardPhotoUrl = publicUrl;
+      } else {
+        console.error('Bank Card Photo Upload Error:', uploadError);
+        return NextResponse.json({ 
+          success: false, 
+          error: `照片上傳儲存空間失敗: ${uploadError.message}` 
+        }, { status: 500 });
+      }
+    }
+
+    // Combine values into beneficiary column to be backwards compatible and avoid missing columns
+    // Format: bank_account_name|bank_branch|bank_card_photo_url
+    const combinedBeneficiary = [
+      bank_account_name || '', 
+      bank_branch || '', 
+      bankCardPhotoUrl || ''
+    ].join('|');
+
+    // Update members table (only using columns that exist on ALL installations)
     const { error: dbError } = await supabase
       .from('members')
       .update({
-        bank_account_name,
-        bank_branch,
         bank_code,
         bank_account,
-        beneficiary: bank_branch ? `${bank_branch} | ${bank_account_name}` : bank_account_name
+        beneficiary: combinedBeneficiary
       })
       .eq('id', memberId);
 
@@ -29,6 +75,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
+      bankCardPhotoUrl: bankCardPhotoUrl || undefined,
       message: '銀行帳戶資訊已成功更新' 
     });
 

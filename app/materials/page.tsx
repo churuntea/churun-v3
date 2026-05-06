@@ -199,7 +199,7 @@ function MaterialsContent() {
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+      <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">
          <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
             <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <LayoutDashboard className="w-5 h-5" />

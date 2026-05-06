@@ -151,7 +151,34 @@ function RegisterContent() {
         localStorage.setItem("churun_member_id", data.id);
         localStorage.setItem("churun_member_name", data.name);
         
-        // 新增上線通知
+        // 1. 自動發放 WELCOME100 迎新折價券到其庫存
+        try {
+          const { data: welcomeCoupon } = await supabase
+            .from("coupons")
+            .select("id")
+            .eq("code", "WELCOME100")
+            .maybeSingle();
+
+          if (welcomeCoupon) {
+            await supabase.from("member_coupons").insert({
+              member_id: data.id,
+              coupon_id: welcomeCoupon.id,
+              is_used: false
+            });
+
+            // 發送獲得優惠券的通知
+            await supabase.from("notifications").insert({
+              member_id: data.id,
+              title: "🎁 獲得註冊迎新折價券！",
+              content: "恭喜您獲得一張【新會員迎新折價券】！滿 $500 現折 $100，已存入您的個人券包，快到商城下單體驗吧！",
+              type: "system"
+            });
+          }
+        } catch (couponErr) {
+          console.error("自動發送迎新券失敗:", couponErr);
+        }
+
+        // 2. 新增上線通知
         if (uplineId) {
           await supabase.from("notifications").insert({
             member_id: uplineId,

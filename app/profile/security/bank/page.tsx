@@ -11,7 +11,10 @@ import {
   Loader2,
   ShieldCheck,
   AlertCircle,
-  X
+  Camera,
+  Image as ImageIcon,
+  X,
+  Upload
 } from "lucide-react";
 
 const BANK_MAP: Record<string, string> = {
@@ -52,6 +55,7 @@ const BANK_MAP: Record<string, string> = {
 
 export default function BankSettingsPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,6 +65,8 @@ export default function BankSettingsPage() {
   const [bankBranch, setBankBranch] = useState("");
   const [bankCode, setBankCode] = useState("013");
   const [bankAccount, setBankAccount] = useState("");
+  const [bankCardPhotoUrl, setBankCardPhotoUrl] = useState("");
+  const [bankCardPhotoBase64, setBankCardPhotoBase64] = useState("");
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -73,12 +79,50 @@ export default function BankSettingsPage() {
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     if (data) {
       setMemberInfo(data);
-      setBankAccountName(data.bank_account_name || "");
-      setBankBranch(data.bank_branch || "");
       setBankCode(data.bank_code || "013");
       setBankAccount(data.bank_account || "");
+
+      // Safe deserialization from beneficiary column to bypass database columns cache issue
+      let accountName = "";
+      let branchName = "";
+      let photoUrl = "";
+
+      if (data.beneficiary && data.beneficiary.includes("|")) {
+        const parts = data.beneficiary.split("|");
+        accountName = parts[0] || "";
+        branchName = parts[1] || "";
+        photoUrl = parts[2] || "";
+      } else if (data.beneficiary && !data.beneficiary.includes("|")) {
+        accountName = data.beneficiary;
+      }
+
+      setBankAccountName(accountName);
+      setBankBranch(branchName);
+      setBankCardPhotoUrl(photoUrl);
     }
     setIsLoading(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert("⚠️ 檔案容量過大，請上傳小於 8MB 的圖片");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setBankCardPhotoBase64(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
   };
 
   const handleOpenConfirm = () => {
@@ -99,7 +143,9 @@ export default function BankSettingsPage() {
           bank_account_name: bankAccountName,
           bank_branch: bankBranch,
           bank_code: bankCode,
-          bank_account: bankAccount
+          bank_account: bankAccount,
+          bank_card_photo_base64: bankCardPhotoBase64 || undefined,
+          bank_card_photo_url: bankCardPhotoUrl || undefined
         })
       });
       const result = await res.json();
@@ -124,7 +170,7 @@ export default function BankSettingsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] pb-20">
+    <div className="min-h-screen bg-[#FDFBF7] pb-24">
       {/* Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-6 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
         <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
@@ -193,6 +239,54 @@ export default function BankSettingsPage() {
               />
            </div>
 
+           {/* Photo Upload Section */}
+           <div className="space-y-2 pt-2">
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2 flex justify-between">
+                <span>拍照上傳存摺 / 銀行卡 (避免輸入錯誤)</span>
+                {bankCardPhotoUrl || bankCardPhotoBase64 ? <span className="text-emerald-500">已選取照片</span> : null}
+              </label>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*" 
+                capture="environment" 
+                className="hidden" 
+              />
+
+              <div 
+                onClick={triggerFileSelect}
+                className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50 rounded-[2rem] p-6 text-center cursor-pointer transition-all duration-300 group flex flex-col items-center justify-center gap-3 min-h-[140px] relative overflow-hidden"
+              >
+                {bankCardPhotoBase64 || bankCardPhotoUrl ? (
+                  <>
+                    <img 
+                      src={bankCardPhotoBase64 || bankCardPhotoUrl} 
+                      alt="存摺/銀行卡預覽" 
+                      className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/40 z-10 flex items-center justify-center gap-2 text-white">
+                      <Camera className="w-5 h-5 text-white animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">點選重新拍照 / 上傳</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition duration-300 border border-slate-100">
+                      <Camera className="w-5 h-5 text-slate-400 group-hover:text-emerald-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center justify-center gap-1">
+                        <Upload className="w-3 h-3" /> 點擊此處拍照上傳
+                      </p>
+                      <p className="text-[8px] text-slate-400 font-bold">支援相機拍照或相簿檔案，請確保帳號清晰可見</p>
+                    </div>
+                  </>
+                )}
+              </div>
+           </div>
+
            <button 
               onClick={handleOpenConfirm}
               className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition"
@@ -229,7 +323,7 @@ export default function BankSettingsPage() {
               <div className="text-center space-y-4">
                  <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
                     <CreditCard className="w-10 h-10 text-emerald-600" />
-                 </div>
+                  </div>
                  <h3 className="text-2xl font-black text-slate-900">確認匯款資訊？</h3>
                  <p className="text-xs text-slate-400 font-bold leading-relaxed">一旦確認，系統將會將此帳戶設為預設撥款通道。</p>
               </div>
@@ -243,6 +337,14 @@ export default function BankSettingsPage() {
                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">帳號</span>
                     <span className="text-sm font-black text-slate-800">{bankAccount}</span>
                  </div>
+                 {bankCardPhotoBase64 || bankCardPhotoUrl ? (
+                   <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
+                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">隨附存摺照片</span>
+                     <span className="text-[10px] font-black text-emerald-600 flex items-center gap-1">
+                       <CheckCircle2 className="w-3 h-3" /> 有
+                     </span>
+                   </div>
+                 ) : null}
               </div>
 
               <div className="flex gap-3">

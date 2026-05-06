@@ -72,8 +72,9 @@ function StoreContent() {
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   const [couponInput, setCouponInput] = useState("");
-  const [activeCoupon, setActiveCoupon] = useState<Coupon | null>(null);
+  const [activeCoupon, setActiveCoupon] = useState<any | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
@@ -332,7 +333,7 @@ function StoreContent() {
         </div>
       </main>
 
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+      <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">
          <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl border border-white/5">
             <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <LayoutDashboard className="w-5 h-5" />
@@ -437,7 +438,7 @@ function StoreContent() {
                      </div>
                      
                       <div className="space-y-3">
-                        {AVAILABLE_COUPONS.map(coupon => {
+                        {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map(coupon => {
                            const isSelected = activeCoupon?.code === coupon.code;
                            const canApply = totalPrice >= coupon.minSpend;
                            return (
@@ -502,7 +503,7 @@ function StoreContent() {
                                 } else if (code === "100" || code === "VIP" || code === "VIP100折") {
                                    code = "VIP100";
                                 }
-                                const found = AVAILABLE_COUPONS.find(c => c.code === code);
+                                const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
                                 if (found) {
                                    if (totalPrice < found.minSpend) {
                                       setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);

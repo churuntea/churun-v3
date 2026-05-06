@@ -14,7 +14,8 @@ import {
   Loader2,
   X,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  MapPin
 } from "lucide-react";
 
 export default function ProfileSettingsPage() {
@@ -25,6 +26,7 @@ export default function ProfileSettingsPage() {
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [avatarOffset, setAvatarOffset] = useState(0);
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
+  const [memberAddress, setMemberAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const currentUserIdRef = useRef<string | null>(null);
@@ -46,6 +48,7 @@ export default function ProfileSettingsPage() {
       setAvatarOffset(data.avatar_settings.offset || 0);
     }
     if (data?.motto) setMemberMotto(data.motto);
+    if (data?.address) setMemberAddress(data.address);
     setIsLoading(false);
   };
 
@@ -90,6 +93,7 @@ export default function ProfileSettingsPage() {
           avatarBase64: isNewUpload ? memberAvatar : null,
           avatarSettings: { zoom: avatarZoom, offset: avatarOffset },
           motto: memberMotto,
+          address: memberAddress,
         }),
       });
       const result = await res.json();
@@ -100,6 +104,7 @@ export default function ProfileSettingsPage() {
           avatar_url: result.avatarUrl || prev.avatar_url,
           avatar_settings: { zoom: avatarZoom, offset: avatarOffset },
           motto: memberMotto,
+          address: memberAddress,
         }));
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
@@ -204,6 +209,26 @@ export default function ProfileSettingsPage() {
             maxLength={40}
           />
           <p className="text-[8px] text-slate-300 font-bold text-right tracking-widest">{memberMotto.length}/40</p>
+        </div>
+
+        {/* Address */}
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
+          <div className="flex justify-between items-center px-2 mb-2">
+            <div>
+              <h2 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">會員通訊地址</h2>
+              <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Mailing Address</p>
+            </div>
+            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100">
+              <MapPin className="w-4 h-4" />
+            </div>
+          </div>
+          <input
+            type="text"
+            value={memberAddress}
+            onChange={e => setMemberAddress(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-900/10"
+            placeholder="請輸入常用收件/通訊地址..."
+          />
         </div>
 
         {/* Save Button */}

@@ -14,6 +14,14 @@ export const metadata: Metadata = {
   description: "初潤製茶所 - 精品級會員系統",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 import { CartProvider } from "./context/CartContext";
 
 export default function RootLayout({
@@ -24,9 +32,9 @@ export default function RootLayout({
   return (
     <html
       lang="zh-TW"
-      className={`${outfit.variable} h-full antialiased`}
+      className={`${outfit.variable} h-full antialiased overflow-x-hidden w-full`}
     >
-      <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans">
+      <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans overflow-x-hidden w-full">
         <CartProvider>
           <PageTransition>
             {children}

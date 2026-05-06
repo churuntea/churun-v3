@@ -44,8 +44,9 @@ function WholesaleContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [couponInput, setCouponInput] = useState("");
-  const [activeCoupon, setActiveCoupon] = useState<Coupon | null>(null);
+  const [activeCoupon, setActiveCoupon] = useState<any | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -63,6 +64,45 @@ function WholesaleContent() {
 
     const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
     setProducts(pData || []);
+
+    // 載入該會員在庫存中擁有的、未使用的優惠券
+    try {
+      const { data: mcData } = await supabase
+        .from("member_coupons")
+        .select(`
+          id,
+          is_used,
+          coupons (
+            id,
+            code,
+            name,
+            discount_type,
+            value,
+            min_spend,
+            description
+          )
+        `)
+        .eq("member_id", userId)
+        .eq("is_used", false);
+
+      if (mcData) {
+        const fetched: any[] = mcData
+          .filter((row: any) => row.coupons !== null)
+          .map((row: any) => ({
+            id: row.id, // 會員優惠券紀錄的 ID，以便結帳後標記已使用
+            code: row.coupons.code,
+            name: row.coupons.name,
+            discountType: row.coupons.discount_type,
+            value: Number(row.coupons.value),
+            minSpend: Number(row.coupons.min_spend),
+            description: row.coupons.description
+          }));
+        setUserCoupons(fetched);
+      }
+    } catch (couponErr) {
+      console.error("載入會員自訂優惠券失敗:", couponErr);
+    }
+
     setIsLoading(false);
   };
 
@@ -119,6 +159,17 @@ function WholesaleContent() {
     const result = await response.json();
     
     if (result.success) {
+      // 如果使用的是真正的資料庫優惠券，將其狀態更新為已使用！
+      if (activeCoupon && activeCoupon.id) {
+        try {
+          await supabase
+            .from("member_coupons")
+            .update({ is_used: true, used_at: new Date().toISOString() })
+            .eq("id", activeCoupon.id);
+        } catch (couponErr) {
+          console.error("更新優惠券狀態為已使用失敗:", couponErr);
+        }
+      }
       router.push(`/order-success?id=${result.orderId || ''}&amount=${finalAmount}`);
     } else {
       alert("結帳失敗: " + result.error);
@@ -209,7 +260,7 @@ function WholesaleContent() {
 
               {/* Predefined Coupon Chips (Click to use or cancel) */}
               <div className="grid grid-cols-1 gap-3">
-                 {AVAILABLE_COUPONS.map((coupon) => {
+                 {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map((coupon) => {
                     const isSelected = activeCoupon?.code === coupon.code;
                     const canApply = totalAmount >= coupon.minSpend;
                     
@@ -288,7 +339,7 @@ function WholesaleContent() {
                          } else if (code === "100" || code === "VIP" || code === "VIP100折") {
                             code = "VIP100";
                          }
-                         const found = AVAILABLE_COUPONS.find(c => c.code === code);
+                         const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
                          if (found) {
                             if (totalAmount < found.minSpend) {
                                setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
@@ -322,11 +373,11 @@ function WholesaleContent() {
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-[60]"
+            className="fixed bottom-32 left-4 right-4 z-[60] mx-auto max-w-sm"
           >
-             <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl shadow-slate-900/30 flex flex-col gap-4 border border-white/10">
+             <div className="bg-slate-900 rounded-[2.5rem] p-5 shadow-2xl shadow-slate-900/30 flex flex-col gap-3 border border-white/10">
                 {activeCoupon && discountAmount > 0 && (
-                  <div className="space-y-2 pb-3 border-b border-white/5 text-xs font-bold text-white/50">
+                  <div className="space-y-1.5 pb-2.5 border-b border-white/5 text-[10px] font-bold text-white/50">
                     <div className="flex justify-between items-center">
                       <span>商品原價總計</span>
                       <span className="line-through">${totalAmount.toLocaleString()}</span>
@@ -338,21 +389,21 @@ function WholesaleContent() {
                   </div>
                 )}
                 <div className="flex items-center justify-between w-full">
-                  <div className="space-y-1">
-                     <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.2em]">
+                  <div className="space-y-0.5">
+                     <p className="text-[7px] font-black text-white/40 uppercase tracking-[0.2em]">
                        {activeCoupon && discountAmount > 0 ? '折抵後應付' : '採購總額'} ({totalItems} 件)
                      </p>
-                     <h3 className="text-2xl font-black text-white tracking-tighter">
+                     <h3 className="text-xl font-black text-white tracking-tighter">
                        ${finalAmount.toLocaleString()}
                      </h3>
                   </div>
                   <button 
                     onClick={handleCheckout}
                     disabled={isSubmitting}
-                    className="bg-emerald-500 text-white px-8 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 flex items-center gap-3 active:scale-95 transition disabled:opacity-50"
+                    className="bg-emerald-500 text-white px-5 py-4 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 flex items-center gap-2 active:scale-95 transition disabled:opacity-50"
                   >
-                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                       <>確認結帳 <ArrowRight className="w-4 h-4" /></>
+                     {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (
+                       <>確認結帳 <ArrowRight className="w-3.5 h-3.5" /></>
                      )}
                   </button>
                 </div>
@@ -362,7 +413,7 @@ function WholesaleContent() {
       </AnimatePresence>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
+      <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">
          <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
             <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
                <LayoutDashboard className="w-5 h-5" />

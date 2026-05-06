@@ -98,13 +98,22 @@ export default function VCardPage() {
     if (info.phone) {
       ctx.fillStyle = "rgba(255,255,255,0.6)";
       ctx.font = "bold 32px sans-serif";
-      ctx.fillText("SERVICE / " + info.phone, leftX, 500);
+      ctx.fillText("SERVICE / " + info.phone, leftX, 480);
+    }
+
+    // Address
+    if (info.address) {
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.font = "bold 20px sans-serif";
+      // Limit address string length to prevent overflow off-screen on the right
+      const displayAddress = info.address.length > 25 ? info.address.substring(0, 25) + "..." : info.address;
+      ctx.fillText("ADDRESS / " + displayAddress, leftX, 535);
     }
 
     // Motto
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "italic bold 20px sans-serif";
-    ctx.fillText(info.motto || "以初心、致潤澤 — 初潤製茶所", leftX, 580);
+    ctx.fillText(info.motto || "以初心、致潤澤 — 初潤製茶所", leftX, info.address ? 595 : 560);
 
     // Profile Box
     const boxW = 420, boxH = 580;
