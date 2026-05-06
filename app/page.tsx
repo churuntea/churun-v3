@@ -94,6 +94,7 @@ function DashboardContent() {
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
   const [showShareHub, setShowShareHub] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
     const currentVersion = "3.0.0";
@@ -367,11 +368,11 @@ function DashboardContent() {
                   <span className="text-[9px] font-black uppercase tracking-widest">{copiedLink ? '已複製！' : '推薦註冊連結'}</span>
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
-                  const canvas = document.querySelector('#hidden-qr-canvas canvas') as HTMLCanvasElement;
-                  if (canvas) { const link = document.createElement('a'); link.href = canvas.toDataURL('image/png'); link.download = `churun-qr-${memberInfo?.member_code}.png`; link.click(); }
+                  setShowShareHub(false);
+                  setTimeout(() => setShowQrModal(true), 300);
                 }} className="bg-slate-900 text-white rounded-[2rem] p-5 flex flex-col items-center gap-3 shadow-xl shadow-slate-900/20">
                   <QrCode className="w-6 h-6" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">下載 QR 碼</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest">顯示 QR 碼</span>
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/profile/security/vcard'); }} className="bg-amber-50 text-amber-700 border border-amber-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
                   <IdCard className="w-6 h-6" />
@@ -423,6 +424,35 @@ function DashboardContent() {
                    <Download className="w-4 h-4" /> 確認無誤，下載儲存
                 </button>
              </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* QR Code Display Modal */}
+      <AnimatePresence>
+        {showQrModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-4" onClick={() => setShowQrModal(false)}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-[3.5rem] p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center text-center" onClick={e => e.stopPropagation()}>
+              <div className="w-full flex justify-between items-center mb-6">
+                <div>
+                  <h4 className="text-lg font-black text-slate-900 text-left">推薦 QR 碼</h4>
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest text-left mt-0.5">Sponsor QR Code</p>
+                </div>
+                <button onClick={() => setShowQrModal(false)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400"><X className="w-5 h-5" /></button>
+              </div>
+              
+              <div className="bg-emerald-50/50 p-6 rounded-[2.5rem] border border-emerald-50/50 mb-6 flex justify-center items-center shadow-inner">
+                <QRCodeCanvas value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo?.member_code}`} size={200} level="H" className="rounded-2xl p-3 bg-white shadow-md border border-slate-100" />
+              </div>
+
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">我的推薦代碼</p>
+              <h4 className="text-2xl font-black text-emerald-900 tracking-widest mt-1 mb-4">{memberInfo?.member_code}</h4>
+              <p className="text-xs text-slate-500 font-bold px-4 leading-relaxed">
+                新夥伴掃描此 QR 碼，系統將自動填入並鎖定您的推薦人代碼。
+              </p>
+              
+              <button onClick={() => setShowQrModal(false)} className="mt-8 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition">關閉</button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
