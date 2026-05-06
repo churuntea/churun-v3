@@ -39,6 +39,21 @@ const TIER_RATES: Record<string, number> = {
   '初潤寶寶': 100
 };
 
+interface Coupon {
+  code: string;
+  name: string;
+  discountType: 'fixed' | 'percent';
+  value: number; // e.g. 200 for fixed, 12 for percent
+  minSpend: number;
+  description: string;
+}
+
+const AVAILABLE_COUPONS: Coupon[] = [
+  { code: "WELCOME200", name: "新會員入會折 $200", discountType: "fixed", value: 200, minSpend: 1000, description: "新客滿千折 $200" },
+  { code: "CHURUN88", name: "初潤創業 88 折", discountType: "percent", value: 12, minSpend: 2000, description: "滿 $2,000 享 88 折優惠" },
+  { code: "VIP100", name: "貴賓體驗折 $100", discountType: "fixed", value: 100, minSpend: 500, description: "滿 $500 現折 $100" }
+];
+
 function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
@@ -54,8 +69,26 @@ function StoreContent() {
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
+  const [couponInput, setCouponInput] = useState("");
+  const [activeCoupon, setActiveCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
+
+  const getDiscountAmount = () => {
+    if (!activeCoupon) return 0;
+    if (totalPrice < activeCoupon.minSpend) return 0;
+    
+    if (activeCoupon.discountType === 'fixed') {
+      return activeCoupon.value;
+    } else if (activeCoupon.discountType === 'percent') {
+      return Math.floor(totalPrice * (activeCoupon.value / 100));
+    }
+    return 0;
+  };
+
+  const discountAmount = getDiscountAmount();
+  const finalPrice = Math.max(0, totalPrice - discountAmount);
 
   const getProductQty = (id: string) => productQuantities[id] || 1;
   const updateProductQty = (id: string, delta: number) => {
@@ -127,7 +160,9 @@ function StoreContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           buyer_id: memberInfo.id,
-          items: cart.map(item => ({ id: item.id, quantity: item.quantity }))
+          items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
+          discountAmount: discountAmount,
+          couponCode: activeCoupon ? activeCoupon.code : null
         })
       });
       const data = await res.json();
@@ -385,6 +420,88 @@ function StoreContent() {
                     </div>
                   ))
                 )}
+
+                {/* Promo Coupons Section */}
+                {cart.length > 0 && (
+                  <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
+                     <div className="flex justify-between items-center">
+                        <div>
+                           <h4 className="font-black text-xs text-slate-800 uppercase tracking-wider">🎟️ 選擇優惠券</h4>
+                           <p className="text-[8px] font-bold text-slate-400 mt-0.5">Select Coupon</p>
+                        </div>
+                        {activeCoupon && (
+                           <button onClick={() => { setActiveCoupon(null); setCouponError(null); }} className="text-[10px] font-black text-rose-500 hover:underline">取消套用</button>
+                        )}
+                     </div>
+                     
+                     <div className="space-y-3">
+                        {AVAILABLE_COUPONS.map(coupon => {
+                           const isSelected = activeCoupon?.code === coupon.code;
+                           const canApply = totalPrice >= coupon.minSpend;
+                           return (
+                             <div 
+                               key={coupon.code}
+                               onClick={() => {
+                                  if (isSelected) {
+                                     setActiveCoupon(null);
+                                  } else {
+                                     setActiveCoupon(coupon);
+                                     setCouponError(null);
+                                  }
+                               }}
+                               className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center relative overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 hover:border-slate-200'}`}
+                             >
+                                <div className="space-y-0.5 pr-4">
+                                   <div className="flex items-center gap-1.5">
+                                      <span className="font-black text-[9px] text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{coupon.code}</span>
+                                      <span className="font-bold text-xs text-slate-700">{coupon.name}</span>
+                                   </div>
+                                   <p className="text-[9px] text-slate-400">{coupon.description}</p>
+                                   {!canApply && (
+                                      <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1">還差 ${coupon.minSpend - totalPrice} 即可折抵</p>
+                                   )}
+                                </div>
+                                <span className={`font-black text-sm shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                   {coupon.discountType === 'fixed' ? `$${coupon.value}` : `${10 - (coupon.value/10)}折`}
+                                </span>
+                             </div>
+                           );
+                        })}
+                     </div>
+
+                     <div className="space-y-1.5">
+                        <div className="flex gap-2">
+                           <input 
+                             type="text" 
+                             value={couponInput}
+                             onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                             placeholder="輸入優惠代碼" 
+                             className="flex-1 bg-slate-50 border-none p-3 rounded-xl text-xs font-bold"
+                          />
+                           <button 
+                             onClick={() => {
+                                const code = couponInput.trim().toUpperCase();
+                                const found = AVAILABLE_COUPONS.find(c => c.code === code);
+                                if (found) {
+                                   if (totalPrice < found.minSpend) {
+                                      setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
+                                   } else {
+                                      setActiveCoupon(found);
+                                      setCouponError(null);
+                                   }
+                                } else {
+                                   setCouponError("找不到此優惠代碼");
+                                }
+                             }}
+                             className="px-4 bg-slate-900 text-white rounded-xl text-xs font-black"
+                           >
+                              套用
+                           </button>
+                        </div>
+                        {couponError && <p className="text-[9px] font-bold text-rose-500 ml-1">{couponError}</p>}
+                     </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-8 bg-slate-50 space-y-6">
@@ -393,15 +510,21 @@ function StoreContent() {
                     <span>商品小計</span>
                     <span>${totalPrice.toLocaleString()}</span>
                   </div>
+                  {activeCoupon && discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-rose-500 uppercase tracking-widest">
+                      <span>優惠折抵 ({activeCoupon.name})</span>
+                      <span>-${discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
                     <span>預計回饋紅利</span>
                     <span className="text-emerald-600">
-                      +{memberInfo ? Math.floor(totalPrice / (TIER_RATES[memberInfo.tier] || 100)) : 0} pts
+                      +{memberInfo ? Math.floor(finalPrice / (TIER_RATES[memberInfo.tier] || 100)) : 0} pts
                     </span>
                   </div>
                   <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-sm font-black text-slate-800 uppercase tracking-widest">總計金額</span>
-                    <span className="text-2xl font-black text-slate-900">${totalPrice.toLocaleString()}</span>
+                    <span className="text-2xl font-black text-slate-900">${finalPrice.toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -454,16 +577,28 @@ function StoreContent() {
                  ))}
               </div>
 
-              <div className="pt-6 border-t border-slate-100 mb-8 flex justify-between items-center">
-                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">應付總額</span>
-                 <span className="text-xl font-black text-slate-900">${totalPrice.toLocaleString()}</span>
+              <div className="pt-6 border-t border-slate-100 mb-8 space-y-2">
+                 <div className="flex justify-between items-center text-xs font-bold text-slate-400">
+                    <span>商品小計</span>
+                    <span>${totalPrice.toLocaleString()}</span>
+                 </div>
+                 {activeCoupon && discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-rose-500">
+                       <span>優惠折抵 ({activeCoupon.name})</span>
+                       <span>-${discountAmount.toLocaleString()}</span>
+                    </div>
+                 )}
+                 <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">應付總額</span>
+                    <span className="text-xl font-black text-slate-900">${finalPrice.toLocaleString()}</span>
+                 </div>
               </div>
 
               <div className="space-y-4">
                  <button 
                    onClick={() => {
                      setShowConfirmModal(false);
-                     setLastOrderAmount(totalPrice);
+                     setLastOrderAmount(finalPrice);
                      setIsOrderCreated(false);
                      setShowPaymentModal(true);
                    }}
