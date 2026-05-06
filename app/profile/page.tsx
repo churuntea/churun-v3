@@ -65,11 +65,58 @@ function ProfileContent() {
     router.replace("/login");
   };
 
-  const getTierBenefits = (tier: string) => {
+  const getTierBenefits = (tierName: string) => {
+    const cleanTier = tierName.startsWith('初潤') ? tierName : `初潤${tierName}`;
+    
+    const BENEFITS_MAP: Record<string, string[]> = {
+      '初潤靈魂伴侶': [
+        '專屬匯率：30元 = 1點', 
+        '累積消費滿 $50,000 晉升', 
+        '每月保級：消費 $1,000 或 直推 3 人', 
+        '季度分紅特權與專屬行銷海報'
+      ],
+      '初潤知己': [
+        '專屬匯率：40元 = 1點', 
+        '累積消費滿 $25,000 晉升', 
+        '每月保級：消費 $600 或 直推 2 人', 
+        '組織管理與分潤特權'
+      ],
+      '初潤閨蜜': [
+        '專屬匯率：50元 = 1點', 
+        '累積滿 $12,000 (或儲值 1 萬直升)', 
+        '每季保級：消費 $1,200 或 直推 2 人', 
+        '消費點數回饋'
+      ],
+      '初潤好朋友': [
+        '專屬匯率：60元 = 1點', 
+        '累積消費滿 $6,000 晉升', 
+        '每季保級：消費 $600 或 直推 1 人'
+      ],
+      '初潤青少年': [
+        '專屬匯率：70元 = 1點', 
+        '累積消費滿 $3,000 晉升', 
+        '無保級壓力'
+      ],
+      '初潤小朋友': [
+        '專屬匯率：80元 = 1點', 
+        '累積消費滿 $1,500 晉升', 
+        '無保級壓力'
+      ],
+      '初潤幼兒園': [
+        '專屬匯率：90元 = 1點', 
+        '完成首次消費即可晉升', 
+        '無保級壓力'
+      ],
+      '初潤寶寶': [
+        '專屬匯率：100元 = 1點', 
+        '加入 LINE@ 註冊即可獲得', 
+        '無保級壓力'
+      ]
+    };
+
     const defaultBenefits = ["專屬客服支援", "電子會員名片", "最新產品資訊"];
-    if (tier === "靈魂伴侶") return [...defaultBenefits, "季度分紅特權", "組織管理權限", "專屬行銷海報"];
-    if (tier === "親密夥伴") return [...defaultBenefits, "消費點數回饋", "組織分潤特權"];
-    return defaultBenefits;
+    const matched = BENEFITS_MAP[tierName] || BENEFITS_MAP[cleanTier];
+    return matched || defaultBenefits;
   };
 
   if (isLoading || !memberInfo) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;

@@ -25,14 +25,14 @@ function AdminWithdrawalsContent() {
   const [filter, setFilter] = useState('pending');
 
   useEffect(() => {
-    // 簡單的 Admin 驗證 (延用之前的邏輯)
-    const isAdmin = sessionStorage.getItem("is_admin");
-    if (!isAdmin) {
+    // 統一的 Admin 驗證 (改用 churun_admin_auth)
+    const isAdmin = sessionStorage.getItem("churun_admin_auth");
+    if (isAdmin !== "true") {
       const pass = prompt("請輸入管理密碼:");
       if (pass === "admin123") {
-        sessionStorage.setItem("is_admin", "true");
+        sessionStorage.setItem("churun_admin_auth", "true");
       } else {
-        router.push("/");
+        router.push("/admin");
         return;
       }
     }

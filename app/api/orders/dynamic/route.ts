@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       type: 'order'
     });
 
-    return NextResponse.json({ success: true, message });
+    return NextResponse.json({ success: true, message, orderId: order.id });
 
   } catch (error: any) {
     console.error('Order Error:', error);

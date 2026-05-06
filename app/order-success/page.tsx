@@ -34,7 +34,7 @@ function OrderSuccessContent() {
              transition={{ duration: 2 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}
              className="absolute bottom-0 left-1/2"
            >
-              <Sparkles className={`w-${Math.floor(Math.random() * 4 + 4)} h-${Math.floor(Math.random() * 4 + 4)} text-amber-300`} />
+              <Sparkles style={{ width: Math.floor(Math.random() * 12 + 16), height: Math.floor(Math.random() * 12 + 16) }} className="text-amber-300" />
            </motion.div>
          ))}
       </div>

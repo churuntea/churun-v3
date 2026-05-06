@@ -51,6 +51,25 @@ const TIERS = [
   { name: '初潤寶寶', upgradeAmount: 0 }
 ];
 
+const TIER_SORT_ORDER: Record<string, number> = {
+  '初潤靈魂伴侶': 0,
+  '靈魂伴侶': 0,
+  '初潤知己': 1,
+  '知己': 1,
+  '初潤閨蜜': 2,
+  '閨蜜': 2,
+  '初潤好朋友': 3,
+  '好朋友': 3,
+  '初潤青少年': 4,
+  '青少年': 4,
+  '初潤小朋友': 5,
+  '小朋友': 5,
+  '初潤幼兒園': 6,
+  '幼兒園': 6,
+  '初潤寶寶': 7,
+  '寶寶': 7
+};
+
 function TeamPerformanceChart({ data }: { data: any[] }) {
   const chartData = data.slice(0, 5).map(m => ({
     name: m.name.length > 4 ? m.name.substring(0, 4) + '...' : m.name,
@@ -128,7 +147,16 @@ function OrganizationContent() {
       .eq("upline_id", userId)
       .order("created_at", { ascending: false });
 
-    setDownlines(data || []);
+    const sorted = (data || []).sort((a, b) => {
+      const orderA = TIER_SORT_ORDER[a.tier] ?? 99;
+      const orderB = TIER_SORT_ORDER[b.tier] ?? 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    setDownlines(sorted);
     calculateProgress(mData, data || []);
     setIsLoading(false);
   };

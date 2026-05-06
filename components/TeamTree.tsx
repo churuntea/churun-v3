@@ -14,6 +14,25 @@ import {
 } from "lucide-react";
 import { supabase } from "@/app/supabase";
 
+const TIER_SORT_ORDER: Record<string, number> = {
+  '初潤靈魂伴侶': 0,
+  '靈魂伴侶': 0,
+  '初潤知己': 1,
+  '知己': 1,
+  '初潤閨蜜': 2,
+  '閨蜜': 2,
+  '初潤好朋友': 3,
+  '好朋友': 3,
+  '初潤青少年': 4,
+  '青少年': 4,
+  '初潤小朋友': 5,
+  '小朋友': 5,
+  '初潤幼兒園': 6,
+  '幼兒園': 6,
+  '初潤寶寶': 7,
+  '寶寶': 7
+};
+
 interface MemberNodeProps {
   member: any;
   level: number;
@@ -32,7 +51,18 @@ function MemberNode({ member, level }: MemberNodeProps) {
       .select("*")
       .eq("upline_id", member.id)
       .order("created_at", { ascending: false });
-    setDownlines(data || []);
+    
+    // Sort by membership tier first, then by created_at descending
+    const sorted = (data || []).sort((a, b) => {
+      const orderA = TIER_SORT_ORDER[a.tier] ?? 99;
+      const orderB = TIER_SORT_ORDER[b.tier] ?? 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    setDownlines(sorted);
     setIsLoading(false);
   };
 

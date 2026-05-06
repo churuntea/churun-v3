@@ -145,6 +145,48 @@ function DashboardContent() {
     setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
+  const getUpgradeProgress = () => {
+    if (!memberInfo) return { label: "升級進度", current: 0, target: 50000, percent: 0, nextTierName: "" };
+
+    const UPGRADE_TIERS = [
+      { name: '初潤寶寶', upgradeAmount: 0 },
+      { name: '初潤幼兒園', upgradeAmount: 1 },
+      { name: '初潤小朋友', upgradeAmount: 1500 },
+      { name: '初潤青少年', upgradeAmount: 3000 },
+      { name: '初潤好朋友', upgradeAmount: 6000 },
+      { name: '初潤閨蜜', upgradeAmount: 12000 },
+      { name: '初潤知己', upgradeAmount: 25000 },
+      { name: '初潤靈魂伴侶', upgradeAmount: 50000 }
+    ];
+
+    const currentTierName = memberInfo.tier || '初潤寶寶';
+    const currentTierIdx = UPGRADE_TIERS.findIndex(t => t.name === currentTierName);
+    
+    // If they are at the highest tier
+    if (currentTierIdx === -1 || currentTierIdx === UPGRADE_TIERS.length - 1) {
+      return {
+        label: "已達最高職級 (初潤靈魂伴侶)",
+        current: Number(memberInfo.lifetime_spend || 0),
+        target: 50000,
+        percent: 100,
+        nextTierName: ""
+      };
+    }
+
+    const nextTier = UPGRADE_TIERS[currentTierIdx + 1];
+    const current = Number(memberInfo.lifetime_spend || 0);
+    const target = nextTier.upgradeAmount;
+    const percent = Math.min((current / target) * 100, 100);
+
+    return {
+      label: `升級進度 (下階段：${nextTier.name})`,
+      current,
+      target,
+      percent,
+      nextTierName: nextTier.name
+    };
+  };
+
   const handleGeneratePoster = async (template: any) => {
     setSelectedPoster(template);
     setShowPosterSelector(false);
@@ -259,18 +301,102 @@ function DashboardContent() {
                    </div>
                 </div>
   
-                <Link href="/rewards" className="mt-12 space-y-3 block group/prog cursor-pointer relative z-10">
-                   <div className="flex justify-between items-end">
-                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">升級進度 (本季累積)</p>
-                      <div className="flex items-center gap-2">
-                         <p className="text-[10px] font-black text-amber-300">${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
-                         <ChevronRight className="w-3 h-3 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
-                      </div>
-                   </div>
-                   <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%` }} transition={{ duration: 1.5, ease: "circOut" }} className="h-full bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 relative" />
-                   </div>
-                </Link>
+                {(() => {
+                   const UPGRADE_TIERS = [
+                     { name: '初潤寶寶', upgradeAmount: 0, rate: 100 },
+                     { name: '初潤幼兒園', upgradeAmount: 1, rate: 90 },
+                     { name: '初潤小朋友', upgradeAmount: 1500, rate: 80 },
+                     { name: '初潤青少年', upgradeAmount: 3000, rate: 70 },
+                     { name: '初潤好朋友', upgradeAmount: 6000, rate: 60 },
+                     { name: '初潤閨蜜', upgradeAmount: 12000, rate: 50 },
+                     { name: '初潤知己', upgradeAmount: 25000, rate: 40 },
+                     { name: '初潤靈魂伴侶', upgradeAmount: 50000, rate: 30 }
+                   ];
+
+                   const currentTierName = memberInfo?.tier || '初潤寶寶';
+                   const currentTierIdx = UPGRADE_TIERS.findIndex(t => t.name === currentTierName);
+                   
+                   let displayPercent = 0;
+                   let remainingAmount = 0;
+                   let nextTier = null;
+                   
+                   if (currentTierIdx !== -1 && currentTierIdx < UPGRADE_TIERS.length - 1) {
+                     nextTier = UPGRADE_TIERS[currentTierIdx + 1];
+                     const currentTierObj = UPGRADE_TIERS[currentTierIdx];
+                     const startRange = currentTierObj.upgradeAmount;
+                     const targetRange = nextTier.upgradeAmount;
+                     const userLifetime = Number(memberInfo?.lifetime_spend || 0);
+                     
+                     // RPG Math: Progress = (User - Start) / (Target - Start)
+                     const rangeTotal = targetRange - startRange;
+                     const userSpendInRange = Math.max(0, userLifetime - startRange);
+                     displayPercent = Math.min((userSpendInRange / rangeTotal) * 100, 100);
+                     remainingAmount = Math.max(0, targetRange - userLifetime);
+                   } else {
+                     displayPercent = 100;
+                   }
+
+                   return (
+                     <Link href="/rewards" className="mt-10 block group/prog cursor-pointer relative z-10 space-y-4">
+                        {/* Upper Info Row */}
+                        <div className="flex justify-between items-end">
+                           <div className="space-y-1">
+                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">晉級挑戰</span>
+                              <h4 className="text-xs font-black text-white group-hover/prog:text-amber-300 transition-colors flex items-center gap-1">
+                                 {nextTier ? `LEVEL UP TO ${nextTier.name}` : '已達成滿級神話！'}
+                                 <ChevronRight className="w-3.5 h-3.5 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
+                              </h4>
+                           </div>
+                           <div className="text-right">
+                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">EXP PROGRESS</span>
+                              <p className="text-xs font-black text-amber-300 tracking-tighter">
+                                 {nextTier 
+                                   ? `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} / $${nextTier.upgradeAmount.toLocaleString()}`
+                                   : `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} (LOCKED)`
+                                 }
+                              </p>
+                           </div>
+                        </div>
+
+                        {/* Gamified RPG Progress Bar */}
+                        <div className="relative">
+                           <div className="h-4 w-full bg-slate-950/60 rounded-full overflow-hidden border border-white/5 p-[2px] flex items-center relative shadow-inner">
+                              <motion.div 
+                                initial={{ width: 0 }} 
+                                animate={{ width: `${displayPercent}%` }} 
+                                transition={{ duration: 1.5, ease: "circOut" }} 
+                                className="h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 rounded-full relative shadow-lg"
+                              >
+                                 {/* Glowing Lead Light */}
+                                 <div className="absolute right-0 top-0 bottom-0 w-3 bg-white blur-[2px] rounded-full animate-pulse"></div>
+                              </motion.div>
+                           </div>
+                           
+                           {/* Left/Right Tier Markers */}
+                           <div className="flex justify-between items-center mt-2 px-1">
+                              <span className="text-[9px] font-black text-white/50 tracking-widest">${currentTierName}</span>
+                              {nextTier && (
+                                <span className="text-[9px] font-black text-amber-400/90 tracking-widest flex items-center gap-1 animate-pulse">
+                                   👑 ${nextTier.name}
+                                </span>
+                              )}
+                           </div>
+                        </div>
+
+                        {/* Motivation Text Banner */}
+                        {nextTier && remainingAmount > 0 && (
+                          <div className="bg-white/5 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/5 flex items-center gap-3.5 mt-2 shadow-inner">
+                             <div className="w-7 h-7 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 shrink-0">
+                                <span className="text-amber-400 font-black text-[10px] animate-bounce">🔥</span>
+                             </div>
+                             <p className="text-[10px] font-bold text-white/85 leading-relaxed">
+                                還差 <span className="text-amber-300 font-black">$${remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">${nextTier.rate}元 = 1點</span>
+                             </p>
+                          </div>
+                        )}
+                     </Link>
+                   );
+                 })()}
               </div>
            </motion.div>
         </motion.section>

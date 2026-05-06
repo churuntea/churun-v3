@@ -41,8 +41,16 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: '新密碼長度必須大於或等於 6 個字元' });
+      return;
+    }
     if (formData.newPassword !== formData.confirmPassword) {
       setMessage({ type: 'error', text: '新密碼與確認密碼不符' });
+      return;
+    }
+    if (formData.currentPassword === formData.newPassword) {
+      setMessage({ type: 'error', text: '新密碼不可與目前密碼相同' });
       return;
     }
 

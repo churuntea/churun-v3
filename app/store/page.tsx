@@ -51,6 +51,7 @@ interface Coupon {
 const AVAILABLE_COUPONS: Coupon[] = [
   { code: "WELCOME200", name: "新會員入會折 $200", discountType: "fixed", value: 200, minSpend: 1000, description: "新客滿千折 $200" },
   { code: "CHURUN88", name: "初潤創業 88 折", discountType: "percent", value: 12, minSpend: 2000, description: "滿 $2,000 享 88 折優惠" },
+  { code: "CHURUN95", name: "體驗 95 折", discountType: "percent", value: 5, minSpend: 100, description: "滿 $100 即可享 95 折體驗" },
   { code: "VIP100", name: "貴賓體驗折 $100", discountType: "fixed", value: 100, minSpend: 500, description: "滿 $500 現折 $100" }
 ];
 
@@ -67,6 +68,7 @@ function StoreContent() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   const [couponInput, setCouponInput] = useState("");
@@ -467,7 +469,7 @@ function StoreContent() {
                                    )}
                                 </div>
                                 <span className={`font-black text-sm shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-700'}`}>
-                                   {coupon.discountType === 'fixed' ? `$${coupon.value}` : `${10 - (coupon.value/10)}折`}
+                                   {coupon.discountType === 'fixed' ? `$${coupon.value}` : `${100 - coupon.value}折`}
                                 </span>
                              </div>
                            );
@@ -485,15 +487,26 @@ function StoreContent() {
                           />
                            <button 
                              onClick={() => {
-                                const code = couponInput.trim().toUpperCase();
+                                let code = couponInput.trim().toUpperCase();
                                 if (!code) {
                                    setCouponError("請輸入優惠代碼");
                                    return;
+                                }
+                                // Map friendly user input variations
+                                if (code === "88" || code === "88折" || code === "CHURUN88折") {
+                                   code = "CHURUN88";
+                                } else if (code === "95" || code === "95折" || code === "CHURUN95折") {
+                                   code = "CHURUN95";
+                                } else if (code === "200" || code === "WELCOME" || code === "WELCOME200折") {
+                                   code = "WELCOME200";
+                                } else if (code === "100" || code === "VIP" || code === "VIP100折") {
+                                   code = "VIP100";
                                 }
                                 const found = AVAILABLE_COUPONS.find(c => c.code === code);
                                 if (found) {
                                    if (totalPrice < found.minSpend) {
                                       setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
+                                      setActiveCoupon(null);
                                    } else {
                                       setActiveCoupon(found);
                                       setCouponError(null);

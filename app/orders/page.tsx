@@ -214,6 +214,16 @@ function OrdersContent() {
                                      <span className="text-sm font-black text-slate-900">${Number(item.price * item.quantity).toLocaleString()}</span>
                                   </div>
                                 ))}
+
+                                {order.original_amount > order.total_amount && (
+                                   <div className="flex justify-between items-center bg-rose-50/50 p-4 rounded-2xl border border-rose-100 text-rose-600 mt-2">
+                                      <div className="flex flex-col gap-1">
+                                         <span className="text-sm font-black">優惠折抵</span>
+                                         <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">折扣碼優惠</span>
+                                      </div>
+                                      <span className="text-sm font-black">-${Number(order.original_amount - order.total_amount).toLocaleString()}</span>
+                                   </div>
+                                )}
                              </div>
                           </motion.div>
                         )}
