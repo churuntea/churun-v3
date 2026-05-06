@@ -11,7 +11,10 @@ import {
   ChevronRight,
   AlertCircle,
   Loader2,
-  Lock
+  Lock,
+  Camera,
+  CreditCard,
+  IdCard
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../supabase";
@@ -49,6 +52,30 @@ export default function SecurityPage() {
 
   const securityItems = [
     { 
+      title: "個人資料設定", 
+      desc: "編輯頭像、名稱與個人座右銘", 
+      icon: Camera, 
+      status: "點擊編輯", 
+      color: "text-emerald-500 bg-emerald-50",
+      action: () => router.push("/profile/security/profile-settings")
+    },
+    { 
+      title: "銀行帳戶設定", 
+      desc: "新增或變更提款銀行帳戶", 
+      icon: CreditCard, 
+      status: "點擊設定", 
+      color: "text-indigo-500 bg-indigo-50",
+      action: () => router.push("/profile/security/bank")
+    },
+    { 
+      title: "VIP 電子名片", 
+      desc: "查看與下載個人專屬名片", 
+      icon: IdCard, 
+      status: "點擊查看", 
+      color: "text-amber-500 bg-amber-50",
+      action: () => router.push("/profile/security/vcard")
+    },
+    { 
       title: "修改登入密碼", 
       desc: "定期更換密碼以保護帳號安全", 
       icon: Key, 
@@ -77,7 +104,7 @@ export default function SecurityPage() {
       desc: "查看最近的登入地點與時間", 
       icon: History, 
       status: "正常", 
-      color: "text-indigo-500 bg-indigo-50",
+      color: "text-rose-500 bg-rose-50",
       action: () => alert("登入紀錄查詢功能開發中，敬請期待")
     },
   ];
@@ -89,7 +116,7 @@ export default function SecurityPage() {
          <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
             <ArrowLeft className="w-4 h-4 text-slate-400" />
          </button>
-         <h1 className="text-xs font-black tracking-[0.3em] text-slate-800 uppercase">帳號安全中心</h1>
+         <h1 className="text-xs font-black tracking-[0.3em] text-slate-800 uppercase">資料安全設定</h1>
          <div className="w-10"></div>
       </nav>
 
@@ -110,13 +137,13 @@ export default function SecurityPage() {
 
          {/* Security Checklist */}
          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">安全功能設定</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">個人資料與安全設定</h3>
             {securityItems.map((item, i) => (
               <motion.div 
                 key={i}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.07 }}
                 className="bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
                 onClick={item.action}
               >

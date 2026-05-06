@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
+import { QRCodeCanvas } from "qrcode.react";
 import { 
   Package,
   User, 
@@ -29,8 +30,14 @@ import {
   Users,
   Sparkles,
   CheckCircle2,
-  X
+  X,
+  Camera,
+  Download,
+  IdCard
 } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
+
+const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
 
 function ProfileContent() {
   const router = useRouter();
@@ -41,10 +48,7 @@ function ProfileContent() {
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
+    if (!savedId) { router.replace("/login"); return; }
     fetchData(savedId);
   }, [router]);
 
@@ -55,292 +59,149 @@ function ProfileContent() {
     setIsLoading(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem("churun_member_id");
-    localStorage.removeItem("churun_member_name");
-    router.push("/login");
+    router.replace("/login");
   };
-
-  if (isLoading || !memberInfo) return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>
-  );
-
-  const isBankMissing = !memberInfo.bank_account || !memberInfo.bank_code;
 
   const getTierBenefits = (tier: string) => {
-    if (tier.includes('靈魂伴侶')) return [
-      "個人消費 30% 點數回饋",
-      "直推夥伴 10% 分潤獎金",
-      "間接夥伴 5% 組織獎勵",
-      "專屬品牌素材優先下載",
-      "季度領袖培訓課程"
-    ];
-    if (tier.includes('知己')) return [
-      "個人消費 20% 點數回饋",
-      "直推夥伴 8% 分潤獎金",
-      "受邀參與品牌線下聚會"
-    ];
-    return [
-      "個人消費 10% 點數回饋",
-      "直推夥伴 5% 分潤獎金"
-    ];
+    const defaultBenefits = ["專屬客服支援", "電子會員名片", "最新產品資訊"];
+    if (tier === "靈魂伴侶") return [...defaultBenefits, "季度分紅特權", "組織管理權限", "專屬行銷海報"];
+    if (tier === "親密夥伴") return [...defaultBenefits, "消費點數回饋", "組織分潤特權"];
+    return defaultBenefits;
   };
+
+  if (isLoading || !memberInfo) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
-      
       {/* Header */}
-      <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
-        <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">尊榮個人中心</h1>
-        <button onClick={handleLogout} className="w-10 h-10 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 shadow-sm border border-rose-100 hover:bg-rose-100 transition">
-           <LogOut className="w-4 h-4" />
-        </button>
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
+         <button onClick={() => router.push("/")} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+            <LayoutDashboard className="w-4 h-4 text-slate-400" />
+         </button>
+         <h1 className="text-xs font-black tracking-[0.3em] text-slate-800 uppercase leading-none">會員中心</h1>
+         <Link href="/profile/security" className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+            <Settings className="w-4 h-4 text-slate-400" />
+         </Link>
       </nav>
 
-      <main className="max-w-lg mx-auto p-6 space-y-8 mt-4">
+      <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
         
-        {/* Bank Warning Alert */}
-        {isBankMissing && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-amber-900 rounded-[2rem] p-6 text-white flex items-center gap-6 shadow-xl shadow-amber-900/20 border border-amber-800"
-          >
-             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-amber-300" />
-             </div>
-             <div className="flex-1 space-y-1">
-                <h4 className="text-sm font-black tracking-tight">未設定匯款帳戶</h4>
-                <p className="text-[10px] text-white/50 leading-relaxed">請儘速完成設定，以免影響您的分潤提領。</p>
-             </div>
-             <Link href="/transactions" className="bg-amber-400 text-amber-950 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                去設定
-             </Link>
-          </motion.div>
-        )}
+        {/* Interactive VIP Card */}
+        <div className="relative h-80 w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+            <motion.div 
+              animate={{ rotateY: isFlipped ? 180 : 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100 }}
+              className="relative w-full h-full preserve-3d shadow-2xl shadow-emerald-900/10 rounded-[3.5rem]"
+            >
+               {/* Card Front */}
+               <div className="absolute inset-0 backface-hidden bg-mesh-emerald rounded-[3.5rem] p-10 text-white flex flex-col justify-between overflow-hidden">
+                  <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
+                  <div className="relative z-10 flex justify-between items-start">
+                     <div>
+                        <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-2">Member Account</p>
+                        <h2 className="text-3xl font-black tracking-tight">{memberInfo.name}</h2>
+                     </div>
+                     <div onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }} className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/20 transition">
+                        <Sparkles className="w-3 h-3 text-amber-300" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
+                     </div>
+                  </div>
+                  <div className="flex justify-between items-end relative z-10">
+                     <div className="space-y-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
+                        <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
+                     </div>
+                     <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
+                  </div>
+               </div>
 
-        {/* 3D Flip Membership Card */}
-        <div className="perspective-1000 h-[220px] w-full" onClick={() => setIsFlipped(!isFlipped)}>
-           <motion.div 
-             animate={{ rotateY: isFlipped ? 180 : 0 }}
-             transition={{ duration: 0.8, type: "spring", stiffness: 100, damping: 20 }}
-             className="relative w-full h-full preserve-3d cursor-pointer"
-           >
-              {/* Card Front */}
-              <div className={`absolute inset-0 backface-hidden rounded-[3rem] p-10 text-white flex flex-col justify-between shadow-2xl ${
-                memberInfo.tier.includes('靈魂伴侶') ? 'bg-slate-900' : 'bg-emerald-900'
-              }`}>
-                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-                 
-                 {/* Avatar Background Layer (Premium Aesthetic) */}
-                 {memberInfo.avatar_url && (
-                   <div className="absolute top-0 right-0 w-64 h-64 overflow-hidden pointer-events-none opacity-10 blur-xl -mr-16 -mt-16">
-                      <img 
-                        src={memberInfo.avatar_url} 
-                        className="w-full h-full object-cover" 
-                        style={{ transform: `scale(${(memberInfo.avatar_settings?.zoom || 1) * 1.5}) translateY(${(memberInfo.avatar_settings?.offset || 0) / 2}px)` }}
-                      />
-                   </div>
-                 )}
-
-                 <div className="flex justify-between items-start relative z-10">
-                    <div className="flex items-center gap-5">
-                       {memberInfo.avatar_url ? (
-                         <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
-                            <img 
-                              src={memberInfo.avatar_url} 
-                              className="w-full h-full object-cover" 
-                              style={{ transform: `scale(${memberInfo.avatar_settings?.zoom || 1}) translateY(${(memberInfo.avatar_settings?.offset || 0) / 4}px)` }}
-                            />
-                         </div>
-                       ) : (
-                         <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10">
-                            <User className="w-8 h-8 text-white/20" />
-                         </div>
-                       )}
-                        <div className="space-y-1">
-                           <h2 className="text-3xl font-black tracking-tight leading-none">{memberInfo.name}</h2>
-                           <p className="text-[9px] font-bold text-white/50 tracking-[0.2em] italic mt-2">
-                              「{memberInfo.motto || '以初心、致潤澤'}」
-                           </p>
-                           <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-2">{memberInfo.member_code}</p>
-                        </div>
-                    </div>
-                    <div 
-                      onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }}
-                      className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2 hover:bg-white/20 transition cursor-help"
-                    >
-                       <Sparkles className="w-3 h-3 text-amber-300" />
-                       <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
-                    </div>
-                 </div>
-                 <div className="flex justify-between items-end relative z-10">
-                    <div className="space-y-1">
-                       <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
-                       <span className={`text-2xl font-black tracking-tighter uppercase ${
-                         memberInfo.tier.includes('靈魂伴侶') ? 'text-amber-400' : 'text-emerald-400'
-                       }`}>{memberInfo.tier}</span>
-                    </div>
-                    <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
-                 </div>
-              </div>
-
-              {/* Card Back */}
-              <div className="absolute inset-0 backface-hidden rounded-[3rem] p-10 bg-white text-slate-800 flex flex-col items-center justify-center gap-4 shadow-2xl rotate-y-180 border border-slate-100">
-                 <div className="w-24 h-24 bg-slate-50 p-2 rounded-2xl border border-slate-100 flex items-center justify-center">
-                    <QrCode className="w-full h-full text-emerald-900" />
-                 </div>
-                 <div className="text-center space-y-1">
-                    <p className="text-lg font-black tracking-widest text-emerald-900">{memberInfo.member_code}</p>
-                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Identity QR Code</p>
-                 </div>
-                 <p className="text-[8px] font-black text-emerald-600 uppercase tracking-[0.3em] mt-4">CHURUN TEA DIGITAL SIGNATURE</p>
-              </div>
-           </motion.div>
+               {/* Card Back */}
+               <div className="absolute inset-0 backface-hidden rounded-[3.5rem] p-8 bg-white text-slate-800 flex flex-col items-center justify-center gap-3 shadow-2xl rotate-y-180 border border-slate-100">
+                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                     <QRCodeCanvas
+                       value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo.member_code}`}
+                       size={110}
+                       level="H"
+                     />
+                  </div>
+                  <div className="text-center space-y-1">
+                     <p className="text-base font-black tracking-widest text-emerald-900">{memberInfo.member_code}</p>
+                     <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">掃碼加入初潤</p>
+                  </div>
+               </div>
+            </motion.div>
         </div>
 
-        {/* Tier Benefits Modal */}
+        {/* Benefits Modal */}
         <AnimatePresence>
            {showTierBenefits && (
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => setShowTierBenefits(false)}
-               className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center p-0 sm:p-8"
-             >
-                <motion.div 
-                  initial={{ y: "100%" }}
-                  animate={{ y: 0 }}
-                  exit={{ y: "100%" }}
-                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                  onClick={e => e.stopPropagation()}
-                  className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-sm p-10 pb-20 sm:pb-10 shadow-2xl relative overflow-hidden"
-                >
-                   <div className="absolute top-0 right-0 -mr-12 -mt-12 w-40 h-40 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
-                   
-                   <div className="flex justify-between items-center mb-10">
-                      <div>
-                         <h3 className="text-2xl font-black text-slate-900 tracking-tight">{memberInfo.tier}</h3>
-                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">專屬職級特權</p>
-                      </div>
-                      <button onClick={() => setShowTierBenefits(false)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                         <X className="w-5 h-5" />
-                      </button>
-                   </div>
-
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTierBenefits(false)} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center">
+                <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={e => e.stopPropagation()} className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-sm p-10 pb-20 shadow-2xl space-y-6">
+                   <h3 className="text-2xl font-black text-slate-900">{memberInfo.tier} 特權</h3>
                    <div className="space-y-4">
                       {getTierBenefits(memberInfo.tier).map((benefit, i) => (
-                        <div key={i} className="flex items-center gap-4 p-5 bg-slate-50/50 rounded-3xl border border-slate-50">
-                           <div className="w-8 h-8 bg-emerald-900 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/10">
-                              <CheckCircle2 className="w-4 h-4 text-white" />
-                           </div>
-                           <span className="text-xs font-black text-slate-700 tracking-tight">{benefit}</span>
+                        <div key={i} className="flex items-center gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-50">
+                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                           <span className="text-xs font-black text-slate-700">{benefit}</span>
                         </div>
                       ))}
                    </div>
-
-                   <button 
-                     onClick={() => setShowTierBenefits(false)}
-                     className="w-full mt-10 bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition"
-                   >
-                      我知道了
-                   </button>
+                   <button onClick={() => setShowTierBenefits(false)} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest">我知道了</button>
                 </motion.div>
              </motion.div>
            )}
         </AnimatePresence>
 
-        {/* Achievement Badge Wall */}
-        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm overflow-hidden">
-           <div className="flex justify-between items-center mb-8 px-2">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">解鎖成就標章</h3>
-              <span className="text-[8px] font-bold text-slate-300">2 / 8 COLLECTED</span>
-           </div>
-           <div className="flex gap-6 overflow-x-auto no-scrollbar pb-2">
-              {[
-                { icon: Zap, label: "首購勳章", active: true, color: "bg-amber-100 text-amber-600" },
-                { icon: Users, label: "開疆闢土", active: memberInfo.referral_count > 0, color: "bg-indigo-100 text-indigo-600" },
-                { icon: Target, label: "菁英領袖", active: false, color: "bg-slate-100 text-slate-300" },
-                { icon: Trophy, label: "業績王", active: false, color: "bg-slate-100 text-slate-300" },
-              ].map((badge, i) => (
-                <div key={i} className="flex flex-col items-center gap-3 min-w-[70px]">
-                   <div className={`w-14 h-14 ${badge.active ? badge.color : 'bg-slate-50 text-slate-200'} rounded-3xl flex items-center justify-center shadow-inner transition`}>
-                      <badge.icon className="w-6 h-6" />
-                   </div>
-                   <span className={`text-[8px] font-black uppercase tracking-widest ${badge.active ? 'text-slate-500' : 'text-slate-300'}`}>{badge.label}</span>
-                </div>
-              ))}
-           </div>
-        </div>
-
-        {/* Action List */}
-        <div className="space-y-4">
+        {/* Action Menu */}
+        <div className="grid grid-cols-1 gap-4">
            {[
-             { title: "我的訂單中心", icon: Package, color: "text-blue-500 bg-blue-50", href: "/orders" },
-             { title: "資產提領與帳戶", icon: CreditCard, color: "text-indigo-500 bg-indigo-50", href: "/transactions" },
-             { title: "查看職級特權", icon: Award, color: "text-emerald-500 bg-emerald-50", href: "/rewards" },
-             { title: "帳號安全設定", icon: Shield, color: "text-slate-400 bg-slate-50", href: "/profile/security" },
-             { title: "安全登出帳號", icon: LogOut, color: "text-rose-500 bg-rose-50", action: "logout" },
+             { label: "資料與安全設定", desc: "變更資料、密碼與匯款帳戶", icon: Shield, href: "/profile/security", color: "bg-emerald-50 text-emerald-600" },
+             { label: "我的組織團隊", desc: "查看您的下線成員與業績", icon: Users, href: "/organization", color: "bg-indigo-50 text-indigo-600" },
+             { label: "獎勵特權細項", desc: "職級晉升與紅利分潤規則", icon: Award, href: "/rewards", color: "bg-amber-50 text-amber-600" },
+             { label: "數位帳本明細", desc: "點數與貨款進出紀錄", icon: CreditCard, href: "/transactions", color: "bg-slate-50 text-slate-600" }
            ].map((item, i) => (
-             item.action === "logout" ? (
-               <button 
-                 key={i}
-                 onClick={handleLogout}
-                 className="w-full bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-rose-100 transition cursor-pointer"
-               >
-                  <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
-                     <item.icon className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1 text-left">
-                     <h4 className="font-black text-slate-800">{item.title}</h4>
-                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">End Session</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-rose-500 transition" />
-               </button>
-             ) : (
-               <Link 
-                 href={item.href || "#"}
-                 key={i}
-                 className="bg-white rounded-[2.5rem] p-7 flex items-center gap-6 shadow-sm border border-slate-50 group hover:border-emerald-100 transition cursor-pointer"
-               >
-                  <div className={`w-14 h-14 ${item.color} rounded-2xl flex items-center justify-center shadow-inner`}>
-                     <item.icon className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                     <h4 className="font-black text-slate-800">{item.title}</h4>
-                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Member Service</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition" />
-               </Link>
-             )
+             <Link href={item.href} key={i} className="flex items-center justify-between p-6 bg-white rounded-[2.5rem] border border-slate-50 shadow-sm active:scale-[0.98] transition group">
+                <div className="flex items-center gap-5">
+                   <div className={`w-14 h-14 ${item.color} rounded-[1.5rem] flex items-center justify-center`}>
+                      <item.icon className="w-6 h-6" />
+                   </div>
+                   <div className="text-left">
+                      <p className="font-black text-sm text-slate-800">{item.label}</p>
+                      <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase tracking-tight">{item.desc}</p>
+                   </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-100 group-hover:text-slate-300 transition" />
+             </Link>
            ))}
-        </div>
 
+           <button 
+             onClick={handleLogout}
+             className="flex items-center justify-between p-6 bg-rose-50/50 rounded-[2.5rem] border border-rose-100/50 active:scale-[0.98] transition group"
+           >
+              <div className="flex items-center gap-5">
+                 <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-[1.5rem] flex items-center justify-center">
+                    <LogOut className="w-6 h-6" />
+                 </div>
+                 <div className="text-left">
+                    <p className="font-black text-sm text-rose-600">登出系統</p>
+                    <p className="text-[10px] font-bold text-rose-300 mt-1 uppercase tracking-tight">Logout from your account</p>
+                 </div>
+              </div>
+           </button>
+        </div>
       </main>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-50">
-         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl shadow-slate-900/30 border border-white/5">
-            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
-               <LayoutDashboard className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">主頁</span>
-            </Link>
-            <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
-               <ShoppingBag className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">商城</span>
-            </Link>
-            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 -mt-8 border-4 border-[#FDFBF7]">
-               <Plus className="w-6 h-6 text-white" />
-            </div>
-            <Link href="/organization" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition">
-               <Zap className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">組織</span>
-            </Link>
-            <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white transition">
-               <User className="w-5 h-5" />
-               <span className="text-[8px] font-black uppercase tracking-[0.2em]">個人</span>
-            </Link>
+         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl border border-white/5">
+            <Link href="/" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition"><LayoutDashboard className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Home</span></Link>
+            <Link href="/store" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition"><ShoppingBag className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Shop</span></Link>
+            <div onClick={() => router.push("/")} className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg -mt-8 border-4 border-[#FDFBF7] cursor-pointer"><Plus className="w-6 h-6 text-white" /></div>
+            <Link href="/organization" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition"><Zap className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Team</span></Link>
+            <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white transition"><User className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Me</span></Link>
          </div>
       </div>
     </div>

@@ -68,6 +68,8 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS bank_last_five TEXT; -- 匯�
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS avatar_settings JSONB DEFAULT '{"zoom": 1, "offset": 0}'::jsonb;
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS motto TEXT DEFAULT '以初心、致潤澤';
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS bank_account_name TEXT;
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS bank_branch TEXT;
 
 -- 11. 海報產生器樣板 (Poster Templates)
 CREATE TABLE IF NOT EXISTS public.poster_templates (

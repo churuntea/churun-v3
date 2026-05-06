@@ -35,3 +35,23 @@ VALUES
   -- 初始儲值
   (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', NULL, 50000, 'deposit', 'completed', NOW() - INTERVAL '20 days');
 
+-- 5. 品牌快訊 (Announcements)
+INSERT INTO public.announcements (title, tag, content, color, image_url, action_label, action_href)
+VALUES
+  ('2026 春季限定：初潤靈魂系列新品上市', 'NEW', '我們很高興宣布全新的春季限定茶飲正式登場。', 'bg-emerald-900', 'https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=800&q=80', '查看詳情', '/brand/news/spring-2026'),
+  ('全台夥伴大會：台中場報名開始', 'EVENT', '今年度的全台夥伴大會將於下個月在台中舉辦，歡迎各位領導人報名參加。', 'bg-indigo-600', 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80', '立即報名', '/events/taichung-2026'),
+  ('系統升級公告：V2.0 版本正式上線', 'INFO', '為了提供更好的服務，初潤數位管理系統已升級至 V2.0 版本。', 'bg-amber-600', 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80', '更新日誌', '/support/changelog');
+
+-- 6. 宣傳素材 (Materials)
+INSERT INTO public.materials (title, category, url, file_type, thumbnail_url, description)
+VALUES
+  ('品牌主視覺 - 2026 簡潔款', '品牌主視覺', 'https://images.unsplash.com/photo-1544787210-2213d2429f77?w=1200&q=80', 'image', 'https://images.unsplash.com/photo-1544787210-2213d2429f77?w=400&q=80', '適用於 Facebook 與 Instagram 封面'),
+  ('春季新品宣傳圖 (1)', '商品宣傳圖', 'https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?w=1200&q=80', 'image', 'https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?w=400&q=80', '2026 春季限定飲品宣傳圖'),
+  ('創業夥伴招募文案', '社群分享文案', 'https://churun.com/copywriting/b2b-recruit', 'text', NULL, '加入初潤，開啟您的創業之路。我們提供完整的教育訓練與優渥的分潤制度。#初潤製茶所 #創業夥伴 #茶文化');
+
+-- 7. 海報產生器樣板 (Poster Templates)
+INSERT INTO public.poster_templates (name, url, config)
+VALUES 
+  ('尊榮禮盒系列', 'https://i.ibb.co/Vp8nF6Y/dm-template.jpg', '{"qr": {"x": 800, "y": 1100, "size": 160}, "name": {"x": 380, "y": 1120, "size": 28, "color": "#ffffff"}, "phone": {"x": 380, "y": 1155, "size": 24, "color": "#ffffff"}}'::jsonb),
+  ('春季新品清新版', 'https://images.unsplash.com/photo-1556656793-062ff987b50d?w=1080&q=80', '{"qr": {"x": 750, "y": 1500, "size": 200}, "name": {"x": 100, "y": 1520, "size": 32, "color": "#1e293b"}, "phone": {"x": 100, "y": 1565, "size": 28, "color": "#64748b"}}'::jsonb);
+

@@ -1,0 +1,264 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../../supabase";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  CreditCard,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  AlertCircle,
+  X
+} from "lucide-react";
+
+const BANK_MAP: Record<string, string> = {
+  "004": "臺灣銀行",
+  "005": "土地銀行",
+  "006": "合作金庫銀行",
+  "007": "第一商業銀行",
+  "008": "華南商業銀行",
+  "009": "彰化商業銀行",
+  "011": "上海商業儲蓄銀行",
+  "012": "台北富邦銀行",
+  "013": "國泰世華商業銀行",
+  "016": "高雄銀行",
+  "017": "兆豐國際商業銀行",
+  "021": "花旗(台灣)商業銀行",
+  "050": "臺灣企銀",
+  "052": "渣打國際商業銀行",
+  "053": "台中商業銀行",
+  "054": "京城商業銀行",
+  "081": "匯豐(台灣)商業銀行",
+  "102": "華泰商業銀行",
+  "103": "臺灣新光商業銀行",
+  "108": "陽信商業銀行",
+  "118": "板信商業銀行",
+  "147": "三信商業銀行",
+  "700": "中華郵政",
+  "803": "聯邦商業銀行",
+  "805": "遠東國際商業銀行",
+  "806": "元大商業銀行",
+  "807": "永豐商業銀行",
+  "808": "玉山商業銀行",
+  "809": "凱基商業銀行",
+  "812": "台新國際商業銀行",
+  "815": "日盛國際商業銀行",
+  "816": "安泰商業銀行",
+  "822": "中國信託商業銀行"
+};
+
+export default function BankSettingsPage() {
+  const router = useRouter();
+  const [memberInfo, setMemberInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankBranch, setBankBranch] = useState("");
+  const [bankCode, setBankCode] = useState("013");
+  const [bankAccount, setBankAccount] = useState("");
+
+  useEffect(() => {
+    const savedId = localStorage.getItem("churun_member_id");
+    if (!savedId) { router.replace("/login"); return; }
+    fetchData(savedId);
+  }, [router]);
+
+  const fetchData = async (userId: string) => {
+    setIsLoading(true);
+    const { data } = await supabase.from("members").select("*").eq("id", userId).single();
+    if (data) {
+      setMemberInfo(data);
+      setBankAccountName(data.bank_account_name || "");
+      setBankBranch(data.bank_branch || "");
+      setBankCode(data.bank_code || "013");
+      setBankAccount(data.bank_account || "");
+    }
+    setIsLoading(false);
+  };
+
+  const handleOpenConfirm = () => {
+    if (!bankAccountName.trim()) { alert("【 錯誤 】請輸入帳戶姓名 (戶名)"); return; }
+    if (!bankAccount.trim()) { alert("【 錯誤 】請輸入銀行帳號"); return; }
+    if (bankAccount.length < 10) { alert("【 錯誤 】銀行帳號長度不足，請輸入 10-14 碼純數字"); return; }
+    setShowConfirm(true);
+  };
+
+  const handleFinalSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/member/bank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: memberInfo.id,
+          bank_account_name: bankAccountName,
+          bank_branch: bankBranch,
+          bank_code: bankCode,
+          bank_account: bankAccount
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert("✅ 匯款資訊已成功更新！");
+        setShowConfirm(false);
+        router.back();
+      } else {
+        alert("❌ 儲存失敗: " + (result.error || "原因不明"));
+      }
+    } catch (err: any) {
+      alert("⚠️ 系統發生嚴重錯誤: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) return (
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+      <Loader2 className="w-10 h-10 animate-spin text-emerald-900" />
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] pb-20">
+      {/* Header */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-6 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
+        <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+          <ArrowLeft className="w-4 h-4 text-slate-400" />
+        </button>
+        <h1 className="text-xs font-black tracking-[0.3em] text-slate-800 uppercase">銀行帳戶設定</h1>
+        <div className="w-10"></div>
+      </nav>
+
+      <main className="max-w-lg mx-auto px-6 pt-32 space-y-6">
+        {/* Security Warning */}
+        <div className="bg-emerald-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl shadow-emerald-900/20">
+           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+           <div className="flex gap-4 items-start relative z-10">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                 <ShieldCheck className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div className="space-y-1">
+                 <h2 className="font-black text-sm uppercase tracking-widest">提款帳戶安全保護</h2>
+                 <p className="text-[10px] text-white/60 leading-relaxed">
+                    請務必確認填寫的匯款帳號與「戶名」相符。此帳戶將用於您的分紅提領，設定後如需修改需再次進行身份驗證。
+                 </p>
+              </div>
+           </div>
+        </div>
+
+        {/* Bank Form */}
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-6">
+           <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                 <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶姓名 (戶名)</label>
+                 <input 
+                    type="text" value={bankAccountName} onChange={e => setBankAccountName(e.target.value)}
+                    className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="請輸入姓名"
+                 />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">分行名稱</label>
+                 <input 
+                    type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)}
+                    className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="例: 信義分行"
+                 />
+              </div>
+           </div>
+           
+           <div className="space-y-2">
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼 (國泰 013)</label>
+              <div className="flex gap-4">
+                 <input 
+                    type="text" value={bankCode} onChange={e => setBankCode(e.target.value)} maxLength={3}
+                    className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 text-center"
+                    placeholder="013"
+                 />
+                 <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-[10px] font-black text-slate-400 flex items-center">{BANK_MAP[bankCode] || "自定義/未驗證銀行"}</div>
+              </div>
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號 (10-14 碼)</label>
+              <input 
+                 type="tel" value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, ''))}
+                 className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800"
+                 placeholder="請輸入匯款帳號"
+              />
+           </div>
+
+           <button 
+              onClick={handleOpenConfirm}
+              className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition"
+           >
+              確認更新資訊
+           </button>
+        </div>
+
+        {/* Info Box */}
+        <div className="bg-amber-50 rounded-[2rem] p-8 border border-amber-100/50 flex gap-6 items-start">
+           <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-6 h-6 text-amber-600" />
+           </div>
+           <div className="space-y-2">
+              <h4 className="text-sm font-black text-amber-900 tracking-tight">重要說明</h4>
+              <p className="text-xs text-amber-700/70 leading-relaxed font-medium">匯款帳戶僅限本人使用。如因提供錯誤帳號導致款項匯錯，本公司恕不負責。變更後次日生效。</p>
+           </div>
+        </div>
+      </main>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-3xl flex items-center justify-center p-6"
+            onClick={() => setShowConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl space-y-8"
+            >
+              <div className="text-center space-y-4">
+                 <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
+                    <CreditCard className="w-10 h-10 text-emerald-600" />
+                 </div>
+                 <h3 className="text-2xl font-black text-slate-900">確認匯款資訊？</h3>
+                 <p className="text-xs text-slate-400 font-bold leading-relaxed">一旦確認，系統將會將此帳戶設為預設撥款通道。</p>
+              </div>
+
+              <div className="bg-slate-50 rounded-[2rem] p-6 space-y-3">
+                 <div className="flex justify-between">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">戶名</span>
+                    <span className="text-sm font-black text-slate-800">{bankAccountName}</span>
+                 </div>
+                 <div className="flex justify-between">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">帳號</span>
+                    <span className="text-sm font-black text-slate-800">{bankAccount}</span>
+                 </div>
+              </div>
+
+              <div className="flex gap-3">
+                 <button onClick={() => setShowConfirm(false)} className="flex-1 py-5 rounded-2xl bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest">返回修改</button>
+                 <button 
+                   onClick={handleFinalSave}
+                   disabled={isSaving}
+                   className="flex-[2] py-5 rounded-2xl bg-emerald-900 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-900/20"
+                 >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "確定儲存"}
+                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

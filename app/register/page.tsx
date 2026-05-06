@@ -14,11 +14,15 @@ import {
   ShieldCheck, 
   Hash,
   Sparkles,
+  Lock,
   AlertCircle,
   Mail,
   MapPin
 } from "lucide-react";
 import Link from "next/link";
+
+// 預設上線 (若未填寫推薦碼，統一歸入洪召安名下)
+const DEFAULT_UPLINE_NAME = "洪召安";
 
 function RegisterContent() {
   const router = useRouter();
@@ -35,10 +39,14 @@ function RegisterContent() {
   });
   const [uplineName, setUplineName] = useState<string | null>(null);
   const [isValidatingRef, setIsValidatingRef] = useState(false);
+  const [hasRef, setHasRef] = useState(false);
 
   useEffect(() => {
     const ref = searchParams.get("ref");
-    if (ref) setFormData(prev => ({ ...prev, referral_code: ref.trim().toUpperCase() }));
+    if (ref) {
+      setFormData(prev => ({ ...prev, referral_code: ref.trim().toUpperCase() }));
+      setHasRef(true);
+    }
   }, [searchParams]);
 
   // Real-time Referral Code Validation
@@ -82,6 +90,7 @@ function RegisterContent() {
       const refCode = formData.referral_code?.trim().toUpperCase();
 
       if (refCode) {
+        // 使用者有填寫推薦碼
         const { data: upline, error: uplineErr } = await supabase
           .from("members")
           .select("id")
@@ -94,6 +103,18 @@ function RegisterContent() {
           return;
         }
         uplineId = upline.id;
+      } else {
+        // 未填寫推薦碼 → 自動歸入洪召安名下
+        const { data: defaultUpline } = await supabase
+          .from("members")
+          .select("id")
+          .eq("name", DEFAULT_UPLINE_NAME)
+          .single();
+        
+        if (defaultUpline) {
+          uplineId = defaultUpline.id;
+        }
+        // 若連洪召安帳號也找不到，uplineId 維持 null（不阻擋註冊流程）
       }
 
       const insertData: any = {
@@ -224,10 +245,31 @@ function RegisterContent() {
               </div>
 
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">推薦代碼</label>
+                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">推薦代碼 (選填)</label>
                  <div className="relative">
                     <Hash className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
-                    <input name="referral_code" type="text" value={formData.referral_code} onChange={handleChange} placeholder="REFCODE" className="w-full bg-slate-50/50 border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner" />
+                    <input 
+                      name="referral_code" 
+                      type="text" 
+                      value={formData.referral_code} 
+                      onChange={handleChange} 
+                      placeholder="REFCODE" 
+                      readOnly={hasRef}
+                      className={`w-full border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner ${hasRef ? 'bg-emerald-50/50 text-emerald-800 cursor-not-allowed font-black' : 'bg-slate-50/50 text-slate-800'}`} 
+                    />
+                    {hasRef && (
+                      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full text-[8px] font-black tracking-widest uppercase">
+                        <Lock className="w-3 h-3" /> 已鎖定
+                      </div>
+                    )}
+                    {!formData.referral_code && (
+                      <div className="mt-3 ml-6 flex items-center gap-2">
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                           預設大使：<span className="text-emerald-600 underline underline-offset-4 decoration-emerald-200">{DEFAULT_UPLINE_NAME}</span>
+                        </p>
+                      </div>
+                    )}
                     <AnimatePresence>
                       {isValidatingRef && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute right-6 top-1/2 -translate-y-1/2">
@@ -237,7 +279,7 @@ function RegisterContent() {
                     </AnimatePresence>
                  </div>
                  <AnimatePresence>
-                    {uplineName && (
+                    {uplineName ? (
                       <motion.p 
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -245,6 +287,14 @@ function RegisterContent() {
                         className="text-[10px] font-bold text-emerald-600 ml-6 mt-2 flex items-center gap-1"
                       >
                         <Sparkles className="w-3 h-3" /> 推薦人：{uplineName} ✨
+                      </motion.p>
+                    ) : (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-[10px] font-bold text-slate-300 ml-6 mt-2"
+                      >
+                        未填寫時將由品牌大使統一介紹
                       </motion.p>
                     )}
                  </AnimatePresence>
@@ -266,6 +316,11 @@ function RegisterContent() {
                  </motion.button>
               </div>
            </form>
+
+           <p className="text-center mt-8 text-xs text-slate-400">
+             已有帳號？{" "}
+             <Link href="/login" className="text-emerald-600 font-bold hover:underline">立即登入</Link>
+           </p>
         </div>
       </motion.div>
 

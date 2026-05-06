@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+const content = `"use client";
 // Build: 2026-05-04 19:30
 
 import { useEffect, useState, Suspense } from "react";
@@ -115,7 +117,7 @@ function DashboardContent() {
       const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
       setMemberInfo(mData);
       if (mData?.avatar_url) {
-        setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
+        setMemberAvatar(\`\${mData.avatar_url}?t=\${Date.now()}\`);
       } else {
         setMemberAvatar("https://i.ibb.co/6R2M5X1/churun-baby.png");
       }
@@ -170,11 +172,11 @@ function DashboardContent() {
       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
       if (hiddenQr) ctx.drawImage(hiddenQr, config.qr.x, config.qr.y, config.qr.size, config.qr.size);
       ctx.fillStyle = config.name.color || '#ffffff';
-      ctx.font = `black ${config.name.size}px sans-serif`;
+      ctx.font = \`black \${config.name.size}px sans-serif\`;
       ctx.textAlign = 'left';
       ctx.fillText(memberInfo.name, config.name.x, config.name.y);
       ctx.fillStyle = config.phone.color || config.name.color || '#ffffff';
-      ctx.font = `bold ${config.phone.size}px sans-serif`;
+      ctx.font = \`bold \${config.phone.size}px sans-serif\`;
       ctx.fillText(memberInfo.phone || '', config.phone.x, config.phone.y);
       setPosterDataUrl(canvas.toDataURL('image/png'));
       setIsGeneratingPoster(false);
@@ -184,7 +186,7 @@ function DashboardContent() {
   const downloadGeneratedPoster = () => {
     if (!posterDataUrl) return;
     const link = document.createElement('a');
-    link.download = `churun-poster-${memberInfo.member_code}.png`;
+    link.download = \`churun-poster-\${memberInfo.member_code}.png\`;
     link.href = posterDataUrl;
     link.click();
     setShowPosterPreview(false);
@@ -227,7 +229,7 @@ function DashboardContent() {
                 <div className="flex justify-between items-start mb-12">
                    <div className="flex items-center gap-6">
                       <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-white/20 shadow-2xl relative">
-                         <img src={memberAvatar || "https://i.ibb.co/6R2M5X1/churun-baby.png"} className="w-full h-full object-cover" style={{ transform: `scale(${avatarZoom}) translateY(${avatarOffset}px)` }} alt="Avatar" />
+                         <img src={memberAvatar || "https://i.ibb.co/6R2M5X1/churun-baby.png"} className="w-full h-full object-cover" style={{ transform: \`scale(\${avatarZoom}) translateY(\${avatarOffset}px)\` }} alt="Avatar" />
                       </div>
                       <div className="space-y-3">
                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-fit">
@@ -250,7 +252,7 @@ function DashboardContent() {
                 <div className="grid grid-cols-2 gap-6 relative z-10">
                    <div className="space-y-1">
                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">虛擬預收貨款</p>
-                      <h3 className="text-2xl font-black tracking-tighter">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
+                      <h3 className="text-2xl font-black tracking-tighter">$\${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
                    </div>
                    <div className="space-y-1">
                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">紅利點數餘額</p>
@@ -262,12 +264,12 @@ function DashboardContent() {
                    <div className="flex justify-between items-end">
                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">升級進度 (本季累積)</p>
                       <div className="flex items-center gap-2">
-                         <p className="text-[10px] font-black text-amber-300">${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
+                         <p className="text-[10px] font-black text-amber-300">$\${Number(memberInfo.quarterly_spend).toLocaleString()} / $50,000</p>
                          <ChevronRight className="w-3 h-3 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
                       </div>
                    </div>
                    <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%` }} transition={{ duration: 1.5, ease: "circOut" }} className="h-full bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 relative" />
+                      <motion.div initial={{ width: 0 }} animate={{ width: \`\${Math.min((Number(memberInfo.quarterly_spend) / 50000) * 100, 100)}%\` }} transition={{ duration: 1.5, ease: "circOut" }} className="h-full bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 relative" />
                    </div>
                 </Link>
               </div>
@@ -286,7 +288,7 @@ function DashboardContent() {
                 { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "bg-amber-50 text-amber-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
               ].map((badge, i) => (
                 <div key={i} className="min-w-[140px] p-6 rounded-[2.5rem] border bg-white border-slate-100 shadow-xl flex flex-col items-center gap-4">
-                   <div className={`w-14 h-14 ${badge.color} rounded-[1.5rem] flex items-center justify-center shadow-inner`}>
+                   <div className={\`w-14 h-14 \${badge.color} rounded-[1.5rem] flex items-center justify-center shadow-inner\`}>
                       <badge.icon className="w-7 h-7" />
                    </div>
                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 text-center">{badge.name}</h4>
@@ -304,7 +306,7 @@ function DashboardContent() {
              { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" }
            ].map((act, i) => (
              <Link href={act.href} key={i} className="flex flex-col items-center gap-3">
-                <div className={`w-16 h-16 ${act.color} rounded-[2rem] flex items-center justify-center shadow-sm border border-white`}>
+                <div className={\`w-16 h-16 \${act.color} rounded-[2rem] flex items-center justify-center shadow-sm border border-white\`}>
                    <act.icon className="w-6 h-6" />
                 </div>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{act.label}</span>
@@ -322,7 +324,7 @@ function DashboardContent() {
                     <p className="text-xs font-bold text-slate-300">目前尚無品牌快訊</p>
                  </div>
                ) : announcements.map((news) => (
-                 <Link key={news.id} href={`/brand/news/${news.id}`} className="min-w-[300px] flex-shrink-0 block relative group">
+                 <Link key={news.id} href={\`/brand/news/\${news.id}\`} className="min-w-[300px] flex-shrink-0 block relative group">
                    <div className="bg-white rounded-[3rem] border border-slate-50 shadow-xl overflow-hidden">
                       <div className="h-44 w-full relative">
                          <img src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} alt={news.title} className="w-full h-full object-cover" />
@@ -357,23 +359,22 @@ function DashboardContent() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
-                  const link = `${window.location.origin}/register?ref=${memberInfo?.member_code}`;
-                  navigator.clipboard.writeText(link);
-                  setCopiedLink(true);
-                  setTimeout(() => setCopiedLink(false), 2000);
+                <motion.button whileTap={{ scale: 0.96 }} onClick={async () => {
+                  const link = \`\${window.location.origin}/register?ref=\${memberInfo?.member_code}\`;
+                  if (navigator.share) { try { await navigator.share({ title: '加入初潤製茶所', text: \`使用我的推薦代碼 \${memberInfo?.member_code} 加入初潤！\`, url: link }); } catch(e) {} }
+                  else { navigator.clipboard.writeText(link); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }
                 }} className="bg-emerald-900 text-white rounded-[2rem] p-5 flex flex-col items-center gap-3 shadow-xl shadow-emerald-900/20">
-                  <UserPlus className="w-6 h-6" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">{copiedLink ? '已複製！' : '推薦註冊連結'}</span>
+                  <Share2 className="w-6 h-6" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">{copiedLink ? '已複製！' : '分享連結'}</span>
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
                   const canvas = document.querySelector('#hidden-qr-canvas canvas') as HTMLCanvasElement;
-                  if (canvas) { const link = document.createElement('a'); link.href = canvas.toDataURL('image/png'); link.download = `churun-qr-${memberInfo?.member_code}.png`; link.click(); }
+                  if (canvas) { const link = document.createElement('a'); link.href = canvas.toDataURL('image/png'); link.download = \`churun-qr-\${memberInfo?.member_code}.png\`; link.click(); }
                 }} className="bg-slate-900 text-white rounded-[2rem] p-5 flex flex-col items-center gap-3 shadow-xl shadow-slate-900/20">
                   <QrCode className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">下載 QR 碼</span>
                 </motion.button>
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/profile/security/vcard'); }} className="bg-amber-50 text-amber-700 border border-amber-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
+                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/profile/security/profile-settings'); }} className="bg-amber-50 text-amber-700 border border-amber-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
                   <IdCard className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">電子名片</span>
                 </motion.button>
@@ -439,7 +440,7 @@ function DashboardContent() {
       </div>
 
       <div className="opacity-0 pointer-events-none absolute -z-10" aria-hidden="true" id="hidden-qr-canvas">
-        <QRCodeCanvas value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo?.member_code}`} size={512} level="H" />
+        <QRCodeCanvas value={\`\${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=\${memberInfo?.member_code}\`} size={512} level="H" />
       </div>
     </div>
   );
@@ -452,3 +453,7 @@ export default function Dashboard() {
     </Suspense>
   );
 }
+\`;
+
+fs.writeFileSync('d:/0_事業體/初潤製茶所_Gemini/churun-frontend/app/page.tsx', content);
+console.log('✅ page.tsx rewritten successfully');

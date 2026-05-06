@@ -206,7 +206,7 @@ function WithdrawContent() {
                  </p>
               </div>
               {!memberInfo.bank_account && (
-                <Link href="/profile" className="text-emerald-600">
+                <Link href="/profile/security/bank" className="text-emerald-600">
                    <ArrowRight className="w-5 h-5" />
                 </Link>
               )}

@@ -12,65 +12,55 @@ export async function POST(request: Request) {
 
     let avatarUrl = null;
 
-    // 1. 處理頭像上傳 (包在獨立的 try-catch 中，不讓 Storage 報錯搞死整支 API)
+    // 1. 處理頭像上傳
     if (avatarBase64 && avatarBase64.startsWith('data:image')) {
-      try {
-        const base64Data = avatarBase64.split(',')[1];
-        const buffer = Buffer.from(base64Data, 'base64');
-        const fileName = `${memberId}_${Date.now()}.png`;
-        const filePath = `avatars/${fileName}`;
+      const mimeType = avatarBase64.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+      const base64Data = avatarBase64.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      // 為了避免快取，我們可以用 memberId 當檔名，但在 URL 後面加 timestamp
+      // 或者乾脆檔名就加 timestamp
+      const ext = mimeType.split('/')[1] || 'png';
+      const fileName = `${memberId}_${Date.now()}.${ext}`;
+      const filePath = `avatars/${fileName}`;
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, buffer, {
-            contentType: 'image/png',
-            upsert: true
-          });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, buffer, {
+          contentType: mimeType,
+          upsert: true
+        });
 
-        if (uploadError) {
-           console.error('Storage error:', uploadError);
-           // 這裡報錯我們不 throw，只是不更新頭像網址，讓後續的資料庫更新能繼續
-           console.warn('Continuing without avatar update due to storage error');
-        } else {
-           const { data: { publicUrl } } = supabase.storage
-             .from('avatars')
-             .getPublicUrl(filePath);
-           avatarUrl = publicUrl;
-        }
-      } catch (storageErr) {
-        console.error('Storage system crash:', storageErr);
+      if (uploadError) {
+        console.error('Storage Upload Error:', uploadError);
+        return NextResponse.json({ 
+            success: false, 
+            error: `圖片上傳失敗: ${uploadError.message}. 請確認 Storage Bucket 'avatars' 是否存在且設為 Public。` 
+        }, { status: 500 });
       }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      avatarUrl = publicUrl;
     }
 
-    // 2. 更新會員資料 (使用逐個更新策略，增加對欄位缺失的容忍度)
+    // 2. 更新會員資料
     const updateData: any = {};
     if (avatarUrl) updateData.avatar_url = avatarUrl;
     if (avatarSettings) updateData.avatar_settings = avatarSettings;
     if (motto !== undefined) updateData.motto = motto;
 
     if (Object.keys(updateData).length > 0) {
-      // 第一次嘗試：完整更新
-      const { error: fullUpdateError } = await supabase
+      const { error: dbError } = await supabase
         .from('members')
         .update(updateData)
         .eq('id', memberId);
 
-      if (fullUpdateError) {
-        console.warn('Full update failed, trying fallback update...', fullUpdateError.message);
-        
-        // 第二次嘗試：退而求其次，只更新基本頭像資訊 (避開可能缺失的 motto 欄位)
-        const fallbackData: any = {};
-        if (avatarUrl) fallbackData.avatar_url = avatarUrl;
-        if (avatarSettings) fallbackData.avatar_settings = avatarSettings;
-        
-        if (Object.keys(fallbackData).length > 0) {
-           const { error: fallbackError } = await supabase
-             .from('members')
-             .update(fallbackData)
-             .eq('id', memberId);
-           
-           if (fallbackError) throw fallbackError;
-        }
+      if (dbError) {
+        console.error('DB Update Error:', dbError);
+        return NextResponse.json({ success: false, error: `資料庫更新失敗: ${dbError.message}` }, { status: 500 });
       }
     }
 
@@ -84,7 +74,7 @@ export async function POST(request: Request) {
     console.error('FINAL API ERROR:', error);
     return NextResponse.json({ 
       success: false, 
-      error: `儲存核心失敗: ${error.message || '未知資料庫錯誤'}` 
+      error: `伺服器異常: ${error.message}` 
     }, { status: 500 });
   }
 }
