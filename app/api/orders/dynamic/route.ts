@@ -3,9 +3,10 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { buyer_id, items } = await request.json();
+    const { buyer_id, memberId, items, discountAmount = 0 } = await request.json();
+    const effectiveBuyerId = buyer_id || memberId;
 
-    if (!buyer_id || !items || !Array.isArray(items) || items.length === 0) {
+    if (!effectiveBuyerId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
     }
 
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     const { data: buyer, error: buyerError } = await supabase
       .from('members')
       .select('*')
-      .eq('id', buyer_id)
+      .eq('id', effectiveBuyerId)
       .single();
 
     const TIER_RATES: Record<string, number> = {
@@ -60,9 +61,10 @@ export async function POST(request: Request) {
     totalB2CPoints = Math.floor(totalAmount / tierRate);
 
     // 3. 建立訂單 (狀態改為 pending，待管理者確認)
+    const finalAmount = Math.max(0, totalAmount - discountAmount);
     const orderData: any = {
       member_id: buyer.id,
-      total_amount: totalAmount,
+      total_amount: finalAmount,
       original_amount: totalAmount,
       status: 'pending',
       reward_points: totalB2CPoints,
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
     await supabase.from('notifications').insert({
       member_id: buyer.id,
       title: '訂單已建立，待審核',
-      content: `您的訂單 $${totalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
+      content: `您的訂單 $${finalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
       type: 'order'
     });
 
