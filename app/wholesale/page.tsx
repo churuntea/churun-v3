@@ -219,8 +219,13 @@ function WholesaleContent() {
                            if (isSelected) {
                               setActiveCoupon(null);
                            } else {
-                              setActiveCoupon(coupon);
-                              setCouponError(null);
+                              if (totalAmount < coupon.minSpend) {
+                                 setCouponError(`未達該券最低消費門檻 $${coupon.minSpend}`);
+                                 setActiveCoupon(null);
+                              } else {
+                                 setActiveCoupon(coupon);
+                                 setCouponError(null);
+                              }
                            }
                         }}
                         className={`p-5 rounded-[1.8rem] border-2 transition cursor-pointer flex justify-between items-center relative overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-50/20 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
@@ -268,6 +273,10 @@ function WholesaleContent() {
                     <button 
                       onClick={() => {
                          const code = couponInput.trim().toUpperCase();
+                         if (!code) {
+                            setCouponError("請輸入優惠代碼");
+                            return;
+                         }
                          const found = AVAILABLE_COUPONS.find(c => c.code === code);
                          if (found) {
                             if (totalAmount < found.minSpend) {
