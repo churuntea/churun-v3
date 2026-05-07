@@ -91,7 +91,7 @@ function AdminOrdersContent() {
             <div class="title">初 潤 製 茶 所</div>
             <div class="subtitle">出 貨 單 & 揀 貨 明 細</div>
           </div>
-          <div class="info-grid">
+          <div class="info-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px;">
             <div class="info-box">
               <div class="info-title">收件人資訊</div>
               <div class="info-value">姓名: ${shipping.name || order.members?.name || '無'}</div>
@@ -100,9 +100,15 @@ function AdminOrdersContent() {
               <div class="info-value" style="margin-top: 10px;">地址: ${shipping.address || '自取/無'}</div>
             </div>
             <div class="info-box">
+              <div class="info-title">寄件人資訊</div>
+              <div class="info-value">姓名: ${shipping.sender_name || '初潤製茶所'}</div>
+              <div class="info-value">電話: ${shipping.sender_phone || '0939734771'}</div>
+              <div class="info-value" style="margin-top: 10px;">地址: ${shipping.sender_address || '南投縣草屯鎮自由街34號'}</div>
+            </div>
+            <div class="info-box">
               <div class="info-title">訂單資訊</div>
               <div class="info-value">訂單日期: ${new Date(order.created_at).toLocaleString()}</div>
-              <div class="info-value">結帳金額: $${order.total_amount}</div>
+              <div class="info-value">結帳金額: ${order.total_amount}</div>
               <div class="info-value">付款末五碼: ${order.payment_last_five || '無'}</div>
             </div>
           </div>
@@ -201,7 +207,10 @@ function AdminOrdersContent() {
       return `
         <tr style="font-size: 12px; border-bottom: 1px solid #eee;">
           <td style="padding: 10px 8px; font-weight: bold; font-family: monospace;">${o.id.substring(0,8)}</td>
-          <td style="padding: 10px 8px; font-weight: bold;">${shipping.name || o.members?.name || '無'}</td>
+          <td style="padding: 10px 8px;">
+            <div style="font-weight: bold;">${shipping.name || o.members?.name || '無'}</div>
+            ${shipping.sender_name ? `<div style="font-size: 10px; color: #d97706; margin-top: 4px; font-weight: 900;">指定寄件: ${shipping.sender_name}</div>` : ''}
+          </td>
           <td style="padding: 10px 8px;">${shipping.phone || o.members?.phone || '無'}</td>
           <td style="padding: 10px 8px; font-weight: bold; color: #047857;">${shipping.method || '宅配到府'}</td>
           <td style="padding: 10px 8px; font-size: 11px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${shipping.address || '自取'}</td>
@@ -641,6 +650,18 @@ function AdminOrdersContent() {
                                       <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">收件人</span> <span className="font-black text-slate-800">{order.shipping_info.name}</span></p>
                                       <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.phone}</span></p>
                                       <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.address}</span></p>
+                                      
+                                      {/* 寄件人資訊 */}
+                                      {order.shipping_info.sender_name && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">指定寄件人 (代發代寄)</p>
+                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄件人</span> <span className="font-black text-slate-800">{order.shipping_info.sender_name}</span></p>
+                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.sender_phone}</span></p>
+                                          {order.shipping_info.sender_address && (
+                                            <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.sender_address}</span></p>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   ) : (
                                     <p className="text-xs text-slate-400">無收件資訊 (由會員中心帶入)</p>

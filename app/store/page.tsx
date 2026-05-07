@@ -67,7 +67,16 @@ function StoreContent() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showShippingModal, setShowShippingModal] = useState(false);
-  const [shippingInfo, setShippingInfo] = useState({ name: '', phone: '', address: '', notes: '', method: '宅配到府' });
+  const [shippingInfo, setShippingInfo] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    notes: '',
+    method: '宅配到府',
+    senderName: '',
+    senderPhone: '',
+    senderAddress: ''
+  });
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -77,6 +86,58 @@ function StoreContent() {
   const [activeCoupon, setActiveCoupon] = useState<any | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem("churun_member_id");
+    if (savedId) {
+      const localSaved = localStorage.getItem(`churun_saved_addresses_${savedId}`);
+      if (localSaved) {
+        try {
+          setSavedAddresses(JSON.parse(localSaved));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, [showShippingModal]);
+
+  const handleSaveAddress = () => {
+    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+      alert("請先填寫完整的姓名、電話及地址");
+      return;
+    }
+    const alias = prompt("請輸入此地址的簡稱/名稱 (例如: 朋友張先生、客戶A、公司):");
+    if (alias === null) return;
+    const cleanAlias = alias.trim() || `常用地址 ${savedAddresses.length + 1}`;
+    
+    const newAddr = {
+      id: Date.now().toString(),
+      alias: cleanAlias,
+      name: shippingInfo.name,
+      phone: shippingInfo.phone,
+      address: shippingInfo.address
+    };
+    
+    const updated = [...savedAddresses, newAddr];
+    setSavedAddresses(updated);
+    const savedId = localStorage.getItem("churun_member_id");
+    if (savedId) {
+      localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
+    }
+    alert(`已成功儲存「${cleanAlias}」至您的常用地址簿！`);
+  };
+
+  const handleDeleteAddress = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("確定要刪除此常用地址嗎？")) return;
+    const updated = savedAddresses.filter(item => item.id !== id);
+    setSavedAddresses(updated);
+    const savedId = localStorage.getItem("churun_member_id");
+    if (savedId) {
+      localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
+    }
+  };
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
@@ -139,7 +200,10 @@ function StoreContent() {
           phone: mData.phone || '',
           address: mData.address || '',
           notes: '',
-          method: '宅配到府'
+          method: '宅配到府',
+          senderName: '',
+          senderPhone: '',
+          senderAddress: ''
         });
       }
 
@@ -725,6 +789,67 @@ function StoreContent() {
                </div>
                
                <div className="space-y-4 mb-8">
+                  {/* 常用收件地址簿 */}
+                  <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100/50">
+                     <div className="flex justify-between items-center mb-2.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">常用收件地址簿</label>
+                        <button
+                          type="button"
+                          onClick={handleSaveAddress}
+                          className="text-[9px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg transition"
+                        >
+                          + 儲存當前地址
+                        </button>
+                     </div>
+                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+                        {/* 預設：自己 */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (memberInfo) {
+                              setShippingInfo({
+                                ...shippingInfo,
+                                name: memberInfo.name || '',
+                                phone: memberInfo.phone || '',
+                                address: memberInfo.address || ''
+                              });
+                            }
+                          }}
+                          className="flex-shrink-0 bg-white border border-slate-100 hover:border-slate-300 px-3 py-2 rounded-xl text-left transition"
+                        >
+                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">預設：自己</p>
+                           <p className="text-xs font-black text-slate-800 mt-0.5">{memberInfo?.name || '會員'}</p>
+                        </button>
+                        
+                        {/* 自訂常用地址 */}
+                        {savedAddresses.map(addr => (
+                          <div
+                            key={addr.id}
+                            onClick={() => {
+                              setShippingInfo({
+                                ...shippingInfo,
+                                name: addr.name,
+                                phone: addr.phone,
+                                address: addr.address
+                              });
+                            }}
+                            className="flex-shrink-0 bg-emerald-50 hover:bg-emerald-100/50 border border-emerald-100/30 px-3 py-2 rounded-xl text-left transition cursor-pointer relative group flex items-center gap-3 pr-7"
+                          >
+                             <div>
+                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">{addr.alias}</p>
+                                <p className="text-xs font-black text-emerald-950 mt-0.5">{addr.name}</p>
+                             </div>
+                             <button
+                               type="button"
+                               onClick={(e) => handleDeleteAddress(addr.id, e)}
+                               className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center font-bold text-[8px] opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                             >
+                               ✕
+                             </button>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
                   <div>
                      <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">物流方式</label>
                      <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100">
