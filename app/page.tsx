@@ -233,6 +233,28 @@ function DashboardContent() {
     setShowPosterPreview(false);
   };
 
+  const handleSharePoster = async () => {
+    if (!posterDataUrl) return;
+    try {
+      const res = await fetch(posterDataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `churun-poster-${memberInfo.member_code}.png`, { type: 'image/png' });
+      
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: '初潤製茶所 - 專屬推廣海報',
+          text: '誠摯邀請您加入我們，這是我的專屬邀請海報！',
+          files: [file]
+        });
+      } else {
+        alert('您的裝置或瀏覽器不支援直接分享圖片，請點擊「下載儲存」後，再傳送給好友喔！');
+      }
+    } catch (err) {
+      console.error(err);
+      // alert('分享時發生錯誤，請直接點擊下載儲存。'); // User might cancel share, no need to alert error.
+    }
+  };
+
   if (isLoading || !memberInfo) return <DashboardSkeleton />;
 
   const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -543,12 +565,26 @@ function DashboardContent() {
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Poster Preview</span>
                    <button onClick={() => setShowPosterPreview(false)} className="text-slate-300 hover:text-slate-900"><X /></button>
                 </div>
-                <div className="w-full aspect-[1/1.4] bg-slate-100 rounded-2xl overflow-hidden shadow-2xl relative mb-8">
+                <div className="w-full aspect-[1/1.4] bg-slate-100 rounded-2xl overflow-hidden shadow-2xl relative mb-6">
                    {isGeneratingPoster ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div> : <img src={posterDataUrl || ''} className="w-full h-full object-contain" />}
                 </div>
-                <button onClick={downloadGeneratedPoster} className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 active:scale-95 transition flex items-center justify-center gap-3">
-                   <Download className="w-4 h-4" /> 確認無誤，下載儲存
-                </button>
+
+                {!isGeneratingPoster && (
+                  <>
+                    <p className="text-sm font-black text-slate-800 mb-4 text-center">請確認海報上的聯絡資訊是否有誤？</p>
+                    <div className="grid grid-cols-2 gap-3 w-full mb-3">
+                      <button onClick={() => { setShowPosterPreview(false); router.push('/profile/security/profile-settings'); }} className="bg-slate-50 hover:bg-slate-100 text-slate-600 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2 border border-slate-200 shadow-sm">
+                        <User className="w-4 h-4" /> 修正資料
+                      </button>
+                      <button onClick={handleSharePoster} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2 border border-indigo-100 shadow-sm">
+                        <Share2 className="w-4 h-4" /> 立即分享
+                      </button>
+                    </div>
+                    <button onClick={downloadGeneratedPoster} className="w-full bg-emerald-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 active:scale-95 transition flex items-center justify-center gap-3">
+                       <Download className="w-4 h-4" /> 確認無誤，下載儲存
+                    </button>
+                  </>
+                )}
              </motion.div>
           </motion.div>
         )}
