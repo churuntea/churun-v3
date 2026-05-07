@@ -61,7 +61,7 @@ const ZONES = [
       { name: "初潤幼兒園", criteria: "只要進行任意一次消費即可晉升", target: "消費 $1 起" },
       { name: "初潤小朋友", criteria: "累積消費金額達 $1,500 元", target: "$1,500" },
       { name: "初潤青少年", criteria: "累積消費金額達 $3,000 元", target: "$3,000" },
-      { name: "初潤好朋友", criteria: "累積消費金額達 $6,000 元", target: "$6,000" },
+      { name: "初潤好朋友", criteria: "累積消費金額達 $98,000 元", target: "$98,000" },
       { name: "初潤閨蜜", criteria: "累積消費金額達 $12,000 元", target: "$12,000" },
       { name: "初潤知己", criteria: "累積消費金額達 $198,000 元", target: "$198,000" },
       { name: "初潤靈魂伴侶", criteria: "累積消費金額達 $500,000 元", target: "$500,000" }
@@ -70,13 +70,13 @@ const ZONES = [
   {
     id: "partners",
     name: "合夥人專區",
-    desc: "B2B 個人商業合夥夥伴階層",
+    desc: "B2B 個人商業合夥夥伴階層（最低預收金額 $98,000 元）",
     color: "from-emerald-600 to-teal-600",
     bgLight: "bg-emerald-50/50",
     borderLight: "border-emerald-100",
     textDark: "text-emerald-900",
     ranks: [
-      { name: "初潤好朋友", criteria: "累積消費金額達 $6,000 元", target: "$6,000" },
+      { name: "初潤好朋友", criteria: "累積消費金額達 $98,000 元", target: "$98,000" },
       { name: "初潤閨蜜", criteria: "累積消費金額達 $12,000 元", target: "$12,000" }
     ]
   },
@@ -485,6 +485,7 @@ function EvaluationContent() {
                     {pendingAccountingList.map(app => {
                       const b2bData = parseB2BMetadata(app);
                       const isB2BAmbassador = b2bData.type === "ambassador" || app.tier === "初潤知己";
+                      const hasB2BDetails = b2bData.isB2BApply || !!b2bData.idCardNumber || b2bData.type === "partner" || app.tier === "初潤好朋友";
 
                       return (
                         <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
@@ -494,7 +495,7 @@ function EvaluationContent() {
                               <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600'}`}>
-                              申請 {app.tier}
+                              申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
                             </span>
                           </div>
 
@@ -509,11 +510,11 @@ function EvaluationContent() {
                             </div>
                           </div>
 
-                          {/* Ambassador Compliant Fields Display */}
-                          {isB2BAmbassador && (
+                          {/* B2B Compliant Fields Display */}
+                          {hasB2BDetails && (
                             <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
                               <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
-                                <span>🛡️ 品牌大使專規檢實資料</span>
+                                <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
                               </p>
                               
                               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -628,6 +629,7 @@ function EvaluationContent() {
                     {pendingManagerList.map(app => {
                       const b2bData = parseB2BMetadata(app);
                       const isB2BAmbassador = b2bData.type === "ambassador" || app.tier === "初潤知己";
+                      const hasB2BDetails = b2bData.isB2BApply || !!b2bData.idCardNumber || b2bData.type === "partner" || app.tier === "初潤好朋友";
 
                       return (
                         <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
@@ -637,7 +639,7 @@ function EvaluationContent() {
                               <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600'}`}>
-                              申請 {app.tier}
+                              申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
                             </span>
                           </div>
 
@@ -654,11 +656,11 @@ function EvaluationContent() {
                             </div>
                           </div>
 
-                          {/* Ambassador Compliant Fields Display */}
-                          {isB2BAmbassador && (
+                          {/* B2B Compliant Fields Display */}
+                          {hasB2BDetails && (
                             <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
                               <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
-                                <span>🛡️ 品牌大使專規檢實資料</span>
+                                <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
                               </p>
                               
                               <div className="grid grid-cols-2 gap-2 pt-1">
