@@ -3,7 +3,7 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { buyer_id, memberId, items, discountAmount = 0 } = await request.json();
+    const { buyer_id, memberId, items, discountAmount = 0, shippingInfo } = await request.json();
     const effectiveBuyerId = buyer_id || memberId;
 
     if (!effectiveBuyerId || !items || !Array.isArray(items) || items.length === 0) {
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
 
     // 3. 建立訂單 (狀態改為 pending，待管理者確認)
     const finalAmount = Math.max(0, totalAmount - discountAmount);
+    
     const orderData: any = {
       member_id: buyer.id,
       total_amount: finalAmount,
@@ -70,6 +71,17 @@ export async function POST(request: Request) {
       reward_points: totalB2CPoints,
       b2b_commission: totalB2BCommission
     };
+
+    if (shippingInfo) {
+      orderData.shipping_info = {
+        name: shippingInfo.name,
+        phone: shippingInfo.phone,
+        address: shippingInfo.address
+      };
+      if (shippingInfo.notes) {
+        orderData.notes = shippingInfo.notes;
+      }
+    }
 
     let { data: order, error: orderError } = await supabase
       .from('orders')

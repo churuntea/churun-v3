@@ -66,6 +66,8 @@ function StoreContent() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [shippingInfo, setShippingInfo] = useState({ name: '', phone: '', address: '', notes: '' });
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -131,6 +133,14 @@ function StoreContent() {
     try {
       const { data: mData } = await supabase.from("members").select("*").eq("id", userId).single();
       setMemberInfo(mData);
+      if (mData) {
+        setShippingInfo({
+          name: mData.name || '',
+          phone: mData.phone || '',
+          address: mData.address || '',
+          notes: ''
+        });
+      }
 
       const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
       
@@ -165,7 +175,8 @@ function StoreContent() {
           buyer_id: memberInfo.id,
           items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
           discountAmount: discountAmount,
-          couponCode: activeCoupon ? activeCoupon.code : null
+          couponCode: activeCoupon ? activeCoupon.code : null,
+          shippingInfo: shippingInfo
         })
       });
       const data = await res.json();
@@ -621,13 +632,11 @@ function StoreContent() {
                  <button 
                    onClick={() => {
                      setShowConfirmModal(false);
-                     setLastOrderAmount(finalPrice);
-                     setIsOrderCreated(false);
-                     setShowPaymentModal(true);
+                     setShowShippingModal(true);
                    }}
                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                  >
-                    品項正確，取得匯款資訊
+                    下一步：填寫收件資訊
                  </button>
                  <button 
                    onClick={() => setShowConfirmModal(false)}
@@ -641,7 +650,98 @@ function StoreContent() {
         )}
       </AnimatePresence>
 
-      {/* Step 2: Payment Instruction Modal */}
+      {/* Step 2: Shipping Info Modal */}
+      <AnimatePresence>
+        {showShippingModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowShippingModal(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+               <h3 className="text-xl font-black text-slate-900 text-center mb-6">填寫收件資訊</h3>
+               
+               <div className="space-y-4 mb-8">
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">收件人姓名</label>
+                     <input 
+                       type="text" 
+                       value={shippingInfo.name}
+                       onChange={e => setShippingInfo({...shippingInfo, name: e.target.value})}
+                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                       placeholder="請輸入收件人姓名"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">聯絡電話</label>
+                     <input 
+                       type="text" 
+                       value={shippingInfo.phone}
+                       onChange={e => setShippingInfo({...shippingInfo, phone: e.target.value})}
+                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                       placeholder="請輸入聯絡電話"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄送地址 (或超商資訊)</label>
+                     <textarea 
+                       value={shippingInfo.address}
+                       onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
+                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
+                       placeholder="請輸入完整地址或超商門市名稱/店號"
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">訂單備註 (選填)</label>
+                     <textarea 
+                       value={shippingInfo.notes}
+                       onChange={e => setShippingInfo({...shippingInfo, notes: e.target.value})}
+                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-20 resize-none focus:ring-2 focus:ring-emerald-500/20"
+                       placeholder="有什麼特別需求嗎？"
+                     />
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <button 
+                    onClick={() => {
+                      if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+                        alert("請填寫完整的收件資訊");
+                        return;
+                      }
+                      setShowShippingModal(false);
+                      setLastOrderAmount(finalPrice);
+                      setIsOrderCreated(false);
+                      setShowPaymentModal(true);
+                    }}
+                    className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
+                  >
+                     確認資訊，取得匯款帳號
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowShippingModal(false);
+                      setShowConfirmModal(true);
+                    }}
+                    className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
+                  >
+                     上一步
+                  </button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Step 3: Payment Instruction Modal */}
       <AnimatePresence>
         {showPaymentModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">

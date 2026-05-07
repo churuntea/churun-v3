@@ -30,6 +30,7 @@ function AdminOrdersContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -52,6 +53,11 @@ function AdminOrdersContent() {
             name,
             phone,
             member_code
+          ),
+          order_items (
+            name,
+            quantity,
+            price
           )
         `)
         .order("created_at", { ascending: false });
@@ -113,18 +119,25 @@ function AdminOrdersContent() {
   const handleExport = () => {
     if (filteredOrders.length === 0) return;
     
-    const exportData = filteredOrders.map(order => ({
-      '訂單編號': order.id,
-      '訂單日期': new Date(order.created_at).toLocaleString(),
-      '會員姓名': order.members?.name || '',
-      '會員電話': order.members?.phone || '',
-      '結帳金額': order.total_amount,
-      '訂單狀態': order.status === 'completed' ? '已付款/已完成' : order.status === 'pending' ? '待處理' : '已取消',
-      '出貨狀態': order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨',
-      '物流單號': order.tracking_number || '',
-      '收件資訊': order.shipping_info ? JSON.stringify(order.shipping_info) : '',
-      '備註': order.notes || ''
-    }));
+    const exportData = filteredOrders.map(order => {
+      const itemsString = order.order_items ? order.order_items.map((i: any) => `${i.name}x${i.quantity}`).join('; ') : '';
+      const shippingString = order.shipping_info ? `收件人:${order.shipping_info.name}, 電話:${order.shipping_info.phone}, 地址:${order.shipping_info.address}${order.shipping_info.notes ? ', 備註:'+order.shipping_info.notes : ''}` : '';
+      
+      return {
+        '訂單日期': new Date(order.created_at).toLocaleDateString(),
+        '訂單編號': order.id,
+        '會員姓名': order.members?.name || '',
+        '會員電話': order.members?.phone || '',
+        '購買明細': itemsString,
+        '結帳金額': order.total_amount,
+        '預計回饋點數': order.reward_points || 0,
+        '匯款末五碼': order.payment_last_five || '',
+        '訂單狀態': order.status === 'completed' ? '已完成' : order.status === 'cancelled' ? '已取消' : '待確認',
+        '出貨狀態': order.fulfillment_status === 'shipped' ? '已出貨' : '未出貨',
+        '物流單號': order.tracking_number || '',
+        '收件資訊': shippingString
+      };
+    });
 
     exportToCsv(`初潤_訂單總表_${new Date().toISOString().split('T')[0]}.csv`, exportData);
   };
@@ -222,13 +235,14 @@ function AdminOrdersContent() {
                    </tr>
                  ) : (
                    filteredOrders.map((order) => (
-                     <motion.tr 
-                       key={order.id}
-                       initial={{ opacity: 0 }}
-                       animate={{ opacity: 1 }}
-                       className="hover:bg-slate-50/50 transition group"
-                     >
-                        <td className="p-8">
+                     <React.Fragment key={order.id}>
+                       <motion.tr 
+                         initial={{ opacity: 0 }}
+                         animate={{ opacity: 1 }}
+                         className="hover:bg-slate-50/50 transition group cursor-pointer"
+                         onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
+                       >
+                          <td className="p-8">
                            <div className="flex items-center gap-4">
                               <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
                                  <Calendar className="w-5 h-5" />
@@ -328,7 +342,50 @@ function AdminOrdersContent() {
                               </button>
                            </div>
                         </td>
-                     </motion.tr>
+                       </motion.tr>
+                       {expandedOrderId === order.id && (
+                         <tr className="bg-slate-50/30 border-b border-slate-50">
+                           <td colSpan={7} className="p-8">
+                             <div className="grid grid-cols-2 gap-8">
+                               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">訂購明細</h4>
+                                 <div className="space-y-3">
+                                   {order.order_items && order.order_items.length > 0 ? order.order_items.map((item: any, idx: number) => (
+                                     <div key={idx} className="flex justify-between items-center text-sm">
+                                       <span className="font-bold text-slate-700">{item.name}</span>
+                                       <div className="flex gap-4">
+                                         <span className="text-slate-400">x{item.quantity}</span>
+                                         <span className="font-black text-slate-800">${item.price}</span>
+                                       </div>
+                                     </div>
+                                   )) : (
+                                     <p className="text-xs text-slate-400">無商品明細</p>
+                                   )}
+                                   {order.notes && (
+                                     <div className="mt-4 pt-4 border-t border-slate-50">
+                                       <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">訂單備註</p>
+                                       <p className="text-xs font-bold text-slate-600">{order.notes}</p>
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
+                               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">收件/寄送資訊</h4>
+                                 {order.shipping_info ? (
+                                   <div className="space-y-2">
+                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">收件人</span> <span className="font-black text-slate-800">{order.shipping_info.name}</span></p>
+                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.phone}</span></p>
+                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.address}</span></p>
+                                   </div>
+                                 ) : (
+                                   <p className="text-xs text-slate-400">無收件資訊 (由會員中心帶入)</p>
+                                 )}
+                               </div>
+                             </div>
+                           </td>
+                         </tr>
+                       )}
+                     </React.Fragment>
                    ))
                  )}
               </tbody>
