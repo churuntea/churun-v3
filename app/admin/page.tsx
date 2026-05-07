@@ -26,7 +26,8 @@ import {
   TrendingUp,
   Activity,
   AlertTriangle,
-  Ticket
+  Ticket,
+  Image as ImageIcon
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -198,8 +199,9 @@ function AdminDashboardContent() {
               <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
                  {[
                    { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
+                   { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
                    { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
-                    { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
+                   { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
                    { label: "商品參數管理", icon: Settings, action: "/admin/products" },
                    { label: "數據庫備份", icon: Database, action: "#" }
