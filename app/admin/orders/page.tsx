@@ -18,9 +18,10 @@ import {
   Calendar,
   DollarSign,
   User,
-  ExternalLink
-} from "lucide-react";
+import { ExternalLink, Truck, Download } from "lucide-react";
 import Link from "next/link";
+import { supabaseAdmin } from "@/app/supabase-admin";
+import { exportToCsv } from "@/utils/exportCsv";
 
 function AdminOrdersContent() {
   const router = useRouter();
@@ -86,6 +87,48 @@ function AdminOrdersContent() {
     }
   };
 
+  const updateFulfillment = async (orderId: string, status: string, trackingNum?: string) => {
+    setIsLoading(true);
+    try {
+      const updates: any = { fulfillment_status: status };
+      if (trackingNum !== undefined) {
+        updates.tracking_number = trackingNum;
+      }
+      
+      const { error } = await supabaseAdmin
+        .from("orders")
+        .update(updates)
+        .eq("id", orderId);
+        
+      if (error) throw error;
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("更新出貨狀態失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (filteredOrders.length === 0) return;
+    
+    const exportData = filteredOrders.map(order => ({
+      '訂單編號': order.id,
+      '訂單日期': new Date(order.created_at).toLocaleString(),
+      '會員姓名': order.members?.name || '',
+      '會員電話': order.members?.phone || '',
+      '結帳金額': order.total_amount,
+      '訂單狀態': order.status === 'completed' ? '已付款/已完成' : order.status === 'pending' ? '待處理' : '已取消',
+      '出貨狀態': order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨',
+      '物流單號': order.tracking_number || '',
+      '收件資訊': order.shipping_info ? JSON.stringify(order.shipping_info) : '',
+      '備註': order.notes || ''
+    }));
+
+    exportToCsv(`初潤_訂單總表_${new Date().toISOString().split('T')[0]}.csv`, exportData);
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesStatus = filterStatus === "all" || order.status === filterStatus;
     const matchesSearch = 
@@ -110,9 +153,14 @@ function AdminOrdersContent() {
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Order Management Console</p>
             </div>
          </div>
-         <button onClick={fetchOrders} className="p-2 text-slate-400 hover:text-indigo-600 transition">
-            <Clock className="w-5 h-5" />
-         </button>
+         <div className="flex gap-2">
+            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest">
+               <Download className="w-4 h-4" /> 匯出訂單 (CSV)
+            </button>
+            <button onClick={fetchOrders} className="p-3 bg-slate-100 text-slate-400 rounded-[1.5rem] hover:text-indigo-600 hover:bg-indigo-50 transition">
+               <Clock className="w-5 h-5" />
+            </button>
+         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto p-10 space-y-10">
@@ -218,14 +266,29 @@ function AdminOrdersContent() {
                            </div>
                         </td>
                         <td className="p-8 text-center">
-                           <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                             order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
-                             order.status === 'pending' ? 'bg-amber-50 text-amber-600' :
-                             'bg-rose-50 text-rose-600'
-                           }`}>
-                              {order.status === 'completed' ? 'Success' :
-                               order.status === 'pending' ? 'Processing' : 'Cancelled'}
-                           </span>
+                           <div className="flex flex-col items-center gap-2">
+                             <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                               order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
+                               order.status === 'pending' ? 'bg-amber-50 text-amber-600' :
+                               'bg-rose-50 text-rose-600'
+                             }`}>
+                                {order.status === 'completed' ? '已付款' :
+                                 order.status === 'pending' ? '待付款' : 'Cancelled'}
+                             </span>
+                             {order.status === 'completed' && (
+                               <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1 ${
+                                 order.fulfillment_status === 'shipped' ? 'bg-blue-50 text-blue-600' :
+                                 order.fulfillment_status === 'processing' ? 'bg-indigo-50 text-indigo-600' :
+                                 'bg-slate-100 text-slate-500'
+                               }`}>
+                                 <Truck className="w-3 h-3" />
+                                 {order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨'}
+                               </span>
+                             )}
+                             {order.tracking_number && (
+                               <span className="text-[9px] font-mono font-bold text-slate-400">{order.tracking_number}</span>
+                             )}
+                           </div>
                         </td>
                         <td className="p-8 text-right">
                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
@@ -246,6 +309,19 @@ function AdminOrdersContent() {
                                      <XCircle className="w-4 h-4" />
                                   </button>
                                 </>
+                              )}
+                              
+                              {order.status === 'completed' && order.fulfillment_status !== 'shipped' && (
+                                <button 
+                                  onClick={() => {
+                                    const num = prompt("請輸入物流單號（留空則僅標記為已出貨）：");
+                                    if (num !== null) updateFulfillment(order.id, 'shipped', num);
+                                  }}
+                                  className="p-3 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:scale-110 transition"
+                                  title="標記為已出貨"
+                                >
+                                   <Truck className="w-4 h-4" />
+                                </button>
                               )}
                               <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition">
                                  <MoreVertical className="w-4 h-4" />

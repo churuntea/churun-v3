@@ -170,7 +170,7 @@ function AdminDashboardContent() {
            {[
              { label: "待核准提領", val: stats.pendingSettlement.toLocaleString(), icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
              { label: "待處理訂單", val: stats.activeOrders, icon: Package, color: "text-blue-500", href: "/admin/orders" },
-             { label: "總會員數", val: stats.totalMembers, icon: Users, color: "text-emerald-500", href: "#" },
+             { label: "總會員數", val: stats.totalMembers, icon: Users, color: "text-emerald-500", href: "/admin/members" },
              { label: "異常警報", val: "0", icon: AlertTriangle, color: "text-rose-500", href: "#" }
            ].map((stat, i) => (
              <Link href={stat.href} key={i}>
@@ -200,6 +200,7 @@ function AdminDashboardContent() {
                  {[
                    { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
                    { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
+                   { label: "會員總覽與資料匯出", icon: Users, action: "/admin/members" },
                    { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
                    { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },

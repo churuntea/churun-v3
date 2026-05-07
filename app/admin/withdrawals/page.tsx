@@ -18,11 +18,15 @@ import {
   Download
 } from "lucide-react";
 
+import { exportToCsv } from "@/utils/exportCsv";
+
 function AdminWithdrawalsContent() {
   const router = useRouter();
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
 
   useEffect(() => {
     // 統一的 Admin 驗證 (改用 churun_admin_auth)
@@ -79,7 +83,74 @@ function AdminWithdrawalsContent() {
     fetchRequests();
   };
 
+  const handleBatchAction = async (status: 'completed' | 'failed') => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`確定要將選取的 ${selectedIds.length} 筆提領申請標記為 ${status === 'completed' ? '已核准' : '已駁回'} 嗎？`)) return;
+    
+    setIsProcessingBatch(true);
+    try {
+      // Process batch
+      for (const id of selectedIds) {
+        const req = requests.find(r => r.id === id);
+        if (!req || req.status !== 'pending') continue;
+
+        const { error: updateError } = await supabase
+          .from("wallet_transactions")
+          .update({ status })
+          .eq("id", id);
+
+        if (status === 'completed' && !updateError) {
+          const { data: member } = await supabase.from("members").select("virtual_balance").eq("id", req.member_id).single();
+          const currentBalance = Number(member?.virtual_balance || 0);
+          
+          await supabase.from("members").update({
+            virtual_balance: currentBalance + req.amount
+          }).eq("id", req.member_id);
+        }
+      }
+      
+      setSelectedIds([]);
+      await fetchRequests();
+    } catch (err) {
+      console.error(err);
+      alert("批次處理發生錯誤");
+    } finally {
+      setIsProcessingBatch(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (filteredRequests.length === 0) return;
+    
+    const exportData = filteredRequests.map(req => ({
+      '申請單號': req.id,
+      '會員姓名': req.members?.name,
+      '會員代碼': req.members?.member_code,
+      '銀行代碼': req.metadata?.bank?.bankCode || '',
+      '銀行帳號': req.metadata?.bank?.account || '',
+      '戶名': req.metadata?.bank?.name || '',
+      '提款金額': Math.abs(req.amount),
+      '狀態': req.status === 'pending' ? '待處理' : req.status === 'completed' ? '已核准' : '已駁回',
+      '申請時間': new Date(req.created_at).toLocaleString()
+    }));
+
+    exportToCsv(`初潤_提領申請報表_${new Date().toISOString().split('T')[0]}.csv`, exportData);
+  };
+
   const filteredRequests = requests.filter(r => filter === 'all' ? true : r.status === filter);
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleAll = () => {
+    const pendingIds = filteredRequests.filter(r => r.status === 'pending').map(r => r.id);
+    if (selectedIds.length === pendingIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(pendingIds);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32">
@@ -93,7 +164,9 @@ function AdminWithdrawalsContent() {
             <h1 className="text-sm font-black tracking-[0.3em] uppercase">獎金提領審核中心</h1>
          </div>
          <div className="flex gap-2">
-            <button className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition"><Download className="w-4 h-4 text-white/60" /></button>
+            <button onClick={handleExport} className="flex items-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition text-sm font-bold text-white">
+               <Download className="w-4 h-4 text-white/60" /> 匯出報表 (CSV)
+            </button>
          </div>
       </nav>
 
@@ -131,15 +204,70 @@ function AdminWithdrawalsContent() {
 
         {/* Request List */}
         <div className="space-y-4">
-           {isLoading ? (
-             <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
+         {/* Batch Actions Bar */}
+         <AnimatePresence>
+            {selectedIds.length > 0 && filter === 'pending' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-xl shadow-slate-900/20 sticky top-24 z-40 mb-4"
+              >
+                 <div className="flex items-center gap-4 px-4">
+                    <span className="text-sm font-black">已選取 {selectedIds.length} 筆申請</span>
+                    <button onClick={() => setSelectedIds([])} className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest underline">取消選取</button>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleBatchAction('completed')}
+                      disabled={isProcessingBatch}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50"
+                    >
+                       {isProcessingBatch && <Loader2 className="w-3 h-3 animate-spin" />}
+                       批次核准發款
+                    </button>
+                    <button 
+                      onClick={() => handleBatchAction('failed')}
+                      disabled={isProcessingBatch}
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition disabled:opacity-50 text-rose-400"
+                    >
+                       批次駁回
+                    </button>
+                 </div>
+              </motion.div>
+            )}
+         </AnimatePresence>
+
+            {filter === 'pending' && filteredRequests.length > 0 && (
+               <div className="flex items-center gap-3 px-8 py-2">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length > 0 && selectedIds.length === filteredRequests.filter(r => r.status === 'pending').length}
+                    onChange={toggleAll}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                  />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer" onClick={toggleAll}>全選待處理</span>
+               </div>
+            )}
+            {isLoading ? (
+              <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
            ) : filteredRequests.map((req, i) => (
              <motion.div 
                key={req.id}
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
-               className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center gap-8 group"
+               className={`bg-white rounded-[2.5rem] p-8 border shadow-sm flex flex-col md:flex-row md:items-center gap-8 group transition ${selectedIds.includes(req.id) ? 'border-indigo-500 shadow-indigo-500/10' : 'border-slate-100'}`}
              >
+                {req.status === 'pending' && (
+                  <div className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.includes(req.id)}
+                      onChange={() => toggleSelection(req.id)}
+                      className="w-6 h-6 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                    />
+                  </div>
+                )}
                 <div className="flex-1 space-y-3">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">
