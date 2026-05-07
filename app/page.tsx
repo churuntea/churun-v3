@@ -208,17 +208,27 @@ function DashboardContent() {
       const config = template.config || {
         qr: { x: 800, y: 1100, size: 160 },
         name: { x: 380, y: 1120, size: 28, color: "#ffffff" },
-        phone: { x: 380, y: 1155, size: 24, color: "#ffffff" }
+        phone: { x: 380, y: 1155, size: 24, color: "#ffffff" },
+        address: { x: 380, y: 1190, size: 20, color: "#ffffff" }
       };
       const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
-      if (hiddenQr) ctx.drawImage(hiddenQr, config.qr.x, config.qr.y, config.qr.size, config.qr.size);
-      ctx.fillStyle = config.name.color || '#ffffff';
-      ctx.font = `black ${config.name.size}px sans-serif`;
+      if (hiddenQr) ctx.drawImage(hiddenQr, config.qr?.x || 800, config.qr?.y || 1100, config.qr?.size || 160, config.qr?.size || 160);
+      
+      ctx.fillStyle = config.name?.color || '#ffffff';
+      ctx.font = `black ${config.name?.size || 28}px sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(memberInfo.name, config.name.x, config.name.y);
-      ctx.fillStyle = config.phone.color || config.name.color || '#ffffff';
-      ctx.font = `bold ${config.phone.size}px sans-serif`;
-      ctx.fillText(memberInfo.phone || '', config.phone.x, config.phone.y);
+      ctx.fillText(memberInfo.name, config.name?.x || 380, config.name?.y || 1120);
+      
+      ctx.fillStyle = config.phone?.color || config.name?.color || '#ffffff';
+      ctx.font = `bold ${config.phone?.size || 24}px sans-serif`;
+      ctx.fillText(memberInfo.phone || '', config.phone?.x || 380, config.phone?.y || 1155);
+      
+      if (config.address) {
+        ctx.fillStyle = config.address.color || config.name?.color || '#ffffff';
+        ctx.font = `bold ${config.address.size || 20}px sans-serif`;
+        ctx.fillText(memberInfo.address || '', config.address.x || 380, config.address.y || 1190);
+      }
+
       setPosterDataUrl(canvas.toDataURL('image/png'));
       setIsGeneratingPoster(false);
     };

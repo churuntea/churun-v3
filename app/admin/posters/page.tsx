@@ -27,7 +27,8 @@ export default function AdminPosters() {
   const defaultConfig = {
     qr: { x: 800, y: 1100, size: 160 },
     name: { x: 380, y: 1120, size: 28, color: "#ffffff" },
-    phone: { x: 380, y: 1155, size: 24, color: "#ffffff" }
+    phone: { x: 380, y: 1155, size: 24, color: "#ffffff" },
+    address: { x: 380, y: 1190, size: 20, color: "#ffffff" }
   };
 
   useEffect(() => {
@@ -221,34 +222,38 @@ export default function AdminPosters() {
                           </label>
                         </div>
                      </div>
-                     {/* 暫時隱藏座標設定區塊 */}
-                     {false && (
-                       <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
-                          <div>
-                             <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4 block underline">QR Code 位置</label>
-                             <div className="space-y-4">
-                                <input type="number" value={editingTemplate.config.qr.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                                <input type="number" value={editingTemplate.config.qr.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                                <input type="number" value={editingTemplate.config.qr.size} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, size: parseInt(e.target.value)}}})} placeholder="Size" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                             </div>
-                          </div>
-                          <div>
-                             <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 block underline">姓名位置</label>
-                             <div className="space-y-4">
-                                <input type="number" value={editingTemplate.config.name.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                                <input type="number" value={editingTemplate.config.name.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                                <input type="text" value={editingTemplate.config.name.color} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, color: e.target.value}}})} placeholder="Color" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                             </div>
-                          </div>
-                          <div>
-                             <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-4 block underline">電話位置</label>
-                             <div className="space-y-4">
-                                <input type="number" value={editingTemplate.config.phone.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                                <input type="number" value={editingTemplate.config.phone.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                             </div>
-                          </div>
-                       </div>
-                     )}
+                     <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-50">
+                        <div>
+                           <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4 block underline">QR Code 位置</label>
+                           <div className="space-y-4">
+                              <input type="number" value={editingTemplate.config.qr?.x || 800} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="number" value={editingTemplate.config.qr?.y || 1100} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="number" value={editingTemplate.config.qr?.size || 160} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, size: parseInt(e.target.value)}}})} placeholder="Size" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 block underline">姓名位置</label>
+                           <div className="space-y-4">
+                              <input type="number" value={editingTemplate.config.name?.x || 380} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="number" value={editingTemplate.config.name?.y || 1120} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="text" value={editingTemplate.config.name?.color || '#ffffff'} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, color: e.target.value}}})} placeholder="Color" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-4 block underline">電話位置</label>
+                           <div className="space-y-4">
+                              <input type="number" value={editingTemplate.config.phone?.x || 380} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="number" value={editingTemplate.config.phone?.y || 1155} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-4 block underline">地址位置</label>
+                           <div className="space-y-4">
+                              <input type="number" value={editingTemplate.config.address?.x || 380} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, address: {...editingTemplate.config.address, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                              <input type="number" value={editingTemplate.config.address?.y || 1190} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, address: {...editingTemplate.config.address, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                           </div>
+                        </div>
+                     </div>
                   </div>
                   <div className="mt-8 flex gap-4">
                      <button 
@@ -276,11 +281,13 @@ export default function AdminPosters() {
                        <img src={editingTemplate.url} className="w-full h-full object-cover" />
                        {/* 模擬座標點 */}
                        <div className="absolute border-2 border-emerald-500 bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-700 font-bold" 
-                            style={{ left: editingTemplate.config.qr.x/4, top: editingTemplate.config.qr.y/4, width: editingTemplate.config.qr.size/4, height: editingTemplate.config.qr.size/4 }}>QR</div>
+                            style={{ left: (editingTemplate.config.qr?.x || 800)/4, top: (editingTemplate.config.qr?.y || 1100)/4, width: (editingTemplate.config.qr?.size || 160)/4, height: (editingTemplate.config.qr?.size || 160)/4 }}>QR</div>
                        <div className="absolute border border-blue-500 bg-blue-500/20 text-[8px] text-blue-700 font-bold whitespace-nowrap p-1" 
-                            style={{ left: editingTemplate.config.name.x/4, top: editingTemplate.config.name.y/4 }}>[姓名位置]</div>
+                            style={{ left: (editingTemplate.config.name?.x || 380)/4, top: (editingTemplate.config.name?.y || 1120)/4 }}>[姓名位置]</div>
                        <div className="absolute border border-rose-500 bg-rose-500/20 text-[8px] text-rose-700 font-bold whitespace-nowrap p-1" 
-                            style={{ left: editingTemplate.config.phone.x/4, top: editingTemplate.config.phone.y/4 }}>[電話位置]</div>
+                            style={{ left: (editingTemplate.config.phone?.x || 380)/4, top: (editingTemplate.config.phone?.y || 1155)/4 }}>[電話位置]</div>
+                       <div className="absolute border border-amber-500 bg-amber-500/20 text-[8px] text-amber-700 font-bold whitespace-nowrap p-1" 
+                            style={{ left: (editingTemplate.config.address?.x || 380)/4, top: (editingTemplate.config.address?.y || 1190)/4 }}>[地址位置]</div>
                     </div>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
