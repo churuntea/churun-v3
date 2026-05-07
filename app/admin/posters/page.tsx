@@ -20,6 +20,7 @@ export default function AdminPosters() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   
   // 預設配置
@@ -88,6 +89,37 @@ export default function AdminPosters() {
     const { error } = await supabase.from('poster_templates').delete().eq('id', id);
     if (error) alert('刪除失敗');
     else fetchTemplates();
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        
+        const response = await fetch('/api/admin/posters/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64Data })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          setEditingTemplate({...editingTemplate, url: result.imageUrl});
+        } else {
+          alert('上傳失敗: ' + result.error);
+        }
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      alert('上傳失敗: ' + err.message);
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -162,14 +194,23 @@ export default function AdminPosters() {
                         />
                      </div>
                      <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">圖片 URL (建議上傳至 Supabase Storage 後貼入)</label>
-                        <input 
-                          type="text" 
-                          value={editingTemplate.url}
-                          onChange={e => setEditingTemplate({...editingTemplate, url: e.target.value})}
-                          className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold"
-                          placeholder="https://..."
-                        />
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                          <span>公版圖片上傳 / URL</span>
+                        </label>
+                        <div className="flex gap-3">
+                          <input 
+                            type="text" 
+                            value={editingTemplate.url}
+                            onChange={e => setEditingTemplate({...editingTemplate, url: e.target.value})}
+                            className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold"
+                            placeholder="https://... 或點擊右側上傳圖片"
+                          />
+                          <label className={`bg-emerald-50 text-emerald-600 px-5 py-4 rounded-2xl font-black text-xs cursor-pointer hover:bg-emerald-100 transition flex items-center justify-center gap-2 whitespace-nowrap ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            <span>上傳 DM 圖片</span>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading} />
+                          </label>
+                        </div>
                      </div>
                      <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
                         <div>
