@@ -596,6 +596,24 @@ function StoreContent() {
               <div className="w-16 h-16 bg-slate-50 text-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
                  <ShoppingCart className="w-6 h-6" />
               </div>
+              {/* 結帳進度條 */}
+              <div className="flex items-center justify-between mb-8 px-4 shrink-0">
+                 <div className="flex flex-col items-center">
+                    <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">1</span>
+                    <span className="text-[8px] font-black text-slate-800 mt-1 uppercase tracking-wider">確認明細</span>
+                 </div>
+                 <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
+                 <div className="flex flex-col items-center">
+                    <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">2</span>
+                    <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">填寫收件</span>
+                 </div>
+                 <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
+                 <div className="flex flex-col items-center">
+                    <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
+                    <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">匯款付款</span>
+                 </div>
+              </div>
+              
               <h3 className="text-xl font-black text-slate-900 text-center mb-6">請確認訂購品項</h3>
               
               <div className="space-y-4 mb-8 max-h-60 overflow-y-auto no-scrollbar pr-2">
@@ -668,7 +686,43 @@ function StoreContent() {
               exit={{ scale: 0.9, y: 20 }}
               className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
             >
-               <h3 className="text-xl font-black text-slate-900 text-center mb-6">填寫收件資訊</h3>
+               {/* 結帳進度條 */}
+               <div className="flex items-center justify-between mb-8 px-4 shrink-0">
+                  <div className="flex flex-col items-center">
+                     <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
+                     <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認明細</span>
+                  </div>
+                  <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
+                  <div className="flex flex-col items-center">
+                     <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">2</span>
+                     <span className="text-[8px] font-black text-slate-800 mt-1 uppercase tracking-wider">填寫收件</span>
+                  </div>
+                  <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
+                  <div className="flex flex-col items-center">
+                     <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
+                     <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">匯款付款</span>
+                  </div>
+               </div>
+               
+               <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-black text-slate-900">填寫收件資訊</h3>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (memberInfo) {
+                        setShippingInfo({
+                          ...shippingInfo,
+                          name: memberInfo.name || '',
+                          phone: memberInfo.phone || '',
+                          address: memberInfo.address || ''
+                        });
+                      }
+                    }}
+                    className="text-[9px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                  >
+                    <span>↺ 帶入會員預設資料</span>
+                  </button>
+               </div>
                
                <div className="space-y-4 mb-8">
                   <div>

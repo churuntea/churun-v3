@@ -35,6 +35,7 @@ function AdminOrdersContent() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -124,6 +125,151 @@ function AdminOrdersContent() {
               <div style="font-size: 13px; font-weight: bold;">${order.notes}</div>
             </div>
           ` : ''}
+          
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleBatchApprove = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!confirm(`確定要批量核對並同意這 ${selectedOrderIds.length} 筆訂單的付款嗎？`)) return;
+    setIsLoading(true);
+    try {
+      for (const orderId of selectedOrderIds) {
+        await fetch('/api/orders/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+      }
+      setSelectedOrderIds([]);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("部分訂單核對失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBatchShip = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!confirm(`確定要把這 ${selectedOrderIds.length} 筆訂單標記為已出貨嗎？`)) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabaseAdmin
+        .from("orders")
+        .update({ fulfillment_status: 'shipped' })
+        .in("id", selectedOrderIds);
+      if (error) throw error;
+      setSelectedOrderIds([]);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("批量出貨失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePrintCombinedPickingList = () => {
+    if (selectedOrderIds.length === 0) return;
+    const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+    
+    const totals: any = {};
+    selectedOrders.forEach(o => {
+      if (o.order_items) {
+        o.order_items.forEach((item: any) => {
+          totals[item.name] = (totals[item.name] || 0) + item.quantity;
+        });
+      }
+    });
+    
+    const summaryHtml = Object.entries(totals).map(([name, qty]) => `
+      <tr style="font-size: 16px; border-bottom: 2px solid #ddd;">
+        <td style="padding: 15px 12px; font-weight: 900; color: #111;">${name}</td>
+        <td style="padding: 15px 12px; text-align: center; font-weight: 900; color: #b45309; font-size: 20px;">${qty}</td>
+      </tr>
+    `).join('');
+    
+    const detailedHtml = selectedOrders.map(o => {
+      const shipping = o.shipping_info || {};
+      const items = o.order_items ? o.order_items.map((i: any) => `${i.name} x${i.quantity}`).join(', ') : '無';
+      return `
+        <tr style="font-size: 12px; border-bottom: 1px solid #eee;">
+          <td style="padding: 10px 8px; font-weight: bold; font-family: monospace;">${o.id.substring(0,8)}</td>
+          <td style="padding: 10px 8px; font-weight: bold;">${shipping.name || o.members?.name || '無'}</td>
+          <td style="padding: 10px 8px;">${shipping.phone || o.members?.phone || '無'}</td>
+          <td style="padding: 10px 8px; font-weight: bold; color: #047857;">${shipping.method || '宅配到府'}</td>
+          <td style="padding: 10px 8px; font-size: 11px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${shipping.address || '自取'}</td>
+          <td style="padding: 10px 8px; font-weight: bold;">${items}</td>
+        </tr>
+      `;
+    }).join('');
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>初潤製茶所 - 總部合併揀貨出貨單</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; color: #333; padding: 40px; }
+            .header { text-align: center; margin-bottom: 40px; }
+            .title { font-size: 26px; font-weight: 900; letter-spacing: 2px; }
+            .subtitle { font-size: 12px; color: #666; margin-top: 5px; }
+            .section-title { font-size: 14px; font-weight: 900; text-transform: uppercase; margin-top: 40px; margin-bottom: 15px; border-left: 5px solid #111827; padding-left: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { background-color: #f3f4f6; padding: 12px; text-align: left; font-size: 12px; color: #4b5563; border-bottom: 2px solid #e5e7eb; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span style="font-weight: bold; font-size: 12px; color: #999;">合併揀貨單 (共 ${selectedOrders.length} 筆訂單)</span>
+            <button onclick="window.print()" style="background: #111827; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">立即列印</button>
+          </div>
+          <div class="header">
+            <div class="title">初 潤 製 茶 所</div>
+            <div class="subtitle">總 部 合 併 揀 貨 出 貨 單</div>
+          </div>
+          
+          <div class="section-title">📦 第一步：倉庫總揀貨清單 (商品總計)</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left; font-size: 14px;">商品品名</th>
+                <th style="width: 150px; text-align: center; font-size: 14px;">應揀貨總數量</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaryHtml}
+            </tbody>
+          </table>
+          
+          <div class="section-title">🚚 第二步：分單配送明細</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">單號末碼</th>
+                <th style="width: 80px;">收件人</th>
+                <th style="width: 100px;">電話</th>
+                <th style="width: 90px;">物流方式</th>
+                <th>寄送地址 / 門市</th>
+                <th>購買品項</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${detailedHtml}
+            </tbody>
+          </table>
           
           <script>window.onload = function() { window.print(); }</script>
         </body>
@@ -298,6 +444,20 @@ function AdminOrdersContent() {
            <table className="w-full text-left border-collapse">
               <thead>
                  <tr className="bg-slate-50/50 border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                     <th className="p-8 w-12 text-center">
+                        <input 
+                          type="checkbox"
+                          checked={selectedOrderIds.length === filteredOrders.length && filteredOrders.length > 0}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedOrderIds(filteredOrders.map(o => o.id));
+                            } else {
+                              setSelectedOrderIds([]);
+                            }
+                          }}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                     </th>
                     <th className="p-8">訂單日期 / 編號</th>
                     <th className="p-8">會員資訊</th>
                     <th className="p-8">匯款末五碼</th>
@@ -332,6 +492,20 @@ function AdminOrdersContent() {
                          className="hover:bg-slate-50/50 transition group cursor-pointer"
                          onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
                        >
+                           <td className="p-8 text-center" onClick={e => e.stopPropagation()}>
+                              <input 
+                                type="checkbox"
+                                checked={selectedOrderIds.includes(order.id)}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    setSelectedOrderIds([...selectedOrderIds, order.id]);
+                                  } else {
+                                    setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                           </td>
                           <td className="p-8">
                            <div className="flex items-center gap-4">
                               <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
@@ -435,7 +609,7 @@ function AdminOrdersContent() {
                        </motion.tr>
                        {expandedOrderId === order.id && (
                          <tr className="bg-slate-50/30 border-b border-slate-50">
-                           <td colSpan={7} className="p-8">
+                           <td colSpan={8} className="p-8">
                              <div className="grid grid-cols-2 gap-8">
                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">訂購明細</h4>
@@ -516,6 +690,55 @@ function AdminOrdersContent() {
            </table>
         </div>
 
+        {/* 批量操作懸浮工具列 (Bulk Action Floating Toolbar) */}
+        <AnimatePresence>
+          {selectedOrderIds.length > 0 && (
+            <motion.div 
+              initial={{ y: 100, opacity: 0, x: "-50%" }}
+              animate={{ y: 0, opacity: 1, x: "-50%" }}
+              exit={{ y: 100, opacity: 0, x: "-50%" }}
+              className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[150] w-full max-w-4xl px-6"
+            >
+               <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-800 text-white p-6 rounded-[2.5rem] shadow-2xl flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center font-black text-sm">
+                        {selectedOrderIds.length}
+                     </div>
+                     <div>
+                        <p className="text-xs font-black">已選取 {selectedOrderIds.length} 筆訂單</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Bulk Action Management</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-2">
+                     <button 
+                       onClick={handlePrintCombinedPickingList}
+                       className="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition"
+                     >
+                        <Printer className="w-4 h-4" /> 合併揀貨單
+                     </button>
+                     <button 
+                       onClick={handleBatchApprove}
+                       className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition"
+                     >
+                        <CheckCircle2 className="w-4 h-4" /> 批量核付款
+                     </button>
+                     <button 
+                       onClick={handleBatchShip}
+                       className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition"
+                     >
+                        <Truck className="w-4 h-4" /> 批量出貨
+                     </button>
+                     <button 
+                       onClick={() => setSelectedOrderIds([])}
+                       className="px-4 py-3.5 text-slate-400 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition"
+                     >
+                        取消
+                     </button>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
