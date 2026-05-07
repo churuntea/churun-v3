@@ -1,0 +1,435 @@
+"use client";
+
+import { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../supabase";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Phone, 
+  User, 
+  UserPlus, 
+  ArrowRight, 
+  Loader2, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Lock,
+  Mail,
+  MapPin,
+  Camera,
+  Wallet,
+  Coins,
+  AlertTriangle,
+  Award
+} from "lucide-react";
+import Link from "next/link";
+
+function ApplyContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawType = searchParams.get("type"); // 'partner' or 'ambassador'
+  const isAmbassador = rawType === "ambassador";
+  
+  const roleTitle = isAmbassador ? "品牌大使" : "合夥人";
+  const roleEnglish = isAmbassador ? "Brand Ambassador" : "Partner";
+  const targetTier = isAmbassador ? "初潤知己" : "初潤好朋友";
+  const minDeposit = isAmbassador ? 25000 : 6000;
+  const gradientColor = isAmbassador ? "from-amber-500 to-orange-600" : "from-emerald-600 to-teal-600";
+  const textColor = isAmbassador ? "text-amber-500" : "text-emerald-600";
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Form Inputs
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    password: "",
+    amount: minDeposit.toString(),
+    lastFive: "",
+  });
+
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoBase64(reader.result as string);
+      setUploadingPhoto(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    const amountVal = parseFloat(formData.amount);
+    if (isNaN(amountVal) || amountVal < minDeposit) {
+      setErrorMsg(`⚠️ 申請金額不得低於最低門檻 $${minDeposit.toLocaleString()} 元`);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.lastFive || formData.lastFive.length !== 5) {
+      setErrorMsg("⚠️ 請填寫正確的匯款帳號後五碼（需為 5 位數字）");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!photoBase64) {
+      setErrorMsg("⚠️ 請拍攝並上傳匯款水單或存摺證明，以利會計審查金額！");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Check if phone is already registered
+      const { data: existingUser } = await supabase
+        .from("members")
+        .select("id")
+        .eq("phone", formData.phone.trim())
+        .maybeSingle();
+
+      if (existingUser) {
+        setErrorMsg("⚠️ 此手機號碼已被註冊過！如果您要申請成為 B2B 夥伴，請使用其他新手機號碼，或聯絡總公司客服。");
+        setIsLoading(false);
+        return;
+      }
+
+      // Generate random temporary member/referral codes
+      const memberCode = `CR26B${Math.floor(100000 + Math.random() * 900000)}`;
+      const myReferralCode = memberCode;
+
+      // 2. Insert into members table with pending status and b2b flag
+      // We serialize account details and photo URL inside the standard 'beneficiary' field so it is 100% schema-compatible
+      const serializedData = `B2B_APPLY|${formData.lastFive}|${photoBase64}`;
+
+      const insertData = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        address: formData.address.trim(),
+        password: formData.password,
+        referral_code: myReferralCode,
+        member_code: memberCode,
+        tier: targetTier,
+        is_b2b: true,
+        lifetime_spend: 0,
+        quarterly_spend: 0,
+        points_balance: 0,
+        virtual_balance: 0, // 審核通過後，會計和業務主管才會發放此金額！
+        initial_deposit: amountVal, // 暫存申請金額
+        status: "pending_accounting", // 會計審核關卡
+        bank_account: formData.lastFive, // 存入 bank_account 作為後五碼
+        beneficiary: serializedData // 存入包含 base64 匯款憑證的序列化欄位
+      };
+
+      const { error: insertError } = await supabase
+        .from("members")
+        .insert(insertData);
+
+      if (insertError) {
+        setErrorMsg(`申請提交失敗: ${insertError.message}`);
+      } else {
+        setSuccess(true);
+      }
+    } catch (err: any) {
+      setErrorMsg(`異常錯誤: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6 relative overflow-hidden pb-16">
+      
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-1/4 -left-1/4 w-full h-full bg-emerald-50 rounded-full blur-[120px] opacity-40"></div>
+        <div className="absolute -bottom-1/4 -right-1/4 w-full h-full bg-amber-50 rounded-full blur-[120px] opacity-30"></div>
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-lg relative z-10"
+      >
+        <div className="bg-white/80 backdrop-blur-3xl rounded-[3rem] p-8 md:p-12 shadow-[0_32px_64px_-16px_rgba(6,78,59,0.06)] border border-white">
+          
+          <AnimatePresence mode="wait">
+            {!success ? (
+              <motion.div key="form" exit={{ opacity: 0, y: -20 }}>
+                {/* Header Banner */}
+                <div className="text-center mb-10">
+                  <div className={`w-16 h-16 bg-gradient-to-tr ${gradientColor} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-900/10`}>
+                    <Award className="text-white w-8 h-8" />
+                  </div>
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">申請成為初潤 {roleTitle}</h1>
+                  <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase mt-1">B2B Business {roleEnglish} Onboarding</p>
+                  
+                  {/* Min Limit Badge */}
+                  <div className="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">考核職級 / 最低預收額</span>
+                    <span className={`text-sm font-black ${textColor}`}>{targetTier} / ${minDeposit.toLocaleString()} 元</span>
+                  </div>
+                </div>
+
+                {errorMsg && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-[10px] font-black text-rose-500 uppercase tracking-widest mb-8 flex items-center gap-2"
+                  >
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <span>{errorMsg}</span>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleApply} className="space-y-6">
+                  {/* Basic section */}
+                  <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2">一、 基本創業資料填寫</h3>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">您的姓名</label>
+                    <div className="relative">
+                      <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="請輸入真實姓名"
+                        value={formData.name}
+                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">聯絡手機（此號碼將作為您未來的登入帳號）</label>
+                    <div className="relative">
+                      <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="tel" 
+                        required
+                        placeholder="請輸入手機號碼"
+                        value={formData.phone}
+                        onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">登入密碼</label>
+                    <div className="relative">
+                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="password" 
+                        required
+                        placeholder="請設定登入密碼"
+                        value={formData.password}
+                        onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">電子信箱（選填）</label>
+                    <div className="relative">
+                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="email" 
+                        placeholder="請輸入電子信箱"
+                        value={formData.email}
+                        onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">通訊與收件地址</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="請輸入商品預設收件地址"
+                        value={formData.address}
+                        onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Financial section */}
+                  <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2 pt-4">二、 創業金額與匯款資訊</h3>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">本次儲值/預收貨款金額 (元)</label>
+                    <div className="relative">
+                      <Wallet className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="number" 
+                        required
+                        min={minDeposit}
+                        placeholder={`最低門檻 $${minDeposit}`}
+                        value={formData.amount}
+                        onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">匯款銀行帳號【後五碼】</label>
+                    <div className="relative">
+                      <Coins className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+                      <input 
+                        type="text" 
+                        required
+                        maxLength={5}
+                        placeholder="例如: 12345"
+                        value={formData.lastFive}
+                        onChange={e => setFormData(prev => ({ ...prev, lastFive: e.target.value.replace(/\D/g, "") }))}
+                        className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Receipt Upload Widget */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">拍照並上傳匯款憑證/水單</label>
+                    
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl p-6 bg-slate-50/30 hover:bg-slate-50/80 transition relative overflow-hidden min-h-[160px]">
+                      {photoBase64 ? (
+                        <div className="relative w-full h-40 group">
+                          <img 
+                            src={photoBase64} 
+                            alt="Receipt" 
+                            className="w-full h-full object-cover rounded-2xl"
+                          />
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition flex items-center justify-center rounded-2xl">
+                            <label className="cursor-pointer bg-white text-slate-800 text-[10px] font-black uppercase tracking-widest py-3 px-5 rounded-xl flex items-center gap-2 active:scale-95 shadow-lg">
+                              <Camera className="w-3.5 h-3.5" /> 重新拍照 / 上傳
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                capture="environment" 
+                                onChange={handlePhotoCapture} 
+                                className="hidden" 
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center gap-3 cursor-pointer py-6">
+                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50 text-slate-400">
+                            {uploadingPhoto ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Camera className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div className="text-center">
+                            <p className="text-[10px] font-black text-slate-700 tracking-wider">點擊此處拍照或選擇相片</p>
+                            <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">支援手機相機鏡頭直接拍照存摺/憑證</p>
+                          </div>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            capture="environment" 
+                            required
+                            onChange={handlePhotoCapture} 
+                            className="hidden" 
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={isLoading}
+                    type="submit" 
+                    className={`w-full bg-gradient-to-r ${gradientColor} text-white p-5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl group disabled:opacity-50 mt-8`}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        送出 B2B 創業加入申請 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                      </>
+                    )}
+                  </motion.button>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="success"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-10 space-y-6"
+              >
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">申請提交成功！</h2>
+                  <p className="text-xs text-slate-400 tracking-wider font-bold uppercase mt-1">Application Submitted Successfully</p>
+                </div>
+                
+                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 text-left space-y-4 max-w-sm mx-auto">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 font-bold text-xs flex-shrink-0 mt-0.5">1</div>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      <strong>會計核對金額（第一階段）</strong>：總部會計將於 24 小時內核對您的匯款帳號後五碼及上傳之水單。
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 font-bold text-xs flex-shrink-0 mt-0.5">2</div>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      <strong>業務主管審核（最終階段）</strong>：會計核對無誤後，案件將自動送交業務主管進行最終審查，通過後您的帳號將立即開通！
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold text-xs flex-shrink-0 mt-0.5">3</div>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      <strong>開通登入通知</strong>：審核完成後，您的帳號即可正式以您的手機號碼及設定密碼登入初潤茶舍平台，且您的虛擬帳戶將自動匯入您儲值的首筆資金！
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <Link href="/login" className="text-xs font-black text-slate-400 hover:text-slate-800 underline uppercase tracking-widest">
+                    返回登入頁面
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center text-slate-400">Loading B2B Apply...</div>}>
+      <ApplyContent />
+    </Suspense>
+  );
+}

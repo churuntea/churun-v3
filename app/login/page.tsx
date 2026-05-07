@@ -58,7 +58,7 @@ function LoginContent() {
     // Try selecting with pattern_code first
     let { data, error: fetchError }: { data: any, error: any } = await supabase
       .from("members")
-      .select("id, name, password, pattern_code")
+      .select("id, name, password, pattern_code, status")
       .eq("phone", phone)
       .single();
 
@@ -67,7 +67,7 @@ function LoginContent() {
       console.warn("pattern_code column missing, falling back to basic select");
       const fallback = await supabase
         .from("members")
-        .select("id, name, password")
+        .select("id, name, password, status")
         .eq("phone", phone)
         .single();
       data = fallback.data;
@@ -76,6 +76,19 @@ function LoginContent() {
 
     if (fetchError || !data) {
       alert("查無此會員，請確認手機號碼是否正確");
+      setIsLoading(false);
+      return;
+    }
+
+    // Check account status for B2B pending reviews
+    if (data.status && data.status !== 'active') {
+      if (data.status === 'pending_accounting') {
+        alert("⏳ 您的 B2B 創業申請正由「總部會計核對匯款金額」，審核通過前暫時無法登入。");
+      } else if (data.status === 'pending_manager') {
+        alert("⏳ 您的 B2B 創業申請「已通過會計核對」，目前正送交「業務主管進行最終審查」，審核通過後即可登入系統！");
+      } else {
+        alert(`⚠️ 您的帳號狀態目前為「${data.status}」，暫時無法登入。`);
+      }
       setIsLoading(false);
       return;
     }

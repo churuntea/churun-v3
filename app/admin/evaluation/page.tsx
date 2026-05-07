@@ -20,7 +20,14 @@ import {
   Zap, 
   Award, 
   Heart,
-  Phone
+  Phone,
+  Plus,
+  Copy,
+  Check,
+  FileText,
+  X,
+  AlertTriangle,
+  Eye
 } from "lucide-react";
 
 interface Member {
@@ -32,6 +39,10 @@ interface Member {
   virtual_balance: number;
   points_balance: number;
   created_at: string;
+  status?: string;
+  initial_deposit?: number;
+  bank_account?: string;
+  beneficiary?: string;
 }
 
 const ZONES = [
@@ -93,6 +104,17 @@ function EvaluationContent() {
   const [rankCounts, setRankCounts] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Invite states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteType, setInviteType] = useState<"partner" | "ambassador">("partner");
+  const [copied, setCopied] = useState(false);
+
+  // Audits states
+  const [pendingAccountingList, setPendingAccountingList] = useState<Member[]>([]);
+  const [pendingManagerList, setPendingManagerList] = useState<Member[]>([]);
+  const [loadingAudits, setLoadingAudits] = useState(false);
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
   useEffect(() => {
     // Auth Check
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -105,9 +127,19 @@ function EvaluationContent() {
     }
   }, [router]);
 
+  useEffect(() => {
+    if (activeZone === "audits") {
+      fetchAudits();
+    }
+  }, [activeZone]);
+
   const fetchGlobalStats = async () => {
     try {
-      const { data: mData, error } = await supabase.from("members").select("tier");
+      const { data: mData, error } = await supabase
+        .from("members")
+        .select("tier")
+        .eq("status", "active");
+        
       if (mData) {
         const counts: Record<string, number> = {};
         mData.forEach(m => {
@@ -118,6 +150,39 @@ function EvaluationContent() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchAudits = async () => {
+    setLoadingAudits(true);
+    try {
+      // 1. Fetch pending accounting applicants
+      const { data: accountingData, error: accErr } = await supabase
+        .from("members")
+        .select("*")
+        .eq("is_b2b", true)
+        .eq("status", "pending_accounting")
+        .order("created_at", { ascending: false });
+
+      if (accountingData) {
+        setPendingAccountingList(accountingData as Member[]);
+      }
+
+      // 2. Fetch pending manager applicants
+      const { data: managerData, error: manErr } = await supabase
+        .from("members")
+        .select("*")
+        .eq("is_b2b", true)
+        .eq("status", "pending_manager")
+        .order("created_at", { ascending: false });
+
+      if (managerData) {
+        setPendingManagerList(managerData as Member[]);
+      }
+    } catch (err) {
+      console.error("Error fetching B2B audits:", err);
+    } finally {
+      setLoadingAudits(false);
     }
   };
 
@@ -137,6 +202,7 @@ function EvaluationContent() {
         .from("members")
         .select("*")
         .eq("tier", rankName)
+        .eq("status", "active")
         .order("lifetime_spend", { ascending: false });
 
       if (data) {
@@ -162,7 +228,6 @@ function EvaluationContent() {
         alert(`✅ 考核執行成功！\n${result.message || "全體會員階級已完成校正與連動！"}`);
         fetchGlobalStats();
         if (expandedRank) {
-          // Refresh current list
           const currentRank = expandedRank;
           setExpandedRank(null);
           setTimeout(() => handleToggleRank(currentRank), 200);
@@ -177,6 +242,89 @@ function EvaluationContent() {
     }
   };
 
+  // Accountant Audit Action
+  const handleAccountantAudit = async (memberId: string, approve: boolean) => {
+    if (!confirm(approve ? "確定要「核准金額無誤」並送交業務主管進行最後審查嗎？" : "確定要「駁回」此申請案嗎？")) return;
+
+    try {
+      if (approve) {
+        const { error } = await supabase
+          .from("members")
+          .update({ status: "pending_manager" })
+          .eq("id", memberId);
+
+        if (error) throw error;
+        alert("✅ 金額核對成功！已將此案件送交「業務主管」做最後審查。");
+      } else {
+        const { error } = await supabase
+          .from("members")
+          .update({ status: "rejected" })
+          .eq("id", memberId);
+
+        if (error) throw error;
+        alert("❌ 已駁回此 B2B 加入申請案。");
+      }
+      fetchAudits();
+    } catch (err: any) {
+      alert(`⚠️ 操作失敗: ${err.message}`);
+    }
+  };
+
+  // Manager Audit Action (Final approval)
+  const handleManagerAudit = async (member: Member, approve: boolean) => {
+    if (!confirm(approve ? `確定要「最終核准開通」此 B2B 帳號嗎？\n系統將自動設定職級為【${member.tier}】並儲值首筆預收款 $${Number(member.initial_deposit || 0).toLocaleString()} 元！` : "確定要「駁回」此申請案嗎？")) return;
+
+    try {
+      if (approve) {
+        // 1. Update member record to active, set initial virtual wallet balance equal to initial deposit
+        const { error: memberErr } = await supabase
+          .from("members")
+          .update({ 
+            status: "active",
+            virtual_balance: member.initial_deposit || 0,
+            initial_deposit: member.initial_deposit || 0
+          })
+          .eq("id", member.id);
+
+        if (memberErr) throw memberErr;
+
+        // 2. Insert initial wallet transaction record
+        const { error: txErr } = await supabase
+          .from("wallet_transactions")
+          .insert({
+            member_id: member.id,
+            amount: member.initial_deposit || 0,
+            transaction_type: "deposit",
+            status: "completed"
+          });
+
+        if (txErr) console.warn("Failed to create wallet transaction history record:", txErr);
+
+        alert(`👑 審核開通成功！\n創業夥伴【${member.name}】已正式加入，首筆預收款已自動匯入。`);
+      } else {
+        const { error } = await supabase
+          .from("members")
+          .update({ status: "rejected" })
+          .eq("id", member.id);
+
+        if (error) throw error;
+        alert("❌ 已駁回此 B2B 主管審查案件。");
+      }
+      fetchAudits();
+      fetchGlobalStats();
+    } catch (err: any) {
+      alert(`⚠️ 操作失敗: ${err.message}`);
+    }
+  };
+
+  const copyInviteLink = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://churun-v3.vercel.app";
+    const link = `${origin}/register/apply?type=${inviteType}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const filteredMembers = members.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     (m.phone && m.phone.includes(searchTerm))
@@ -184,10 +332,12 @@ function EvaluationContent() {
 
   if (!isAdmin) return null;
 
-  const currentZoneObj = ZONES.find(z => z.id === activeZone)!;
+  const isAuditTab = activeZone === "audits";
+  const currentZoneObj = !isAuditTab ? ZONES.find(z => z.id === activeZone)! : null;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-24 text-slate-800">
+      
       {/* Navigation Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-6 max-w-5xl mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
         <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
@@ -234,189 +384,504 @@ function EvaluationContent() {
           </button>
         </div>
 
-        {/* Dynamic Zone Selectors (Tabs) */}
-        <div className="grid grid-cols-3 gap-4 bg-white p-2.5 rounded-[2.5rem] border border-slate-100 shadow-sm">
-          {ZONES.map(zone => {
-            const isActive = activeZone === zone.id;
+        {/* Dynamic Zone Selectors (Tabs with 4 column grid for audits) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-2.5 rounded-[2.5rem] border border-slate-100 shadow-sm">
+          {[
+            ...ZONES.map(z => ({ id: z.id, name: z.name, sub: z.id === "members" ? "Member" : z.id === "partners" ? "Partner" : "Ambassador" })),
+            { id: "audits", name: "創業申請審核", sub: "B2B Onboarding" }
+          ].map(tab => {
+            const isActive = activeZone === tab.id;
             return (
               <button
-                key={zone.id}
+                key={tab.id}
                 onClick={() => {
-                  setActiveZone(zone.id);
+                  setActiveZone(tab.id);
                   setExpandedRank(null);
                   setMembers([]);
                 }}
-                className={`py-5 px-4 rounded-[2rem] text-center transition duration-500 relative flex flex-col items-center gap-1.5 ${
+                className={`py-4 px-3 rounded-[2rem] text-center transition duration-500 relative flex flex-col items-center justify-center gap-1.5 ${
                   isActive 
-                    ? "bg-slate-900 text-white shadow-xl" 
+                    ? "bg-slate-900 text-white shadow-xl animate-none" 
                     : "text-slate-400 hover:bg-slate-50 hover:text-slate-800"
                 }`}
               >
-                <span className="text-xs font-black tracking-widest">{zone.name}</span>
+                <span className="text-[11px] font-black tracking-widest">{tab.name}</span>
                 <span className={`text-[8px] font-bold uppercase tracking-wider ${isActive ? "text-slate-400" : "text-slate-300"}`}>
-                  {zone.id === "members" ? "Member" : zone.id === "partners" ? "Partner" : "Ambassador"}
+                  {tab.sub}
                 </span>
               </button>
             );
           })}
         </div>
 
-        {/* Zone Description Card */}
-        <div className={`rounded-[2.5rem] p-6 border ${currentZoneObj.bgLight} ${currentZoneObj.borderLight} flex items-center gap-4`}>
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <Award className={`w-5 h-5 ${activeZone === 'members' ? 'text-blue-500' : activeZone === 'partners' ? 'text-emerald-500' : 'text-amber-500'}`} />
-          </div>
-          <div>
-            <h3 className={`text-xs font-black tracking-widest ${currentZoneObj.textDark}`}>{currentZoneObj.name}管轄範圍</h3>
-            <p className="text-[10px] text-slate-400 font-bold mt-0.5">{currentZoneObj.desc}</p>
-          </div>
-        </div>
+        {/* Audit Pipeline view vs Directory views */}
+        {isAuditTab ? (
+          /* B2B AUDIT PIPELINE TAB CONTENT */
+          <div className="space-y-8 animate-fadeIn">
+            
+            {/* Header info */}
+            <div className="rounded-[2.5rem] p-6 border bg-amber-50/50 border-amber-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                  <FileText className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black tracking-widest text-amber-900">B2B 夥伴雙重審核管道</h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">匯款金額由「會計」查實，通過後流向「業務主管」做最終加入開通。</p>
+                </div>
+              </div>
+            </div>
 
-        {/* Ranks Accordion (根目錄是個職級) */}
-        <div className="space-y-4">
-          {currentZoneObj.ranks.map((rank, index) => {
-            const isExpanded = expandedRank === rank.name;
-            const currentRankCount = rankCounts[rank.name] || 0;
-
-            return (
-              <div 
-                key={rank.name}
-                className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm overflow-hidden transition-all duration-300"
-              >
-                {/* Header (根目錄) */}
-                <div 
-                  onClick={() => handleToggleRank(rank.name)}
-                  className={`p-6 flex justify-between items-center cursor-pointer select-none transition-colors duration-300 ${
-                    isExpanded ? "bg-slate-50/50" : "hover:bg-slate-50/30"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                      activeZone === 'members' ? 'bg-blue-50 text-blue-600' : activeZone === 'partners' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                    }`}>
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
-                        {rank.name}
-                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black ${
-                          activeZone === 'members' ? 'bg-blue-100/50 text-blue-600' : activeZone === 'partners' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-amber-100/50 text-amber-600'
-                        }`}>
-                          {currentRankCount} 人
-                        </span>
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">
-                        <span>門檻：{rank.criteria}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest block">考核金額</span>
-                      <span className="text-xs font-black text-slate-700 tracking-tight">{rank.target}</span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* STAGE 1: ACCOUNTING AUDIT */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <h4 className="text-xs font-black tracking-widest text-slate-400 uppercase flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></span>
+                    第一階段：會計審核金額 ({pendingAccountingList.length})
+                  </h4>
                 </div>
 
-                {/* Expanded Content (目錄下名冊) */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div 
-                      initial={{ height: 0 }}
-                      animate={{ height: "auto" }}
-                      exit={{ height: 0 }}
-                      className="border-t border-slate-50/80 bg-slate-50/20 overflow-hidden"
-                    >
-                      <div className="p-6 space-y-6">
-                        
-                        {/* Inline Search Bar */}
-                        <div className="relative">
-                          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                          <input 
-                            type="text" 
-                            placeholder={`搜尋目前 ${rank.name} 的會員姓名或手機...`}
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full bg-white border-none rounded-2xl py-4.5 pl-12 pr-6 text-xs font-black text-slate-800 shadow-sm focus:ring-2 focus:ring-slate-200 outline-none placeholder-slate-300"
-                          />
+                {loadingAudits ? (
+                  <div className="py-12 bg-white rounded-[2.5rem] border border-slate-100 flex justify-center items-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                  </div>
+                ) : pendingAccountingList.length === 0 ? (
+                  <div className="py-16 bg-white rounded-[2.5rem] border border-slate-50 shadow-sm text-center flex flex-col items-center justify-center gap-2">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目前無待核對款項</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingAccountingList.map(app => {
+                      const beneficiaryParts = app.beneficiary?.split('|') || [];
+                      const receiptPhoto = beneficiaryParts[0] === "B2B_APPLY" ? beneficiaryParts[2] : null;
+
+                      return (
+                        <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="text-sm font-black text-slate-800">{app.name}</h5>
+                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
+                            </div>
+                            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase">
+                              申請 {app.tier}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
+                            <div>
+                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款金額</span>
+                              <span className="text-xs font-black text-slate-700">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
+                            </div>
+                            <div>
+                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">帳號後五碼</span>
+                              <span className="text-xs font-black text-slate-700 tracking-wider">【 {app.bank_account || "無"} 】</span>
+                            </div>
+                          </div>
+
+                          {receiptPhoto && (
+                            <button 
+                              onClick={() => setViewingReceipt(receiptPhoto)}
+                              className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
+                            </button>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                            <button 
+                              onClick={() => handleAccountantAudit(app.id, false)}
+                              className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
+                            >
+                              ❌ 駁回申請
+                            </button>
+                            <button 
+                              onClick={() => handleAccountantAudit(app.id, true)}
+                              className="py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 transition"
+                            >
+                              ✅ 金額無誤
+                            </button>
+                          </div>
                         </div>
-
-                        {/* Loading Spinner */}
-                        {loadingMembers ? (
-                          <div className="py-20 text-center flex flex-col items-center gap-3">
-                            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">正在加載目錄明細...</p>
-                          </div>
-                        ) : filteredMembers.length === 0 ? (
-                          <div className="py-16 text-center bg-white rounded-3xl border border-slate-100 shadow-inner flex flex-col items-center justify-center gap-3">
-                            <Users className="w-10 h-10 text-slate-200" />
-                            <p className="text-xs font-bold text-slate-400">
-                              {searchTerm ? "找不到符合條件的會員" : `目前尚無會員符合 ${rank.name} 職級`}
-                            </p>
-                          </div>
-                        ) : (
-                          /* Members Grid / List */
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {filteredMembers.map(member => (
-                              <div 
-                                key={member.id}
-                                className="bg-white border border-slate-50/50 p-6 rounded-3xl shadow-sm flex flex-col justify-between gap-4 hover:border-slate-100 transition duration-300 group"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div className="space-y-1">
-                                    <h5 className="text-sm font-black text-slate-800">{member.name}</h5>
-                                    <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                      <Phone className="w-3 h-3" /> {member.phone || "無電話"}
-                                    </p>
-                                  </div>
-                                  <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 group-hover:bg-slate-900 group-hover:text-white transition duration-300">
-                                    <Calendar className="w-2.5 h-2.5" /> 
-                                    {new Date(member.created_at).toLocaleDateString()}
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-50">
-                                  <div className="space-y-0.5">
-                                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">累積消費額</span>
-                                    <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
-                                      <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                                      ${Number(member.lifetime_spend || 0).toLocaleString()}
-                                    </span>
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">預收貨款</span>
-                                    <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
-                                      <Wallet className="w-3.5 h-3.5 text-indigo-500" />
-                                      ${Number(member.virtual_balance || 0).toLocaleString()}
-                                    </span>
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">點數餘額</span>
-                                    <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
-                                      <Heart className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                                      {Number(member.points_balance || 0).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
+
+              {/* STAGE 2: EXECUTIVE MANAGER AUDIT */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <h4 className="text-xs font-black tracking-widest text-slate-400 uppercase flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    第二階段：業務主管審核 ({pendingManagerList.length})
+                  </h4>
+                </div>
+
+                {loadingAudits ? (
+                  <div className="py-12 bg-white rounded-[2.5rem] border border-slate-100 flex justify-center items-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                  </div>
+                ) : pendingManagerList.length === 0 ? (
+                  <div className="py-16 bg-white rounded-[2.5rem] border border-slate-50 shadow-sm text-center flex flex-col items-center justify-center gap-2">
+                    <CheckCircle2 className="w-8 h-8 text-slate-200" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目前無待最終審核件</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingManagerList.map(app => {
+                      const beneficiaryParts = app.beneficiary?.split('|') || [];
+                      const receiptPhoto = beneficiaryParts[0] === "B2B_APPLY" ? beneficiaryParts[2] : null;
+
+                      return (
+                        <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="text-sm font-black text-slate-800">{app.name}</h5>
+                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
+                            </div>
+                            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase">
+                              申請 {app.tier}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
+                            <div>
+                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">已稽核金額</span>
+                              <span className="text-xs font-black text-emerald-600">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
+                            </div>
+                            <div>
+                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款狀態</span>
+                              <span className="text-xs font-black text-blue-600 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> 會計已確認
+                              </span>
+                            </div>
+                          </div>
+
+                          {receiptPhoto && (
+                            <button 
+                              onClick={() => setViewingReceipt(receiptPhoto)}
+                              className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
+                            </button>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                            <button 
+                              onClick={() => handleManagerAudit(app, false)}
+                              className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
+                            >
+                              ❌ 駁回申請
+                            </button>
+                            <button 
+                              onClick={() => handleManagerAudit(app, true)}
+                              className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                            >
+                              👑 最終核准加入
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        ) : (
+          /* STANDARD DIRECTORIES VIEWS */
+          <div className="space-y-8 animate-fadeIn">
+            {/* Zone Description Card */}
+            <div className={`rounded-[2.5rem] p-6 border ${currentZoneObj!.bgLight} ${currentZoneObj!.borderLight} flex flex-col md:flex-row justify-between items-start md:items-center gap-6`}>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                  <Award className={`w-5 h-5 ${activeZone === 'members' ? 'text-blue-500' : activeZone === 'partners' ? 'text-emerald-500' : 'text-amber-500'}`} />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-black tracking-widest ${currentZoneObj!.textDark}`}>{currentZoneObj!.name}管轄範圍</h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">{currentZoneObj!.desc}</p>
+                </div>
+              </div>
+
+              {/* [新增] (Add/Invite) button for B2B zones */}
+              {activeZone !== "members" && (
+                <button
+                  onClick={() => {
+                    setInviteType(activeZone === "partners" ? "partner" : "ambassador");
+                    setShowInviteModal(true);
+                  }}
+                  className={`bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center gap-2 active:scale-95 transition`}
+                >
+                  <Plus className="w-4 h-4" />
+                  新增 B2B 夥伴申請
+                </button>
+              )}
+            </div>
+
+            {/* Ranks Accordion (根目錄是個職級) */}
+            <div className="space-y-4">
+              {currentZoneObj!.ranks.map((rank, index) => {
+                const isExpanded = expandedRank === rank.name;
+                const currentRankCount = rankCounts[rank.name] || 0;
+
+                return (
+                  <div 
+                    key={rank.name}
+                    className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm overflow-hidden transition-all duration-300"
+                  >
+                    {/* Header (根目錄) */}
+                    <div 
+                      onClick={() => handleToggleRank(rank.name)}
+                      className={`p-6 flex justify-between items-center cursor-pointer select-none transition-colors duration-300 ${
+                        isExpanded ? "bg-slate-50/50" : "hover:bg-slate-50/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                          activeZone === 'members' ? 'bg-blue-50 text-blue-600' : activeZone === 'partners' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                        }`}>
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+                            {rank.name}
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black ${
+                              activeZone === 'members' ? 'bg-blue-100/50 text-blue-600' : activeZone === 'partners' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-amber-100/50 text-amber-600'
+                            }`}>
+                              {currentRankCount} 人
+                            </span>
+                          </h4>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">
+                            <span>門檻：{rank.criteria}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right hidden sm:block">
+                          <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest block">考核金額</span>
+                          <span className="text-xs font-black text-slate-700 tracking-tight">{rank.target}</span>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content (目錄下名冊) */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: "auto" }}
+                          exit={{ height: 0 }}
+                          className="border-t border-slate-50/80 bg-slate-50/20 overflow-hidden"
+                        >
+                          <div className="p-6 space-y-6">
+                            
+                            {/* Inline Search Bar */}
+                            <div className="relative">
+                              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                              <input 
+                                type="text" 
+                                placeholder={`搜尋目前 ${rank.name} 的會員姓名或手機...`}
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full bg-white border-none rounded-2xl py-4.5 pl-12 pr-6 text-xs font-black text-slate-800 shadow-sm focus:ring-2 focus:ring-slate-200 outline-none placeholder-slate-300"
+                              />
+                            </div>
+
+                            {/* Loading Spinner */}
+                            {loadingMembers ? (
+                              <div className="py-20 text-center flex flex-col items-center gap-3">
+                                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">正在加載目錄明細...</p>
+                              </div>
+                            ) : filteredMembers.length === 0 ? (
+                              <div className="py-16 text-center bg-white rounded-3xl border border-slate-100 shadow-inner flex flex-col items-center justify-center gap-3">
+                                <Users className="w-10 h-10 text-slate-200" />
+                                <p className="text-xs font-bold text-slate-400">
+                                  {searchTerm ? "找不到符合條件的會員" : `目前尚無會員符合 ${rank.name} 職級`}
+                                </p>
+                              </div>
+                            ) : (
+                              /* Members Grid / List */
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {filteredMembers.map(member => (
+                                  <div 
+                                    key={member.id}
+                                    className="bg-white border border-slate-50/50 p-6 rounded-3xl shadow-sm flex flex-col justify-between gap-4 hover:border-slate-100 transition duration-300 group"
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <h5 className="text-sm font-black text-slate-800">{member.name}</h5>
+                                        <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                          <Phone className="w-3 h-3" /> {member.phone || "無電話"}
+                                        </p>
+                                      </div>
+                                      <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 group-hover:bg-slate-900 group-hover:text-white transition duration-300">
+                                        <Calendar className="w-2.5 h-2.5" /> 
+                                        {new Date(member.created_at).toLocaleDateString()}
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-50">
+                                      <div className="space-y-0.5">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">累積消費額</span>
+                                        <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
+                                          <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                                          ${Number(member.lifetime_spend || 0).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">預收貨款</span>
+                                        <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
+                                          <Wallet className="w-3.5 h-3.5 text-indigo-500" />
+                                          ${Number(member.virtual_balance || 0).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">點數餘額</span>
+                                        <span className="text-[11px] font-black text-slate-800 tracking-tight flex items-center gap-0.5">
+                                          <Heart className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                                          {Number(member.points_balance || 0).toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       </main>
+
+      {/* B2B PARTNER INVITATION LINK DRAWER MODAL */}
+      <AnimatePresence>
+        {showInviteModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[3rem] p-8 max-w-md w-full border border-slate-50 shadow-2xl relative space-y-6"
+            >
+              <button 
+                onClick={() => setShowInviteModal(false)}
+                className="absolute top-6 right-6 w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center transition"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <div className="text-center space-y-2 pt-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${inviteType === "partner" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-500"}`}>
+                  <Award className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-black text-slate-800">
+                  新增 {inviteType === "partner" ? "合夥人" : "品牌大使"} 合作邀請
+                </h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  Invite B2B {inviteType === "partner" ? "Partner" : "Ambassador"}
+                </p>
+              </div>
+
+              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 text-[10px] text-slate-400 font-bold leading-relaxed space-y-2">
+                <div className="flex gap-2 text-slate-500 font-black">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-500" />
+                  <span>使用說明及流程機制</span>
+                </div>
+                <p>1. 請一鍵複製下方的「專屬創業加入連結」並發送給欲參與的合作夥伴。</p>
+                <p>2. 對方點開連結填寫基本資料、上傳「匯款水單證明」後送出。</p>
+                <p>3. 案件將進入您的<strong>「創業申請審核」</strong>管道。會計核實後送交業務主管，一經核准即自動開通帳號，並將儲值金注入其帳戶！</p>
+              </div>
+
+              {/* The Link Box */}
+              <div className="space-y-2">
+                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-2">專屬創業加入連結</label>
+                <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-3 items-center justify-between gap-4">
+                  <span className="text-[10px] font-black text-slate-600 truncate flex-1 pl-2">
+                    {typeof window !== "undefined" ? window.location.origin : "https://churun-v3.vercel.app"}/register/apply?type={inviteType}
+                  </span>
+                  <button 
+                    onClick={copyInviteLink}
+                    className="flex-shrink-0 w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 text-slate-400 hover:text-slate-700 transition"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={copyInviteLink}
+                className="w-full py-4.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg transition flex items-center justify-center gap-2"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" /> 已複製邀請連結！
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-slate-400" /> 一鍵複製邀請連結
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* RECEIPT IMAGE PREVIEW MODAL */}
+      <AnimatePresence>
+        {viewingReceipt && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[3rem] p-6 max-w-lg w-full border border-slate-50 shadow-2xl relative space-y-4"
+            >
+              <button 
+                onClick={() => setViewingReceipt(null)}
+                className="absolute top-6 right-6 w-10 h-10 bg-white hover:bg-slate-100 rounded-full flex items-center justify-center shadow-md border border-slate-50 transition text-slate-400 z-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <h4 className="text-xs font-black tracking-widest text-slate-700 uppercase pl-2">匯款憑證 / 水單放大檢視</h4>
+              
+              <div className="bg-slate-50 rounded-3xl overflow-hidden border border-slate-100 max-h-[70vh] flex items-center justify-center relative">
+                <img 
+                  src={viewingReceipt} 
+                  alt="Remittance Receipt" 
+                  className="w-full h-auto max-h-[60vh] object-contain rounded-2xl"
+                />
+              </div>
+
+              <button 
+                onClick={() => setViewingReceipt(null)}
+                className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg transition"
+              >
+                關閉檢視
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
