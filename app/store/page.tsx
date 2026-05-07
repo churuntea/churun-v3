@@ -502,107 +502,130 @@ function StoreContent() {
                   ))
                 )}
 
-                {/* Promo Coupons Section */}
-                {cart.length > 0 && (
-                  <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
-                     <div className="flex justify-between items-center">
-                        <div>
-                           <h4 className="font-black text-xs text-slate-800 uppercase tracking-wider">🎟️ 選擇優惠券</h4>
-                           <p className="text-[8px] font-bold text-slate-400 mt-0.5">Select Coupon</p>
-                        </div>
-                        {activeCoupon && (
-                           <button onClick={() => { setActiveCoupon(null); setCouponError(null); }} className="text-[10px] font-black text-rose-500 hover:underline">取消套用</button>
-                        )}
-                     </div>
-                     
-                      <div className="space-y-3">
-                        {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map(coupon => {
-                           const isSelected = activeCoupon?.code === coupon.code;
-                           const canApply = totalPrice >= coupon.minSpend;
-                           return (
-                             <div 
-                               key={coupon.code}
-                               onClick={() => {
-                                  if (isSelected) {
-                                     setActiveCoupon(null);
-                                  } else {
-                                     if (totalPrice < coupon.minSpend) {
-                                        setCouponError(`未達該券最低消費門檻 $${coupon.minSpend}`);
-                                        setActiveCoupon(null);
-                                     } else {
-                                        setActiveCoupon(coupon);
-                                        setCouponError(null);
-                                     }
-                                  }
-                               }}
-                               className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center relative overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 hover:border-slate-200'}`}
-                             >
-                                <div className="space-y-0.5 pr-4">
-                                   <div className="flex items-center gap-1.5">
-                                      <span className="font-black text-[9px] text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded uppercase">{coupon.code}</span>
-                                      <span className="font-bold text-xs text-slate-700">{coupon.name}</span>
-                                   </div>
-                                   <p className="text-[9px] text-slate-400">{coupon.description}</p>
-                                   {!canApply && (
-                                      <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1">還差 ${coupon.minSpend - totalPrice} 即可折抵</p>
-                                   )}
-                                </div>
-                                <span className={`font-black text-sm shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-700'}`}>
-                                   {coupon.discountType === 'fixed' ? `$${coupon.value}` : `${100 - coupon.value}折`}
-                                </span>
-                             </div>
-                           );
-                        })}
-                     </div>
+                 {/* Promo Coupons Section (已優化為下拉式選單) */}
+                 {cart.length > 0 && (
+                   <div className="mt-8 pt-8 border-t border-slate-100 space-y-4">
+                      <div className="flex justify-between items-center">
+                         <div>
+                            <h4 className="font-black text-xs text-slate-800 uppercase tracking-wider">🎟️ 選擇優惠券</h4>
+                            <p className="text-[8px] font-bold text-slate-400 mt-0.5">Select Coupon</p>
+                         </div>
+                         {activeCoupon && (
+                            <button 
+                              onClick={() => { setActiveCoupon(null); setCouponError(null); }} 
+                              className="text-[10px] font-black text-rose-500 hover:underline"
+                            >
+                              清除套用
+                            </button>
+                         )}
+                      </div>
+                      
+                      {/* 優惠券下拉式選單 */}
+                      <div>
+                         <select
+                           value={activeCoupon ? activeCoupon.code : ""}
+                           onChange={(e) => {
+                             const code = e.target.value;
+                             if (!code) {
+                               setActiveCoupon(null);
+                               setCouponError(null);
+                               return;
+                             }
+                             const coupons = userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS;
+                             const found = coupons.find(c => c.code === code);
+                             if (found) {
+                               if (totalPrice < found.minSpend) {
+                                 setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
+                                 setActiveCoupon(null);
+                               } else {
+                                 setActiveCoupon(found);
+                                 setCouponError(null);
+                               }
+                             }
+                           }}
+                           className="w-full bg-slate-50 border-none px-4 py-3.5 rounded-xl text-xs font-black text-slate-700 focus:ring-1 focus:ring-emerald-500/20 cursor-pointer"
+                         >
+                           <option value="">🎟️ 點擊展開可套用優惠券...</option>
+                           {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map(coupon => {
+                             const canApply = totalPrice >= coupon.minSpend;
+                             const discountText = coupon.discountType === 'fixed' ? `$${coupon.value}` : `${100 - coupon.value}折`;
+                             return (
+                               <option 
+                                 key={coupon.code} 
+                                 value={coupon.code}
+                                 disabled={!canApply}
+                               >
+                                 {coupon.name} ({discountText}) - {canApply ? `已達門檻` : `未達門檻 (差 $${coupon.minSpend - totalPrice})`}
+                               </option>
+                             );
+                           })}
+                         </select>
+                      </div>
 
-                     <div className="space-y-1.5">
-                        <div className="flex gap-2">
-                           <input 
-                             type="text" 
-                             value={couponInput}
-                             onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                             placeholder="輸入優惠代碼" 
-                             className="flex-1 bg-slate-50 border-none p-3 rounded-xl text-xs font-bold"
-                          />
-                           <button 
-                             onClick={() => {
-                                let code = couponInput.trim().toUpperCase();
-                                if (!code) {
-                                   setCouponError("請輸入優惠代碼");
-                                   return;
-                                }
-                                // Map friendly user input variations
-                                if (code === "88" || code === "88折" || code === "CHURUN88折") {
-                                   code = "CHURUN88";
-                                } else if (code === "95" || code === "95折" || code === "CHURUN95折") {
-                                   code = "CHURUN95";
-                                } else if (code === "200" || code === "WELCOME" || code === "WELCOME200折") {
-                                   code = "WELCOME200";
-                                } else if (code === "100" || code === "VIP" || code === "VIP100折") {
-                                   code = "VIP100";
-                                }
-                                const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
-                                if (found) {
-                                   if (totalPrice < found.minSpend) {
-                                      setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
-                                      setActiveCoupon(null);
-                                   } else {
-                                      setActiveCoupon(found);
-                                      setCouponError(null);
-                                   }
-                                } else {
-                                   setCouponError("找不到此優惠代碼");
-                                }
-                             }}
-                             className="px-4 bg-slate-900 text-white rounded-xl text-xs font-black"
-                           >
-                              套用
-                           </button>
+                      {/* 顯示當前套用的優惠券卡片 */}
+                      {activeCoupon && (
+                        <div className="bg-emerald-50/40 border border-emerald-100/30 p-4 rounded-2xl flex justify-between items-center transition">
+                           <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                 <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">{activeCoupon.code}</span>
+                                 <span className="text-xs font-black text-emerald-950">{activeCoupon.name}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500">{activeCoupon.description}</p>
+                           </div>
+                           <span className="text-emerald-600 font-black text-sm">
+                              {activeCoupon.discountType === 'fixed' ? `$${activeCoupon.value}` : `${100 - activeCoupon.value}折`}
+                           </span>
                         </div>
-                        {couponError && <p className="text-[9px] font-bold text-rose-500 ml-1">{couponError}</p>}
-                     </div>
-                  </div>
-                )}
+                      )}
+
+                      <div className="space-y-1.5">
+                         <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={couponInput}
+                              onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                              placeholder="或手動輸入特規代碼" 
+                              className="flex-1 bg-slate-50 border-none p-3 rounded-xl text-xs font-bold"
+                           />
+                            <button 
+                              onClick={() => {
+                                 let code = couponInput.trim().toUpperCase();
+                                 if (!code) {
+                                    setCouponError("請輸入優惠代碼");
+                                    return;
+                                 }
+                                 // Map friendly user input variations
+                                 if (code === "88" || code === "88折" || code === "CHURUN88折") {
+                                    code = "CHURUN88";
+                                 } else if (code === "95" || code === "95折" || code === "CHURUN95折") {
+                                    code = "CHURUN95";
+                                 } else if (code === "200" || code === "WELCOME" || code === "WELCOME200折") {
+                                    code = "WELCOME200";
+                                 } else if (code === "100" || code === "VIP" || code === "VIP100折") {
+                                    code = "VIP100";
+                                 }
+                                 const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
+                                 if (found) {
+                                    if (totalPrice < found.minSpend) {
+                                       setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
+                                       setActiveCoupon(null);
+                                    } else {
+                                       setActiveCoupon(found);
+                                       setCouponError(null);
+                                    }
+                                 } else {
+                                    setCouponError("找不到此優惠代碼");
+                                 }
+                              }}
+                              className="px-4 bg-slate-900 text-white rounded-xl text-xs font-black transition hover:bg-slate-800"
+                            >
+                               套用
+                            </button>
+                         </div>
+                         {couponError && <p className="text-[9px] font-bold text-rose-500 ml-1">{couponError}</p>}
+                      </div>
+                   </div>
+                 )}
               </div>
 
               <div className="p-8 bg-slate-50 space-y-6">
