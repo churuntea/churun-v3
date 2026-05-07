@@ -215,17 +215,17 @@ function DashboardContent() {
       if (hiddenQr) ctx.drawImage(hiddenQr, config.qr?.x || 800, config.qr?.y || 1100, config.qr?.size || 160, config.qr?.size || 160);
       
       ctx.fillStyle = config.name?.color || '#ffffff';
-      ctx.font = `500 ${config.name?.size || 40}px "Noto Serif TC", "PMingLiU", "MingLiU", serif`;
+      ctx.font = `${config.name?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
       ctx.textAlign = 'left';
       ctx.fillText(memberInfo.name, config.name?.x || 380, config.name?.y || 1120);
       
       ctx.fillStyle = config.phone?.color || config.name?.color || '#ffffff';
-      ctx.font = `500 ${config.phone?.size || 40}px "Noto Serif TC", "PMingLiU", "MingLiU", serif`;
+      ctx.font = `${config.phone?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
       ctx.fillText(memberInfo.phone || '', config.phone?.x || 380, config.phone?.y || 1155);
       
       if (config.address) {
         ctx.fillStyle = config.address.color || config.name?.color || '#ffffff';
-        ctx.font = `500 ${config.address.size || 36}px "Noto Serif TC", "PMingLiU", "MingLiU", serif`;
+        ctx.font = `${config.address.size || 36}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
         ctx.fillText(memberInfo.address || '', config.address.x || 380, config.address.y || 1190);
       }
 
