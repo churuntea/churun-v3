@@ -570,13 +570,13 @@ function DashboardContent() {
       <AnimatePresence>
         {showPosterPreview && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-3xl flex items-center justify-center p-4 sm:p-8">
-             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="bg-white rounded-[3.5rem] p-8 w-full max-w-md shadow-2xl relative flex flex-col items-center">
-                <div className="w-full flex justify-between items-center mb-6">
+             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="bg-white rounded-[3.5rem] p-6 sm:p-8 w-full max-w-md shadow-2xl relative flex flex-col items-center max-h-[90vh] overflow-y-auto no-scrollbar">
+                <div className="w-full flex justify-between items-center mb-6 shrink-0">
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Poster Preview</span>
                    <button onClick={() => setShowPosterPreview(false)} className="text-slate-300 hover:text-slate-900"><X /></button>
                 </div>
-                <div className="w-full aspect-[1/1.4] bg-slate-100 rounded-2xl overflow-hidden shadow-2xl relative mb-6">
-                   {isGeneratingPoster ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div> : <img src={posterDataUrl || ''} className="w-full h-full object-contain" />}
+                <div className="w-full max-h-[55vh] flex items-center justify-center bg-slate-100 rounded-2xl overflow-hidden shadow-2xl relative mb-6 shrink-0">
+                   {isGeneratingPoster ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div> : <img src={posterDataUrl || ''} className="max-w-full max-h-[55vh] object-contain" />}
                 </div>
 
                 {!isGeneratingPoster && (
