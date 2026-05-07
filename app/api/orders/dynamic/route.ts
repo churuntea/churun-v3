@@ -76,7 +76,8 @@ export async function POST(request: Request) {
       orderData.shipping_info = {
         name: shippingInfo.name,
         phone: shippingInfo.phone,
-        address: shippingInfo.address
+        address: shippingInfo.address,
+        method: shippingInfo.method || '宅配到府'
       };
       if (shippingInfo.notes) {
         orderData.notes = shippingInfo.notes;

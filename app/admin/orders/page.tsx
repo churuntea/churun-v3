@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,7 +20,8 @@ import {
   User,
   ExternalLink,
   Truck,
-  Download
+  Download,
+  Printer,
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/app/supabase-admin";
@@ -44,6 +45,92 @@ function AdminOrdersContent() {
     setIsAdmin(true);
     fetchOrders();
   }, [router]);
+
+  const handlePrintPackingSlip = (order: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    const itemsHtml = order.order_items ? order.order_items.map((item: any) => `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">${item.name}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">x${item.quantity}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="2" style="padding: 12px; text-align: center;">無商品明細</td></tr>';
+
+    const shipping = order.shipping_info || {};
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>初潤製茶所 - 出貨單/揀貨單</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; color: #333; padding: 40px; }
+            .header { text-align: center; margin-bottom: 40px; }
+            .title { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
+            .subtitle { font-size: 12px; color: #666; margin-top: 5px; }
+            .info-grid { display: grid; grid-cols: 2; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+            .info-box { border: 1px solid #eee; padding: 20px; border-radius: 12px; }
+            .info-title { font-size: 10px; font-weight: 900; color: #999; text-transform: uppercase; margin-bottom: 10px; }
+            .info-value { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #f9f9f9; padding: 12px; text-align: left; font-size: 12px; color: #666; border-bottom: 2px solid #eee; }
+            .notes { margin-top: 30px; border-left: 4px solid #f59e0b; padding-left: 15px; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span style="font-weight: bold; font-size: 12px; color: #999;">訂單編號: ${order.id}</span>
+            <button onclick="window.print()" style="background: #111827; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">列印此單</button>
+          </div>
+          <div class="header">
+            <div class="title">初 潤 製 茶 所</div>
+            <div class="subtitle">出 貨 單 & 揀 貨 明 細</div>
+          </div>
+          <div class="info-grid">
+            <div class="info-box">
+              <div class="info-title">收件人資訊</div>
+              <div class="info-value">姓名: ${shipping.name || order.members?.name || '無'}</div>
+              <div class="info-value">電話: ${shipping.phone || order.members?.phone || '無'}</div>
+              <div class="info-value">方式: ${shipping.method || '宅配到府'}</div>
+              <div class="info-value" style="margin-top: 10px;">地址: ${shipping.address || '自取/無'}</div>
+            </div>
+            <div class="info-box">
+              <div class="info-title">訂單資訊</div>
+              <div class="info-value">訂單日期: ${new Date(order.created_at).toLocaleString()}</div>
+              <div class="info-value">結帳金額: $${order.total_amount}</div>
+              <div class="info-value">付款末五碼: ${order.payment_last_five || '無'}</div>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left;">商品品名</th>
+                <th style="width: 100px; text-align: center;">數量</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          ${order.notes ? `
+            <div class="notes">
+              <div class="info-title">備註說明</div>
+              <div style="font-size: 13px; font-weight: bold;">${order.notes}</div>
+            </div>
+          ` : ''}
+          
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -372,18 +459,52 @@ function AdminOrdersContent() {
                                    )}
                                  </div>
                                </div>
-                               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">收件/寄送資訊</h4>
-                                 {order.shipping_info ? (
-                                   <div className="space-y-2">
-                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">收件人</span> <span className="font-black text-slate-800">{order.shipping_info.name}</span></p>
-                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.phone}</span></p>
-                                     <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.address}</span></p>
-                                   </div>
-                                 ) : (
-                                   <p className="text-xs text-slate-400">無收件資訊 (由會員中心帶入)</p>
-                                 )}
-                               </div>
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">收件/寄送資訊</h4>
+                                  {order.shipping_info ? (
+                                    <div className="space-y-3">
+                                      <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">物流方式</span> <span className="font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{order.shipping_info.method || '宅配到府'}</span></p>
+                                      <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">收件人</span> <span className="font-black text-slate-800">{order.shipping_info.name}</span></p>
+                                      <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.phone}</span></p>
+                                      <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.address}</span></p>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-slate-400">無收件資訊 (由會員中心帶入)</p>
+                                  )}
+                                  
+                                  {/* 物流出貨管理控鍵 */}
+                                  <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
+                                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出貨控制台</h5>
+                                    {order.status === 'completed' && (
+                                      <div className="flex gap-2">
+                                        <input 
+                                          id={`tracking-input-${order.id}`}
+                                          type="text" 
+                                          defaultValue={order.tracking_number || ''}
+                                          placeholder="請輸入物流單號"
+                                          className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <button 
+                                          onClick={() => {
+                                            const input = document.getElementById(`tracking-input-${order.id}`) as HTMLInputElement;
+                                            updateFulfillment(order.id, 'shipped', input?.value || '');
+                                          }}
+                                          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition"
+                                        >
+                                          {order.fulfillment_status === 'shipped' ? '更新單號' : '確認出貨'}
+                                        </button>
+                                      </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={() => handlePrintPackingSlip(order)}
+                                        className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition"
+                                      >
+                                        <Printer className="w-3.5 h-3.5" /> 列印出貨揀貨單
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                              </div>
                            </td>
                          </tr>

@@ -67,7 +67,7 @@ function StoreContent() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showShippingModal, setShowShippingModal] = useState(false);
-  const [shippingInfo, setShippingInfo] = useState({ name: '', phone: '', address: '', notes: '' });
+  const [shippingInfo, setShippingInfo] = useState({ name: '', phone: '', address: '', notes: '', method: '宅配到府' });
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -138,7 +138,8 @@ function StoreContent() {
           name: mData.name || '',
           phone: mData.phone || '',
           address: mData.address || '',
-          notes: ''
+          notes: '',
+          method: '宅配到府'
         });
       }
 
@@ -671,6 +672,21 @@ function StoreContent() {
                
                <div className="space-y-4 mb-8">
                   <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">物流方式</label>
+                     <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100">
+                        {['宅配到府', '超商取貨'].map(m => (
+                           <button
+                             key={m}
+                             type="button"
+                             onClick={() => setShippingInfo({...shippingInfo, method: m})}
+                             className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${shippingInfo.method === m ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                           >
+                              {m}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+                  <div>
                      <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">收件人姓名</label>
                      <input 
                        type="text" 
@@ -691,12 +707,14 @@ function StoreContent() {
                      />
                   </div>
                   <div>
-                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄送地址 (或超商資訊)</label>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">
+                        {shippingInfo.method === '宅配到府' ? '寄送地址' : '超商取貨門市資訊'}
+                     </label>
                      <textarea 
                        value={shippingInfo.address}
                        onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
                        className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
-                       placeholder="請輸入完整地址或超商門市名稱/店號"
+                       placeholder={shippingInfo.method === '宅配到府' ? '請輸入完整收件地址' : '請輸入超商門市名稱、店號或店鋪地址'}
                      />
                   </div>
                   <div>
