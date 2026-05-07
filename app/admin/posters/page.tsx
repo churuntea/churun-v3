@@ -95,43 +95,40 @@ export default function AdminPosters() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (e.g., limit to 4MB)
-    if (file.size > 4 * 1024 * 1024) {
-      alert("檔案太大！請上傳小於 4MB 的圖片。");
+    // Check file size (limit to 10MB for print quality)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("檔案太大！請上傳小於 10MB 的圖片。");
       return;
     }
 
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const base64Data = reader.result as string;
-        
-        const response = await fetch('/api/admin/posters/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64Data })
-        });
-        
-        let result;
-        try {
-          result = await response.json();
-        } catch (e) {
-          throw new Error("圖片檔案過大或伺服器錯誤，請壓縮圖片後再試！");
-        }
+    try {
+      // 1. Get Signed Upload URL from server
+      const response = await fetch('/api/admin/posters/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name })
+      });
+      
+      const urlResult = await response.json();
+      if (!urlResult.success) throw new Error(urlResult.error);
 
-        if (result.success) {
-          setEditingTemplate({...editingTemplate, url: result.imageUrl});
-        } else {
-          alert('上傳失敗: ' + result.error);
-        }
-      } catch (err: any) {
-        alert('上傳失敗: ' + err.message);
-      } finally {
-        setIsUploading(false);
+      // 2. Upload file directly to Supabase Storage using Signed URL
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .uploadToSignedUrl(urlResult.path, urlResult.token, file);
+
+      if (error) {
+        throw new Error("直接上傳至 Storage 失敗: " + error.message);
       }
-    };
-    reader.readAsDataURL(file);
+
+      // 3. Set the public URL
+      setEditingTemplate({...editingTemplate, url: urlResult.publicUrl});
+    } catch (err: any) {
+      alert('上傳失敗: ' + err.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
