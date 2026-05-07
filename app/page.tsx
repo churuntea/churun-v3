@@ -215,17 +215,17 @@ function DashboardContent() {
       if (hiddenQr) ctx.drawImage(hiddenQr, config.qr?.x || 800, config.qr?.y || 1100, config.qr?.size || 160, config.qr?.size || 160);
       
       ctx.fillStyle = config.name?.color || '#ffffff';
-      ctx.font = `black ${config.name?.size || 28}px sans-serif`;
+      ctx.font = `bold ${config.name?.size || 40}px "Noto Serif TC", serif, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText(memberInfo.name, config.name?.x || 380, config.name?.y || 1120);
       
       ctx.fillStyle = config.phone?.color || config.name?.color || '#ffffff';
-      ctx.font = `bold ${config.phone?.size || 24}px sans-serif`;
+      ctx.font = `bold ${config.phone?.size || 40}px sans-serif`;
       ctx.fillText(memberInfo.phone || '', config.phone?.x || 380, config.phone?.y || 1155);
       
       if (config.address) {
         ctx.fillStyle = config.address.color || config.name?.color || '#ffffff';
-        ctx.font = `bold ${config.address.size || 20}px sans-serif`;
+        ctx.font = `bold ${config.address.size || 36}px "Noto Serif TC", serif, sans-serif`;
         ctx.fillText(memberInfo.address || '', config.address.x || 380, config.address.y || 1190);
       }
 
