@@ -192,6 +192,43 @@ function AdminDashboardContent() {
 
         {/* Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+           {/* Left: 快捷管理操作 */}
+           <div className="space-y-6 lg:col-span-1">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">快捷管理操作</h3>
+              <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
+                 {[
+                   { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
+                   { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
+                   { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
+                   { label: "商品參數管理", icon: Settings, action: "/admin/products" },
+                   { label: "數據庫備份", icon: Database, action: "#" }
+                 ].map((act, i) => (
+                   <button 
+                     key={i}
+                     onClick={async () => {
+                        if (act.action.startsWith('/')) {
+                           if (act.action.includes('/api/')) {
+                              const res = await fetch(act.action, { method: 'POST' });
+                              const d = await res.json();
+                              alert(d.message || d.error);
+                           } else {
+                              router.push(act.action);
+                           }
+                        }
+                     }}
+                     className="w-full flex items-center justify-between p-5 bg-slate-50 rounded-2xl hover:bg-slate-900 hover:text-white transition group"
+                   >
+                      <div className="flex items-center gap-4">
+                         <act.icon className="w-5 h-5 text-slate-400 group-hover:text-white" />
+                         <span className="text-sm font-bold">{act.label}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
+                   </button>
+                 ))}
+              </div>
+           </div>
+
+           {/* Right: 業績與成長趨勢 */}
            <div className="lg:col-span-2 space-y-6">
               <div className="flex justify-between items-center px-4">
                  <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase flex items-center gap-2">
@@ -224,41 +261,6 @@ function AdminDashboardContent() {
                        />
                     </AreaChart>
                  </ResponsiveContainer>
-              </div>
-           </div>
-
-           <div className="space-y-6">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">快捷管理操作</h3>
-              <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
-                 {[
-                   { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
-                   { label: "全體階級考核", icon: LayoutDashboard, action: "/api/cron/evaluate-tiers" },
-                   { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
-                   { label: "商品參數管理", icon: Settings, action: "/admin/products" },
-                   { label: "數據庫備份", icon: Database, action: "#" }
-                 ].map((act, i) => (
-                   <button 
-                     key={i}
-                     onClick={async () => {
-                        if (act.action.startsWith('/')) {
-                           if (act.action.includes('/api/')) {
-                              const res = await fetch(act.action, { method: 'POST' });
-                              const d = await res.json();
-                              alert(d.message || d.error);
-                           } else {
-                              router.push(act.action);
-                           }
-                        }
-                     }}
-                     className="w-full flex items-center justify-between p-5 bg-slate-50 rounded-2xl hover:bg-slate-900 hover:text-white transition group"
-                   >
-                      <div className="flex items-center gap-4">
-                         <act.icon className="w-5 h-5 text-slate-400 group-hover:text-white" />
-                         <span className="text-sm font-bold">{act.label}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
-                   </button>
-                 ))}
               </div>
            </div>
         </div>
