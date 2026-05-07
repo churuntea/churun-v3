@@ -38,7 +38,7 @@ const ZONES = [
   {
     id: "members",
     name: "初潤會員專區",
-    desc: "B2C 一般客戶 & 行銷會員階層",
+    desc: "全體會員階層（包含一般會員、合夥人與品牌大使）",
     color: "from-blue-600 to-indigo-600",
     bgLight: "bg-blue-50/50",
     borderLight: "border-blue-100",
@@ -47,7 +47,11 @@ const ZONES = [
       { name: "初潤寶寶", criteria: "完成註冊登入即可加入", target: "$0" },
       { name: "初潤幼兒園", criteria: "只要進行任意一次消費即可晉升", target: "消費 $1 起" },
       { name: "初潤小朋友", criteria: "累積消費金額達 $1,500 元", target: "$1,500" },
-      { name: "初潤青少年", criteria: "累積消費金額達 $3,000 元", target: "$3,000" }
+      { name: "初潤青少年", criteria: "累積消費金額達 $3,000 元", target: "$3,000" },
+      { name: "初潤好朋友", criteria: "累積消費金額達 $6,000 元", target: "$6,000" },
+      { name: "初潤閨蜜", criteria: "累積消費金額達 $12,000 元", target: "$12,000" },
+      { name: "初潤知己", criteria: "累積消費金額達 $25,000 元", target: "$25,000" },
+      { name: "初潤靈魂伴侶", criteria: "累積消費金額達 $50,000 元", target: "$50,000" }
     ]
   },
   {
