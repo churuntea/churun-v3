@@ -136,8 +136,8 @@ export default function AdminPosters() {
       <div className="max-w-6xl mx-auto">
         <header className="flex justify-between items-center mb-8">
           <div>
-            <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors mb-2 text-sm font-bold">
-              <ChevronLeft className="w-4 h-4" /> 返回首頁
+            <Link href="/admin" className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors mb-2 text-sm font-bold">
+              <ChevronLeft className="w-4 h-4" /> 返回管理中心
             </Link>
             <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-3">
               <Layout className="w-8 h-8 text-emerald-600" /> 行銷海報樣板管理
