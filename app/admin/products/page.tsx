@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../supabase";
 import { 
   ChevronLeft, 
   PackagePlus, 
@@ -43,10 +44,12 @@ function AdminProductsContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"add" | "list">("add");
+  const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("add");
 
   const creators = ["陳總經理", "王副總", "張主任", "系統管理員"];
-  const categories = ["極萃系列", "精品茶具", "典藏禮盒"];
+  const [categories, setCategories] = useState<string[]>(["極萃系列", "精品茶具", "典藏禮盒"]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("churun_admin_auth");
@@ -55,7 +58,103 @@ function AdminProductsContent() {
       return;
     }
     fetchProducts();
+    fetchCategories();
   }, [router]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("title", "[SYSTEM_CATEGORIES]")
+        .maybeSingle();
+      
+      if (data && data.content) {
+        const parsed = JSON.parse(data.content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCategories(parsed);
+          // 如果當前表單內的預設分類不在列表中，將其設為第一個可用分類
+          setFormData(prev => {
+            if (!parsed.includes(prev.category)) {
+              return { ...prev, category: parsed[0] };
+            }
+            return prev;
+          });
+        }
+      } else if (!data) {
+        // 資料庫查無紀錄則進行初始建檔
+        const defaultCats = ["極萃系列", "精品茶具", "典藏禮盒"];
+        await supabase
+          .from("announcements")
+          .insert({
+            title: "[SYSTEM_CATEGORIES]",
+            tag: "SYSTEM",
+            content: JSON.stringify(defaultCats),
+            color: "bg-indigo-900"
+          });
+        setCategories(defaultCats);
+      }
+    } catch (err) {
+      console.error("載入分類大項錯誤:", err);
+    }
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return alert("請輸入大項/分類名稱");
+    if (categories.includes(trimmed)) return alert("此大項/分類已存在");
+
+    setIsSavingCategory(true);
+    const updated = [...categories, trimmed];
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updated) })
+        .eq("title", "[SYSTEM_CATEGORIES]");
+      
+      if (error) throw error;
+      
+      setCategories(updated);
+      setNewCategoryName("");
+      alert("🎉 新增分類大項成功！");
+    } catch (err: any) {
+      alert("新增分類失敗: " + err.message);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catToDelete: string) => {
+    if (categories.length <= 1) {
+      return alert("必須保留至少一個分類大項！");
+    }
+    if (!confirm(`確定要刪除大項分類「${catToDelete}」嗎？\n這不會刪除已屬於該大項的商品，但該大項將無法再被選取。`)) return;
+    
+    setIsSavingCategory(true);
+    const updated = categories.filter(c => c !== catToDelete);
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updated) })
+        .eq("title", "[SYSTEM_CATEGORIES]");
+      
+      if (error) throw error;
+      
+      setCategories(updated);
+      setFormData(prev => {
+        if (prev.category === catToDelete) {
+          return { ...prev, category: updated[0] };
+        }
+        return prev;
+      });
+      alert("🎉 刪除分類大項成功！");
+    } catch (err: any) {
+      alert("刪除分類失敗: " + err.message);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -216,6 +315,14 @@ function AdminProductsContent() {
               <FileText className={`w-5 h-5 ${activeTab === 'list' ? 'text-emerald-500' : 'text-slate-300'}`} />
               已上架庫存 ({products.length})
            </button>
+           <button 
+             type="button"
+             onClick={() => setActiveTab("category")}
+             className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] transition-all duration-500 font-black text-[10px] uppercase tracking-widest cursor-pointer ${activeTab === 'category' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+              <LayoutDashboard className={`w-5 h-5 ${activeTab === 'category' ? 'text-amber-500' : 'text-slate-300'}`} />
+              大項分類管理
+           </button>
         </div>
 
         <div className="relative z-0">
@@ -329,7 +436,7 @@ function AdminProductsContent() {
                    </button>
                 </form>
              </motion.div>
-           ) : (
+            ) : activeTab === 'list' ? (
              <motion.div 
                key="list-view"
                initial={{ opacity: 0, y: 10 }}
@@ -415,9 +522,78 @@ function AdminProductsContent() {
                       )}
                    </div>
                 )}
-             </motion.div>
-           )}
-        </div>
+              </motion.div>
+           ) : (
+              <motion.div 
+                key="category-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-[4rem] p-12 border border-slate-50 shadow-2xl shadow-slate-200/20 space-y-10"
+              >
+                 <div className="flex items-center gap-4 border-b border-slate-50 pb-8">
+                    <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-inner">
+                       <LayoutDashboard className="w-6 h-6" />
+                    </div>
+                    <div>
+                       <h3 className="text-xl font-black text-slate-800">大項分類管理</h3>
+                       <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">新增與維護商品的頂級大項分類</p>
+                    </div>
+                 </div>
+
+                 {/* 新增分類 Form */}
+                 <form onSubmit={handleAddCategory} className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100/50 space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">全新分類名稱</label>
+                    <div className="flex gap-4">
+                       <input 
+                         type="text" 
+                         value={newCategoryName} 
+                         onChange={(e) => setNewCategoryName(e.target.value)}
+                         placeholder="例: 精選茶包系列、特級配茶系列..." 
+                         className="flex-1 bg-white border-none p-5 rounded-2xl text-sm font-black text-slate-800 shadow-sm focus:ring-4 focus:ring-amber-500/10 transition"
+                         required
+                       />
+                       <button 
+                         type="submit" 
+                         disabled={isSavingCategory}
+                         className="px-8 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-900 transition flex items-center gap-2 active:scale-95 shadow-md shrink-0"
+                       >
+                          {isSavingCategory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          新增分類大項
+                       </button>
+                    </div>
+                 </form>
+
+                 {/* 已有分類清單 */}
+                 <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">目前已啟用的大項分類</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       {categories.map((cat) => {
+                          // 計算屬於該大項的商品數量
+                          const productCount = products.filter(p => p.category === cat).length;
+                          return (
+                             <div 
+                               key={cat}
+                               className="bg-slate-50/50 border border-slate-100 p-6 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-amber-200 transition-all duration-300"
+                             >
+                                <div className="flex flex-col gap-1">
+                                   <span className="text-sm font-black text-slate-800">{cat}</span>
+                                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">目前關聯品項: {productCount} 個</span>
+                                </div>
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteCategory(cat)}
+                                  className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50 active:scale-90"
+                                >
+                                   <Trash2 className="w-4 h-4" />
+                                </button>
+                             </div>
+                          );
+                       })}
+                    </div>
+                 </div>
+              </motion.div>
+            )}
+         </div>
 
       </main>
 

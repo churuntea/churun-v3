@@ -52,15 +52,16 @@ function validateTaiwanID(id: string): boolean {
 function ApplyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawType = searchParams.get("type"); // 'partner' or 'ambassador'
+  const rawType = searchParams.get("type"); // 'partner', 'ambassador' or 'invited_team'
   const isAmbassador = rawType === "ambassador";
+  const isInvitedTeam = rawType === "invited_team";
   
-  const roleTitle = isAmbassador ? "品牌大使" : "合夥人";
-  const roleEnglish = isAmbassador ? "Brand Ambassador" : "Partner";
-  const targetTier = isAmbassador ? "初潤知己" : "初潤好朋友";
-  const minDeposit = isAmbassador ? 198000 : 98000; // Updated Partner to 98000!
-  const gradientColor = isAmbassador ? "from-amber-500 to-orange-600" : "from-emerald-600 to-teal-600";
-  const textColor = isAmbassador ? "text-amber-500" : "text-emerald-600";
+  const roleTitle = isAmbassador ? "品牌大使" : isInvitedTeam ? "特邀親友團" : "合夥人";
+  const roleEnglish = isAmbassador ? "Brand Ambassador" : isInvitedTeam ? "Friends & Family Invited Team" : "Partner";
+  const targetTier = isAmbassador ? "初潤知己" : isInvitedTeam ? "初潤特邀團" : "初潤好朋友";
+  const minDeposit = isAmbassador ? 198000 : isInvitedTeam ? 0 : 98000; // Updated Partner to 98000!
+  const gradientColor = isAmbassador ? "from-amber-500 to-orange-600" : isInvitedTeam ? "from-purple-600 to-indigo-600" : "from-emerald-600 to-teal-600";
+  const textColor = isAmbassador ? "text-amber-500" : isInvitedTeam ? "text-purple-600" : "text-emerald-600";
 
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -133,58 +134,65 @@ function ApplyContent() {
     setIsLoading(true);
     setErrorMsg(null);
 
-    const amountVal = parseFloat(formData.amount);
-    if (isNaN(amountVal) || amountVal < minDeposit) {
+    const amountVal = parseFloat(formData.amount || "0") || 0;
+    if (!isInvitedTeam && (isNaN(amountVal) || amountVal < minDeposit)) {
       setErrorMsg(`⚠️ 申請金額不得低於最低門檻 $${minDeposit.toLocaleString()} 元`);
       setIsLoading(false);
       return;
     }
 
-    if (!formData.lastFive || formData.lastFive.length !== 5) {
-      setErrorMsg("⚠️ 請填寫正確的匯款帳號後五碼（需為 5 位數字）");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!remittancePhoto) {
-      setErrorMsg("⚠️ 請拍攝並上傳匯款水單或存摺證明，以利會計審查金額！");
-      setIsLoading(false);
-      return;
+    if (!isInvitedTeam) {
+      if (!formData.lastFive || formData.lastFive.length !== 5) {
+        setErrorMsg("⚠️ 請填寫正確的匯款帳號後五碼（需為 5 位數字）");
+        setIsLoading(false);
+        return;
+      }
+      if (!remittancePhoto) {
+        setErrorMsg("⚠️ 請拍攝並上傳匯款水單或存摺證明，以利會計審查金額！");
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      if (formData.lastFive && formData.lastFive.length !== 5) {
+        setErrorMsg("⚠️ 若填寫匯款帳號後五碼，請確保格式為 5 位數字（選填）");
+        setIsLoading(false);
+        return;
+      }
     }
 
     // Both Partner and Ambassador require full identity compliant fields!
-    if (!formData.idCardNumber) {
+    if (!isInvitedTeam && !formData.idCardNumber) {
       setErrorMsg(`⚠️ 申請成為初潤${roleTitle}必須填寫身分證字號`);
       setIsLoading(false);
       return;
     }
     // Trigger rigorous check
-    if (!validateTaiwanID(formData.idCardNumber)) {
+    if (formData.idCardNumber && !validateTaiwanID(formData.idCardNumber)) {
       setErrorMsg("⚠️ 請輸入格式正確之中華民國身分證字號（第一碼需為大寫英文字母，第二碼需為 1 或 2，且檢查碼符合邏輯）");
       setIsLoading(false);
       return;
     }
-    if (!formData.householdAddress) {
+    if (!isInvitedTeam && !formData.householdAddress) {
       setErrorMsg(`⚠️ 申請成為初潤${roleTitle}必須填寫戶籍地址`);
       setIsLoading(false);
       return;
     }
-    if (!idCardPhoto) {
+    if (!isInvitedTeam && !idCardPhoto) {
       setErrorMsg(`⚠️ 申請成為初潤${roleTitle}必須上傳身分證照片`);
       setIsLoading(false);
       return;
     }
-    if (!idScanVerified) {
+    if (!isInvitedTeam && !idScanVerified) {
       setErrorMsg("⚠️ 身分證與填寫資料尚在比對中，請稍候再點選送出");
       setIsLoading(false);
       return;
     }
-    if (!formData.bankAccount || !formData.bankBranch) {
+    if (!isInvitedTeam && (!formData.bankAccount || !formData.bankBranch)) {
       setErrorMsg(`⚠️ 申請成為初潤${roleTitle}必須完整填寫國泰世華銀行分行名稱與帳戶資訊`);
       setIsLoading(false);
       return;
     }
-    if (!passbookPhoto) {
+    if (!isInvitedTeam && !passbookPhoto) {
       setErrorMsg(`⚠️ 申請成為初潤${roleTitle}必須上傳國泰世華存摺或金融卡照片`);
       setIsLoading(false);
       return;
@@ -212,15 +220,15 @@ function ApplyContent() {
       const jsonPayload = {
         isB2BApply: true,
         type: rawType,
-        lastFive: formData.lastFive,
-        remittancePhoto: remittancePhoto,
-        idCardNumber: formData.idCardNumber,
-        householdAddress: formData.householdAddress,
-        idCardPhoto: idCardPhoto,
+        lastFive: formData.lastFive || "",
+        remittancePhoto: remittancePhoto || null,
+        idCardNumber: formData.idCardNumber || "",
+        householdAddress: formData.householdAddress || "",
+        idCardPhoto: idCardPhoto || null,
         bankCode: "013", // Locked to Cathay
-        bankAccount: formData.bankAccount,
-        bankBranch: formData.bankBranch,
-        passbookPhoto: passbookPhoto
+        bankAccount: formData.bankAccount || "",
+        bankBranch: formData.bankBranch || "",
+        passbookPhoto: passbookPhoto || null
       };
 
       const serializedData = `B2B_JSON_V1|${JSON.stringify(jsonPayload)}`;
@@ -240,10 +248,11 @@ function ApplyContent() {
         points_balance: 0,
         virtual_balance: 0,
         initial_deposit: amountVal,
+        avatar_url: "https://i.ibb.co/6R2M5X1/churun-baby.png", // Explicit default premium baby avatar URL!
         status: "pending_accounting", // Flow state
-        id_card_number: formData.idCardNumber,
+        id_card_number: formData.idCardNumber || null,
         bank_code: "013", // Cathay United
-        bank_account: formData.bankAccount,
+        bank_account: formData.bankAccount || null,
         beneficiary: serializedData // JSON backup payload
       };
 
@@ -380,13 +389,13 @@ function ApplyContent() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">身分證字號</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">身分證字號 {isInvitedTeam && "（選填）"}</label>
                       <div className="relative">
                         <UserCheck className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                         <input 
                           type="text" 
-                          required
-                          placeholder="請輸入身分證字號（需經合規檢核）"
+                          required={!isInvitedTeam}
+                          placeholder={isInvitedTeam ? "請輸入身分證字號（選填）" : "請輸入身分證字號（需經合規檢核）"}
                           value={formData.idCardNumber}
                           onChange={e => setFormData(prev => ({ ...prev, idCardNumber: e.target.value.toUpperCase() }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300 uppercase"
@@ -400,13 +409,13 @@ function ApplyContent() {
                     <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2">二、 戶籍與收件通訊地址</h3>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">戶籍地址</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">戶籍地址 {isInvitedTeam && "（選填）"}</label>
                       <div className="relative">
                         <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                         <input 
                           type="text" 
-                          required
-                          placeholder="請輸入身分證登載之戶籍地址"
+                          required={!isInvitedTeam}
+                          placeholder={isInvitedTeam ? "請輸入身分證登載之戶籍地址（選填）" : "請輸入身分證登載之戶籍地址"}
                           value={formData.householdAddress}
                           onChange={e => setFormData(prev => ({ ...prev, householdAddress: e.target.value }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -484,13 +493,13 @@ function ApplyContent() {
                           </div>
                           <div className="text-center">
                             <p className="text-[10px] font-black text-slate-700 tracking-wider">點擊此處拍照或選擇相片</p>
-                            <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">拍照並上傳身分證正面（身分核實用）</p>
+                            <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">拍照並上傳身分證正面{isInvitedTeam ? "（選填）" : "（身分核實用）"}</p>
                           </div>
                           <input 
                             type="file" 
                             accept="image/*" 
                             capture="environment" 
-                            required
+                            required={!isInvitedTeam}
                             onChange={e => handlePhotoCapture(e, "idCard")} 
                             className="hidden" 
                           />
@@ -530,11 +539,11 @@ function ApplyContent() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">分行名稱</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">分行名稱 {isInvitedTeam && "（選填）"}</label>
                         <input 
                           type="text" 
-                          required
-                          placeholder="例如: 信義分行"
+                          required={!isInvitedTeam}
+                          placeholder={isInvitedTeam ? "例如: 信義分行（選填）" : "例如: 信義分行"}
                           value={formData.bankBranch}
                           onChange={e => setFormData(prev => ({ ...prev, bankBranch: e.target.value }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -543,13 +552,13 @@ function ApplyContent() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">指定國泰世華匯款帳號</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">指定國泰世華匯款帳號 {isInvitedTeam && "（選填）"}</label>
                       <div className="relative">
                         <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                         <input 
                           type="text" 
-                          required
-                          placeholder="請輸入撥退款國泰世華銀行帳號"
+                          required={!isInvitedTeam}
+                          placeholder={isInvitedTeam ? "請輸入撥退款國泰世華銀行帳號（選填）" : "請輸入撥退款國泰世華銀行帳號"}
                           value={formData.bankAccount}
                           onChange={e => setFormData(prev => ({ ...prev, bankAccount: e.target.value.replace(/\D/g, "") }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -559,7 +568,7 @@ function ApplyContent() {
 
                     {/* Bank Photo Upload Widget */}
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">存摺或金融卡拍照上傳</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">存摺或金融卡拍照上傳 {isInvitedTeam && "（選填）"}</label>
                       
                       <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl p-6 bg-slate-50/30 hover:bg-slate-50/80 transition relative overflow-hidden min-h-[160px]">
                         {passbookPhoto ? (
@@ -593,13 +602,15 @@ function ApplyContent() {
                             </div>
                             <div className="text-center">
                               <p className="text-[10px] font-black text-slate-700 tracking-wider">點擊此處拍照或選擇相片</p>
-                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">拍照並上傳國泰世華存摺（需有 013 代碼或國泰字樣）</p>
+                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                拍照並上傳國泰世華存摺{isInvitedTeam ? "（選填）" : "（需有 013 代碼或國泰字樣，必填）"}
+                              </p>
                             </div>
                             <input 
                               type="file" 
                               accept="image/*" 
                               capture="environment" 
-                              required
+                              required={!isInvitedTeam}
                               onChange={e => handlePhotoCapture(e, "passbook")} 
                               className="hidden" 
                             />
@@ -612,18 +623,20 @@ function ApplyContent() {
                   {/* SECTION 5: DEPOSIT & REMITTANCE PROOF */}
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2">
-                      五、 儲值金額與匯款憑證
+                      五、 儲值金額與匯款憑證 {isInvitedTeam && "（選填）"}
                     </h3>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">本次儲值/預收貨款金額 (元)</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
+                        本次儲值/預收貨款金額 (元) {isInvitedTeam && "（選填）"}
+                      </label>
                       <div className="relative">
                         <Wallet className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                         <input 
                           type="number" 
-                          required
-                          min={minDeposit}
-                          placeholder={`最低門檻 $${minDeposit}`}
+                          required={!isInvitedTeam}
+                          min={isInvitedTeam ? 0 : minDeposit}
+                          placeholder={isInvitedTeam ? "特邀親友免儲值，或輸入任意金額" : `最低門檻 $${minDeposit}`}
                           value={formData.amount}
                           onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -632,14 +645,16 @@ function ApplyContent() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">匯款銀行帳號【後五碼】</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
+                        匯款銀行帳號【後五碼】 {isInvitedTeam && "（選填）"}
+                      </label>
                       <div className="relative">
                         <Coins className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                         <input 
                           type="text" 
-                          required
+                          required={!isInvitedTeam}
                           maxLength={5}
-                          placeholder="例如: 12345"
+                          placeholder={isInvitedTeam ? "例如: 12345（選填）" : "例如: 12345"}
                           value={formData.lastFive}
                           onChange={e => setFormData(prev => ({ ...prev, lastFive: e.target.value.replace(/\D/g, "") }))}
                           className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -649,7 +664,9 @@ function ApplyContent() {
 
                     {/* Remittance Photo Upload Widget */}
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">拍照並上傳匯款憑證/水單</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">
+                        拍照並上傳匯款憑證/水單 {isInvitedTeam && "（選填）"}
+                      </label>
                       
                       <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl p-6 bg-slate-50/30 hover:bg-slate-50/80 transition relative overflow-hidden min-h-[160px]">
                         {remittancePhoto ? (
@@ -683,13 +700,15 @@ function ApplyContent() {
                             </div>
                             <div className="text-center">
                               <p className="text-[10px] font-black text-slate-700 tracking-wider">點擊此處拍照或選擇相片</p>
-                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">支援手機相機鏡頭直接拍照存摺/憑證</p>
+                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                拍照並上傳匯款憑證/水單{isInvitedTeam ? "（選填）" : "（必填）"}
+                              </p>
                             </div>
                             <input 
                               type="file" 
                               accept="image/*" 
                               capture="environment" 
-                              required
+                              required={!isInvitedTeam}
                               onChange={e => handlePhotoCapture(e, "remittance")} 
                               className="hidden" 
                             />

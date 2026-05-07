@@ -25,7 +25,7 @@ export default function SupportPage() {
       icon: MessageCircle,
       color: "bg-emerald-500",
       action: "立即加入",
-      href: "https://line.me"
+      href: "https://lin.ee/tqsak2f"
     },
     {
       title: "電話專線服務",

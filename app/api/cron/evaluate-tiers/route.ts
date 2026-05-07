@@ -69,7 +69,7 @@ async function evaluateTiers() {
   try {
     const { data: members, error } = await supabase
       .from('members')
-      .select('id, name, tier, lifetime_spend, quarterly_spend, initial_deposit, created_at');
+      .select('id, name, tier, lifetime_spend, quarterly_spend, initial_deposit, created_at, avatar_settings');
 
     if (error) throw error;
     if (!members) return { success: true, message: 'No members found' };
@@ -85,6 +85,36 @@ async function evaluateTiers() {
       
       const currentTier = TIERS[currentTierIdx];
       let newTier = member.tier;
+
+      // Parse avatar settings and check for active grace period (3 months from the first day of next month after promotion)
+      let avatarSettings = member.avatar_settings || {};
+      if (typeof avatarSettings === 'string') {
+        try {
+          avatarSettings = JSON.parse(avatarSettings);
+        } catch (e) {
+          avatarSettings = {};
+        }
+      }
+      
+      const tierUpdatedAt = avatarSettings.tier_updated_at || null;
+      let hasGracePeriodActive = false;
+      if (tierUpdatedAt) {
+        try {
+          const promotedDate = new Date(tierUpdatedAt);
+          if (!isNaN(promotedDate.getTime())) {
+            // End of grace period: first day of next month + 3 months
+            const nextMonthFirstDay = new Date(promotedDate.getFullYear(), promotedDate.getMonth() + 1, 1);
+            const gracePeriodEnd = new Date(nextMonthFirstDay);
+            gracePeriodEnd.setMonth(nextMonthFirstDay.getMonth() + 3);
+            
+            if (now < gracePeriodEnd) {
+              hasGracePeriodActive = true;
+            }
+          }
+        } catch (e) {
+          console.error("Error calculating grace period:", e);
+        }
+      }
 
       // 1. 檢查升級 (Upgrade Logic)
       // 從最高階開始往回找，看是否符合終身金額
@@ -106,32 +136,37 @@ async function evaluateTiers() {
 
       // 2. 檢查保級 (Maintenance Logic) - 僅針對「好朋友」以上級別
       if (currentTier.maintainType !== 'none' && newTier === member.tier) {
-        const checkDate = currentTier.maintainType === 'monthly' ? oneMonthAgo : threeMonthsAgo;
-        
-        // 取得期間內消費
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('total_amount')
-          .eq('member_id', member.id)
-          .eq('status', 'completed')
-          .gte('completed_at', checkDate);
-        
-        const periodSpend = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
+        if (hasGracePeriodActive) {
+          // Skip downgrade evaluation completely because they are in the 3-month grace period!
+          console.log(`Skipping downgrade evaluation for ${member.name} because of active grace period until first day of next month + 3 months.`);
+        } else {
+          const checkDate = currentTier.maintainType === 'monthly' ? oneMonthAgo : threeMonthsAgo;
+          
+          // 取得期間內消費
+          const { data: orders } = await supabase
+            .from('orders')
+            .select('total_amount')
+            .eq('member_id', member.id)
+            .eq('status', 'completed')
+            .gte('completed_at', checkDate);
+          
+          const periodSpend = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
 
-        // 取得期間內直推人數
-        const { count: newReferrals } = await supabase
-          .from('members')
-          .select('*', { count: 'exact', head: true })
-          .eq('upline_id', member.id)
-          .gte('created_at', checkDate);
+          // 取得期間內直推人數
+          const { count: newReferrals } = await supabase
+            .from('members')
+            .select('*', { count: 'exact', head: true })
+            .eq('upline_id', member.id)
+            .gte('created_at', checkDate);
 
-        const referralCount = newReferrals || 0;
+          const referralCount = newReferrals || 0;
 
-        // 保級判定：二擇一 (消費達標 OR 推薦達標)
-        const isMaintained = periodSpend >= (currentTier.maintainSpend || 0) || referralCount >= (currentTier.maintainReferral || 0);
+          // 保級判定：二擇一 (消費達標 OR 推薦達標)
+          const isMaintained = periodSpend >= (currentTier.maintainSpend || 0) || referralCount >= (currentTier.maintainReferral || 0);
 
-        if (!isMaintained) {
-          newTier = currentTier.downgradeTo || '初潤青少年';
+          if (!isMaintained) {
+            newTier = currentTier.downgradeTo || '初潤青少年';
+          }
         }
       }
 

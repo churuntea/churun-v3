@@ -117,7 +117,11 @@ function DashboardContent() {
       const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
       setMemberInfo(mData);
       if (mData?.avatar_url) {
-        setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
+        if (mData.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png") {
+          setMemberAvatar(mData.avatar_url);
+        } else {
+          setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
+        }
       } else {
         setMemberAvatar("https://i.ibb.co/6R2M5X1/churun-baby.png");
       }
@@ -311,11 +315,11 @@ function DashboardContent() {
                             <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
                          </div>
                          <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
-                         <div className="flex items-center gap-3 mt-3">
-                            <div className="w-5 h-[1px] bg-white/20"></div>
-                            <p className="text-[11px] font-bold text-white/80 tracking-[0.4em] uppercase italic">{memberMotto}</p>
-                            <div className="w-5 h-[1px] bg-white/20"></div>
-                         </div>
+                          <div className="flex items-center gap-2 mt-3 overflow-hidden max-w-[200px] sm:max-w-none">
+                             <div className="w-5 h-[1px] bg-white/20 shrink-0"></div>
+                             <p className="text-[10px] sm:text-[11px] font-bold text-white/80 tracking-[0.2em] sm:tracking-[0.4em] uppercase italic whitespace-nowrap overflow-hidden text-ellipsis">{memberMotto}</p>
+                             <div className="w-5 h-[1px] bg-white/20 shrink-0"></div>
+                          </div>
                       </div>
                    </div>
                    <motion.button whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }} onClick={() => setShowShareHub(true)} className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/10 shadow-inner">
@@ -407,10 +411,10 @@ function DashboardContent() {
                            
                            {/* Left/Right Tier Markers */}
                            <div className="flex justify-between items-center mt-2 px-1">
-                              <span className="text-[9px] font-black text-white/50 tracking-widest">${currentTierName}</span>
+                              <span className="text-[9px] font-black text-white/50 tracking-widest">{currentTierName}</span>
                               {nextTier && (
                                 <span className="text-[9px] font-black text-amber-400/90 tracking-widest flex items-center gap-1 animate-pulse">
-                                   👑 ${nextTier.name}
+                                   👑 {nextTier.name}
                                 </span>
                               )}
                            </div>
@@ -423,7 +427,7 @@ function DashboardContent() {
                                 <span className="text-amber-400 font-black text-[10px] animate-bounce">🔥</span>
                              </div>
                              <p className="text-[10px] font-bold text-white/85 leading-relaxed">
-                                還差 <span className="text-amber-300 font-black">$${remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">${nextTier.rate}元 = 1點</span>
+                                還差 <span className="text-amber-300 font-black">{remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">{nextTier.rate}元 = 1點</span>
                              </p>
                           </div>
                         )}
@@ -439,18 +443,18 @@ function DashboardContent() {
            <div className="flex justify-between items-center px-4">
               <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">榮譽成就勳章</h3>
            </div>
-           <div className="flex gap-6 overflow-x-auto pb-4 px-2 no-scrollbar">
+           <div className="grid grid-cols-3 gap-3 pb-4 px-2">
               {[
                 { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "bg-indigo-50 text-indigo-500", earned: true },
                 { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "bg-emerald-50 text-emerald-500", earned: Number(downlines?.length || 0) >= 5 },
                 { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "bg-amber-50 text-amber-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
               ].map((badge, i) => (
-                <div key={i} className="min-w-[140px] p-6 rounded-[2.5rem] border bg-white border-slate-100 shadow-xl flex flex-col items-center gap-4">
-                   <div className={`w-14 h-14 ${badge.color} rounded-[1.5rem] flex items-center justify-center shadow-inner`}>
-                      <badge.icon className="w-7 h-7" />
-                   </div>
-                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 text-center">{badge.name}</h4>
-                </div>
+                 <div key={i} className="p-4 sm:p-6 rounded-[2rem] border bg-white border-slate-100 shadow-xl flex flex-col items-center gap-3 sm:gap-4">
+                    <div className={`w-12 h-12 sm:w-14 sm:h-14 ${badge.color} rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center shadow-inner`}>
+                       <badge.icon className="w-6 h-6 sm:w-7 sm:h-7" />
+                    </div>
+                    <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-800 text-center whitespace-nowrap">{badge.name}</h4>
+                 </div>
               ))}
            </div>
         </section>
@@ -560,7 +564,7 @@ function DashboardContent() {
                        <button
                          key={cat}
                          onClick={() => setSelectedPosterCategory(cat)}
-                         className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedPosterCategory === cat ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/10' : 'text-slate-400 hover:text-slate-600'}`}
+                         className={`flex-1 h-11 flex items-center justify-center rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedPosterCategory === cat ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/10' : 'text-slate-400 hover:text-slate-600'}`}
                        >
                           {cat}
                        </button>
@@ -648,6 +652,34 @@ function DashboardContent() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Glassmorphic LINE Contact Button */}
+      <motion.div 
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.5 }}
+        className="fixed right-6 bottom-28 z-[70]"
+      >
+        <a 
+          href="https://lin.ee/PB4ztiM" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-2 bg-[#06C755]/15 hover:bg-[#06C755]/25 backdrop-blur-xl border border-[#06C755]/30 p-2 pl-3 pr-4 rounded-full shadow-lg shadow-[#06C755]/10 active:scale-95 transition group"
+        >
+          {/* Pulsing ring around logo */}
+          <div className="relative w-8 h-8 rounded-full bg-[#06C755] flex items-center justify-center shrink-0 shadow-md">
+            <span className="absolute inset-0 rounded-full bg-[#06C755] animate-ping opacity-30"></span>
+            {/* Crisp minimal official LINE-like logo representation */}
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
+              <path d="M12 2C6.48 2 2 5.48 2 9.76c0 2.5 1.56 4.71 4 5.96-.13.56-.47 2.02-.54 2.37-.1.45.16.4.34.28.98-.65 2.87-1.92 3.42-2.28.25.04.51.06.78.06 5.52 0 10-3.48 10-7.76S17.52 2 12 2z"/>
+            </svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black tracking-widest text-[#06C755] uppercase leading-none">LINE 聯絡</span>
+            <span className="text-[7px] font-black tracking-wider text-slate-400 uppercase mt-0.5 whitespace-nowrap">Official Link</span>
+          </div>
+        </a>
+      </motion.div>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">

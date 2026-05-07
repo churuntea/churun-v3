@@ -66,18 +66,64 @@ export async function POST(request: Request) {
       }
 
       // 2. 執行點數/餘額更新
+      const newLifetimeSpend = (Number(buyer.lifetime_spend) || 0) + totalAmount;
+      const newQuarterlySpend = (Number(buyer.quarterly_spend) || 0) + totalAmount;
+
+      const TIERS = [
+        { name: '初潤靈魂伴侶', upgradeAmount: 50000 },
+        { name: '初潤知己', upgradeAmount: 25000 },
+        { name: '初潤閨蜜', upgradeAmount: 12000 },
+        { name: '初潤好朋友', upgradeAmount: 6000 },
+        { name: '初潤青少年', upgradeAmount: 3000 },
+        { name: '初潤小朋友', upgradeAmount: 1500 },
+        { name: '初潤幼兒園', upgradeAmount: 1 },
+        { name: '初潤寶寶', upgradeAmount: 0 }
+      ];
+
+      let currentTierIdx = TIERS.findIndex(t => t.name === buyer.tier);
+      if (currentTierIdx === -1) currentTierIdx = TIERS.length - 1; // Default to baby
+
+      let newTier = buyer.tier;
+      let isUpgraded = false;
+
+      for (let i = 0; i < TIERS.length; i++) {
+        const tier = TIERS[i];
+        const isEligibleBySpend = newLifetimeSpend >= tier.upgradeAmount;
+        const isEligibleByDeposit = (tier.name === '初潤閨蜜' || i > 2) && Number(buyer.initial_deposit) >= 10000;
+
+        if (isEligibleBySpend || isEligibleByDeposit) {
+          if (i < currentTierIdx) {
+            newTier = tier.name;
+            isUpgraded = true;
+          }
+          break;
+        }
+      }
+
+      let updatedAvatarSettings = buyer.avatar_settings || {};
+      if (typeof updatedAvatarSettings === 'string') {
+        try {
+          updatedAvatarSettings = JSON.parse(updatedAvatarSettings);
+        } catch (e) {
+          updatedAvatarSettings = {};
+        }
+      }
+
+      if (isUpgraded) {
+        updatedAvatarSettings.tier_updated_at = new Date().toISOString();
+      }
+
       if (buyer.is_b2b) {
-        // B2B：扣除虛擬帳戶餘額 (假設下單時只是預扣或標記，此處正式結算)
-        // 實際上 B2B 通常是儲值後扣款，如果是匯款購買，則不需要扣餘額，而是增加累積消費。
-        // 這裡我們依據之前的邏輯：B2B 是從餘額扣，但如果是匯款，應該是直接「入帳」並「增加累積消費」。
-        
+        // B2B: update spend & tier & avatar_settings
         await supabase.from('members').update({ 
-          lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
-          quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
+          lifetime_spend: newLifetimeSpend,
+          quarterly_spend: newQuarterlySpend,
+          tier: newTier,
+          avatar_settings: updatedAvatarSettings
         }).eq('id', buyer.id);
 
       } else {
-        // B2C：增加點數
+        // B2C: update spend & points & tier & avatar_settings
         if (rewardPoints > 0) {
           await supabase.from('point_transactions').insert({
             member_id: buyer.id,
@@ -85,16 +131,28 @@ export async function POST(request: Request) {
             amount: rewardPoints,
             transaction_type: 'earned_from_order'
           });
-
-          await supabase.from('members').update({ 
-            points_balance: (buyer.points_balance || 0) + rewardPoints,
-            lifetime_spend: (Number(buyer.lifetime_spend) || 0) + totalAmount,
-            quarterly_spend: (Number(buyer.quarterly_spend) || 0) + totalAmount
-          }).eq('id', buyer.id);
         }
 
-        // 3. 處理上線退傭
-        if (buyer.upline_id && b2bCommission > 0) {
+        await supabase.from('members').update({ 
+          points_balance: (buyer.points_balance || 0) + rewardPoints,
+          lifetime_spend: newLifetimeSpend,
+          quarterly_spend: newQuarterlySpend,
+          tier: newTier,
+          avatar_settings: updatedAvatarSettings
+        }).eq('id', buyer.id);
+      }
+
+      if (isUpgraded) {
+        await supabase.from('notifications').insert({
+          member_id: buyer.id,
+          title: '會員等級即時晉升！',
+          content: `恭喜您！您的累積消費已達標，會員等級已即時晉升為「${newTier}」。`,
+          type: 'system'
+        });
+      }
+
+      // 3. 處理上線退傭
+      if (buyer.upline_id && b2bCommission > 0) {
           const { data: upline } = await supabase.from('members').select('*').eq('id', buyer.upline_id).single();
           if (upline && upline.is_b2b) {
             await supabase.from('wallet_transactions').insert({
@@ -115,7 +173,6 @@ export async function POST(request: Request) {
               content: `您的下線夥伴 ${buyer.name} 的訂單已確認，您獲得 $${b2bCommission.toLocaleString()} 推薦獎金。`,
               type: 'referral'
             });
-          }
         }
       }
 

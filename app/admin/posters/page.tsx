@@ -215,7 +215,7 @@ export default function AdminPosters() {
                                 key={cat}
                                 type="button"
                                 onClick={() => setEditingTemplate({...editingTemplate, category: cat})}
-                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${editingTemplate.category === cat ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                                className={`flex-1 h-11 flex items-center justify-center rounded-xl font-bold text-xs whitespace-nowrap transition-all ${editingTemplate.category === cat ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
                               >
                                  {cat}
                               </button>

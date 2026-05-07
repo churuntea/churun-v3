@@ -131,7 +131,8 @@ function RegisterContent() {
         lifetime_spend: 0,
         quarterly_spend: 0,
         points_balance: 0,
-        virtual_balance: 0
+        virtual_balance: 0,
+        avatar_url: "https://i.ibb.co/6R2M5X1/churun-baby.png"
       };
 
       if (uplineId) insertData.upline_id = uplineId;

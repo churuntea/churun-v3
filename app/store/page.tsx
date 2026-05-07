@@ -21,7 +21,9 @@ import {
   Trash2,
   ShoppingCart,
   Check,
-  Plus
+  Plus,
+  Heart,
+  MapPin
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
@@ -55,6 +57,13 @@ const AVAILABLE_COUPONS: Coupon[] = [
   { code: "VIP100", name: "貴賓體驗折 $100", discountType: "fixed", value: 100, minSpend: 500, description: "滿 $500 現折 $100" }
 ];
 
+const PICKUP_POINTS = [
+  { id: 'caotun', name: '南投草屯自取點', address: '南投縣草屯鎮草鞋墩一街 (請聯繫總部預約自取)', phone: '聯絡總部辦理' },
+  { id: 'xinzhuang', name: '新北新莊自取點', address: '新北市新莊區中正路 (請聯繫總部預約自取)', phone: '聯絡總部辦理' },
+  { id: 'wugu', name: '新北五股自取點', address: '新北市五股區成泰路 (請聯繫總部預約自取)', phone: '聯絡總部辦理' },
+  { id: 'xinyi', name: '台北信義自取點', address: '台北市信義區松山路 (請聯繫總部預約自取)', phone: '聯絡總部辦理' }
+];
+
 function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
@@ -62,6 +71,20 @@ function StoreContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  const toggleFavorite = (productId: string) => {
+    const savedId = localStorage.getItem("churun_member_id");
+    if (!savedId) return;
+    setFavorites(prev => {
+      const updated = prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId];
+      localStorage.setItem(`churun_favs_${savedId}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+  const [categories, setCategories] = useState<string[]>(["全部商品", "極萃系列", "精品茶具", "典藏禮盒"]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -97,6 +120,16 @@ function StoreContent() {
       if (localSaved) {
         try {
           setSavedAddresses(JSON.parse(localSaved));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // 載入我的最愛收藏
+      const savedFavs = localStorage.getItem(`churun_favs_${savedId}`);
+      if (savedFavs) {
+        try {
+          setFavorites(JSON.parse(savedFavs));
         } catch (e) {
           console.error(e);
         }
@@ -186,10 +219,12 @@ function StoreContent() {
   useEffect(() => {
     if (selectedCategory === "全部商品") {
       setFilteredProducts(products);
+    } else if (selectedCategory === "❤️ 我的最愛") {
+      setFilteredProducts(products.filter(p => favorites.includes(p.id)));
     } else {
       setFilteredProducts(products.filter(p => (p.category || "極萃系列") === selectedCategory));
     }
-  }, [selectedCategory, products]);
+  }, [selectedCategory, products, favorites]);
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
@@ -209,6 +244,23 @@ function StoreContent() {
         });
       }
 
+      // 載入動態分類大項
+      try {
+        const { data: catData } = await supabase
+          .from("announcements")
+          .select("*")
+          .eq("title", "[SYSTEM_CATEGORIES]")
+          .maybeSingle();
+
+        if (catData && catData.content) {
+          const parsed = JSON.parse(catData.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCategories(["全部商品", ...parsed]);
+          }
+        }
+      } catch (catErr) {
+        console.error("載入商城分類大項失敗:", catErr);
+      }
       const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
       
       const processed = (pData || []).map(p => {
@@ -261,7 +313,7 @@ function StoreContent() {
     setIsCheckingOut(false);
   };
 
-  const categories = ["全部商品", "極萃系列", "精品茶具", "典藏禮盒"];
+  // categories is now loaded dynamically from DB state
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
@@ -286,7 +338,7 @@ function StoreContent() {
 
       <main className="max-w-lg mx-auto p-6 space-y-10 mt-4">
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-           {categories.map((cat) => (
+           {[...categories, "❤️ 我的最愛"].map((cat) => (
              <button 
                key={cat}
                onClick={() => setSelectedCategory(cat)}
@@ -353,7 +405,26 @@ function StoreContent() {
                          alt={product.name} 
                          className="w-full h-full object-cover group-hover:scale-110 transition duration-1000"
                        />
-                       <div className="absolute top-6 left-6 flex flex-col gap-2">
+                       {/* Heart Favorite Button */}
+                        <motion.button 
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleFavorite(product.id);
+                          }}
+                          className="absolute top-6 right-6 z-10 w-10 h-10 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-50/50 transition cursor-pointer"
+                        >
+                          <Heart 
+                            className={`w-4 h-4 transition-colors ${
+                              favorites.includes(product.id) 
+                                ? "text-rose-500 fill-rose-500 animate-pulse" 
+                                : "text-slate-400 hover:text-rose-400"
+                            }`} 
+                          />
+                        </motion.button>
+                        <div className="absolute top-6 left-6 flex flex-col gap-2">
                           <div className="bg-emerald-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
                              <span className="text-[8px] font-black tracking-widest text-white uppercase">Premium</span>
                           </div>
@@ -410,6 +481,27 @@ function StoreContent() {
            )}
         </div>
       </main>
+
+      {/* Draggable Floating Cart Button with premium tactile feedback */}
+      <motion.div
+        drag
+        dragElastic={0.15}
+        dragMomentum={false}
+        dragConstraints={{ left: -150, right: 150, top: -450, bottom: 40 }}
+        whileHover={{ scale: 1.12 }}
+        whileTap={{ scale: 0.92 }}
+        onClick={() => setIsCartOpen(true)}
+        className="fixed bottom-28 right-8 z-[45] w-14 h-14 bg-emerald-900 text-white rounded-full flex items-center justify-center shadow-2xl cursor-grab active:cursor-grabbing border border-white/15"
+        style={{ touchAction: "none" }}
+      >
+        <span className="absolute inset-0 bg-emerald-900 rounded-full animate-ping opacity-25"></span>
+        <ShoppingCart className="w-5 h-5 relative z-10 text-emerald-100" />
+        {totalItems > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white z-20">
+            {totalItems}
+          </span>
+        )}
+      </motion.div>
 
       <div className="fixed bottom-8 left-4 right-4 z-50 mx-auto max-w-sm">
          <div className="bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] p-3 flex justify-between items-center shadow-2xl border border-white/5">
@@ -905,11 +997,17 @@ function StoreContent() {
                   <div>
                      <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">物流方式</label>
                      <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100">
-                        {['宅配到府', '超商取貨'].map(m => (
+                        {['宅配到府', '超商取貨', '自取'].map(m => (
                            <button
                              key={m}
                              type="button"
-                             onClick={() => setShippingInfo({...shippingInfo, method: m})}
+                             onClick={() => {
+                               setShippingInfo({
+                                 ...shippingInfo, 
+                                 method: m,
+                                 address: m === '自取' ? '' : shippingInfo.address
+                               });
+                             }}
                              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${shippingInfo.method === m ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
                            >
                               {m}
@@ -937,15 +1035,56 @@ function StoreContent() {
                        placeholder="請輸入聯絡電話"
                      />
                   </div>
+                  {shippingInfo.method === '自取' && (
+                     <div className="space-y-3 bg-emerald-50/35 p-5 rounded-[2rem] border border-emerald-100/40">
+                        <label className="text-[10px] font-black text-emerald-800 ml-2 block mb-1 uppercase tracking-widest">🏪 選擇取貨門市自取點</label>
+                        <div className="grid grid-cols-1 gap-2.5">
+                           {PICKUP_POINTS.map(p => {
+                              const isSelected = shippingInfo.address.startsWith(p.name);
+                              return (
+                                 <div
+                                   key={p.id}
+                                   onClick={() => {
+                                      setShippingInfo({
+                                         ...shippingInfo,
+                                         address: `${p.name} (${p.address})`,
+                                         notes: shippingInfo.notes ? `${shippingInfo.notes} (預約自取點：${p.name})` : `預約自取：${p.name}`
+                                      });
+                                   }}
+                                   className={`p-4 rounded-2xl border text-left transition cursor-pointer flex justify-between items-center ${
+                                      isSelected 
+                                        ? 'bg-white border-emerald-800 shadow-xl shadow-emerald-900/5' 
+                                        : 'bg-white/50 border-slate-100 hover:bg-white'
+                                   }`}
+                                 >
+                                    <div className="space-y-1 pr-4">
+                                       <h5 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                          <MapPin className={`w-3.5 h-3.5 ${isSelected ? 'text-emerald-700' : 'text-slate-400'}`} />
+                                          {p.name}
+                                       </h5>
+                                       <p className="text-[10px] text-slate-500 font-bold">{p.address}</p>
+                                    </div>
+                                    {isSelected && (
+                                       <div className="w-5 h-5 bg-emerald-700 text-white rounded-full flex items-center justify-center font-bold text-[10px] shrink-0">
+                                          ✓
+                                       </div>
+                                    )}
+                                 </div>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  )}
                   <div>
                      <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">
-                        {shippingInfo.method === '宅配到府' ? '寄送地址' : '超商取貨門市資訊'}
+                        {shippingInfo.method === '宅配到府' ? '寄送地址' : shippingInfo.method === '超商取貨' ? '超商取貨門市資訊' : '自取點詳細地址 (點上方門市自動帶入)'}
                      </label>
                      <textarea 
                        value={shippingInfo.address}
                        onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
-                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
-                       placeholder={shippingInfo.method === '宅配到府' ? '請輸入完整收件地址' : '請輸入超商門市名稱、店號或店鋪地址'}
+                       readOnly={shippingInfo.method === '自取'}
+                       className={`w-full border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20 ${shippingInfo.method === '自取' ? 'bg-slate-100/50 text-slate-500 cursor-not-allowed' : 'bg-slate-50'}`}
+                       placeholder={shippingInfo.method === '宅配到府' ? '請輸入完整收件地址' : shippingInfo.method === '超商取貨' ? '請輸入超商門市名稱、店號或店鋪地址' : '請先點擊上方任一自取點門市卡片自動帶入'}
                      />
                   </div>
                   <div>
@@ -962,7 +1101,11 @@ function StoreContent() {
                <div className="space-y-4">
                   <button 
                     onClick={() => {
-                      if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+                      if (shippingInfo.method === '自取' && !shippingInfo.address) {
+                         alert("請在上方門市卡片中，點擊選擇您的自取門市");
+                         return;
+                       }
+                       if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
                         alert("請填寫完整的收件資訊");
                         return;
                       }
@@ -1191,6 +1334,16 @@ function StoreContent() {
                 </div>
               ) : (
                 <div className="space-y-8">
+                   {shippingInfo.method === '自取' && (
+                     <div className="bg-emerald-50/60 rounded-2xl p-4 text-left border border-emerald-100/40 space-y-1">
+                        <p className="text-[10px] font-black text-emerald-850 flex items-center gap-1.5">
+                           <MapPin className="w-3.5 h-3.5 text-emerald-700" /> 🏪 門市自取說明
+                        </p>
+                        <p className="text-[10px] font-bold text-emerald-700 leading-relaxed">
+                           您已選擇【{shippingInfo.address.split('(')[0]}】。請於完成匯款後，前往個人中心回報帳號末五碼，管理員確認入帳後，將第一時間聯絡您預約前往門市自取茶品！
+                        </p>
+                     </div>
+                   )}
                   <div className="bg-slate-50 rounded-[2rem] p-6 space-y-4 border border-slate-100 max-h-48 overflow-y-auto no-scrollbar">
                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">訂購明細</p>
                      {orderItems.map((item, idx) => (

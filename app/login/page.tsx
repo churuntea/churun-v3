@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -20,7 +20,7 @@ import Link from "next/link";
 import PatternLock from "@/components/PatternLock";
 
 function LoginContent() {
-  const [phone, setPhone] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [rememberPhone, setRememberPhone] = useState(false);
   const [loginMode, setLoginMode] = useState<'password' | 'pattern'>('password');
@@ -28,11 +28,124 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // LINE OAuth States
+  const [lineUser, setLineUser] = useState<{ userId: string; displayName: string; pictureUrl: string } | null>(null);
+  const [linePhone, setLinePhone] = useState("");
+  const [lineReferral, setLineReferral] = useState("");
+  const [lineRegistering, setLineRegistering] = useState(false);
+
+  const handleLineLogin = () => {
+    setIsLoading(true);
+    const clientId = "2010007687";
+    const redirectUri = encodeURIComponent(`${window.location.origin}/login`);
+    const state = "churun_line_login";
+    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=profile%20openid`;
+    window.location.href = lineAuthUrl;
+  };
+
+  useEffect(() => {
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+
+    if (code && state === "churun_line_login") {
+      const handleCallback = async () => {
+        setIsLoading(true);
+        try {
+          const res = await fetch("/api/auth/line", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code,
+              redirectUri: `${window.location.origin}/login`
+            })
+          });
+
+          const data = await res.json();
+          if (!data.success) {
+            alert(data.error || "LINE 登入驗證失敗");
+            setIsLoading(false);
+            router.replace("/login");
+            return;
+          }
+
+          if (data.status === "success") {
+            // 已有綁定過 ➔ 登入成功，儲存資訊並跳轉
+            localStorage.setItem("churun_member_id", data.memberId);
+            localStorage.setItem("churun_member_name", data.memberName);
+            router.push("/profile");
+          } else if (data.status === "new_user") {
+            // 未綁定過 ➔ 開啟手機號碼與推薦人資料輸入框
+            setLineUser({
+              userId: data.lineUserId,
+              displayName: data.displayName,
+              pictureUrl: data.pictureUrl
+            });
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error("LINE callback handle error:", err);
+          alert("系統連線異常，請重新登入");
+          setIsLoading(false);
+          router.replace("/login");
+        }
+      };
+
+      handleCallback();
+    }
+  }, [searchParams, router]);
+
+  const handleLineRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linePhone || linePhone.trim().length < 8) {
+      alert("請輸入有效的行動電話號碼");
+      return;
+    }
+
+    setLineRegistering(true);
+    try {
+      const res = await fetch("/api/auth/line/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId: lineUser?.userId,
+          displayName: lineUser?.displayName,
+          pictureUrl: lineUser?.pictureUrl,
+          phone: linePhone.trim(),
+          referralCode: lineReferral.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || "註冊綁定失敗，請確認資料後再試。");
+        setLineRegistering(false);
+        return;
+      }
+
+      // 儲存登入態
+      localStorage.setItem("churun_member_id", data.memberId);
+      localStorage.setItem("churun_member_name", data.memberName);
+      
+      if (data.status === 'linked') {
+        alert(`🎉 帳戶綁定成功！歡迎回來，${data.memberName}！`);
+      } else {
+        alert(`🎉 恭喜您註冊成功！迎新好禮折價券已存入您的券包，開始下單吧！`);
+      }
+
+      router.push("/profile");
+    } catch (err) {
+      console.error("LINE Register linking error:", err);
+      alert("連線失敗，請稍候再試");
+      setLineRegistering(false);
+    }
+  };
 
   useEffect(() => {
     const savedPhone = localStorage.getItem("churun_remembered_phone") || localStorage.getItem("churun_last_phone");
     if (savedPhone) {
-      setPhone(savedPhone);
+      setIdentifier(savedPhone);
       if (localStorage.getItem("churun_remembered_phone")) {
         setRememberPhone(true);
       }
@@ -42,13 +155,13 @@ function LoginContent() {
   const handleLogin = async (e?: React.FormEvent, patternCode?: string) => {
     if (e) e.preventDefault();
     
-    let effectivePhone = phone;
+    let effectivePhone = identifier;
     if (!effectivePhone && patternCode) {
       effectivePhone = localStorage.getItem("churun_last_phone") || "";
     }
 
     if (!effectivePhone) {
-      alert("請先輸入手機號碼");
+      alert("請先輸入手機號碼 或 會員帳號");
       return;
     }
     
@@ -59,7 +172,7 @@ function LoginContent() {
     let { data, error: fetchError }: { data: any, error: any } = await supabase
       .from("members")
       .select("id, name, password, pattern_code, status")
-      .eq("phone", phone)
+      .or(`phone.eq.${effectivePhone},member_code.eq.${effectivePhone}`)
       .single();
 
     // Fallback if column missing
@@ -68,14 +181,14 @@ function LoginContent() {
       const fallback = await supabase
         .from("members")
         .select("id, name, password, status")
-        .eq("phone", phone)
+        .or(`phone.eq.${effectivePhone},member_code.eq.${effectivePhone}`)
         .single();
       data = fallback.data;
       fetchError = fallback.error;
     }
 
     if (fetchError || !data) {
-      alert("查無此會員，請確認手機號碼是否正確");
+      alert("查無此會員，請確認手機號碼 或 會員帳號是否正確");
       setIsLoading(false);
       return;
     }
@@ -161,151 +274,266 @@ function LoginContent() {
       >
         <div className="bg-white/70 backdrop-blur-3xl rounded-[4rem] p-12 shadow-[0_32px_64px_-16px_rgba(6,78,59,0.1)] border border-white">
            
-           <div className="text-center mb-12">
-              <motion.div 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-900/20"
+            {lineUser ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-10"
               >
-                 <span className="text-white font-black text-2xl tracking-tighter">CR</span>
-              </motion.div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">歡迎回來</h1>
-              
-              <div className="flex bg-slate-100/50 p-1.5 rounded-[2rem] mb-10 border border-slate-100">
-               <button 
-                 onClick={() => setLoginMode('password')}
-                 className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'password' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
-               >
-                  密碼登入
-               </button>
-               <button 
-                 onClick={() => setLoginMode('pattern')}
-                 className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'pattern' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
-               >
-                  圖形鎖
-               </button>
-            </div>
+                <div className="text-center">
+                  <div className="relative inline-block mb-6">
+                    <img 
+                      src={lineUser.pictureUrl} 
+                      alt={lineUser.displayName} 
+                      className="w-24 h-24 rounded-full border-4 border-[#06C755] shadow-xl mx-auto"
+                    />
+                    <span className="absolute bottom-0 right-1 bg-[#06C755] text-white p-1.5 rounded-full shadow-lg">
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                         <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/>
+                      </svg>
+                    </span>
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+                    您好，{lineUser.displayName}
+                  </h2>
+                  <p className="text-[11px] font-bold text-slate-400 max-w-xs mx-auto leading-relaxed">
+                    這是您首次使用 LINE 快速登入。請驗證您的手機號碼以完成安全帳戶連結，以便同步您的累積訂單與紅利點數！
+                  </p>
+                </div>
 
-            <form onSubmit={(e) => handleLogin(e)} className="space-y-8">
-               {loginMode === 'password' && (
-                 <motion.div 
-                   initial={{ opacity: 0, y: -10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   className="space-y-8"
-                 >
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">手機號碼</label>
-                      <div className="relative group">
-                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
-                            <Phone className="w-5 h-5" />
-                         </div>
-                         <input 
-                           type="tel" 
-                           value={phone} 
-                           onChange={(e) => setPhone(e.target.value)} 
-                           placeholder="請輸入手機號碼" 
-                           className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
-                           required
-                         />
+                <form onSubmit={handleLineRegisterSubmit} className="space-y-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">行動電話號碼</label>
+                    <div className="relative group">
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                        <Phone className="w-5 h-5" />
                       </div>
-                      <div className="flex items-center gap-2 ml-6 mt-2">
-                         <input 
-                           type="checkbox" 
-                           id="rememberPhone"
-                           checked={rememberPhone}
-                           onChange={(e) => setRememberPhone(e.target.checked)}
-                           className="w-4 h-4 rounded border-slate-200 text-emerald-900 focus:ring-emerald-900/10 cursor-pointer"
-                         />
-                         <label htmlFor="rememberPhone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">記住我的手機號碼</label>
-                      </div>
-                   </div>
-                 </motion.div>
-               )}
-
-               {loginMode === 'password' ? (
-                 <motion.div 
-                   key="password-field"
-                   initial={{ opacity: 0, x: 20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   className="space-y-8"
-                 >
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">登入密碼</label>
-                      <div className="relative group">
-                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
-                            <Lock className="w-5 h-5" />
-                         </div>
-                         <input 
-                           type={showPassword ? "text" : "password"}
-                           value={password} 
-                           onChange={(e) => setPassword(e.target.value)} 
-                           placeholder="請輸入您的密碼" 
-                           className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 pr-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
-                           required
-                         />
-                         <button
-                           type="button"
-                           onClick={() => setShowPassword(!showPassword)}
-                           className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-emerald-600 transition-colors"
-                         >
-                           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                         </button>
-                      </div>
-                   </div>
-
-                   <motion.button 
-                     whileHover={{ scale: 1.02 }}
-                     whileTap={{ scale: 0.98 }}
-                     disabled={isLoading}
-                     type="submit" 
-                     className="w-full bg-emerald-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
-                   >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                        <>
-                          確認登入系統 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                   </motion.button>
-                 </motion.div>
-               ) : (
-                 <motion.div 
-                   key="pattern-field"
-                   initial={{ opacity: 0, x: -20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   className="space-y-10 py-4"
-                 >
-                    {phone && (
-                       <div className="text-center space-y-1">
-                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在解鎖帳號</p>
-                          <p className="text-sm font-bold text-slate-600">{phone}</p>
-                       </div>
-                    )}
-                    <div className="bg-slate-50/50 p-6 rounded-[3rem] border border-slate-100">
-                       <PatternLock 
-                         onComplete={(code) => handleLogin(undefined, code)}
-                         error={!!error}
-                         size={280}
-                       />
+                      <input 
+                        type="tel" 
+                        value={linePhone} 
+                        onChange={(e) => setLinePhone(e.target.value)} 
+                        placeholder="請輸入您的手機號碼" 
+                        className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
+                        required
+                      />
                     </div>
-                    {error && (
-                      <p className="text-center text-[10px] font-black text-rose-500 uppercase tracking-widest">{error}</p>
-                    )}
-                    <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest">請繪製解鎖圖形</p>
+                    <p className="text-[9px] font-bold text-slate-400 ml-6 leading-relaxed">
+                      💡 貼心提醒：若您曾註冊過初潤會員，系統將自動為您安全連結至原先帳戶，原有積分與餘額均不受影響。
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">推薦人代碼 (選填)</label>
+                    <div className="relative group">
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <input 
+                        type="text" 
+                        value={lineReferral} 
+                        onChange={(e) => setLineReferral(e.target.value)} 
+                        placeholder="請輸入推薦人代碼" 
+                        className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4">
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={lineRegistering}
+                      type="submit" 
+                      className="w-full bg-emerald-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
+                    >
+                       {lineRegistering ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                         <>
+                           確認連結並登入系統 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                         </>
+                       )}
+                    </motion.button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLineUser(null);
+                        router.replace("/login");
+                      }}
+                      className="w-full text-center text-[10px] font-black text-slate-400 uppercase tracking-widest hover:underline"
+                    >
+                      取消並返回一般登入
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            ) : (
+              <>
+                 <div className="text-center mb-12">
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+                      className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-900/20"
+                    >
+                       <span className="text-white font-black text-2xl tracking-tighter">CR</span>
+                    </motion.div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">歡迎回來</h1>
                     
+                    <div className="flex bg-slate-100/50 p-1.5 rounded-[2rem] mb-10 border border-slate-100">
                      <button 
-                       onClick={() => {
-                         setLoginMode('password');
-                         setPhone("");
-                       }}
-                       className="w-full text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
+                       onClick={() => setLoginMode('password')}
+                       className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'password' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
                      >
-                        使用其他號碼或切換密碼登入
+                        密碼登入
                      </button>
-                 </motion.div>
-               )}
-            </form>
-           </div>
+                     <button 
+                       onClick={() => setLoginMode('pattern')}
+                       className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'pattern' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
+                     >
+                        圖形鎖
+                     </button>
+                  </div>
+
+                  <form onSubmit={(e) => handleLogin(e)} className="space-y-8">
+                     {loginMode === 'password' && (
+                       <motion.div 
+                         initial={{ opacity: 0, y: -10 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         className="space-y-8"
+                       >
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">手機號碼 或 會員帳號</label>
+                            <div className="relative group">
+                               <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                                  <Phone className="w-5 h-5" />
+                               </div>
+                               <input 
+                                 type="text" 
+                                 value={identifier} 
+                                 onChange={(e) => setIdentifier(e.target.value)} 
+                                 placeholder="請輸入手機號碼 或 會員帳號" 
+                                 className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
+                                 required
+                               />
+                            </div>
+                            <div className="flex items-center gap-2 ml-6 mt-2">
+                               <input 
+                                 type="checkbox" 
+                                 id="rememberPhone"
+                                 checked={rememberPhone}
+                                 onChange={(e) => setRememberPhone(e.target.checked)}
+                                 className="w-4 h-4 rounded border-slate-200 text-emerald-900 focus:ring-emerald-900/10 cursor-pointer"
+                               />
+                               <label htmlFor="rememberPhone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">記住我的登入資訊</label>
+                            </div>
+                         </div>
+                       </motion.div>
+                     )}
+
+                     {loginMode === 'password' ? (
+                       <motion.div 
+                         key="password-field"
+                         initial={{ opacity: 0, x: 20 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         className="space-y-8"
+                       >
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">登入密碼</label>
+                            <div className="relative group">
+                               <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
+                                  <Lock className="w-5 h-5" />
+                               </div>
+                               <input 
+                                 type={showPassword ? "text" : "password"}
+                                 value={password} 
+                                 onChange={(e) => setPassword(e.target.value)} 
+                                 placeholder="請輸入您的密碼" 
+                                 className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 pr-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
+                                 required
+                               />
+                               <button
+                                 type="button"
+                                 onClick={() => setShowPassword(!showPassword)}
+                                 className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-emerald-600 transition-colors"
+                               >
+                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                               </button>
+                            </div>
+                         </div>
+
+                         <motion.button 
+                           whileHover={{ scale: 1.02 }}
+                           whileTap={{ scale: 0.98 }}
+                           disabled={isLoading}
+                           type="submit" 
+                           className="w-full bg-emerald-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
+                         >
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                              <>
+                                確認登入系統 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                              </>
+                            )}
+                         </motion.button>
+
+                          <div className="relative flex py-2 items-center">
+                             <div className="flex-grow border-t border-slate-100"></div>
+                             <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">或</span>
+                             <div className="flex-grow border-t border-slate-100"></div>
+                          </div>
+
+                          <motion.button 
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleLineLogin}
+                            className="w-full bg-[#06C755] text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/10 hover:bg-[#05b04b] transition-all"
+                          >
+                             <svg className="w-5 h-5 fill-current shrink-0 text-white" viewBox="0 0 24 24">
+                                <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/>
+                             </svg>
+                             使用 LINE 一鍵登入
+                          </motion.button>
+                       </motion.div>
+                     ) : (
+                       <motion.div 
+                         key="pattern-field"
+                         initial={{ opacity: 0, x: -20 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         className="space-y-10 py-4"
+                       >
+                          {identifier && (
+                             <div className="text-center space-y-1">
+                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在解鎖帳號</p>
+                                <p className="text-sm font-bold text-slate-600">{identifier}</p>
+                             </div>
+                          )}
+                          <div className="bg-slate-50/50 p-6 rounded-[3rem] border border-slate-100">
+                             <PatternLock 
+                               onComplete={(code) => handleLogin(undefined, code)}
+                               error={!!error}
+                               size={280}
+                             />
+                          </div>
+                          {error && (
+                            <p className="text-center text-[10px] font-black text-rose-500 uppercase tracking-widest">{error}</p>
+                          )}
+                          <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest">請繪製解鎖圖形</p>
+                          
+                           <button 
+                             onClick={() => {
+                               setLoginMode('password');
+                               setIdentifier("");
+                             }}
+                             className="w-full text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
+                           >
+                              使用其他號碼或切換密碼登入
+                           </button>
+                       </motion.div>
+                     )}
+                  </form>
+               </div>
+              </>
+            )}
 
            <div className="mt-12 pt-8 border-t border-slate-50 flex flex-col items-center gap-6">
               <p className="text-xs text-slate-400 font-bold">

@@ -79,47 +79,47 @@ function TransactionContent() {
 
       <main className="max-w-lg mx-auto p-6 space-y-12 mt-4 pb-60">
         
-        {/* Swippable Asset Cards */}
-        <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+        {/* Fixed Asset Cards Grid */}
+        <div className="grid grid-cols-2 gap-4">
            <motion.div 
              whileTap={{ scale: 0.95 }}
              onClick={() => { setActiveTab("wallet"); setShowHistory(!showHistory); }}
-             className={`min-w-[280px] p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer flex-1 ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`p-6 sm:p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer w-full ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <div className="flex justify-between items-start mb-2">
-                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">虛擬預收餘額</p>
+                 <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">虛擬預收餘額</p>
               </div>
-              <h2 className="text-4xl font-black tracking-tighter leading-none">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tighter leading-none">${Number(memberInfo?.virtual_balance || 0).toLocaleString()}</h2>
               <div className="mt-8 flex justify-between items-center">
-                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                       <CreditCard className="w-4 h-4 text-emerald-400" />
+                 <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                       <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">數位錢包</span>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest truncate">數位錢包</span>
                  </div>
-                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
+                 <ChevronRight className={`w-4 h-4 shrink-0 transition-transform duration-500 ${showHistory && activeTab === 'wallet' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
 
            <motion.div 
              whileTap={{ scale: 0.95 }}
              onClick={() => { setActiveTab("points"); setShowHistory(!showHistory); }}
-             className={`min-w-[280px] p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer flex-1 ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
+             className={`p-6 sm:p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer w-full ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
            >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               <div className="flex justify-between items-start mb-2">
-                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-60">紅利點數</p>
+                 <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">紅利點數</p>
               </div>
-              <h2 className="text-4xl font-black tracking-tighter leading-none">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tighter leading-none">{memberInfo?.points_balance?.toLocaleString() || 0} <span className="text-xs font-medium ml-1">pts</span></h2>
               <div className="mt-8 flex justify-between items-center">
-                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                       <Gift className="w-4 h-4 text-amber-400" />
+                 <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                       <Gift className="w-3.5 h-3.5 text-amber-400" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">獎勵計畫</span>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest truncate">獎勵計畫</span>
                  </div>
-                 <ChevronRight className={`w-4 h-4 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
+                 <ChevronRight className={`w-4 h-4 shrink-0 transition-transform duration-500 ${showHistory && activeTab === 'points' ? 'rotate-90' : ''}`} />
               </div>
            </motion.div>
         </div>

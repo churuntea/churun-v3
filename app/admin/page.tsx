@@ -58,6 +58,48 @@ function AdminDashboardContent() {
     activeOrders: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [backupTimeframe, setBackupTimeframe] = useState("month");
+  const [isGeneratingBackup, setIsGeneratingBackup] = useState(false);
+  const [backupData, setBackupData] = useState<any>(null);
+
+  const handleGenerateBackup = async (timeframe: string) => {
+    setIsGeneratingBackup(true);
+    try {
+      const res = await fetch(`/api/admin/backup-stats?timeframe=${timeframe}`);
+      const result = await res.json();
+      if (result.success) {
+        setBackupData(result);
+      } else {
+        alert("分析失敗: " + result.error);
+      }
+    } catch (err: any) {
+      alert("分析出錯: " + err.message);
+    }
+    setIsGeneratingBackup(false);
+  };
+
+  const downloadTextFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadJsonFile = (data: any, filename: string) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -210,7 +252,12 @@ function AdminDashboardContent() {
                    <button 
                      key={i}
                      onClick={async () => {
-                        if (act.action.startsWith('/')) {
+                         if (act.label === "數據庫備份") {
+                            setShowBackupModal(true);
+                            handleGenerateBackup(backupTimeframe);
+                            return;
+                         }
+                         if (act.action.startsWith('/')) {
                            if (act.action.includes('/api/')) {
                               const res = await fetch(act.action, { method: 'POST' });
                               const d = await res.json();
@@ -269,6 +316,119 @@ function AdminDashboardContent() {
            </div>
         </div>
 
+      
+      {/* Backup & Analytics Statistics Modal */}
+      <AnimatePresence>
+        {showBackupModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBackupModal(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 sm:p-10 w-full max-w-2xl shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar flex flex-col gap-6"
+              onClick={e => e.stopPropagation()}
+            >
+               <div className="flex items-center justify-between border-b border-slate-100 pb-6 shrink-0">
+                  <div className="flex items-center gap-3">
+                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-md">
+                        <Database className="w-6 h-6" />
+                     </div>
+                     <div>
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight">數位指揮中心 - 數據備份與業務統計</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Database Backup & Sales Analytics</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setShowBackupModal(false)} className="text-slate-300 hover:text-slate-800 transition text-sm font-black uppercase">✕</button>
+               </div>
+
+               {/* 統計時間維度選擇器 */}
+               <div className="space-y-3 shrink-0">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">選擇統計備份時間範圍 (Timeframe)</label>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                     {[
+                       { label: "今日", val: "day" },
+                       { label: "本週", val: "week" },
+                       { label: "本月", val: "month" },
+                       { label: "本季", val: "quarter" },
+                       { label: "半年", val: "half-year" },
+                       { label: "一年", val: "year" },
+                       { label: "歷史所有", val: "all" }
+                     ].map(item => (
+                       <button
+                         key={item.val}
+                         onClick={() => {
+                           setBackupTimeframe(item.val);
+                           handleGenerateBackup(item.val);
+                         }}
+                         className={`py-2 px-1 rounded-xl text-[10px] font-black transition-all text-center whitespace-nowrap ${backupTimeframe === item.val ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                       >
+                         {item.label}
+                       </button>
+                     ))}
+                  </div>
+               </div>
+
+               {isGeneratingBackup ? (
+                  <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center gap-4 text-slate-400">
+                     <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                     <p className="text-xs font-black uppercase tracking-widest">正在從資料庫撈取海量數據並進行業務計算...</p>
+                  </div>
+               ) : backupData ? (
+                  <div className="flex-1 flex flex-col gap-6 overflow-hidden min-h-[350px]">
+                     {/* 頂部數據亮點摘要 */}
+                     <div className="grid grid-cols-3 gap-4 shrink-0">
+                        <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/30 text-center">
+                           <span className="text-[8px] font-black text-indigo-400 uppercase tracking-wider block mb-1">營業總額</span>
+                           <h4 className="text-lg font-black text-indigo-900 tracking-tight">${backupData.summary.total_revenue.toLocaleString()}</h4>
+                        </div>
+                        <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/30 text-center">
+                           <span className="text-[8px] font-black text-emerald-400 uppercase tracking-wider block mb-1">總銷售量</span>
+                           <h4 className="text-lg font-black text-emerald-900 tracking-tight">{backupData.summary.total_volume} 件</h4>
+                        </div>
+                        <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100/30 text-center">
+                           <span className="text-[8px] font-black text-amber-400 uppercase tracking-wider block mb-1">有效訂單</span>
+                           <h4 className="text-lg font-black text-amber-900 tracking-tight">{backupData.summary.active_orders} 筆</h4>
+                        </div>
+                     </div>
+
+                     {/* 預覽報告區 */}
+                     <div className="flex-1 overflow-y-auto border border-slate-100 rounded-2xl p-5 bg-slate-900 text-slate-200 font-mono text-[10px] leading-relaxed no-scrollbar max-h-[250px] relative">
+                        <pre className="whitespace-pre-wrap">{backupData.text_report}</pre>
+                     </div>
+
+                     {/* 導出按鈕區 */}
+                     <div className="grid grid-cols-2 gap-4 shrink-0">
+                        <button
+                          onClick={() => downloadTextFile(backupData.text_report, `churun_backup_report_${backupTimeframe}_${new Date().toISOString().slice(0, 10)}.txt`)}
+                          className="bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10"
+                        >
+                          📥 下載純文字備份 (.txt)
+                        </button>
+                        <button
+                          onClick={() => downloadJsonFile(backupData, `churun_structured_backup_${backupTimeframe}_${new Date().toISOString().slice(0, 10)}.json`)}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10"
+                        >
+                          📥 下載結構化數據 (.json)
+                        </button>
+                     </div>
+                  </div>
+               ) : (
+                  <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center gap-2 text-slate-300">
+                     <Database className="w-12 h-12 mb-2" />
+                     <p className="text-xs font-black uppercase tracking-widest">請選取一個時間維度進行導出</p>
+                  </div>
+               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       </main>
     </div>
   );

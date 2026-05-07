@@ -62,6 +62,7 @@ const ZONES = [
       { name: "初潤幼兒園", criteria: "只要進行任意一次消費即可晉升", target: "消費 $1 起" },
       { name: "初潤小朋友", criteria: "累積消費金額達 $1,500 元", target: "$1,500" },
       { name: "初潤青少年", criteria: "累積消費金額達 $3,000 元", target: "$3,000" },
+      { name: "初潤特邀團", criteria: "親友特邀專屬（免除儲值門檻與降級限制）", target: "$0 (特邀)" },
       { name: "初潤好朋友", criteria: "累積消費金額達 $98,000 元", target: "$98,000" },
       { name: "初潤閨蜜", criteria: "累積消費金額達 $12,000 元", target: "$12,000" },
       { name: "初潤知己", criteria: "累積消費金額達 $198,000 元", target: "$198,000" },
@@ -109,7 +110,7 @@ function EvaluationContent() {
 
   // Invite states
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteType, setInviteType] = useState<"partner" | "ambassador">("partner");
+  const [inviteType, setInviteType] = useState<"partner" | "ambassador" | "invited_team">("partner");
   const [copied, setCopied] = useState(false);
 
   // Audits states
@@ -375,7 +376,34 @@ function EvaluationContent() {
 
         if (txErr) console.warn("Failed to create wallet transaction history record:", txErr);
 
-        alert(`👑 審核開通成功！\n創業夥伴【${member.name}】已正式加入，首筆預收款已自動匯入。`);
+        // 3. Automatically grant WELCOME100 coupon on approval
+        try {
+          const { data: welcomeCoupon } = await supabase
+            .from("coupons")
+            .select("id")
+            .eq("code", "WELCOME100")
+            .maybeSingle();
+
+          if (welcomeCoupon) {
+            await supabase.from("member_coupons").insert({
+              member_id: member.id,
+              coupon_id: welcomeCoupon.id,
+              is_used: false
+            });
+
+            // Send notification about receiving the coupon
+            await supabase.from("notifications").insert({
+              member_id: member.id,
+              title: "🎁 獲得註冊迎新折價券！",
+              content: "恭喜您獲得一張【新會員迎新折價券】！滿 $500 現折 $100，已存入您的個人券包，快到商城下單體驗吧！",
+              type: "system"
+            });
+          }
+        } catch (couponErr) {
+          console.error("自動發送迎新券失敗:", couponErr);
+        }
+
+        alert(`👑 審核開通成功！\n創業夥伴【${member.name}】已正式加入，首筆預收款已自動匯入，迎新禮優惠券已發放。`);
       } else {
         const { error } = await supabase
           .from("members")
@@ -1305,16 +1333,44 @@ function EvaluationContent() {
                 <X className="w-4 h-4 text-slate-400" />
               </button>
 
-              <div className="text-center space-y-2 pt-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${inviteType === "partner" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-500"}`}>
+              <div className="text-center space-y-4 pt-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                  inviteType === "partner" ? "bg-emerald-50 text-emerald-600" :
+                  inviteType === "ambassador" ? "bg-amber-50 text-amber-500" :
+                  "bg-purple-50 text-purple-600"
+                }`}>
                   <Award className="w-6 h-6" />
                 </div>
-                <h3 className="text-base font-black text-slate-800">
-                  新增 {inviteType === "partner" ? "合夥人" : "品牌大使"} 合作邀請
-                </h3>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  Invite B2B {inviteType === "partner" ? "Partner" : "Ambassador"}
-                </p>
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-slate-800">
+                    新增 {inviteType === "partner" ? "合夥人" : inviteType === "ambassador" ? "品牌大使" : "初潤特邀團"} 合作邀請
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    Invite B2B {inviteType === "partner" ? "Partner" : inviteType === "ambassador" ? "Ambassador" : "Invited Team"}
+                  </p>
+                </div>
+
+                {/* PREMIUM 3-WAY ROLE SELECTOR */}
+                <div className="flex bg-slate-100/50 p-1 rounded-2xl border border-slate-100 max-w-sm mx-auto">
+                  <button 
+                    onClick={() => setInviteType("partner")}
+                    className={`flex-1 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${inviteType === "partner" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400"}`}
+                  >
+                    合夥人
+                  </button>
+                  <button 
+                    onClick={() => setInviteType("ambassador")}
+                    className={`flex-1 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${inviteType === "ambassador" ? "bg-white text-amber-500 shadow-sm" : "text-slate-400"}`}
+                  >
+                    品牌大使
+                  </button>
+                  <button 
+                    onClick={() => setInviteType("invited_team")}
+                    className={`flex-1 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${inviteType === "invited_team" ? "bg-white text-purple-600 shadow-sm" : "text-slate-400"}`}
+                  >
+                    特邀團
+                  </button>
+                </div>
               </div>
 
               <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 text-[10px] text-slate-400 font-bold leading-relaxed space-y-2">
@@ -1327,14 +1383,19 @@ function EvaluationContent() {
                     <p className="text-amber-600 font-black">⚠️ 品牌大使規格已全面升級為 198,000 元，並強制遵守身分與銀行實體稽核規範：</p>
                     <p>1. 夥伴點開連結需上傳<strong>身分證正面拍照</strong>、<strong>戶籍地址</strong>、<strong>收退款銀行與分行、存摺正面拍照</strong>。</p>
                   </>
-                ) : (
+                ) : inviteType === "partner" ? (
                   <>
                     <p className="text-emerald-600 font-black">⚠️ 合夥人規格已升級為 98,000 元，並強制遵守身分與銀行實體稽核規範：</p>
                     <p>1. 夥伴點開連結需上傳<strong>身分證正面拍照</strong>、<strong>戶籍地址</strong>、<strong>收退款銀行與分行、存摺正面拍照</strong>。</p>
                   </>
+                ) : (
+                  <>
+                    <p className="text-purple-600 font-black">⚠️ 初潤特邀團針對親友特別開設，無預收門檻限制（$0）且表單極度簡化：</p>
+                    <p>1. 點開連結時身分證正面拍照、匯款證明、存摺照片均設為<strong>選填（Optional）</strong>，免除繁瑣上傳。</p>
+                  </>
                 )}
-                <p>2. 對方完成線上拍照與水單、存摺等證明後送出。</p>
-                <p>3. 案件會立即進入您的<strong>「創業申請審核」</strong>管道由會計和業務主管雙重審實，核准後一鍵全自動開通並存入款項！</p>
+                <p>2. 對方完成線上資訊填寫並提交。</p>
+                <p>3. 案件會立即進入您的<strong>「創業申請審核」</strong>管道由會計和業務主管雙重審實，核准後一鍵全自動開通！</p>
               </div>
 
               {/* The Link Box */}
