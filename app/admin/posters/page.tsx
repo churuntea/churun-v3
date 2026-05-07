@@ -95,10 +95,16 @@ export default function AdminPosters() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size (e.g., limit to 4MB)
+    if (file.size > 4 * 1024 * 1024) {
+      alert("檔案太大！請上傳小於 4MB 的圖片。");
+      return;
+    }
+
     setIsUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
         const base64Data = reader.result as string;
         
         const response = await fetch('/api/admin/posters/upload', {
@@ -107,19 +113,25 @@ export default function AdminPosters() {
           body: JSON.stringify({ imageBase64: base64Data })
         });
         
-        const result = await response.json();
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          throw new Error("圖片檔案過大或伺服器錯誤，請壓縮圖片後再試！");
+        }
+
         if (result.success) {
           setEditingTemplate({...editingTemplate, url: result.imageUrl});
         } else {
           alert('上傳失敗: ' + result.error);
         }
+      } catch (err: any) {
+        alert('上傳失敗: ' + err.message);
+      } finally {
         setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      alert('上傳失敗: ' + err.message);
-      setIsUploading(false);
-    }
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -212,31 +224,34 @@ export default function AdminPosters() {
                           </label>
                         </div>
                      </div>
-                     <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
-                        <div>
-                           <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4 block underline">QR Code 位置</label>
-                           <div className="space-y-4">
-                              <input type="number" value={editingTemplate.config.qr.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                              <input type="number" value={editingTemplate.config.qr.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                              <input type="number" value={editingTemplate.config.qr.size} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, size: parseInt(e.target.value)}}})} placeholder="Size" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                           </div>
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 block underline">姓名位置</label>
-                           <div className="space-y-4">
-                              <input type="number" value={editingTemplate.config.name.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                              <input type="number" value={editingTemplate.config.name.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                              <input type="text" value={editingTemplate.config.name.color} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, color: e.target.value}}})} placeholder="Color" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                           </div>
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-4 block underline">電話位置</label>
-                           <div className="space-y-4">
-                              <input type="number" value={editingTemplate.config.phone.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                              <input type="number" value={editingTemplate.config.phone.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
-                           </div>
-                        </div>
-                     </div>
+                     {/* 暫時隱藏座標設定區塊 */}
+                     {false && (
+                       <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
+                          <div>
+                             <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4 block underline">QR Code 位置</label>
+                             <div className="space-y-4">
+                                <input type="number" value={editingTemplate.config.qr.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                                <input type="number" value={editingTemplate.config.qr.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                                <input type="number" value={editingTemplate.config.qr.size} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, qr: {...editingTemplate.config.qr, size: parseInt(e.target.value)}}})} placeholder="Size" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                             </div>
+                          </div>
+                          <div>
+                             <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 block underline">姓名位置</label>
+                             <div className="space-y-4">
+                                <input type="number" value={editingTemplate.config.name.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                                <input type="number" value={editingTemplate.config.name.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                                <input type="text" value={editingTemplate.config.name.color} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, name: {...editingTemplate.config.name, color: e.target.value}}})} placeholder="Color" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                             </div>
+                          </div>
+                          <div>
+                             <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-4 block underline">電話位置</label>
+                             <div className="space-y-4">
+                                <input type="number" value={editingTemplate.config.phone.x} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, x: parseInt(e.target.value)}}})} placeholder="X" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                                <input type="number" value={editingTemplate.config.phone.y} onChange={e => setEditingTemplate({...editingTemplate, config: {...editingTemplate.config, phone: {...editingTemplate.config.phone, y: parseInt(e.target.value)}}})} placeholder="Y" className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-xs font-bold" />
+                             </div>
+                          </div>
+                       </div>
+                     )}
                   </div>
                   <div className="mt-8 flex gap-4">
                      <button 
