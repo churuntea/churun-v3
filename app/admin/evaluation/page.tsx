@@ -45,6 +45,7 @@ interface Member {
   id_card_number?: string;
   bank_code?: string;
   address?: string;
+  is_b2b?: boolean;
 }
 
 const ZONES = [
@@ -114,8 +115,11 @@ function EvaluationContent() {
   // Audits states
   const [pendingAccountingList, setPendingAccountingList] = useState<Member[]>([]);
   const [pendingManagerList, setPendingManagerList] = useState<Member[]>([]);
+  const [pendingExitList, setPendingExitList] = useState<Member[]>([]);
+  const [exitSimulations, setExitSimulations] = useState<Record<string, any>>({});
   const [loadingAudits, setLoadingAudits] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
 
   useEffect(() => {
     // Auth Check
@@ -130,7 +134,7 @@ function EvaluationContent() {
   }, [router]);
 
   useEffect(() => {
-    if (activeZone === "audits") {
+    if (activeZone === "audits" || activeZone === "exits") {
       fetchAudits();
     }
   }, [activeZone]);
@@ -181,10 +185,79 @@ function EvaluationContent() {
       if (managerData) {
         setPendingManagerList(managerData as Member[]);
       }
+
+      // 3. Fetch pending exit members
+      const { data: exitData } = await supabase
+        .from("members")
+        .select("*")
+        .eq("status", "exit_pending")
+        .order("created_at", { ascending: false });
+
+      if (exitData) {
+        setPendingExitList(exitData as Member[]);
+        
+        // Fetch simulation calculations in parallel
+        const simulatedMap: Record<string, any> = {};
+        await Promise.all(exitData.map(async (candidate) => {
+          try {
+            const res = await fetch('/api/b2b/exit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ member_id: candidate.id, action: 'simulate' })
+            });
+            const result = await res.json();
+            if (result.success) {
+              simulatedMap[candidate.id] = result.details;
+            }
+          } catch (e) {
+            console.error("Simulation error for member " + candidate.id, e);
+          }
+        }));
+        setExitSimulations(simulatedMap);
+      }
     } catch (err) {
       console.error("Error fetching B2B audits:", err);
     } finally {
       setLoadingAudits(false);
+    }
+  };
+
+  const handleExitApprove = async (memberId: string) => {
+    if (!confirm("⚠️ 確定要核准此 B2B 夥伴的「無憂退出申請」嗎？\n系統將自動扣除所有預收款餘額、標記為已退出並終止其 B2B 權益，此操作不可逆！")) return;
+
+    try {
+      const res = await fetch("/api/b2b/exit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId, action: "approve" })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`✅ 退出核准成功！\n${result.message || "已成功終止該夥伴之 B2B 資格並完成退款結算。"}`);
+        fetchAudits();
+        fetchGlobalStats();
+      } else {
+        alert(`❌ 執行失敗: ${result.error || "伺服器無回應"}`);
+      }
+    } catch (err: any) {
+      alert(`⚠️ 操作失敗: ${err.message}`);
+    }
+  };
+
+  const handleExitReject = async (memberId: string) => {
+    if (!confirm("確定要「駁回」此 B2B 夥伴的退出申請，並將其狀態恢復為活躍 B2B 資格嗎？")) return;
+
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ status: "active" })
+        .eq("id", memberId);
+
+      if (error) throw error;
+      alert("✅ 已駁回此退出申請，該夥伴狀態已恢復為活躍 B2B。");
+      fetchAudits();
+    } catch (err: any) {
+      alert(`⚠️ 操作失敗: ${err.message}`);
     }
   };
 
@@ -361,7 +434,8 @@ function EvaluationContent() {
   if (!isAdmin) return null;
 
   const isAuditTab = activeZone === "audits";
-  const currentZoneObj = !isAuditTab ? ZONES.find(z => z.id === activeZone)! : null;
+  const isExitTab = activeZone === "exits";
+  const currentZoneObj = (!isAuditTab && !isExitTab) ? ZONES.find(z => z.id === activeZone)! : null;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-24 text-slate-800">
@@ -412,11 +486,12 @@ function EvaluationContent() {
           </button>
         </div>
 
-        {/* Dynamic Zone Selectors (Tabs with 4 column grid for audits) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-2.5 rounded-[2.5rem] border border-slate-100 shadow-sm">
+        {/* Dynamic Zone Selectors (Tabs with 5 column grid for audits) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-white p-2.5 rounded-[2.5rem] border border-slate-100 shadow-sm">
           {[
             ...ZONES.map(z => ({ id: z.id, name: z.name, sub: z.id === "members" ? "Member" : z.id === "partners" ? "Partner" : "Ambassador" })),
-            { id: "audits", name: "創業申請審核", sub: "B2B Onboarding" }
+            { id: "audits", name: "創業申請審核", sub: "B2B Onboarding" },
+            { id: "exits", name: "無憂退出審核", sub: "B2B Offboarding" }
           ].map(tab => {
             const isActive = activeZone === tab.id;
             return (
@@ -425,6 +500,7 @@ function EvaluationContent() {
                 onClick={() => {
                   setActiveZone(tab.id);
                   setExpandedRank(null);
+                  setExpandedAuditId(null);
                   setMembers([]);
                 }}
                 className={`py-4 px-3 rounded-[2rem] text-center transition duration-500 relative flex flex-col items-center justify-center gap-1.5 ${
@@ -443,7 +519,7 @@ function EvaluationContent() {
         </div>
 
         {/* Audit Pipeline view vs Directory views */}
-        {isAuditTab ? (
+        {activeZone === "audits" ? (
           /* B2B AUDIT PIPELINE TAB CONTENT */
           <div className="space-y-8 animate-fadeIn">
             
@@ -489,116 +565,142 @@ function EvaluationContent() {
 
                       return (
                         <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
-                          <div className="flex justify-between items-start">
+                          <div 
+                            onClick={() => setExpandedAuditId(expandedAuditId === app.id ? null : app.id)}
+                            className="flex justify-between items-start cursor-pointer group select-none"
+                          >
                             <div>
-                              <h5 className="text-sm font-black text-slate-800">{app.name}</h5>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
+                              <h5 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                {app.name}
+                                <span className="text-[9px] text-slate-400 font-bold bg-slate-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 group-hover:bg-slate-100 transition">
+                                  <Calendar className="w-3 h-3" /> {new Date(app.created_at).toLocaleDateString()}
+                                </span>
+                              </h5>
+                              <p className="text-[10px] text-slate-400 font-bold mt-1">手機：{app.phone}</p>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600'}`}>
-                              申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600'}`}>
+                                申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
+                              </span>
+                              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-100 transition">
+                                {expandedAuditId === app.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款金額</span>
-                              <span className="text-xs font-black text-slate-700">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
-                            </div>
-                            <div>
-                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">帳號後五碼</span>
-                              <span className="text-xs font-black text-slate-700 tracking-wider">【 {b2bData.lastFive || app.bank_account || "無"} 】</span>
-                            </div>
-                          </div>
+                          <AnimatePresence>
+                            {expandedAuditId === app.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="pt-4 space-y-4 border-t border-slate-50 mt-4">
+                                  <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款金額</span>
+                                      <span className="text-xs font-black text-slate-700">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">帳號後五碼</span>
+                                      <span className="text-xs font-black text-slate-700 tracking-wider">【 {b2bData.lastFive || app.bank_account || "無"} 】</span>
+                                    </div>
+                                  </div>
 
-                          {/* B2B Compliant Fields Display */}
-                          {hasB2BDetails && (
-                            <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
-                              <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
-                                <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
-                              </p>
-                              
-                              <div className="grid grid-cols-2 gap-2 pt-1">
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
-                                  <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
-                                  {b2bData.idCardPhoto ? (
-                                    <button 
-                                      onClick={() => setViewingReceipt(b2bData.idCardPhoto)}
-                                      className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> 檢視身分證
-                                    </button>
-                                  ) : (
-                                    <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                  {/* B2B Compliant Fields Display */}
+                                  {hasB2BDetails && (
+                                    <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
+                                      <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
+                                        <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
+                                      </p>
+                                      
+                                      <div className="grid grid-cols-2 gap-2 pt-1">
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
+                                          <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
+                                          {b2bData.idCardPhoto ? (
+                                            <button 
+                                              onClick={() => setViewingReceipt(b2bData.idCardPhoto)}
+                                              className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" /> 檢視身分證
+                                            </button>
+                                          ) : (
+                                            <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">戶籍地址</span>
+                                        <span className="text-[11px] font-bold text-slate-700 leading-tight block">{b2bData.householdAddress || "未提供"}</span>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">通訊收件地址</span>
+                                        <span className="text-[11px] font-bold text-slate-700 leading-tight block">{app.address || "未提供"}</span>
+                                      </div>
+
+                                      <div className="border-t border-slate-100 my-2"></div>
+
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 / 分行</span>
+                                          <span className="text-[11px] font-bold text-slate-700">{b2bData.bankCode || app.bank_code || "未提供"} {b2bData.bankBranch || ""}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像</span>
+                                          {b2bData.passbookPhoto ? (
+                                            <button 
+                                              onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
+                                              className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" /> 檢視存摺卡
+                                            </button>
+                                          ) : (
+                                            <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
+                                        <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}</span>
+                                      </div>
+                                    </div>
                                   )}
-                                </div>
-                              </div>
 
-                              <div className="space-y-1 pt-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">戶籍地址</span>
-                                <span className="text-[11px] font-bold text-slate-700 leading-tight block">{b2bData.householdAddress || "未提供"}</span>
-                              </div>
-
-                              <div className="space-y-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">通訊收件地址</span>
-                                <span className="text-[11px] font-bold text-slate-700 leading-tight block">{app.address || "未提供"}</span>
-                              </div>
-
-                              <div className="border-t border-slate-100 my-2"></div>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 / 分行</span>
-                                  <span className="text-[11px] font-bold text-slate-700">{b2bData.bankCode || app.bank_code || "未提供"} {b2bData.bankBranch || ""}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像</span>
-                                  {b2bData.passbookPhoto ? (
+                                  {b2bData.remittancePhoto && (
                                     <button 
-                                      onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
-                                      className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                      onClick={() => setViewingReceipt(b2bData.remittancePhoto)}
+                                      className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
                                     >
-                                      <Eye className="w-3.5 h-3.5" /> 檢視存摺卡
+                                      <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
                                     </button>
-                                  ) : (
-                                    <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
                                   )}
+
+                                  <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <button 
+                                      onClick={() => handleAccountantAudit(app.id, false)}
+                                      className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
+                                    >
+                                      ❌ 駁回申請
+                                    </button>
+                                    <button 
+                                      onClick={() => handleAccountantAudit(app.id, true)}
+                                      className="py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 transition"
+                                    >
+                                      ✅ 金額無誤
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-
-                              <div className="space-y-1 pt-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
-                                <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {b2bData.remittancePhoto && (
-                            <button 
-                              onClick={() => setViewingReceipt(b2bData.remittancePhoto)}
-                              className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
-                            </button>
-                          )}
-
-                          <div className="grid grid-cols-2 gap-3 pt-2">
-                            <button 
-                              onClick={() => handleAccountantAudit(app.id, false)}
-                              className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
-                            >
-                              ❌ 駁回申請
-                            </button>
-                            <button 
-                              onClick={() => handleAccountantAudit(app.id, true)}
-                              className="py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 transition"
-                            >
-                              ✅ 金額無誤
-                            </button>
-                          </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
@@ -633,118 +735,144 @@ function EvaluationContent() {
 
                       return (
                         <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm space-y-4">
-                          <div className="flex justify-between items-start">
+                          <div 
+                            onClick={() => setExpandedAuditId(expandedAuditId === app.id ? null : app.id)}
+                            className="flex justify-between items-start cursor-pointer group select-none"
+                          >
                             <div>
-                              <h5 className="text-sm font-black text-slate-800">{app.name}</h5>
-                              <p className="text-[10px] text-slate-400 font-bold mt-0.5">手機：{app.phone}</p>
+                              <h5 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                {app.name}
+                                <span className="text-[9px] text-slate-400 font-bold bg-slate-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 group-hover:bg-slate-100 transition">
+                                  <Calendar className="w-3 h-3" /> {new Date(app.created_at).toLocaleDateString()}
+                                </span>
+                              </h5>
+                              <p className="text-[10px] text-slate-400 font-bold mt-1">手機：{app.phone}</p>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600'}`}>
-                              申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
-                            </span>
-                          </div>
-
-                          <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">已稽核金額</span>
-                              <span className="text-xs font-black text-emerald-600">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
-                            </div>
-                            <div>
-                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款狀態</span>
-                              <span className="text-xs font-black text-blue-600 flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> 會計已確認
+                            <div className="flex items-center gap-3">
+                              <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600'}`}>
+                                申請 {app.tier === "初潤知己" ? "品牌大使" : app.tier === "初潤好朋友" ? "合夥人" : app.tier}
                               </span>
+                              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-100 transition">
+                                {expandedAuditId === app.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </div>
                             </div>
                           </div>
 
-                          {/* B2B Compliant Fields Display */}
-                          {hasB2BDetails && (
-                            <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
-                              <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
-                                <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
-                              </p>
-                              
-                              <div className="grid grid-cols-2 gap-2 pt-1">
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
-                                  <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
-                                  {b2bData.idCardPhoto ? (
-                                    <button 
-                                      onClick={() => setViewingReceipt(b2bData.idCardPhoto)}
-                                      className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> 檢視身分證
-                                    </button>
-                                  ) : (
-                                    <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                          <AnimatePresence>
+                            {expandedAuditId === app.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="pt-4 space-y-4 border-t border-slate-50 mt-4">
+                                  <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">已稽核金額</span>
+                                      <span className="text-xs font-black text-emerald-600">${Number(app.initial_deposit || 0).toLocaleString()} 元</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款狀態</span>
+                                      <span className="text-xs font-black text-blue-600 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3.5 h-3.5" /> 會計已確認
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* B2B Compliant Fields Display */}
+                                  {hasB2BDetails && (
+                                    <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500">
+                                      <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
+                                        <span>🛡️ {b2bData.type === "ambassador" || app.tier === "初潤知己" ? "品牌大使" : "合夥人"}專規檢實資料</span>
+                                      </p>
+                                      
+                                      <div className="grid grid-cols-2 gap-2 pt-1">
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
+                                          <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
+                                          {b2bData.idCardPhoto ? (
+                                            <button 
+                                              onClick={() => setViewingReceipt(b2bData.idCardPhoto)}
+                                              className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" /> 檢視身分證
+                                            </button>
+                                          ) : (
+                                            <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">戶籍地址</span>
+                                        <span className="text-[11px] font-bold text-slate-700 leading-tight block">{b2bData.householdAddress || "未提供"}</span>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">通訊收件地址</span>
+                                        <span className="text-[11px] font-bold text-slate-700 leading-tight block">{app.address || "未提供"}</span>
+                                      </div>
+
+                                      <div className="border-t border-slate-100 my-2"></div>
+
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 / 分行</span>
+                                          <span className="text-[11px] font-bold text-slate-700">{b2bData.bankCode || app.bank_code || "未提供"} {b2bData.bankBranch || ""}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像</span>
+                                          {b2bData.passbookPhoto ? (
+                                            <button 
+                                              onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
+                                              className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                            >
+                                              <Eye className="w-3.5 h-3.5" /> 檢視存摺卡
+                                            </button>
+                                          ) : (
+                                            <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
+                                        <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}</span>
+                                      </div>
+                                    </div>
                                   )}
-                                </div>
-                              </div>
 
-                              <div className="space-y-1 pt-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">戶籍地址</span>
-                                <span className="text-[11px] font-bold text-slate-700 leading-tight block">{b2bData.householdAddress || "未提供"}</span>
-                              </div>
-
-                              <div className="space-y-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">通訊收件地址</span>
-                                <span className="text-[11px] font-bold text-slate-700 leading-tight block">{app.address || "未提供"}</span>
-                              </div>
-
-                              <div className="border-t border-slate-100 my-2"></div>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 / 分行</span>
-                                  <span className="text-[11px] font-bold text-slate-700">{b2bData.bankCode || app.bank_code || "未提供"} {b2bData.bankBranch || ""}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像</span>
-                                  {b2bData.passbookPhoto ? (
+                                  {b2bData.remittancePhoto && (
                                     <button 
-                                      onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
-                                      className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                      onClick={() => setViewingReceipt(b2bData.remittancePhoto)}
+                                      className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
                                     >
-                                      <Eye className="w-3.5 h-3.5" /> 檢視存摺卡
+                                      <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
                                     </button>
-                                  ) : (
-                                    <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
                                   )}
+
+                                  <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <button 
+                                      onClick={() => handleManagerAudit(app, false)}
+                                      className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
+                                    >
+                                      ❌ 駁回申請
+                                    </button>
+                                    <button 
+                                      onClick={() => handleManagerAudit(app, true)}
+                                      className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                                    >
+                                      👑 最終核准加入
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-
-                              <div className="space-y-1 pt-1">
-                                <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
-                                <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {b2bData.remittancePhoto && (
-                            <button 
-                              onClick={() => setViewingReceipt(b2bData.remittancePhoto)}
-                              className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-center gap-2 transition"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> 檢視匯款水單/憑證
-                            </button>
-                          )}
-
-                          <div className="grid grid-cols-2 gap-3 pt-2">
-                            <button 
-                              onClick={() => handleManagerAudit(app, false)}
-                              className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
-                            >
-                              ❌ 駁回申請
-                            </button>
-                            <button 
-                              onClick={() => handleManagerAudit(app, true)}
-                              className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-600/20 transition"
-                            >
-                              👑 最終核准加入
-                            </button>
-                          </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
@@ -753,6 +881,163 @@ function EvaluationContent() {
               </div>
 
             </div>
+          </div>
+        ) : activeZone === "exits" ? (
+          /* B2B EXITS AUDIT CONTENT */
+          <div className="space-y-8 animate-fadeIn">
+            
+            {/* Header info */}
+            <div className="rounded-[2.5rem] p-6 border bg-rose-50/50 border-rose-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                  <ShieldCheck className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black tracking-widest text-rose-900">B2B 無憂退出審核中心</h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                    審查已提出「無憂退出」申請之 B2B 夥伴。系統已自動核算累積返傭與行政成本。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {loadingAudits ? (
+              <div className="py-12 bg-white rounded-[2.5rem] border border-slate-100 flex justify-center items-center">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+              </div>
+            ) : pendingExitList.length === 0 ? (
+              <div className="py-16 bg-white rounded-[2.5rem] border border-slate-50 shadow-sm text-center flex flex-col items-center justify-center gap-2">
+                <CheckCircle2 className="w-8 h-8 text-slate-200" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目前無待審核之退出申請</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {pendingExitList.map(app => {
+                  const b2bData = parseB2BMetadata(app);
+                  const sim = exitSimulations[app.id];
+
+                  return (
+                    <div key={app.id} className="bg-white rounded-[2rem] p-6 border border-slate-50 shadow-sm flex flex-col justify-between space-y-6">
+                      
+                      <div className="space-y-4">
+                        {/* Member Header */}
+                        <div 
+                          onClick={() => setExpandedAuditId(expandedAuditId === app.id ? null : app.id)}
+                          className="flex justify-between items-start cursor-pointer group select-none"
+                        >
+                          <div>
+                            <h5 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                              {app.name}
+                              <span className="text-[9px] text-slate-400 font-bold bg-slate-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 group-hover:bg-slate-100 transition">
+                                <Calendar className="w-3 h-3" /> {new Date(app.created_at).toLocaleDateString()}
+                              </span>
+                            </h5>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1">手機：{app.phone}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="px-3 py-1 rounded-full text-[8px] font-black tracking-widest bg-rose-50 text-rose-600 border border-rose-100 uppercase">
+                              申請退出：{app.tier}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-100 transition">
+                              {expandedAuditId === app.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </div>
+                          </div>
+                        </div>
+
+                        <AnimatePresence>
+                          {expandedAuditId === app.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 space-y-4 border-t border-slate-50 mt-4">
+                                {/* Financial Settlement Breakdown */}
+                                <div className="bg-slate-900 rounded-2xl p-5 text-white space-y-3 shadow-inner">
+                                  <p className="text-[8px] font-black tracking-wider uppercase text-slate-400">財務結算明細</p>
+                                  {sim ? (
+                                    <div className="space-y-2 text-[11px]">
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">預收款餘額</span>
+                                        <span className="font-bold font-mono">${Number(sim.virtualBalance || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between text-rose-400">
+                                        <span className="text-rose-300">需扣回返傭</span>
+                                        <span className="font-bold font-mono">-${Number(sim.totalCommissionReceived || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex justify-between text-rose-400">
+                                        <span className="text-rose-300">行政設定成本</span>
+                                        <span className="font-bold font-mono">-${Number(sim.adminFee || 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="border-t border-slate-800 my-1"></div>
+                                      <div className="flex justify-between text-emerald-400 font-black">
+                                        <span>預計退還總額</span>
+                                        <span className="font-mono text-xs">${Number(sim.finalRefundAmount || 0).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      <span>正在讀取結算報告...</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Bank Details Card */}
+                                <div className="bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] space-y-2.5">
+                                  <p className="text-[8px] font-black tracking-wider uppercase text-amber-600">收款銀行帳戶資訊</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 & 分行</span>
+                                      <span className="text-xs font-bold text-slate-700">國泰世華 (013) {b2bData.bankBranch || "未填"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像佐證</span>
+                                      {b2bData.passbookPhoto ? (
+                                        <button 
+                                          onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
+                                          className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                        >
+                                          <Eye className="w-3.5 h-3.5" /> 放大核對存摺
+                                        </button>
+                                      ) : (
+                                        <span className="text-rose-500 text-[9px] block mt-0.5">未上傳存摺</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">實體匯款帳號</span>
+                                    <span className="text-xs font-mono font-bold text-slate-700 tracking-widest">{b2bData.bankAccount || app.bank_account || "未填"}</span>
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                  <button 
+                                    onClick={() => handleExitReject(app.id)}
+                                    className="py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 font-black text-[9px] uppercase tracking-widest rounded-xl transition"
+                                  >
+                                    ❌ 駁回申請
+                                  </button>
+                                  <button 
+                                    onClick={() => handleExitApprove(app.id)}
+                                    className="py-3 bg-slate-950 hover:bg-slate-800 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg shadow-slate-950/20 transition flex items-center justify-center gap-1.5"
+                                  >
+                                    ✅ 核准退出並退款
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           /* STANDARD DIRECTORIES VIEWS */
@@ -873,7 +1158,11 @@ function EvaluationContent() {
                             ) : (
                               /* Members Grid / List */
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {filteredMembers.map(member => (
+                                {filteredMembers.map(member => {
+                                  const b2bData = parseB2BMetadata(member);
+                                  const hasB2BDetails = activeZone !== "members" && (b2bData.isB2BApply || !!b2bData.idCardNumber || member.is_b2b || member.tier === "初潤好朋友" || member.tier === "初潤知己");
+
+                                  return (
                                   <div 
                                     key={member.id}
                                     className="bg-white border border-slate-50/50 p-6 rounded-3xl shadow-sm flex flex-col justify-between gap-4 hover:border-slate-100 transition duration-300 group"
@@ -914,8 +1203,75 @@ function EvaluationContent() {
                                         </span>
                                       </div>
                                     </div>
+
+                                    {/* B2B Compliant Fields Display */}
+                                    {hasB2BDetails && (
+                                      <div className="space-y-3 bg-amber-50/20 rounded-2xl p-4 border border-amber-100/50 text-[10px] font-bold text-slate-500 mt-2">
+                                        <p className="text-[8px] font-black tracking-wider uppercase text-amber-600 flex items-center gap-1">
+                                          <span>🛡️ {member.tier}專規檢實資料</span>
+                                        </p>
+                                        
+                                        <div className="grid grid-cols-2 gap-2 pt-1">
+                                          <div>
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
+                                            <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || member.id_card_number || "未提供"}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
+                                            {b2bData.idCardPhoto ? (
+                                              <button 
+                                                onClick={() => setViewingReceipt(b2bData.idCardPhoto)}
+                                                className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                              >
+                                                <Eye className="w-3.5 h-3.5" /> 檢視身分證
+                                              </button>
+                                            ) : (
+                                              <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1 pt-1">
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">戶籍地址</span>
+                                          <span className="text-[11px] font-bold text-slate-700 leading-tight block">{b2bData.householdAddress || "未提供"}</span>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">通訊收件地址</span>
+                                          <span className="text-[11px] font-bold text-slate-700 leading-tight block">{member.address || "未提供"}</span>
+                                        </div>
+
+                                        <div className="border-t border-slate-100 my-2"></div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">銀行代碼 / 分行</span>
+                                            <span className="text-[11px] font-bold text-slate-700">{b2bData.bankCode || member.bank_code || "未提供"} {b2bData.bankBranch || ""}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">存摺影像</span>
+                                            {b2bData.passbookPhoto ? (
+                                              <button 
+                                                onClick={() => setViewingReceipt(b2bData.passbookPhoto)}
+                                                className="text-[9px] text-amber-600 font-black hover:underline flex items-center gap-1 mt-0.5"
+                                              >
+                                                <Eye className="w-3.5 h-3.5" /> 檢視存摺卡
+                                              </button>
+                                            ) : (
+                                              <span className="text-rose-500 text-[9px] block mt-0.5">未上傳影像</span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1 pt-1">
+                                          <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
+                                          <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || member.bank_account || "未提供"}</span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                             
@@ -972,7 +1328,10 @@ function EvaluationContent() {
                     <p>1. 夥伴點開連結需上傳<strong>身分證正面拍照</strong>、<strong>戶籍地址</strong>、<strong>收退款銀行與分行、存摺正面拍照</strong>。</p>
                   </>
                 ) : (
-                  <p>1. 請一鍵複製下方的「專屬創業加入連結」並發送給欲參與的合作夥伴。</p>
+                  <>
+                    <p className="text-emerald-600 font-black">⚠️ 合夥人規格已升級為 98,000 元，並強制遵守身分與銀行實體稽核規範：</p>
+                    <p>1. 夥伴點開連結需上傳<strong>身分證正面拍照</strong>、<strong>戶籍地址</strong>、<strong>收退款銀行與分行、存摺正面拍照</strong>。</p>
+                  </>
                 )}
                 <p>2. 對方完成線上拍照與水單、存摺等證明後送出。</p>
                 <p>3. 案件會立即進入您的<strong>「創業申請審核」</strong>管道由會計和業務主管雙重審實，核准後一鍵全自動開通並存入款項！</p>

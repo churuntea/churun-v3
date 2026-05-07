@@ -29,6 +29,7 @@ function RegisterContent() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -188,7 +189,7 @@ function RegisterContent() {
           });
         }
 
-        router.push("/");
+        setShowSuccessModal(true);
       }
     } catch (err: any) {
       setErrorMsg("網路連線異常，請稍後再試。");
@@ -350,6 +351,37 @@ function RegisterContent() {
            </p>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-6">
+             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[3rem] p-12 w-full max-w-sm text-center shadow-2xl relative overflow-hidden">
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-black mb-2 text-slate-800">註冊成功！</h3>
+                <p className="text-sm text-slate-500 mb-8 font-bold">為了確保您能收到最新的通知與專屬服務，請務必加入我們的官方 LINE@！</p>
+                
+                <div className="space-y-3">
+                  <a 
+                    href="https://lin.ee/PB4ztiM" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="w-full py-4 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/30 transition block"
+                  >
+                    <span>💬</span> 點擊加入官方 LINE@
+                  </a>
+                  <button 
+                    onClick={() => router.push("/")} 
+                    className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition"
+                  >
+                    前往首頁
+                  </button>
+                </div>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {errorMsg && (

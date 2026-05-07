@@ -752,8 +752,16 @@ function ApplyContent() {
                   </div>
                 </div>
 
-                <div className="pt-6">
-                  <Link href="/login" className="text-xs font-black text-slate-400 hover:text-slate-800 underline uppercase tracking-widest">
+                <div className="pt-6 space-y-3">
+                  <a 
+                    href="https://lin.ee/PB4ztiM" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="w-full py-4 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/30 transition block"
+                  >
+                    <span>💬</span> 點擊加入官方 LINE@
+                  </a>
+                  <Link href="/login" className="block text-xs font-black text-slate-400 hover:text-slate-800 underline uppercase tracking-widest">
                     返回登入頁面
                   </Link>
                 </div>
