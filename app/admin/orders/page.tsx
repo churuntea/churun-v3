@@ -308,7 +308,24 @@ function AdminOrdersContent() {
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      setOrders(data || []);
+
+      // 支援解讀備份在 custom_logo_url 的 JSON 欄位（以解決資料庫未更新到最新欄位時的容錯）
+      const processed = (data || []).map((order: any) => {
+        if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+          try {
+            const fallbackData = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+            return {
+              ...order,
+              ...fallbackData
+            };
+          } catch (e) {
+            console.error("解析備份 JSON 欄位失敗:", e);
+          }
+        }
+        return order;
+      });
+
+      setOrders(processed);
     } catch (err) {
       console.error(err);
     } finally {

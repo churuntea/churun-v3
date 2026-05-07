@@ -87,27 +87,66 @@ export async function POST(request: Request) {
       }
     }
 
-    let { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single();
+    let orderDataToInsert = { ...orderData };
+    let order = null;
+    let orderError = null;
 
-    // 如果失敗是因為欄位不存在，嘗試不帶新欄位再試一次
-    if (orderError && (orderError.message.includes('reward_points') || orderError.message.includes('b2b_commission'))) {
-      console.warn('DB columns missing, falling back to basic order info');
-      const fallbackData = { ...orderData };
-      delete fallbackData.reward_points;
-      delete fallbackData.b2b_commission;
-      
-      const { data: fallbackOrder, error: fallbackError } = await supabase
+    // 定義可能缺失的自訂擴充欄位，當發生 DB 欄位不存在錯誤時會自動排除並進行備份
+    const schemaSensitiveColumns = ['shipping_info', 'notes', 'reward_points', 'b2b_commission', 'bank_last_five'];
+    let serializedBackup: any = {};
+
+    // 智慧漸進式欄位排除寫入迴圈 (最高重試 6 次以應對多個潛在缺失欄位)
+    for (let attempts = 0; attempts < 6; attempts++) {
+      const { data, error } = await supabase
         .from('orders')
-        .insert(fallbackData)
+        .insert(orderDataToInsert)
         .select()
         .single();
       
-      order = fallbackOrder;
-      orderError = fallbackError;
+      if (!error) {
+        order = data;
+        orderError = null;
+        break;
+      }
+
+      console.warn(`[Order Retry Loop] Insertion attempt ${attempts + 1} failed:`, error.message);
+      orderError = error;
+
+      let columnRemoved = false;
+      for (const col of schemaSensitiveColumns) {
+        if (orderDataToInsert[col] !== undefined && (
+          error.message.includes(`column "${col}"`) || 
+          error.message.includes(`'${col}' column`) || 
+          error.message.includes(`"${col}" column`) ||
+          error.message.includes(`find the '${col}' column`) ||
+          error.message.includes(`find the "${col}" column`)
+        )) {
+          // 備份遭排除的欄位值，以便最後寫入 custom_logo_url 做防遺失保險
+          serializedBackup[col] = orderDataToInsert[col];
+          delete orderDataToInsert[col];
+          columnRemoved = true;
+          console.warn(`[Order Retry Loop] Pruned missing DB column "${col}" from write schema`);
+          break;
+        }
+      }
+
+      if (!columnRemoved) {
+        // 如果無法明確辨識特定欄位名稱，將所有尚未排除的敏感欄位一次性移除，以求交易順利完成
+        let hasKeys = false;
+        for (const col of schemaSensitiveColumns) {
+          if (orderDataToInsert[col] !== undefined) {
+            serializedBackup[col] = orderDataToInsert[col];
+            delete orderDataToInsert[col];
+            hasKeys = true;
+          }
+        }
+        if (!hasKeys) {
+          break;
+        }
+      }
+
+      // 備份所有被排除的欄位為 JSON 字串存入 custom_logo_url
+      orderDataToInsert.custom_logo_url = `FALLBACK_JSON:${JSON.stringify(serializedBackup)}`;
     }
 
     if (orderError) throw orderError;
