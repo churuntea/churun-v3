@@ -185,7 +185,7 @@ function WholesaleContent() {
          <Link href="/" className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition">
             <ArrowLeft className="w-5 h-5" />
          </Link>
-         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">大宗批發採購</h1>
+         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase">特選精品採購</h1>
       </nav>
 
       <main className="max-w-lg mx-auto p-6 space-y-10 mt-4">

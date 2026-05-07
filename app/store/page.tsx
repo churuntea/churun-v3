@@ -267,7 +267,7 @@ function StoreContent() {
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
       <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase flex items-center gap-2">
-           精品嚴選商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
+           精品點數商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
         </h1>
         <div className="flex items-center gap-3">
           <div onClick={() => setIsCartOpen(true)} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer relative hover:bg-slate-100 transition">

@@ -458,7 +458,7 @@ function DashboardContent() {
         {/* Brand Insights Feed */}
         <section className="grid grid-cols-4 gap-4 px-2">
            {[
-             { label: "大宗批發", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
+             { label: "特選精品", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
              { label: "點數商城", icon: Gift, href: "/store", color: "bg-emerald-50 text-emerald-600" },
              { label: "組織管理", icon: Users, href: "/organization", color: "bg-amber-50 text-amber-600" },
              { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" }
