@@ -87,6 +87,7 @@ function DashboardContent() {
   const [avatarOffset, setAvatarOffset] = useState(0);
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
   const [posterTemplates, setPosterTemplates] = useState<any[]>([]);
+  const [selectedPosterCategory, setSelectedPosterCategory] = useState("茶葉");
   const [showPosterSelector, setShowPosterSelector] = useState(false);
   const [showPosterPreview, setShowPosterPreview] = useState(false);
   const [selectedPoster, setSelectedPoster] = useState<any>(null);
@@ -217,16 +218,16 @@ function DashboardContent() {
       ctx.fillStyle = config.name?.color || '#ffffff';
       ctx.font = `${config.name?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(memberInfo.name, config.name?.x || 380, config.name?.y || 1120);
+      ctx.fillText("聯絡人：" + memberInfo.name, config.name?.x || 380, config.name?.y || 1120);
       
       ctx.fillStyle = config.phone?.color || config.name?.color || '#ffffff';
       ctx.font = `${config.phone?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
-      ctx.fillText(memberInfo.phone || '', config.phone?.x || 380, config.phone?.y || 1155);
+      ctx.fillText("電話：" + (memberInfo.phone || ''), config.phone?.x || 380, config.phone?.y || 1155);
       
       if (config.address) {
         ctx.fillStyle = config.address.color || config.name?.color || '#ffffff';
         ctx.font = `${config.address.size || 36}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
-        ctx.fillText(memberInfo.address || '', config.address.x || 380, config.address.y || 1190);
+        ctx.fillText("地址：" + (memberInfo.address || ''), config.address.x || 380, config.address.y || 1190);
       }
 
       setPosterDataUrl(canvas.toDataURL('image/png'));
@@ -552,14 +553,33 @@ function DashboardContent() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-8" onClick={() => setShowPosterSelector(false)}>
              <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-[3.5rem] p-8 w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh]" onClick={e => e.stopPropagation()}>
                 <h3 className="text-2xl font-black text-slate-900 mb-6 text-center">選擇行銷海報</h3>
-                <div className="overflow-y-auto no-scrollbar grid grid-cols-2 gap-4 pb-4">
-                   {posterTemplates.map((temp) => (
-                     <div key={temp.id} onClick={() => handleGeneratePoster(temp)} className="aspect-[1/1.4] rounded-2xl overflow-hidden border-4 border-white shadow-lg cursor-pointer relative group">
-                        <img src={temp.url} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-emerald-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><Sparkles className="w-8 h-8 text-white" /></div>
-                     </div>
-                   ))}
-                </div>
+                 
+                 {/* 分類 Tabs */}
+                 <div className="flex gap-2 mb-6 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 shrink-0">
+                    {['茶葉', '禮盒', '豬後製品'].map(cat => (
+                       <button
+                         key={cat}
+                         onClick={() => setSelectedPosterCategory(cat)}
+                         className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedPosterCategory === cat ? 'bg-emerald-900 text-white shadow-lg shadow-emerald-900/10' : 'text-slate-400 hover:text-slate-600'}`}
+                       >
+                          {cat}
+                       </button>
+                    ))}
+                 </div>
+
+                 <div className="overflow-y-auto no-scrollbar grid grid-cols-2 gap-4 pb-4 max-h-[50vh] auto-rows-max items-start content-start">
+                    {posterTemplates.filter(temp => (temp.category || '茶葉') === selectedPosterCategory).map((temp) => (
+                      <div key={temp.id} onClick={() => handleGeneratePoster(temp)} className="aspect-[1/1.4] w-full rounded-2xl overflow-hidden border-4 border-white shadow-lg cursor-pointer relative group flex flex-col bg-slate-50">
+                         <img src={temp.url} className="w-full h-full object-cover" />
+                         <div className="absolute inset-0 bg-emerald-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><Sparkles className="w-8 h-8 text-white" /></div>
+                      </div>
+                    ))}
+                    {posterTemplates.filter(temp => (temp.category || '茶葉') === selectedPosterCategory).length === 0 && (
+                       <div className="col-span-2 py-12 text-center text-slate-300">
+                          <p className="text-[10px] font-black uppercase tracking-widest">目前此分類尚無海報樣板</p>
+                       </div>
+                    )}
+                 </div>
                 <button onClick={() => setShowPosterSelector(false)} className="mt-6 w-full py-4 text-slate-300 font-black text-[10px] uppercase tracking-widest">取消</button>
              </motion.div>
           </motion.div>

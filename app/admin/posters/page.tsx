@@ -49,6 +49,7 @@ export default function AdminPosters() {
     setEditingTemplate({
       name: '',
       url: '',
+      category: '茶葉',
       config: JSON.parse(JSON.stringify(defaultConfig)),
       is_active: true
     });
@@ -175,8 +176,11 @@ export default function AdminPosters() {
                       </button>
                    </div>
                 </div>
-                <div className="p-6">
-                   <h3 className="font-black text-slate-800 mb-1">{temp.name}</h3>
+                <div className="p-6 space-y-2">
+                   <div className="flex justify-between items-center">
+                      <h3 className="font-black text-slate-800">{temp.name}</h3>
+                      <span className="text-[9px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">{temp.category || '茶葉'}</span>
+                   </div>
                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                      最後更新: {new Date(temp.created_at).toLocaleDateString()}
                    </p>
@@ -204,6 +208,21 @@ export default function AdminPosters() {
                         />
                      </div>
                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">所屬分類</label>
+                        <div className="flex gap-2">
+                           {['茶葉', '禮盒', '豬後製品'].map(cat => (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setEditingTemplate({...editingTemplate, category: cat})}
+                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${editingTemplate.category === cat ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                              >
+                                 {cat}
+                              </button>
+                           ))}
+                        </div>
+                      </div>
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
                           <span>公版圖片上傳 / URL</span>
                         </label>

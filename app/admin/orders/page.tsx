@@ -18,7 +18,10 @@ import {
   Calendar,
   DollarSign,
   User,
-import { ExternalLink, Truck, Download } from "lucide-react";
+  ExternalLink,
+  Truck,
+  Download
+} from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/app/supabase-admin";
 import { exportToCsv } from "@/utils/exportCsv";
