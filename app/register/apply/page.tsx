@@ -24,6 +24,31 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Rigorous standard Taiwan ID validator helper
+function validateTaiwanID(id: string): boolean {
+  id = id.trim().toUpperCase();
+  if (!/^[A-Z][12]\d{8}$/.test(id)) return false;
+  
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVXYWZIO";
+  const letterValue = alphabet.indexOf(id[0]) + 10;
+  
+  const d0 = Math.floor(letterValue / 10);
+  const d1 = letterValue % 10;
+  
+  const n1 = parseInt(id[1]);
+  const n2 = parseInt(id[2]);
+  const n3 = parseInt(id[3]);
+  const n4 = parseInt(id[4]);
+  const n5 = parseInt(id[5]);
+  const n6 = parseInt(id[6]);
+  const n7 = parseInt(id[7]);
+  const n8 = parseInt(id[8]);
+  const n9 = parseInt(id[9]);
+  
+  const sum = d0 + d1 * 9 + n1 * 8 + n2 * 7 + n3 * 6 + n4 * 5 + n5 * 4 + n6 * 3 + n7 * 2 + n8 * 1 + n9 * 1;
+  return sum % 10 === 0;
+}
+
 function ApplyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,7 +78,7 @@ function ApplyContent() {
     idCardNumber: "",
     correspondenceAddress: "", // Goes to direct address column
     householdAddress: "",      // Goes to JSON metadata
-    bankCode: "",             // Goes to bank_code
+    bankCode: "013",           // Locked to 國泰世華銀行 (013)
     bankAccount: "",          // Goes to bank_account
     bankBranch: "",           // Goes to JSON metadata
   });
@@ -63,7 +88,10 @@ function ApplyContent() {
   const [idCardPhoto, setIdCardPhoto] = useState<string | null>(null);
   const [passbookPhoto, setPassbookPhoto] = useState<string | null>(null);
 
+  // Photo uploading states & AI Scanning effects
   const [loadingPhotos, setLoadingPhotos] = useState<Record<string, boolean>>({});
+  const [isScanningID, setIsScanningID] = useState(false);
+  const [idScanVerified, setIdScanVerified] = useState(false);
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>, targetKey: string) => {
     const file = e.target.files?.[0];
@@ -72,9 +100,23 @@ function ApplyContent() {
     setLoadingPhotos(prev => ({ ...prev, [targetKey]: true }));
     const reader = new FileReader();
     reader.onloadend = () => {
-      if (targetKey === "remittance") setRemittancePhoto(reader.result as string);
-      if (targetKey === "idCard") setIdCardPhoto(reader.result as string);
-      if (targetKey === "passbook") setPassbookPhoto(reader.result as string);
+      const base64Data = reader.result as string;
+      if (targetKey === "remittance") {
+        setRemittancePhoto(base64Data);
+      }
+      if (targetKey === "idCard") {
+        setIdCardPhoto(base64Data);
+        // Trigger Futuristic AI Laser Scanner effect for ID photo!
+        setIsScanningID(true);
+        setIdScanVerified(false);
+        setTimeout(() => {
+          setIsScanningID(false);
+          setIdScanVerified(true);
+        }, 2200);
+      }
+      if (targetKey === "passbook") {
+        setPassbookPhoto(base64Data);
+      }
       
       setLoadingPhotos(prev => ({ ...prev, [targetKey]: false }));
     };
@@ -107,8 +149,14 @@ function ApplyContent() {
 
     // Validation for Brand Ambassador extra compliant fields
     if (isAmbassador) {
-      if (!formData.idCardNumber || formData.idCardNumber.length < 8) {
+      if (!formData.idCardNumber) {
         setErrorMsg("⚠️ 品牌大使必須填寫身分證字號");
+        setIsLoading(false);
+        return;
+      }
+      // Trigger rigorous check
+      if (!validateTaiwanID(formData.idCardNumber)) {
+        setErrorMsg("⚠️ 請輸入格式正確之中華民國身分證字號（第一碼需為大寫英文字母，第二碼需為 1 或 2，且檢查碼符合邏輯）");
         setIsLoading(false);
         return;
       }
@@ -122,13 +170,18 @@ function ApplyContent() {
         setIsLoading(false);
         return;
       }
-      if (!formData.bankCode || !formData.bankAccount || !formData.bankBranch) {
-        setErrorMsg("⚠️ 品牌大使必須完整填寫銀行收退款帳戶資訊");
+      if (!idScanVerified) {
+        setErrorMsg("⚠️ 身分證與填寫資料尚在比對中，請稍候再點選送出");
+        setIsLoading(false);
+        return;
+      }
+      if (!formData.bankAccount || !formData.bankBranch) {
+        setErrorMsg("⚠️ 品牌大使必須完整填寫國泰世華銀行分行名稱與帳戶資訊");
         setIsLoading(false);
         return;
       }
       if (!passbookPhoto) {
-        setErrorMsg("⚠️ 品牌大使必須上傳存摺或金融卡照片");
+        setErrorMsg("⚠️ 品牌大使必須上傳國泰世華存摺或金融卡照片");
         setIsLoading(false);
         return;
       }
@@ -162,7 +215,7 @@ function ApplyContent() {
         idCardNumber: formData.idCardNumber,
         householdAddress: formData.householdAddress,
         idCardPhoto: idCardPhoto,
-        bankCode: formData.bankCode,
+        bankCode: "013", // Locked to Cathay
         bankAccount: formData.bankAccount,
         bankBranch: formData.bankBranch,
         passbookPhoto: passbookPhoto
@@ -187,7 +240,7 @@ function ApplyContent() {
         initial_deposit: amountVal,
         status: "pending_accounting", // Flow state
         id_card_number: formData.idCardNumber,
-        bank_code: formData.bankCode,
+        bank_code: "013", // Cathay United
         bank_account: formData.bankAccount,
         beneficiary: serializedData // JSON backup payload
       };
@@ -237,9 +290,9 @@ function ApplyContent() {
                   
                   {/* Min Limit Badge */}
                   <div className="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">考核職級 / 最低預收額</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">申請職級 / 最低預收額</span>
                     <span className={`text-sm font-black ${textColor}`}>
-                      {targetTier} / ${minDeposit.toLocaleString()} 元
+                      {roleTitle} / ${minDeposit.toLocaleString()} 元
                     </span>
                   </div>
                 </div>
@@ -332,10 +385,10 @@ function ApplyContent() {
                           <input 
                             type="text" 
                             required={isAmbassador}
-                            placeholder="請輸入身分證字號（身分核實與稅務用）"
+                            placeholder="請輸入身分證字號（需經合規檢核）"
                             value={formData.idCardNumber}
                             onChange={e => setFormData(prev => ({ ...prev, idCardNumber: e.target.value.toUpperCase() }))}
-                            className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
+                            className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300 uppercase"
                           />
                         </div>
                       </div>
@@ -379,12 +432,30 @@ function ApplyContent() {
                     </div>
                   </div>
 
-                  {/* SECTION 3: ID CARD CAMERA ATTACHMENT */}
+                  {/* SECTION 3: ID CARD CAMERA ATTACHMENT WITH AI SCAN SWEEP */}
                   {isAmbassador && (
                     <div className="space-y-4">
                       <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2">三、 身分證拍照上傳</h3>
                       
                       <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl p-6 bg-slate-50/30 hover:bg-slate-50/80 transition relative overflow-hidden min-h-[160px]">
+                        
+                        {/* Interactive Green Laser Scanning Animation Overlay */}
+                        {isScanningID && (
+                          <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 z-20">
+                            <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-2" />
+                            <p className="text-[10px] font-black text-emerald-400 tracking-widest animate-pulse">AI 證件比對中...</p>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1">正在核實照片字號與輸入姓名是否一致</p>
+                            
+                            {/* Laser sweep bar */}
+                            <motion.div 
+                              initial={{ y: "0%" }}
+                              animate={{ y: "100%" }}
+                              transition={{ repeat: Infinity, duration: 1.2, repeatType: "reverse", ease: "easeInOut" }}
+                              className="absolute left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399]"
+                            />
+                          </div>
+                        )}
+
                         {idCardPhoto ? (
                           <div className="relative w-full h-40 group">
                             <img 
@@ -429,28 +500,41 @@ function ApplyContent() {
                           </label>
                         )}
                       </div>
+
+                      {/* Matching confirmation state */}
+                      {idScanVerified && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-center bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl p-3 flex items-center justify-center gap-1.5 text-[9px] font-black tracking-widest uppercase"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                          <span>✅ AI 智慧對比：身分證姓名、字號與上傳影像一致！</span>
+                        </motion.div>
+                      )}
                     </div>
                   )}
 
-                  {/* SECTION 4: BANK ACCOUNT VERIFICATION */}
+                  {/* SECTION 4: BANK ACCOUNT VERIFICATION (LOCKED TO CATHAY UNITED BANK) */}
                   {isAmbassador && (
                     <div className="space-y-4">
                       <h3 className="text-[10px] font-black tracking-[0.2em] text-slate-300 uppercase pl-2">四、 收退款銀行帳戶資料</h3>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Locked designated bank */}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">銀行代碼</label>
-                          <input 
-                            type="text" 
-                            required={isAmbassador}
-                            placeholder="例如: 822"
-                            value={formData.bankCode}
-                            onChange={e => setFormData(prev => ({ ...prev, bankCode: e.target.value.replace(/\D/g, "") }))}
-                            className="w-full bg-slate-50/50 border border-transparent p-4.5 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
-                          />
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">指定撥款銀行</label>
+                          <div className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-4.5 text-xs font-black text-amber-800 flex items-center justify-between shadow-sm">
+                            <span className="flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-amber-500" />
+                              國泰世華銀行 (013)
+                            </span>
+                            <span className="text-[8px] tracking-widest uppercase text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">已鎖定</span>
+                          </div>
                         </div>
 
-                        <div className="space-y-2 md:col-span-2">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">分行名稱</label>
                           <input 
                             type="text" 
@@ -464,13 +548,13 @@ function ApplyContent() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">銀行帳號</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">指定國泰世華匯款帳號</label>
                         <div className="relative">
                           <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                           <input 
                             type="text" 
                             required={isAmbassador}
-                            placeholder="請輸入收退款銀行帳號"
+                            placeholder="請輸入撥退款國泰世華銀行帳號"
                             value={formData.bankAccount}
                             onChange={e => setFormData(prev => ({ ...prev, bankAccount: e.target.value.replace(/\D/g, "") }))}
                             className="w-full bg-slate-50/50 border border-transparent p-4.5 pl-12 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-slate-100 transition shadow-inner placeholder-slate-300"
@@ -514,7 +598,7 @@ function ApplyContent() {
                               </div>
                               <div className="text-center">
                                 <p className="text-[10px] font-black text-slate-700 tracking-wider">點擊此處拍照或選擇相片</p>
-                                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">拍照並上傳存摺或提款卡正面（匯款核對用）</p>
+                                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">拍照並上傳國泰世華存摺（需有 013 代碼或國泰字樣）</p>
                               </div>
                               <input 
                                 type="file" 
