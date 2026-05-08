@@ -96,6 +96,8 @@ function DashboardContent() {
   const [showShareHub, setShowShareHub] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [copiedLineLink, setCopiedLineLink] = useState(false);
+  const [showOfficialQrModal, setShowOfficialQrModal] = useState(false);
 
   useEffect(() => {
     const currentVersion = "3.0.0";
@@ -546,6 +548,46 @@ function DashboardContent() {
                   <span className="text-[9px] font-black uppercase tracking-widest">產生海報</span>
                 </motion.button>
               </div>
+
+              {/* LINE Official Account section */}
+              <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-100"></div>
+                  <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">官方 LINE@ 專區</span>
+                  <div className="flex-grow border-t border-slate-100"></div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <motion.button 
+                  whileTap={{ scale: 0.96 }} 
+                  onClick={() => {
+                    const link = "https://lin.ee/PB4ztiM";
+                    navigator.clipboard.writeText(link);
+                    setCopiedLineLink(true);
+                    setTimeout(() => setCopiedLineLink(false), 2000);
+                  }} 
+                  className="bg-[#06C755]/10 hover:bg-[#06C755]/15 text-[#06C755] border border-[#06C755]/20 rounded-[2rem] p-5 flex flex-col items-center gap-3 transition"
+                >
+                  <svg viewBox="0 0 24 24" className="w-6 h-6 fill-[#06C755]">
+                    <path d="M12 2C6.48 2 2 5.48 2 9.76c0 2.5 1.56 4.71 4 5.96-.13.56-.47 2.02-.54 2.37-.1.45.16.4.34.28.98-.65 2.87-1.92 3.42-2.28.25.04.51.06.78.06 5.52 0 10-3.48 10-7.76S17.52 2 12 2z"/>
+                  </svg>
+                  <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                    {copiedLineLink ? '已複製網址！' : '複製官方網址'}
+                  </span>
+                </motion.button>
+                <motion.button 
+                  whileTap={{ scale: 0.96 }} 
+                  onClick={() => {
+                    setShowShareHub(false);
+                    setTimeout(() => setShowOfficialQrModal(true), 300);
+                  }} 
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60 rounded-[2rem] p-5 flex flex-col items-center gap-3 transition"
+                >
+                  <QrCode className="w-6 h-6 text-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                    官方 LINE QR
+                  </span>
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -648,6 +690,35 @@ function DashboardContent() {
               </p>
               
               <button onClick={() => setShowQrModal(false)} className="mt-8 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition">關閉</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Official LINE QR Code Display Modal */}
+      <AnimatePresence>
+        {showOfficialQrModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-2xl flex items-center justify-center p-4" onClick={() => setShowOfficialQrModal(false)}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-[3.5rem] p-8 w-full max-w-sm shadow-2xl relative flex flex-col items-center text-center" onClick={e => e.stopPropagation()}>
+              <div className="w-full flex justify-between items-center mb-6">
+                <div>
+                  <h4 className="text-lg font-black text-slate-900 text-left">官方 LINE@ QR 碼</h4>
+                  <p className="text-[9px] font-black text-[#06C755] uppercase tracking-widest text-left mt-0.5">Official LINE@ QR Code</p>
+                </div>
+                <button onClick={() => setShowOfficialQrModal(false)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400"><X className="w-5 h-5" /></button>
+              </div>
+              
+              <div className="bg-[#06C755]/5 p-6 rounded-[2.5rem] border border-[#06C755]/10 mb-6 flex justify-center items-center shadow-inner">
+                <QRCodeCanvas value="https://lin.ee/PB4ztiM" size={200} level="H" className="rounded-2xl p-3 bg-white shadow-md border border-slate-100" />
+              </div>
+
+              <p className="text-[9px] font-black text-[#06C755] uppercase tracking-widest">官方客服與通知</p>
+              <h4 className="text-xl font-black text-slate-800 tracking-wider mt-1 mb-4">💬 ＠churuntea</h4>
+              <p className="text-xs text-slate-500 font-bold px-4 leading-relaxed">
+                掃描此 QR 碼即可加入官方 LINE@，接收最新活動通知、營運公告與專屬一對一客服服務。
+              </p>
+              
+              <button onClick={() => setShowOfficialQrModal(false)} className="mt-8 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/10 active:scale-95 transition">關閉</button>
             </motion.div>
           </motion.div>
         )}
