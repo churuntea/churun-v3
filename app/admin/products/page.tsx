@@ -19,7 +19,8 @@ import {
   LayoutDashboard,
   Package,
   Hash,
-  Boxes
+  Boxes,
+  AlertTriangle
 } from "lucide-react";
 
 function AdminProductsContent() {
@@ -45,6 +46,8 @@ function AdminProductsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("add");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("全部");
 
   const creators = ["陳總經理", "王副總", "張主任", "系統管理員"];
   const [categories, setCategories] = useState<string[]>(["極萃系列", "精品茶具", "典藏禮盒"]);
@@ -279,6 +282,21 @@ function AdminProductsContent() {
     } catch (err: any) { alert("系統錯誤: " + err.message); }
   };
 
+  // 計算篩選後的商品
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategoryFilter === "全部" || product.category === selectedCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  // 商品統計指標
+  const totalProducts = products.length;
+  const lowStockProducts = products.filter(p => Number(p.stock_count || 0) < 10).length;
+  const highestPricedProduct = products.length > 0 
+    ? products.reduce((prev, current) => (Number(prev.price || 0) > Number(current.price || 0)) ? prev : current)
+    : null;
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-20 font-sans">
       <nav className="bg-slate-900 text-white sticky top-0 z-50 px-8 py-4 flex justify-between items-center shadow-2xl">
@@ -286,7 +304,7 @@ function AdminProductsContent() {
            <button onClick={() => router.push("/admin")} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition backdrop-blur-md">
               <ChevronLeft className="w-5 h-5" />
            </button>
-            <h1 className="text-sm font-black tracking-[0.2em] uppercase">商品與參數管理</h1>
+            <h1 className="text-sm font-black tracking-[0.2em] uppercase">商品管理</h1>
          </div>
          {editingId && (
             <button onClick={handleCancelEdit} className="px-6 py-2 bg-rose-500 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition">
@@ -443,17 +461,76 @@ function AdminProductsContent() {
                animate={{ opacity: 1, y: 0 }}
                className="bg-white rounded-[4rem] p-12 border border-slate-50 shadow-2xl shadow-slate-200/20"
              >
-                <div className="flex items-center justify-between mb-12">
-                   <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-                         <Package className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-xl font-black text-slate-800">全品項管理清單</h3>
-                   </div>
-                   <button onClick={() => { handleCancelEdit(); setActiveTab("add"); }} className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition group">
-                      <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform" />
-                   </button>
-                </div>
+                                 <div className="flex items-center justify-between mb-12">
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                          <Package className="w-6 h-6" />
+                       </div>
+                       <h3 className="text-xl font-black text-slate-800">全品項管理清單</h3>
+                    </div>
+                    <button onClick={() => { handleCancelEdit(); setActiveTab("add"); }} className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition group">
+                       <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+                    </button>
+                 </div>
+
+                 {/* 1. 商品統計指標看板 */}
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100/50 flex items-center gap-4">
+                       <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+                          <Package className="w-6 h-6" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">總上架品項</p>
+                          <h4 className="text-xl font-black text-slate-800 mt-1">{totalProducts} <span className="text-xs text-slate-400">個</span></h4>
+                       </div>
+                    </div>
+                    <div className="bg-rose-50/50 p-6 rounded-[2rem] border border-rose-100/30 flex items-center gap-4">
+                       <div className="w-12 h-12 bg-white text-rose-500 rounded-2xl flex items-center justify-center shadow-sm">
+                          <AlertTriangle className="w-6 h-6 animate-pulse" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">庫存吃緊警報</p>
+                          <h4 className="text-xl font-black text-rose-800 mt-1">{lowStockProducts} <span className="text-xs text-rose-400">個品項</span></h4>
+                       </div>
+                    </div>
+                    <div className="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100/30 flex items-center gap-4">
+                       <div className="w-12 h-12 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
+                          <Star className="w-6 h-6 fill-indigo-200 text-indigo-500" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">最高結帳售價</p>
+                          <h4 className="text-xl font-black text-indigo-900 mt-1 truncate max-w-[140px]" title={highestPricedProduct?.name}>
+                             {highestPricedProduct ? `${highestPricedProduct.price.toLocaleString()}` : "無"}
+                          </h4>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* 2. 搜尋與大項分類快捷篩選 */}
+                 <div className="space-y-6 mb-10 bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100">
+                    <div className="relative">
+                       <input 
+                         type="text" 
+                         value={searchQuery}
+                         onChange={(e) => setSearchQuery(e.target.value)}
+                         placeholder="🔍 搜尋商品名稱或商品貨號 (SKU)..." 
+                         className="w-full bg-white border-none p-5 rounded-2xl text-sm font-black text-slate-800 shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition outline-none"
+                       />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/40">
+                       {["全部", ...categories].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setSelectedCategoryFilter(cat)}
+                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedCategoryFilter === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10' : 'bg-white text-slate-400 hover:text-slate-600 border border-slate-100'}`}
+                          >
+                             {cat}
+                          </button>
+                       ))}
+                    </div>
+                 </div>
 
                 {isLoading ? (
                    <div className="py-32 flex flex-col items-center gap-4">
@@ -462,7 +539,7 @@ function AdminProductsContent() {
                    </div>
                 ) : (
                    <div className="grid grid-cols-1 gap-6">
-                      {products.map(product => (
+                      {filteredProducts.map(product => (
                          <div 
                            key={product.id} 
                            onClick={() => handleEditClick(product)}
@@ -512,7 +589,17 @@ function AdminProductsContent() {
                             </div>
                          </div>
                       ))}
-                      {products.length === 0 && (
+                      {filteredProducts.length === 0 && (
+                          <div className="py-20 text-center space-y-4">
+                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                                <Package className="w-10 h-10 text-slate-200" />
+                             </div>
+                             <p className="text-xs font-black text-slate-300 uppercase tracking-widest">
+                                {searchQuery || selectedCategoryFilter !== "全部" ? "找不到符合條件的商品" : "目前尚無上架商品"}
+                             </p>
+                          </div>
+                       )}
+                       {false && products.length === 0 && (
                          <div className="py-20 text-center space-y-4">
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
                                <Package className="w-10 h-10 text-slate-200" />

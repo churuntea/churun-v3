@@ -246,7 +246,7 @@ function AdminDashboardContent() {
                    { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
                    { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
-                   { label: "商品參數管理", icon: Settings, action: "/admin/products" },
+                   { label: "商品管理", icon: Settings, action: "/admin/products" },
                    { label: "數據庫備份", icon: Database, action: "#" }
                  ].map((act, i) => (
                    <button 
