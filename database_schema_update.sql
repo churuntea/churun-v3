@@ -95,3 +95,6 @@ VALUES (
     'https://i.ibb.co/Vp8nF6Y/dm-template.jpg', 
     '{"qr": {"x": 800, "y": 1100, "size": 160}, "name": {"x": 380, "y": 1120, "size": 28, "color": "#ffffff"}, "phone": {"x": 380, "y": 1155, "size": 24, "color": "#ffffff"}}'::jsonb
 ) ON CONFLICT DO NOTHING;
+
+-- 12. 擴充商品資料表以支援商品特色描述欄位 (Product Description)
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS description TEXT;

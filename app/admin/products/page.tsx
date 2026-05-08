@@ -39,7 +39,8 @@ function AdminProductsContent() {
     b2b_commission_percent: "15",
     category: "極萃系列",
     stock_count: "100",
-    sku: ""
+    sku: "",
+    description: ""
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
@@ -217,7 +218,8 @@ function AdminProductsContent() {
       b2b_commission_percent: product.b2b_commission_percent.toString(),
       category: product.category || "極萃系列",
       stock_count: product.stock_count?.toString() || "0",
-      sku: product.sku || ""
+      sku: product.sku || "",
+      description: product.description || ""
     });
     setActiveTab("add");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -235,7 +237,8 @@ function AdminProductsContent() {
       b2b_commission_percent: "15",
       category: "極萃系列",
       stock_count: "100",
-      sku: ""
+      sku: "",
+      description: ""
     });
   };
 
@@ -416,10 +419,28 @@ function AdminProductsContent() {
                              <p className="text-sm font-bold text-slate-400">點擊上傳商品照片</p>
                           </div>
                         )}
-                      </div>
-                   </div>
+                     </div>
+                  </div>
 
-                   <div className="grid grid-cols-3 gap-8">
+                    <div className="space-y-3">
+                       <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">
+                          <FileText className="w-3.5 h-3.5 text-slate-400" /> 商品描述 / 特色形容
+                       </label>
+                       <textarea 
+                         name="description" 
+                         value={formData.description || ""} 
+                         onChange={handleChange as any} 
+                         placeholder="請輸入此商品的特色形容、風味口感、規格容量或包裝細節等描述說明..." 
+                         rows={4}
+                         maxLength={300}
+                         className="w-full bg-slate-50 border-none p-6 rounded-[2rem] text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner outline-none resize-none leading-relaxed text-slate-800"
+                       />
+                       <div className="flex justify-end pr-2">
+                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{(formData.description || "").length} / 300 字</span>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-8">
                       <div className="space-y-3">
                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">官方定價 (原價)</label>
                          <input type="number" name="original_price" value={formData.original_price} onChange={handleChange} placeholder="例: 1200" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" />
@@ -561,6 +582,11 @@ function AdminProductsContent() {
                                   <span className="text-xl font-black text-indigo-600">${product.price.toLocaleString()}</span>
                                   {product.original_price && <span className="text-sm font-medium text-slate-300 line-through">${product.original_price.toLocaleString()}</span>}
                                </div>
+                               {product.description && (
+                                  <p className="text-xs text-slate-400 font-bold leading-relaxed line-clamp-1 italic bg-white border border-slate-100 rounded-lg px-3 py-1.5 inline-block max-w-fit">
+                                     「{product.description}」
+                                  </p>
+                               )}
                                <div className="flex items-center gap-4">
                                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
                                      {product.category} | 建檔：{product.creator}
