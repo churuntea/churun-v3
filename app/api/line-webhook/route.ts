@@ -55,9 +55,42 @@ export async function POST(req: NextRequest) {
 
     // 遍歷所有 LINE 伺服器傳入的事件
     for (const event of events) {
-      if (event.type === "message" && event.message.type === "text") {
+      if (event.type === "message") {
         const replyToken = event.replyToken;
         const userId = event.source.userId;
+
+        // 非文字訊息（如貼圖、圖片、位置等）優雅容錯與指引
+        if (event.message.type !== "text") {
+          const { data: member } = await supabaseAdmin
+            .from("members")
+            .select("*")
+            .eq("line_id", userId)
+            .maybeSingle();
+
+          if (member) {
+            await sendLineReply(
+              replyToken,
+              `💡 【初潤溫馨提示】
+━━━━━━━━━━━━━━━━━━
+抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
+
+👉 請直接點擊下方精美、方便的「浮動快捷鍵」或輸入數字 1 - 9，即可一秒查詢您的錢包與訂單資產！`,
+              LINKED_QUICK_REPLIES
+            );
+          } else {
+            await sendLineReply(
+              replyToken,
+              `💡 【初潤溫馨提示】
+━━━━━━━━━━━━━━━━━━
+抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
+
+👉 請在對話框直接「回覆您的手機號碼」完成綁定，或點擊下方快捷鍵搶先體驗精品推薦！`,
+              UNLINKED_QUICK_REPLIES
+            );
+          }
+          continue;
+        }
+
         const userText = event.message.text.trim();
         const mappedInput = mapUserTextToCommand(userText);
 
@@ -506,13 +539,27 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
       if (updateErr) {
         await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES);
       } else {
-        const welcomeMsg = `🎉 恭喜您！帳號綁定成功！
+        const welcomeMsg = `🎉 恭喜您！您的 LINE 帳號已安全綁定成功！
 
-🍵 歡迎【${matchedMember.name}】加入初潤製茶所數位會員！
-● 您的職級：${matchedMember.tier} 👑
-● 會員代碼：${matchedMember.member_code || "系統自動建檔"}
+🍵 歡迎【${matchedMember.name}】茶友，登陸「初潤製茶所」會員服務中心！
+● 您的職級：👑 ${matchedMember.tier}
+● 專屬代碼：${matchedMember.member_code || "系統自動建檔"}
+● 身分屬性：${matchedMember.is_b2b ? "👔 創業夥伴 (B2B)" : "🍵 一般茶友 (B2C)"}
 
-現在，您已解鎖完整權限！請直接在對話框中回覆「查詢」或輸入數字 1 - 9，即可即時查詢您的餘額、訂單與分傭狀態囉！`;
+━━━━━━━━━━━━━━━━━━
+請點擊下方「浮動快捷按鈕」或直接回覆數字/口語進行即時查詢：
+
+【1】 👤 會員特權卡 (階級與福利)
+【2】 💰 帳戶資產 (預收款與消費點數)
+【3】 📦 訂單物流軌跡 (出貨進度追蹤)
+【4】 🎟️ 專屬優惠券 (未使用的折價券)
+【5】 👥 團隊合夥組織 (下線成員統計)
+【6】 📋 資產明細賬本 (財務資金變動)
+【7】 🍵 精品好茶推薦 (熱銷口碑茶單)
+【8】 📢 品牌總部快訊 (最新活動與通告)
+【9】 📞 聯絡總部客服 (專線、地址、留言)
+━━━━━━━━━━━━━━━━━━
+💡 提示：任何時候直接在對話框點擊底部的浮動按鈕或輸入口語（如：「查出貨」、「餘額」），即可立刻讀取即時數據！`;
         await sendLineReply(replyToken, welcomeMsg, LINKED_QUICK_REPLIES);
       }
     } else {
