@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
+import { dbCache, fetchWithSWR } from "@/utils/dbCache";
 
 const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
 
@@ -118,33 +119,90 @@ function DashboardContent() {
     const fetchData = async () => {
       if (!currentUserId) return;
       setIsLoading(true);
-      const { data: mData } = await supabase.from("members").select("*").eq("id", currentUserId).single();
-      setMemberInfo(mData);
-      if (mData?.avatar_url) {
-        if (mData.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png") {
-          setMemberAvatar(mData.avatar_url);
+
+      try {
+        // 1. 智慧會員個人資料快取 (SWR 緩存 30 秒，本地持久化)
+        const memberKey = `churun_cache:member:${currentUserId}`;
+        const mData = await fetchWithSWR(memberKey, async () => {
+          const { data, error } = await supabase.from("members").select("*").eq("id", currentUserId).single();
+          if (error) throw error;
+          return data;
+        }, { 
+          ttl: 30000, 
+          useLocal: true, 
+          onBackgroundUpdate: (fresh) => {
+            setMemberInfo(fresh);
+            if (fresh?.avatar_url) {
+              setMemberAvatar(fresh.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png" ? fresh.avatar_url : `${fresh.avatar_url}?t=${Date.now()}`);
+            }
+            if (fresh?.avatar_settings) {
+              setAvatarZoom(fresh.avatar_settings.zoom || 1);
+              setAvatarOffset(fresh.avatar_settings.offset || 0);
+            }
+            setMemberMotto(fresh?.motto || "以初心、致潤澤");
+          }
+        });
+
+        setMemberInfo(mData);
+        if (mData?.avatar_url) {
+          if (mData.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png") {
+            setMemberAvatar(mData.avatar_url);
+          } else {
+            setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
+          }
         } else {
-          setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
+          setMemberAvatar("https://i.ibb.co/6R2M5X1/churun-baby.png");
         }
-      } else {
-        setMemberAvatar("https://i.ibb.co/6R2M5X1/churun-baby.png");
+        if (mData?.avatar_settings) {
+          setAvatarZoom(mData.avatar_settings.zoom || 1);
+          setAvatarOffset(mData.avatar_settings.offset || 0);
+        }
+        setMemberMotto(mData?.motto || "以初心、致潤澤");
+
+        // 2. 智慧直推夥伴快取 (SWR 緩存 60 秒，本地持久化)
+        const downlinesKey = `churun_cache:downlines:${currentUserId}`;
+        const dData = await fetchWithSWR(downlinesKey, async () => {
+          const { data, error } = await supabase.from("members").select("id").eq("upline_id", currentUserId);
+          if (error) throw error;
+          return data || [];
+        }, { 
+          ttl: 60000, 
+          useLocal: true, 
+          onBackgroundUpdate: (fresh) => setDownlines(fresh) 
+        });
+        setDownlines(dData || []);
+
+        // 3. 系統快訊公告快取 (SWR 緩存 5 分鐘，本地持久化，減少全域不變數據重複查詢)
+        const announcementsKey = "churun_cache:announcements_latest";
+        const aData = await fetchWithSWR(announcementsKey, async () => {
+          const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5);
+          if (error) throw error;
+          return data || [];
+        }, { 
+          ttl: 300000, 
+          useLocal: true, 
+          onBackgroundUpdate: (fresh) => setAnnouncements(fresh) 
+        });
+        setAnnouncements(aData || []);
+
+        // 4. 精美海報排版素材快取 (SWR 緩存 10 分鐘，本地持久化)
+        const postersKey = "churun_cache:posters_active";
+        const pData = await fetchWithSWR(postersKey, async () => {
+          const { data, error } = await supabase.from("poster_templates").select("*").eq("is_active", true).order("created_at", { ascending: false });
+          if (error) throw error;
+          return data || [];
+        }, { 
+          ttl: 600000, 
+          useLocal: true, 
+          onBackgroundUpdate: (fresh) => setPosterTemplates(fresh) 
+        });
+        setPosterTemplates(pData || []);
+
+      } catch (err) {
+        console.error("[SWR Home Data Sync Error]:", err);
+      } finally {
+        setIsLoading(false);
       }
-      if (mData?.avatar_settings) {
-        setAvatarZoom(mData.avatar_settings.zoom || 1);
-        setAvatarOffset(mData.avatar_settings.offset || 0);
-      }
-      setMemberMotto(mData?.motto || "以初心、致潤澤");
-
-      const { data: dData } = await supabase.from("members").select("id").eq("upline_id", currentUserId);
-      setDownlines(dData || []);
-
-      const { data: aData } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(5);
-      setAnnouncements(aData || []);
-
-      const { data: pData } = await supabase.from("poster_templates").select("*").eq("is_active", true).order("created_at", { ascending: false });
-      setPosterTemplates(pData || []);
-
-      setIsLoading(false);
     };
     fetchData();
   }, [currentUserId]);

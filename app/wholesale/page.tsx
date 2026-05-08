@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase";
+import { dbCache, fetchWithSWR } from "@/utils/dbCache";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ShoppingBag, 
@@ -94,7 +95,17 @@ function WholesaleContent() {
       }));
     }
 
-    const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
+    // 智慧商品列表快取 (SWR 緩存 3 分鐘，本地持久化)
+    const productsKey = "churun_cache:products_active";
+    const pData = await fetchWithSWR(productsKey, async () => {
+      const { data, error } = await supabase.from("products").select("*").eq("status", "active");
+      if (error) throw error;
+      return data || [];
+    }, {
+      ttl: 180000, // 3 分鐘快取
+      useLocal: true,
+      onBackgroundUpdate: (fresh) => setProducts(fresh)
+    });
     setProducts(pData || []);
 
     // 載入該會員在庫存中擁有的、未使用的優惠券

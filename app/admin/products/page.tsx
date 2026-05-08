@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../supabase";
+import { dbCache, fetchWithSWR } from "@/utils/dbCache";
 import { 
   ChevronLeft, 
   PackagePlus, 
@@ -67,36 +68,57 @@ function AdminProductsContent() {
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from("announcements")
-        .select("*")
-        .eq("title", "[SYSTEM_CATEGORIES]")
-        .maybeSingle();
-      
-      if (data && data.content) {
-        const parsed = JSON.parse(data.content);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCategories(parsed);
-          // 如果當前表單內的預設分類不在列表中，將其設為第一個可用分類
+      const categoriesKey = "churun_cache:categories";
+      const cachedList = await fetchWithSWR(categoriesKey, async () => {
+        const { data, error } = await supabase
+          .from("announcements")
+          .select("*")
+          .eq("title", "[SYSTEM_CATEGORIES]")
+          .maybeSingle();
+        
+        if (error) throw error;
+        
+        if (data && data.content) {
+          const parsed = JSON.parse(data.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } else if (!data) {
+          // 資料庫查無紀錄則進行初始建檔
+          const defaultCats = ["極萃系列", "精品茶具", "典藏禮盒"];
+          await supabase
+            .from("announcements")
+            .insert({
+              title: "[SYSTEM_CATEGORIES]",
+              tag: "SYSTEM",
+              content: JSON.stringify(defaultCats),
+              color: "bg-indigo-900"
+            });
+          return defaultCats;
+        }
+        return ["極萃系列", "精品茶具", "典藏禮盒"];
+      }, {
+        ttl: 600000, // 10 分鐘快取
+        useLocal: true,
+        onBackgroundUpdate: (fresh) => {
+          setCategories(fresh);
           setFormData(prev => {
-            if (!parsed.includes(prev.category)) {
-              return { ...prev, category: parsed[0] };
+            if (!fresh.includes(prev.category)) {
+              return { ...prev, category: fresh[0] };
             }
             return prev;
           });
         }
-      } else if (!data) {
-        // 資料庫查無紀錄則進行初始建檔
-        const defaultCats = ["極萃系列", "精品茶具", "典藏禮盒"];
-        await supabase
-          .from("announcements")
-          .insert({
-            title: "[SYSTEM_CATEGORIES]",
-            tag: "SYSTEM",
-            content: JSON.stringify(defaultCats),
-            color: "bg-indigo-900"
-          });
-        setCategories(defaultCats);
+      });
+
+      if (cachedList && cachedList.length > 0) {
+        setCategories(cachedList);
+        setFormData(prev => {
+          if (!cachedList.includes(prev.category)) {
+            return { ...prev, category: cachedList[0] };
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.error("載入分類大項錯誤:", err);
@@ -119,6 +141,7 @@ function AdminProductsContent() {
       
       if (error) throw error;
       
+      dbCache.invalidate("churun_cache:categories");
       setCategories(updated);
       setNewCategoryName("");
       alert("🎉 新增分類大項成功！");
@@ -145,6 +168,7 @@ function AdminProductsContent() {
       
       if (error) throw error;
       
+      dbCache.invalidate("churun_cache:categories");
       setCategories(updated);
       setFormData(prev => {
         if (prev.category === catToDelete) {
@@ -160,19 +184,31 @@ function AdminProductsContent() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (forceRefresh = false) => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      if (data.success) {
-        const processed = (data.products || []).map((p: any) => ({
-          ...p,
-          category: p.category || "極萃系列"
-        }));
-        setProducts(processed);
+      const productsKey = "churun_cache:products_admin";
+      if (forceRefresh) {
+        dbCache.invalidate(productsKey);
       }
-    } catch (err) { console.error(err); }
+      const cachedProducts = await fetchWithSWR(productsKey, async () => {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        if (data.success) {
+          return (data.products || []).map((p: any) => ({
+            ...p,
+            category: p.category || "極萃系列"
+          }));
+        }
+        throw new Error(data.error || "取得商品列表失敗");
+      }, {
+        ttl: 120000, // 2 分鐘快取，前台秒開
+        useLocal: true,
+        onBackgroundUpdate: (fresh) => setProducts(fresh)
+      });
+
+      setProducts(cachedProducts);
+    } catch (err) { console.error("獲取商品列表出錯:", err); }
     setIsLoading(false);
   };
 
@@ -262,9 +298,11 @@ function AdminProductsContent() {
       });
       const data = await res.json();
       if (data.success) {
+        // 主動使商品與分類列表快取失效，確保管理員送出即看見最新資料
+        dbCache.invalidate("churun_cache:products_admin");
         alert(editingId ? "🎉 更新成功！" : "🎉 新增成功！");
         handleCancelEdit();
-        fetchProducts();
+        fetchProducts(true); // 強制重整抓取最新
         setActiveTab("list");
       } else { alert("操作失敗: " + data.error); }
     } catch (err: any) { alert("系統錯誤: " + err.message); }
@@ -280,7 +318,11 @@ function AdminProductsContent() {
         body: JSON.stringify({ id })
       });
       const data = await res.json();
-      if (data.success) fetchProducts();
+      if (data.success) {
+        // 刪除時廢除快取
+        dbCache.invalidate("churun_cache:products_admin");
+        fetchProducts(true);
+      }
       else alert("刪除失敗: " + data.error);
     } catch (err: any) { alert("系統錯誤: " + err.message); }
   };

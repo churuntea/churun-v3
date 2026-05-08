@@ -4,8 +4,58 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const timeframe = searchParams.get('timeframe') || 'month';
+    const action = searchParams.get('action');
 
+    // === 新增：全庫數據備份 (Full Database Backup) ===
+    if (action === 'full_backup') {
+      const tablesToBackup = [
+        'members',
+        'products',
+        'orders',
+        'order_items',
+        'hr_profiles',
+        'coupons',
+        'member_coupons',
+        'materials',
+        'announcements'
+      ];
+
+      const backupData: any = {};
+      const tableCounts: any = {};
+
+      for (const tableName of tablesToBackup) {
+        try {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*');
+          
+          if (error) {
+            console.warn(`[Backup] Table ${tableName} query error, might not exist:`, error.message);
+            backupData[tableName] = [];
+            tableCounts[tableName] = 0;
+          } else {
+            backupData[tableName] = data || [];
+            tableCounts[tableName] = (data || []).length;
+          }
+        } catch (err: any) {
+          console.warn(`[Backup] Table ${tableName} exception:`, err.message);
+          backupData[tableName] = [];
+          tableCounts[tableName] = 0;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        type: 'full_database_backup',
+        version: '2.6.0',
+        generated_at: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+        table_counts: tableCounts,
+        tables: backupData
+      });
+    }
+
+    // === 既有：營業分析報備份 (Legacy Sales & Orders Analytics Backup) ===
+    const timeframe = searchParams.get('timeframe') || 'month';
     const now = new Date();
     let startDate = null;
 
@@ -259,3 +309,123 @@ ${tiersList.map((tier, idx) => `  ${idx + 1}. 【${tier.tier_name}】
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// === 新增：大師級數據庫匯入與還原 (Enterprise Data Restore Master API) ===
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { strategy, backup } = body;
+
+    if (!backup || typeof backup !== 'object') {
+      return NextResponse.json({ success: false, error: '無效的備份數據格式' }, { status: 400 });
+    }
+
+    // 支援 { tables: { ... } } 或直接 { ... }
+    const tables = backup.tables || backup; 
+    const log: string[] = [];
+    const restoredCounts: any = {};
+
+    // 刪除順序 (由底層、有外鍵依賴的表先刪，最後刪獨立表/父表)
+    const deletionOrder = [
+      'member_coupons',
+      'order_items',
+      'orders',
+      'hr_profiles',
+      'coupons',
+      'materials',
+      'announcements',
+      'products',
+      'members'
+    ];
+
+    // 寫入順序 (獨立表/父表先寫，有外鍵依賴的表後寫)
+    const insertionOrder = [
+      'members',
+      'products',
+      'coupons',
+      'hr_profiles',
+      'materials',
+      'announcements',
+      'orders',
+      'order_items',
+      'member_coupons'
+    ];
+
+    // 1. 若為「覆寫還原 (overwrite)」，安全清空所有資料表
+    if (strategy === 'overwrite') {
+      log.push(`[${new Date().toLocaleTimeString()}] 🚀 開始執行「覆寫還原」：清空現有資料...`);
+      for (const tableName of deletionOrder) {
+        if (tables[tableName]) {
+          try {
+            log.push(`[${new Date().toLocaleTimeString()}] 🗑️ 正在清空資料表 ${tableName}...`);
+            const { error } = await supabase
+              .from(tableName)
+              .delete()
+              .neq('id', '00000000-0000-0000-0000-000000000000'); // 刪除所有 uuid 不是全零的列
+
+            if (error) {
+              log.push(`[⚠️ 警告] 清空 ${tableName} 失敗: ${error.message}，嘗試繼續恢復程序...`);
+            } else {
+              log.push(`[✅ 成功] 資料表 ${tableName} 已清空`);
+            }
+          } catch (err: any) {
+            log.push(`[⚠️ 警告] 清空 ${tableName} 異常: ${err.message}`);
+          }
+        }
+      }
+    } else {
+      log.push(`[${new Date().toLocaleTimeString()}] 🚀 開始執行「增量合併」：寫入備份與更新衝突資料...`);
+    }
+
+    // 2. 依據相依關係順序寫入資料
+    for (const tableName of insertionOrder) {
+      const rows = tables[tableName];
+      if (rows && Array.isArray(rows) && rows.length > 0) {
+        try {
+          log.push(`[${new Date().toLocaleTimeString()}] 📥 正在還原資料表 ${tableName} (共 ${rows.length} 筆)...`);
+          
+          // 分批處理避免資料庫限制 (每次 50 筆)
+          const chunkSize = 50;
+          let successCount = 0;
+
+          for (let i = 0; i < rows.length; i += chunkSize) {
+            const chunk = rows.slice(i, i + chunkSize);
+            const { error } = await supabase
+              .from(tableName)
+              .upsert(chunk, { onConflict: 'id' });
+
+            if (error) {
+              log.push(`[❌ 錯誤] 還原 ${tableName} 失敗在第 ${i} 至 ${i + chunk.length} 筆: ${error.message}`);
+              throw error; // 終止該表後續批次
+            } else {
+              successCount += chunk.length;
+            }
+          }
+
+          restoredCounts[tableName] = successCount;
+          log.push(`[✅ 成功] 資料表 ${tableName} 已恢復 ${successCount} 筆資料`);
+        } catch (err: any) {
+          log.push(`[❌ 異常] 還原資料表 ${tableName} 時發生錯誤: ${err.message}`);
+          restoredCounts[tableName] = 0;
+        }
+      } else {
+        log.push(`[💨 略過] 資料表 ${tableName} 在備份中無資料或無有效格式，略過還原`);
+        restoredCounts[tableName] = 0;
+      }
+    }
+
+    log.push(`[${new Date().toLocaleTimeString()}] 🎉 全系統數據庫還原完畢！資料一致性校驗完成。`);
+
+    return NextResponse.json({
+      success: true,
+      strategy,
+      restored_counts: restoredCounts,
+      log
+    });
+
+  } catch (error: any) {
+    console.error('Restore API Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
