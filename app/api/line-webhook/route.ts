@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
         const replyToken = event.replyToken;
         const userId = event.source.userId;
         const userText = event.message.text.trim();
+        const mappedInput = mapUserTextToCommand(userText);
 
-        console.log(`[LINE Bot] 收到來自使用者 [${userId}] 的訊息: "${userText}"`);
+        console.log(`[LINE Bot] 收到來自使用者 [${userId}] 的訊息: "${userText}" (已映射至: "${mappedInput}")`);
 
         // 2. 查詢 Supabase 判定使用者是否已綁定此 LINE 帳號
         const { data: member, error } = await supabaseAdmin
@@ -73,12 +74,12 @@ export async function POST(req: NextRequest) {
           // ==========================================
           // A. 方案：已綁定會員的交談邏輯 (1-9 選單回覆)
           // ==========================================
-          await handleLinkedUserFlow(replyToken, userId, member, userText);
+          await handleLinkedUserFlow(replyToken, userId, member, mappedInput);
         } else {
           // ==========================================
           // B. 方案：未綁定會員的交談邏輯 (引導綁定流程)
           // ==========================================
-          await handleUnlinkedUserFlow(replyToken, userId, userText);
+          await handleUnlinkedUserFlow(replyToken, userId, mappedInput);
         }
       }
     }
@@ -88,6 +89,68 @@ export async function POST(req: NextRequest) {
     console.error("[LINE Webhook] 執行中出錯:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+/**
+ * 將使用者輸入的口語、同義字映射為系統編號指令 (1-9) 或是 "查詢"
+ */
+function mapUserTextToCommand(text: string): string {
+  const norm = text.trim().toLowerCase();
+
+  // 1-9 指令或查詢指令
+  if (/^[1-9]$/.test(norm) || norm === "查詢" || norm === "menu" || norm === "help" || norm === "選單" || norm === "主選單" || norm === "回選單" || norm === "回主選單" || norm === "開始") {
+    if (norm === "menu" || norm === "help" || norm === "選單" || norm === "主選單" || norm === "回選單" || norm === "回主選單" || norm === "開始") {
+      return "查詢";
+    }
+    return norm;
+  }
+
+  // Case "1": 我的會員帳號資訊
+  if (["帳號", "帳號資訊", "我的資料", "個人資料", "會員卡", "基本資料", "姓名", "階級", "職級", "等級"].some(kw => norm.includes(kw))) {
+    return "1";
+  }
+
+  // Case "2": 預收款與點數餘額
+  if (["餘額", "預收款", "點數", "點數餘額", "儲值", "資產", "錢包", "可用餘額", "點數查詢", "扣款", "儲值金額"].some(kw => norm.includes(kw))) {
+    return "2";
+  }
+
+  // Case "3": 最新採購訂單狀態
+  if (["訂單", "出貨", "出貨進度", "出貨狀態", "配送", "包裹", "物流", "查訂單", "採購訂單", "進度", "買茶進度"].some(kw => norm.includes(kw))) {
+    return "3";
+  }
+
+  // Case "4": 我的未折抵優惠券
+  if (["優惠券", "折價券", "折扣碼", "未折抵", "券夾", "券", "折抵券", "coupon"].some(kw => norm.includes(kw))) {
+    return "4";
+  }
+
+  // Case "5": 組織夥伴統計
+  if (["團隊", "夥伴", "夥伴統計", "下線", "推廣", "組織", "直推", "合夥人"].some(kw => norm.includes(kw))) {
+    return "5";
+  }
+
+  // Case "6": 帳本最新明細
+  if (["帳本", "明細", "交易記錄", "交易明細", "提領紀錄", "分紅", "退傭", "錢包明細", "流動明細"].some(kw => norm.includes(kw))) {
+    return "6";
+  }
+
+  // Case "7": 熱銷茶葉精品推薦
+  if (["推薦", "精品", "茶葉", "茶單", "金萱", "雪片", "熱銷", "推薦茶葉", "買茶"].some(kw => norm.includes(kw))) {
+    return "7";
+  }
+
+  // Case "8": 總部品牌公告
+  if (["公告", "最新消息", "消息", "公告欄", "news", "活動"].some(kw => norm.includes(kw))) {
+    return "8";
+  }
+
+  // Case "9": 聯絡總部與客服
+  if (["客服", "聯絡", "電話", "專線", "地址", "總部", "營業時間", "上班時間", "聯絡總部", "詢問"].some(kw => norm.includes(kw))) {
+    return "9";
+  }
+
+  return text; // 否則保留原樣
 }
 
 /**
@@ -139,43 +202,47 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
     }
 
     case "3": {
-      // 最新採購訂單狀態
-      const { data: order } = await supabaseAdmin
+      // 獲取最近 3 筆採購訂單狀態
+      const { data: orders } = await supabaseAdmin
         .from("orders")
         .select("*")
         .eq("member_id", member.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(3);
 
-      if (order) {
-        const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-        const statusMap: { [key: string]: string } = {
-          pending: "⏳ 處理中 (待核對)",
-          paid: "💳 已付款 (備貨中)",
-          shipping: "🚚 已出貨 (配送中)",
-          completed: "✅ 已完成 (已交付)",
-          cancelled: "✕ 已取消",
-        };
-        const orderStatus = statusMap[order.status] || order.status;
+      if (orders && orders.length > 0) {
+        let listStr = "";
+        orders.forEach((order: any, index: number) => {
+          const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+          const statusMap: { [key: string]: string } = {
+            pending: "⏳ 處理中 (待核對)",
+            paid: "💳 已付款 (備貨中)",
+            shipping: "🚚 已出貨 (配送中)",
+            completed: "✅ 已完成 (已交付)",
+            cancelled: "✕ 已取消",
+          };
+          const orderStatus = statusMap[order.status] || order.status;
+          
+          let trackBar = "";
+          if (order.status === "pending") trackBar = "\n  └ 進度：[ ⏳ 處理中 ] ➔ [ 備貨中 ] ➔ [ 出貨 ]";
+          else if (order.status === "paid") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 💳 備貨中 ] ➔ [ 出貨 ]";
+          else if (order.status === "shipping") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 已備貨 ] ➔ [ 🚚 配送中 ]";
+          else if (order.status === "completed") trackBar = "\n  └ 進度：[ 已交付 ] ➔ 感謝支持茶葉精品！ 🎉";
 
-        replyMsg = `📦 【訂單物流軌跡 · LOGISTICS】
-━━━━━━━━━━━━━━━━━━
-● 訂單編號：#${order.id.slice(0, 8)}
-● 採購實付金額：$${Number(order.total_amount).toLocaleString()} 元
+          listStr += `📦 [訂單 ${index + 1}] #${order.id.slice(0, 8)}
+● 實付金額：$${Number(order.total_amount).toLocaleString()} 元
 ● 當前狀態：${orderStatus}
-● 下單時間：${orderDate}
-● 物流單號：${order.custom_logo_url?.startsWith("FALLBACK_JSON") ? "預收款折抵" : "待發送"}
-━━━━━━━━━━━━━━━━━━
-🚚 配送進度條：
-${order.status === "pending" ? "[ ⏳ 處理中 ] ➔ [ 💳 備貨中 ] ➔ [ 🚚 已出貨 ]" : ""}
-${order.status === "paid" ? "[ ✓ 已確認 ] ➔ [ 💳 備貨中 ] ➔ [ 🚚 已出貨 ]" : ""}
-${order.status === "shipping" ? "[ ✓ 已確認 ] ➔ [ ✓ 已備貨 ] ➔ [ 🚚 配送中 ]" : ""}
-${order.status === "completed" ? "[ ✓ 已交付 ] ➔ 感謝您對初潤的支持！" : ""}
+● 下單時間：${orderDate}${trackBar}\n\n`;
+        });
 
+        replyMsg = `📦 【採購訂單記錄 · ORDERS】
+━━━━━━━━━━━━━━━━━━
+您最近 ${orders.length} 筆精品採購訂單明細：
+
+${listStr}━━━━━━━━━━━━━━━━━━
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       } else {
-        replyMsg = `📦 【訂單物流軌跡 · LOGISTICS】
+        replyMsg = `📦 【採購訂單記錄 · ORDERS】
 ━━━━━━━━━━━━━━━━━━
 您目前在「初潤」尚無任何採購訂單紀錄。
 歡迎您至精品商城挑選喜愛的精品好茶！
@@ -251,32 +318,38 @@ ${listStr}━━━━━━━━━━━━━━━━━━
     }
 
     case "6": {
-      // 帳本最新明細
-      const { data: tx } = await supabaseAdmin
+      // 獲取最近 3 筆帳本交易明細
+      const { data: txs } = await supabaseAdmin
         .from("wallet_transactions")
         .select("*")
         .eq("member_id", member.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(3);
 
-      if (tx) {
-        const txDate = new Date(tx.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-        const typeMap: { [key: string]: string } = {
-          deposit: "帳戶儲值 📥",
-          order_deduction: "採購折抵扣款 📤",
-          commission_refund: "直推退傭/夥伴分紅 💰",
-          withdrawal: "預收款提領 💸",
-        };
-        const txType = typeMap[tx.transaction_type] || tx.transaction_type;
+      if (txs && txs.length > 0) {
+        let listStr = "";
+        txs.forEach((tx: any, index: number) => {
+          const txDate = new Date(tx.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+          const typeMap: { [key: string]: string } = {
+            deposit: "📥 帳戶儲值",
+            order_deduction: "📤 採購折抵",
+            commission_refund: "💰 夥伴分紅",
+            withdrawal: "💸 預收提領",
+          };
+          const txType = typeMap[tx.transaction_type] || tx.transaction_type;
+          const sign = tx.amount >= 0 ? "+" : "";
+          const statusStr = tx.status === "completed" ? "已完成 ✅" : "審核中 ⏳";
+          
+          listStr += `📋 [明細 ${index + 1}] ${txType}
+● 異動金額：${sign}$${Number(tx.amount).toLocaleString()} 元 (${statusStr})
+● 明細時間：${txDate}\n\n`;
+        });
 
         replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
-● 交易類型：${txType}
-● 異動金額：${tx.amount >= 0 ? "+" : ""}$${Number(tx.amount).toLocaleString()} 元
-● 當前狀態：${tx.status === "completed" ? "已入帳完成 ✅" : "審核中 ⏳"}
-● 記錄時間：${txDate}
-━━━━━━━━━━━━━━━━━━
+您最近 ${txs.length} 筆虛擬錢包 / 退傭分紅流動明細：
+
+${listStr}━━━━━━━━━━━━━━━━━━
 💡 溫馨提醒：
 所有退傭、儲值、提領記錄均通過系統高安全加密審核，如有資產疑問請聯絡財務總部。
 
