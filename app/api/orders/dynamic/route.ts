@@ -1,6 +1,38 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "GCb9cTmbIB3N+ZxXPZCNCZSFxOfDT1L7151VIH0+FHAtHkgH00bds9IBGjwsxBF1kHFNg+o4p4r6I4EMAk29GaecSbE3MbdV55CB9VeWaQSapfCG8P9an2pSYgKwGrBJdEPsGTsrGvNRwQXagSmEuQdB04t89/1O/w1cDnyilFU=";
+
+async function sendLinePushNotification(toUserId: string, text: string) {
+  if (!toUserId || LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") return;
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/message/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: toUserId,
+        messages: [
+          {
+            type: "text",
+            text: text,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[LINE Push Error] details:", errText);
+    } else {
+      console.log(`[LINE Push Success] Pushed to User ${toUserId}`);
+    }
+  } catch (err) {
+    console.error("[LINE Push Network Error] failed to push message:", err);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { buyer_id, memberId, items, discountAmount = 0, shippingInfo } = await request.json();
@@ -191,6 +223,33 @@ export async function POST(request: Request) {
       content: `您的訂單 $${finalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
       type: 'order'
     });
+
+    // ⚡ 發送 LINE 推播通知給買家 (若買家已綁定 LINE)
+    if (buyer.line_id) {
+      let itemsList = "";
+      items.forEach((item, idx) => {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          itemsList += `• ${product.name} x ${item.quantity} ($${(product.price * item.quantity).toLocaleString()} 元)\n`;
+        }
+      });
+
+      const pushText = `📦 【初潤製茶所】下單成功通知 📦
+━━━━━━━━━━━━━━━━━━
+親愛的茶友 ${buyer.name} 您好：
+
+您的特選精品採購訂單已成功建立！
+● 訂單編號：${order.id.slice(0, 8)}...
+● 採購總額：$${finalAmount.toLocaleString()} 元
+● 物流方式：${shippingInfo?.method || '宅配到府'}
+● 配送收件人：${shippingInfo?.name || buyer.name}
+━━━━━━━━━━━━━━━━━━
+🍵 採購商品明細：
+${itemsList}━━━━━━━━━━━━━━━━━━
+💡 提示：總部客服將在 1-2 個工作天內確認您的預收款並安排出貨。您可隨時在 LINE 輸入數字 「3」 來查詢最新訂單狀態喔！`;
+
+      await sendLinePushNotification(buyer.line_id, pushText);
+    }
 
     return NextResponse.json({ success: true, message, orderId: order.id });
 
