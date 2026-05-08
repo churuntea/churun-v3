@@ -6,6 +6,25 @@ import * as crypto from "crypto";
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "GCb9cTmbIB3N+ZxXPZCNCZSFxOfDT1L7151VIH0+FHAtHkgH00bds9IBGjwsxBF1kHFNg+o4p4r6I4EMAk29GaecSbE3MbdV55CB9VeWaQSapfCG8P9an2pSYgKwGrBJdEPsGTsrGvNRwQXagSmEuQdB04t89/1O/w1cDnyilFU=";
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "3fc8a4b8b0d5d87e512e2fe6fa90dc8f";
 
+const LINKED_QUICK_REPLIES = [
+  { type: "action", action: { type: "message", label: "👤 帳號資訊", text: "1" } },
+  { type: "action", action: { type: "message", label: "💰 錢包與點數", text: "2" } },
+  { type: "action", action: { type: "message", label: "📦 最新訂單", text: "3" } },
+  { type: "action", action: { type: "message", label: "🎟️ 優惠券夾", text: "4" } },
+  { type: "action", action: { type: "message", label: "👥 夥伴統計", text: "5" } },
+  { type: "action", action: { type: "message", label: "📋 錢包明細", text: "6" } },
+  { type: "action", action: { type: "message", label: "🍵 精品推薦", text: "7" } },
+  { type: "action", action: { type: "message", label: "📢 品牌公告", text: "8" } },
+  { type: "action", action: { type: "message", label: "📞 聯絡客服", text: "9" } },
+];
+
+const UNLINKED_QUICK_REPLIES = [
+  { type: "action", action: { type: "message", label: "🍵 精品推薦", text: "7" } },
+  { type: "action", action: { type: "message", label: "📢 品牌公告", text: "8" } },
+  { type: "action", action: { type: "message", label: "📞 聯絡客服", text: "9" } },
+  { type: "action", action: { type: "message", label: "🔄 重新查詢", text: "查詢" } },
+];
+
 /**
  * LINE Webhook 進入點
  */
@@ -342,7 +361,7 @@ ${prodStr}
     }
   }
 
-  await sendLineReply(replyToken, replyMsg);
+  await sendLineReply(replyToken, replyMsg, LINKED_QUICK_REPLIES);
 }
 
 /**
@@ -368,7 +387,8 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         const maskedLine = matchedMember.line_id.slice(0, 5) + "..." + matchedMember.line_id.slice(-4);
         await sendLineReply(
           replyToken,
-          `⚠️ 綁定失敗：此帳號已綁定過其他 LINE 帳號 (${maskedLine})。如有疑問，請聯繫總部客服解除綁定。`
+          `⚠️ 綁定失敗：此帳號已綁定過其他 LINE 帳號 (${maskedLine})。如有疑問，請聯繫總部客服解除綁定。`,
+          UNLINKED_QUICK_REPLIES
         );
         return;
       }
@@ -380,7 +400,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         .eq("id", matchedMember.id);
 
       if (updateErr) {
-        await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`);
+        await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES);
       } else {
         const welcomeMsg = `🎉 恭喜您！帳號綁定成功！
 
@@ -389,14 +409,15 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
 ● 會員代碼：${matchedMember.member_code || "系統自動建檔"}
 
 現在，您已解鎖完整權限！請直接在對話框中回覆「查詢」或輸入數字 1 - 9，即可即時查詢您的餘額、訂單與分傭狀態囉！`;
-        await sendLineReply(replyToken, welcomeMsg);
+        await sendLineReply(replyToken, welcomeMsg, LINKED_QUICK_REPLIES);
       }
     } else {
       await sendLineReply(
         replyToken,
         `❌ 找不到符合此資訊的會員帳號。
         
-請確認您輸入的手機號碼 (例如 0912345678) 或會員代碼 (例如 CR26M040001) 是否正確，或先前往初潤官方網站註冊後再進行綁定！`
+請確認您輸入的手機號碼 (例如 0912345678) 或會員代碼 (例如 CR26M040001) 是否正確，或先前往初潤官方網站註冊後再進行綁定！`,
+        UNLINKED_QUICK_REPLIES
       );
     }
     return;
@@ -427,7 +448,8 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
 ${prodStr}
 🔗 點擊立刻線上註冊與採購：https://churun-tea.vercel.app/
 ━━━━━━━━━━━━━━━━━━
-💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`
+💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
+      UNLINKED_QUICK_REPLIES
     );
     return;
   }
@@ -453,7 +475,8 @@ ${prodStr}
 ● 分類：${tag}
 ● 摘要：${content}
 ━━━━━━━━━━━━━━━━━━
-💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`
+💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
+      UNLINKED_QUICK_REPLIES
     );
     return;
   }
@@ -470,7 +493,8 @@ ${prodStr}
 
 💡 任何時候您可以直接在此對話框與我們對話留言，小幫手看見後將有專人盡快為您解答！
 ━━━━━━━━━━━━━━━━━━
-💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`
+💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
+      UNLINKED_QUICK_REPLIES
     );
     return;
   }
@@ -494,16 +518,27 @@ ${prodStr}
 【8】 📢 總部品牌公告
 【9】 📞 聯絡總部與客服`;
 
-  await sendLineReply(replyToken, welcomeStr);
+  await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES);
 }
 
 /**
  * 呼叫 LINE Reply API 回覆訊息
  */
-async function sendLineReply(replyToken: string, text: string) {
+async function sendLineReply(replyToken: string, text: string, quickReplies?: any[]) {
   if (LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") {
     console.log(`[LINE Webhook Mock Reply] replyToken: ${replyToken}, Message:\n${text}`);
     return;
+  }
+
+  const messageObj: any = {
+    type: "text",
+    text: text,
+  };
+
+  if (quickReplies && quickReplies.length > 0) {
+    messageObj.quickReply = {
+      items: quickReplies
+    };
   }
 
   try {
@@ -515,12 +550,7 @@ async function sendLineReply(replyToken: string, text: string) {
       },
       body: JSON.stringify({
         replyToken: replyToken,
-        messages: [
-          {
-            type: "text",
-            text: text,
-          },
-        ],
+        messages: [messageObj],
       }),
     });
 
