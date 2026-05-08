@@ -247,6 +247,7 @@ function AdminDashboardContent() {
                    { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
                    { label: "商品管理", icon: Settings, action: "/admin/products" },
+                   { label: "人事與權限管理", icon: ShieldCheck, action: "/admin/hr" },
                    { label: "數據庫備份", icon: Database, action: "#" }
                  ].map((act, i) => (
                    <button 

@@ -1,0 +1,702 @@
+"use client";
+
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ChevronLeft, 
+  Plus, 
+  Trash2, 
+  Loader2, 
+  Shield, 
+  ShieldCheck, 
+  Users, 
+  Lock, 
+  Check, 
+  X, 
+  Settings, 
+  Ticket, 
+  Image as ImageIcon, 
+  Package, 
+  LayoutDashboard, 
+  Wallet, 
+  Database,
+  Building,
+  UserCheck,
+  Calendar,
+  Phone,
+  Hash,
+  AlertTriangle,
+  BadgeAlert
+} from "lucide-react";
+
+// 權限模組對應清單，提供圖示與說明
+const PERMISSION_MODULES = [
+  { key: "coupons", label: "優惠券與派發管理", icon: Ticket, desc: "管理優惠券建立、編輯與批次發放" },
+  { key: "posters", label: "公版行銷海報管理", icon: ImageIcon, desc: "新增、刪除海報 DM 樣板及分享素材" },
+  { key: "members", label: "會員總覽與資料匯出", icon: Users, desc: "檢視 B2C/B2B 會員樹狀組織、匯出報表" },
+  { key: "evaluation", label: "全體階級考核", icon: LayoutDashboard, desc: "執行季考核升降階、變更特定會員等級" },
+  { key: "orders", label: "訂單與出貨管理", icon: Package, desc: "審核會員自取或宅配訂單，執行出貨操作" },
+  { key: "settlement", label: "獎金發放結算", icon: Wallet, desc: "執行分潤結算、Cron 獎金試算作業" },
+  { key: "products", label: "商品管理", icon: Settings, desc: "新增/修改商城商品、參數與庫存數量" },
+  { key: "backup", label: "數據庫備份", icon: Database, desc: "下載整站資料庫備份 SQL 封包檔案" },
+  { key: "withdrawals", label: "提領審核與發放", icon: ShieldCheck, desc: "審核 B2B 創業夥伴的佣金提領申請與匯款" }
+];
+
+function AdminHRContent() {
+  const router = useRouter();
+  const [staff, setStaff] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<"list" | "form">("list");
+  
+  // 搜尋與篩選狀態
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDept, setSelectedDept] = useState("全部");
+  const [selectedStatus, setSelectedStatus] = useState("全部");
+
+  // 表單資料
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    staff_id: "",
+    name: "",
+    phone: "",
+    department: "營運部",
+    title: "專員",
+    status: "active",
+    hire_date: "",
+    permissions: {
+      coupons: false,
+      posters: false,
+      members: false,
+      evaluation: false,
+      orders: false,
+      settlement: false,
+      products: false,
+      backup: false,
+      withdrawals: false
+    } as Record<string, boolean>
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 初始化今日日期
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({ ...prev, hire_date: today }));
+  }, []);
+
+  // 登入驗證與資料載入
+  useEffect(() => {
+    const isAdmin = sessionStorage.getItem("churun_admin_auth");
+    if (!isAdmin) {
+      router.replace("/admin");
+      return;
+    }
+    fetchStaff();
+  }, [router]);
+
+  const fetchStaff = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/hr");
+      const data = await res.json();
+      if (data.success) {
+        setStaff(data.staff || []);
+        setIsFallbackMode(!!data.fallback);
+      }
+    } catch (err) {
+      console.error("載入人事資料失敗:", err);
+    }
+    setIsLoading(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePermissionToggle = (key: string) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: {
+        ...prev.permissions,
+        [key]: !prev.permissions[key]
+      }
+    }));
+  };
+
+  const handleAllPermissionsToggle = (enableAll: boolean) => {
+    const updatedPermissions = { ...formData.permissions };
+    PERMISSION_MODULES.forEach(mod => {
+      updatedPermissions[mod.key] = enableAll;
+    });
+    setFormData(prev => ({ ...prev, permissions: updatedPermissions }));
+  };
+
+  const handleEditClick = (person: any) => {
+    setEditingId(person.id);
+    setFormData({
+      staff_id: person.staff_id,
+      name: person.name,
+      phone: person.phone,
+      department: person.department,
+      title: person.title,
+      status: person.status,
+      hire_date: person.hire_date ? person.hire_date.substring(0, 10) : "",
+      permissions: {
+        coupons: person.permissions?.coupons || false,
+        posters: person.permissions?.posters || false,
+        members: person.permissions?.members || false,
+        evaluation: person.permissions?.evaluation || false,
+        orders: person.permissions?.orders || false,
+        settlement: person.permissions?.settlement || false,
+        products: person.permissions?.products || false,
+        backup: person.permissions?.backup || false,
+        withdrawals: person.permissions?.withdrawals || false
+      }
+    });
+    setActiveTab("form");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      staff_id: "",
+      name: "",
+      phone: "",
+      department: "營運部",
+      title: "專員",
+      status: "active",
+      hire_date: new Date().toISOString().split('T')[0],
+      permissions: {
+        coupons: false,
+        posters: false,
+        members: false,
+        evaluation: false,
+        orders: false,
+        settlement: false,
+        products: false,
+        backup: false,
+        withdrawals: false
+      }
+    });
+    setActiveTab("list");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.staff_id || !formData.name || !formData.phone) {
+      alert("⚠️ 請完整填寫員工編號、姓名與手機號碼！");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const isEdit = !!editingId;
+      const res = await fetch("/api/hr", {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isEdit ? { id: editingId, ...formData } : formData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(isEdit ? "🎉 職員權限更新成功！" : "🎉 成功建檔人事並授予權限！");
+        fetchStaff();
+        handleCancelEdit();
+      } else {
+        alert("❌ 操作失敗: " + data.error);
+      }
+    } catch (err: any) {
+      alert("⚠️ 系統連線異常: " + err.message);
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`⚠️ 確定要刪除/註銷【${name}】的職員檔案與所有權限嗎？`)) return;
+    try {
+      const res = await fetch("/api/hr", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("🎉 檔案已成功刪除！");
+        fetchStaff();
+      } else {
+        alert("❌ 刪除失敗: " + data.error);
+      }
+    } catch (err: any) {
+      alert("⚠️ 系統連線異常: " + err.message);
+    }
+  };
+
+  // 1. 計算篩選後的人員
+  const filteredStaff = staff.filter(person => {
+    const matchesSearch = 
+      person.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      person.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      person.staff_id?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesDept = selectedDept === "全部" || person.department === selectedDept;
+    const matchesStatus = selectedStatus === "全部" || person.status === selectedStatus;
+
+    return matchesSearch && matchesDept && matchesStatus;
+  });
+
+  // 2. 統計計算
+  const totalCount = staff.length;
+  const activeCount = staff.filter(s => s.status === "active").length;
+  const superAdminCount = staff.filter(s => {
+    // 擁有 6 個以上權限判定為高階授權帳號
+    const allowedCount = Object.values(s.permissions || {}).filter(Boolean).length;
+    return allowedCount >= 6;
+  }).length;
+
+  const departments = ["全部", "總經理室", "財務部", "營運部", "倉儲部", "行銷部"];
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-20 font-sans">
+      {/* 導覽列 */}
+      <nav className="bg-slate-900 text-white sticky top-0 z-50 px-8 py-4 flex justify-between items-center shadow-2xl">
+         <div className="flex items-center gap-4">
+            <button onClick={() => router.push("/admin")} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition backdrop-blur-md">
+               <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-sm font-black tracking-[0.2em] uppercase">人事與權限管理</h1>
+         </div>
+         <div className="flex items-center gap-3">
+            {isFallbackMode ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-500 px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5" /> 測試備援模式 (Memory Fallback)
+              </div>
+            ) : (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 fill-emerald-500/20" /> 雲端資料庫已同步 (Database Linked)
+              </div>
+            )}
+         </div>
+      </nav>
+
+      <div className="max-w-6xl mx-auto px-8 mt-12 space-y-12">
+        {/* KPI 數據指標 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 flex items-center gap-5">
+              <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+                 <Users className="w-7 h-7" />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">在冊人事總人數</p>
+                 <h4 className="text-2xl font-black text-slate-800 mt-1">{totalCount} <span className="text-xs text-slate-400">員</span></h4>
+              </div>
+           </div>
+
+           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 flex items-center gap-5">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-inner">
+                 <UserCheck className="w-7 h-7 text-emerald-500" />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">正常在職人數</p>
+                 <h4 className="text-2xl font-black text-slate-800 mt-1">{activeCount} <span className="text-xs text-slate-400">員 ({totalCount > 0 ? Math.round((activeCount/totalCount)*100) : 100}%)</span></h4>
+              </div>
+           </div>
+
+           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 flex items-center gap-5">
+              <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-inner">
+                 <ShieldCheck className="w-7 h-7 text-amber-500" />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">高階模組權限數 (≥6項)</p>
+                 <h4 className="text-2xl font-black text-slate-800 mt-1">{superAdminCount} <span className="text-xs text-slate-400">個帳號</span></h4>
+              </div>
+           </div>
+        </div>
+
+        {/* 頁面 Tab 切換 */}
+        <div className="flex gap-4 border-b border-slate-100 pb-1">
+           <button 
+             onClick={() => setActiveTab("list")}
+             className={`pb-4 px-6 text-sm font-black tracking-widest transition-all border-b-2 ${activeTab === "list" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+           >
+              在職人員名冊 ({filteredStaff.length})
+           </button>
+           <button 
+             onClick={() => { setEditingId(null); handleCancelEdit(); setActiveTab("form"); }}
+             className={`pb-4 px-6 text-sm font-black tracking-widest transition-all border-b-2 ${activeTab === "form" && !editingId ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+           >
+              ➕ 建立新職員資料
+           </button>
+           {editingId && (
+             <button 
+               className="pb-4 px-6 text-sm font-black tracking-widest border-b-2 border-indigo-600 text-indigo-600"
+               disabled
+             >
+                🔧 正在編輯：{formData.name}
+             </button>
+           )}
+        </div>
+
+        {/* 內容區塊 */}
+        <AnimatePresence mode="wait">
+           {activeTab === "list" ? (
+             <motion.div
+               key="list"
+               initial={{ opacity: 0, y: 15 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -15 }}
+               className="space-y-8"
+             >
+                {/* 搜尋與過濾面板 */}
+                <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-2xl shadow-slate-200/10 space-y-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">關鍵字檢索</label>
+                         <input 
+                           type="text" 
+                           placeholder="🔍 搜尋職員姓名、員工編號、手機號碼..." 
+                           value={searchQuery}
+                           onChange={(e) => setSearchQuery(e.target.value)}
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-slate-900/5 transition"
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">在職狀態</label>
+                         <div className="flex gap-2">
+                            {["全部", "active", "suspended", "left"].map((st) => (
+                               <button
+                                 key={st}
+                                 onClick={() => setSelectedStatus(st)}
+                                 className={`px-4 py-3 rounded-2xl text-xs font-black tracking-widest transition-all border ${selectedStatus === st ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-slate-50 text-slate-400 border-slate-100 hover:text-slate-700'}`}
+                               >
+                                  {st === "全部" ? "全部狀態" : st === "active" ? "在職中" : st === "suspended" ? "已停權" : "已離職"}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* 部門標籤 */}
+                   <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">部門快速篩選</label>
+                      <div className="flex flex-wrap gap-2">
+                         {departments.map((dept) => (
+                            <button
+                              key={dept}
+                              onClick={() => setSelectedDept(dept)}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all ${selectedDept === dept ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/15' : 'bg-slate-50 text-slate-400 hover:text-slate-600 border border-slate-100'}`}
+                            >
+                               {dept}
+                            </button>
+                         ))}
+                      </div>
+                   </div>
+                </div>
+
+                {/* 職員列表 */}
+                {isLoading ? (
+                   <div className="bg-white rounded-[3rem] py-32 flex flex-col items-center gap-4 border border-slate-50 shadow-2xl">
+                      <Loader2 className="w-12 h-12 animate-spin text-slate-200" />
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">同步系統人事庫中...</p>
+                   </div>
+                ) : filteredStaff.length === 0 ? (
+                   <div className="bg-white rounded-[3rem] py-24 text-center border border-slate-50 shadow-2xl space-y-4">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                         <Users className="w-8 h-8 text-slate-200" />
+                      </div>
+                      <p className="text-xs font-black text-slate-300 uppercase tracking-widest">找不到符合搜尋條件的在職員工</p>
+                   </div>
+                ) : (
+                   <div className="grid grid-cols-1 gap-6">
+                      {filteredStaff.map((person) => {
+                         const allowedPerms = Object.entries(person.permissions || {})
+                           .filter(([_, v]) => v === true)
+                           .map(([k, _]) => PERMISSION_MODULES.find(m => m.key === k))
+                           .filter(Boolean);
+
+                         return (
+                            <div 
+                              key={person.id}
+                              className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/5 hover:shadow-2xl hover:shadow-slate-200/20 transition duration-500 flex flex-col md:flex-row md:items-center justify-between gap-8 group"
+                            >
+                               {/* 員工基本資料 */}
+                               <div className="flex items-start gap-6">
+                                  <div className="w-16 h-16 bg-gradient-to-tr from-slate-100 to-slate-50 rounded-2xl flex items-center justify-center text-slate-600 text-xl font-black shadow-inner border border-slate-200 shrink-0 uppercase">
+                                     {person.name?.[0] || 'ST'}
+                                  </div>
+                                  <div className="space-y-2">
+                                     <div className="flex items-center gap-3">
+                                        <h4 className="text-lg font-black text-slate-800">{person.name}</h4>
+                                        <span className="text-[8px] font-black tracking-widest bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase">{person.staff_id}</span>
+                                        {person.status === "active" ? (
+                                          <span className="text-[8px] font-black tracking-widest bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full uppercase">在職中</span>
+                                        ) : person.status === "suspended" ? (
+                                          <span className="text-[8px] font-black tracking-widest bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full uppercase">已停權</span>
+                                        ) : (
+                                          <span className="text-[8px] font-black tracking-widest bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full uppercase">已離職</span>
+                                        )}
+                                     </div>
+                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                                        <span className="font-bold text-indigo-600 flex items-center gap-1"><Building className="w-3.5 h-3.5" /> {person.department} · {person.title}</span>
+                                        <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {person.phone}</span>
+                                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {person.hire_date ? person.hire_date.substring(0, 10) : "未註明"} 入職</span>
+                                     </div>
+                                  </div>
+                               </div>
+
+                               {/* 模組授權徽章 */}
+                               <div className="flex-1 flex flex-wrap gap-1.5 md:max-w-md">
+                                  {allowedPerms.length === 0 ? (
+                                     <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                                        <Lock className="w-3 h-3" /> 未授予任何管理功能權限
+                                     </span>
+                                  ) : (
+                                     allowedPerms.map((p: any) => (
+                                        <span 
+                                          key={p.key} 
+                                          className="bg-indigo-50/50 border border-indigo-100/40 text-indigo-700 text-[8px] font-black px-2.5 py-1.5 rounded-xl uppercase tracking-widest flex items-center gap-1"
+                                          title={p.label}
+                                        >
+                                           <p.icon className="w-3 h-3" /> {p.label.substring(0, 4)}
+                                        </span>
+                                     ))
+                                  )}
+                               </div>
+
+                               {/* 控制按鈕 */}
+                               <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                                  <button
+                                    onClick={() => handleEditClick(person)}
+                                    className="px-5 py-2.5 bg-slate-50 text-slate-600 rounded-2xl hover:bg-slate-900 hover:text-white text-xs font-black transition active:scale-[0.97]"
+                                  >
+                                     授權/編輯
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(person.id, person.name)}
+                                    className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition"
+                                  >
+                                     <Trash2 className="w-4 h-4" />
+                                  </button>
+                               </div>
+                            </div>
+                         );
+                      })}
+                   </div>
+                )}
+             </motion.div>
+           ) : (
+             <motion.div
+               key="form"
+               initial={{ opacity: 0, y: 15 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -15 }}
+               className="bg-white rounded-[4rem] p-12 border border-slate-50 shadow-2xl shadow-slate-200/10"
+             >
+                <form onSubmit={handleSubmit} className="space-y-12">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                         <Shield className="w-6 h-6" />
+                      </div>
+                      <div>
+                         <h3 className="text-xl font-black text-slate-800">{editingId ? "修改職位與功能授權" : "新建職員檔案與功能授權"}</h3>
+                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">請填寫基本人事，並在下方矩陣中勾選可開放的管理權限</p>
+                      </div>
+                   </div>
+
+                   {/* 基本人事資料表單 */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Hash className="w-4 h-4" /> 員工編號</label>
+                         <input 
+                           type="text" 
+                           name="staff_id" 
+                           value={formData.staff_id} 
+                           onChange={handleInputChange} 
+                           placeholder="如: CR_ST005" 
+                           disabled={!!editingId}
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition disabled:opacity-50"
+                         />
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Users className="w-4 h-4" /> 職員姓名</label>
+                         <input 
+                           type="text" 
+                           name="name" 
+                           value={formData.name} 
+                           onChange={handleInputChange} 
+                           placeholder="輸入職員姓名" 
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+                         />
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Phone className="w-4 h-4" /> 職員手機</label>
+                         <input 
+                           type="text" 
+                           name="phone" 
+                           value={formData.phone} 
+                           onChange={handleInputChange} 
+                           placeholder="手機號碼" 
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+                         />
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Building className="w-4 h-4" /> 隸屬部門</label>
+                         <select 
+                           name="department" 
+                           value={formData.department} 
+                           onChange={handleInputChange}
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition appearance-none"
+                         >
+                            <option value="總經理室">總經理室</option>
+                            <option value="財務部">財務部</option>
+                            <option value="營運部">營運部</option>
+                            <option value="倉儲部">倉儲部</option>
+                            <option value="行銷部">行銷部</option>
+                         </select>
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Building className="w-4 h-4" /> 職稱職位</label>
+                         <input 
+                           type="text" 
+                           name="title" 
+                           value={formData.title} 
+                           onChange={handleInputChange} 
+                           placeholder="如: 會計經理、營運主管" 
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+                         />
+                      </div>
+
+                      <div className="space-y-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Calendar className="w-4 h-4" /> 入職日期</label>
+                         <input 
+                           type="date" 
+                           name="hire_date" 
+                           value={formData.hire_date} 
+                           onChange={handleInputChange} 
+                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+                         />
+                      </div>
+
+                      <div className="space-y-3 md:col-span-3">
+                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><UserCheck className="w-4 h-4" /> 帳號狀態</label>
+                         <div className="flex gap-4">
+                            {[
+                              { key: "active", label: "在職正常 (Active)", color: "text-emerald-600 bg-emerald-50" },
+                              { key: "suspended", label: "暫時停權 (Suspended)", color: "text-rose-600 bg-rose-50" },
+                              { key: "left", label: "離職註銷 (Left)", color: "text-slate-500 bg-slate-100" }
+                            ].map((opt) => (
+                               <button
+                                 key={opt.key}
+                                 type="button"
+                                 onClick={() => setFormData(prev => ({ ...prev, status: opt.key }))}
+                                 className={`px-6 py-3.5 rounded-2xl text-xs font-black tracking-widest transition-all border ${formData.status === opt.key ? `${opt.color} border-current ring-4 ring-current/5` : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'}`}
+                               >
+                                  {opt.label}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* 系統權限授權矩陣 */}
+                   <div className="pt-8 border-t border-slate-100 space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                         <div className="space-y-1">
+                            <h4 className="text-sm font-black text-slate-800 tracking-wider">🛠️ 系統模組授權配置矩陣</h4>
+                            <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">請勾選該員工有權點擊進入的後台功能模組</p>
+                         </div>
+                         <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAllPermissionsToggle(true)}
+                              className="px-4 py-2 bg-slate-100 text-slate-600 text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition"
+                            >
+                               全選授予 (Grant All)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAllPermissionsToggle(false)}
+                              className="px-4 py-2 bg-slate-100 text-slate-600 text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-rose-500 hover:text-white transition"
+                            >
+                               全部清空 (Revoke All)
+                            </button>
+                         </div>
+                      </div>
+
+                      {/* 授權卡片格柵 */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         {PERMISSION_MODULES.map((mod) => {
+                            const isAllowed = formData.permissions[mod.key] || false;
+                            return (
+                               <div 
+                                 key={mod.key}
+                                 onClick={() => handlePermissionToggle(mod.key)}
+                                 className={`p-6 rounded-[2rem] border transition cursor-pointer flex items-start gap-4 select-none ${isAllowed ? 'bg-indigo-50/40 border-indigo-200 shadow-lg shadow-indigo-100/10' : 'bg-slate-50/50 border-slate-100 hover:border-slate-200'}`}
+                               >
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isAllowed ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>
+                                     <mod.icon className="w-5 h-5" />
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                     <div className="flex items-center justify-between">
+                                        <h5 className={`text-xs font-black tracking-wider ${isAllowed ? 'text-indigo-900' : 'text-slate-600'}`}>{mod.label}</h5>
+                                        <div className={`w-8 h-5 rounded-full transition duration-300 relative shrink-0 ${isAllowed ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+                                           <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.75 transition-all duration-300 ${isAllowed ? 'right-1' : 'left-1'}`} />
+                                        </div>
+                                     </div>
+                                     <p className="text-[10px] font-medium text-slate-400 leading-relaxed">{mod.desc}</p>
+                                  </div>
+                               </div>
+                            );
+                         })}
+                      </div>
+                   </div>
+
+                   {/* 表單送出 */}
+                   <div className="pt-8 border-t border-slate-100 flex gap-4">
+                      <button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="flex-1 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-sm tracking-widest transition hover:bg-slate-800 shadow-2xl active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                         {isSubmitting ? (
+                           <Loader2 className="w-5 h-5 animate-spin" />
+                         ) : editingId ? (
+                           "儲存變更權限並存檔"
+                         ) : (
+                           "確認建立人事檔案並授予系統權限"
+                         )}
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={handleCancelEdit}
+                        className="px-8 py-6 bg-slate-50 text-slate-500 rounded-[2rem] font-black text-xs tracking-widest transition hover:bg-slate-100"
+                      >
+                         取消返回
+                      </button>
+                   </div>
+                </form>
+             </motion.div>
+           )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminHRPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4">
+         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">載入人事與權限中...</p>
+      </div>
+    }>
+      <AdminHRContent />
+    </Suspense>
+  );
+}
