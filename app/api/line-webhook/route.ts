@@ -3,8 +3,8 @@ import { supabaseAdmin } from "@/app/supabase-admin";
 import * as crypto from "crypto";
 
 // 取得環境變數（支援本機設定與 Vercel 後台，附帶萬用測試用備用金鑰）
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "DEFAULT_ACCESS_TOKEN";
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "GCb9cTmbIB3N+ZxXPZCNCZSFxOfDT1L7151VIH0+FHAtHkgH00bds9IBGjwsxBF1kHFNg+o4p4r6I4EMAk29GaecSbE3MbdV55CB9VeWaQSapfCG8P9an2pSYgKwGrBJdEPsGTsrGvNRwQXagSmEuQdB04t89/1O/w1cDnyilFU=";
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "3fc8a4b8b0d5d87e512e2fe6fa90dc8f";
 
 /**
  * LINE Webhook 進入點
