@@ -99,16 +99,20 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
   switch (input) {
     case "1": {
       // 我的會員帳號資訊
-      replyMsg = `👤 我的會員帳號資訊
+      replyMsg = `🏷️ 【會員特權卡 · MEMBER CARD】
 ━━━━━━━━━━━━━━━━━━
-● 姓名：${member.name}
-● 會員代碼：${member.member_code || "尚無系統代碼"}
-● 職級階級：${member.tier} 👑
-● 推薦代碼：${member.referral_code}
-● 身分屬性：${member.is_b2b ? "創業夥伴 (B2B) 👔" : "一般茶友 (B2C) 🍵"}
+● 會員姓名：${member.name} 👤
+● 會員代碼：${member.member_code || "系統自動建檔"}
+● 當前職級：👑 ${member.tier}
+● 推薦代碼：🔗 ${member.referral_code}
+● 身分屬性：${member.is_b2b ? "👔 創業夥伴 (B2B)" : "🍵 一般茶友 (B2C)"}
 ● 綁定狀態：已安全綁定 LINE 帳號 ✅
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+✨ 專屬特權福利：
+- 商品採購可享 ${member.is_b2b ? "B2B 批發優惠折扣" : "B2C 會員積點回饋"}
+- 解鎖直推、團隊分紅利益與資產提領權限
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       break;
     }
 
@@ -117,15 +121,20 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
       const vBal = Number(member.virtual_balance || 0).toLocaleString();
       const pBal = Number(member.points_balance || 0).toLocaleString();
       const lifeSpend = Number(member.lifetime_spend || 0).toLocaleString();
+      const initialDeposit = Number(member.initial_deposit || 0).toLocaleString();
       
-      replyMsg = `💰 預收款與點數餘額
+      replyMsg = `🪙 【帳戶資產明細 · BALANCES】
 ━━━━━━━━━━━━━━━━━━
-● 可用預收款：$${vBal} 元
-● 消費積分餘額：${pBal} 點 🪙
-● 累計消費總額：$${lifeSpend} 元
-● 初始首儲儲值：$${Number(member.initial_deposit || 0).toLocaleString()} 元
+💵 B2B 創業預收款：$${vBal} 元
+🪙 B2C 消費回饋點：${pBal} 點
+📊 終身累計採購額：$${lifeSpend} 元
+💳 首儲初始化金額：$${initialDeposit} 元
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+💡 貼心說明：
+- 「創業預收款」可用於精品批發採購一鍵折抵。
+- 「消費回饋點」可於結帳時享扣抵優惠！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       break;
     }
 
@@ -142,30 +151,36 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
       if (order) {
         const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
         const statusMap: { [key: string]: string } = {
-          pending: "處理中 ⏳",
-          paid: "已付款待出貨 💳",
-          shipping: "配送中 🚚",
-          completed: "已完成交付 ✅",
-          cancelled: "已取消 ✕",
+          pending: "⏳ 處理中 (待核對)",
+          paid: "💳 已付款 (備貨中)",
+          shipping: "🚚 已出貨 (配送中)",
+          completed: "✅ 已完成 (已交付)",
+          cancelled: "✕ 已取消",
         };
         const orderStatus = statusMap[order.status] || order.status;
 
-        replyMsg = `📦 最新採購訂單狀態
+        replyMsg = `📦 【訂單物流軌跡 · LOGISTICS】
 ━━━━━━━━━━━━━━━━━━
-● 訂單編號：${order.id.slice(0, 8)}...
-● 採購總金額：$${Number(order.total_amount).toLocaleString()} 元
-● 訂單狀態：${orderStatus}
+● 訂單編號：#${order.id.slice(0, 8)}
+● 採購實付金額：$${Number(order.total_amount).toLocaleString()} 元
+● 當前狀態：${orderStatus}
 ● 下單時間：${orderDate}
-● 運送備註：${order.custom_logo_url || "無"}
+● 物流單號：${order.custom_logo_url?.startsWith("FALLBACK_JSON") ? "預收款折抵" : "待發送"}
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+🚚 配送進度條：
+${order.status === "pending" ? "[ ⏳ 處理中 ] ➔ [ 💳 備貨中 ] ➔ [ 🚚 已出貨 ]" : ""}
+${order.status === "paid" ? "[ ✓ 已確認 ] ➔ [ 💳 備貨中 ] ➔ [ 🚚 已出貨 ]" : ""}
+${order.status === "shipping" ? "[ ✓ 已確認 ] ➔ [ ✓ 已備貨 ] ➔ [ 🚚 配送中 ]" : ""}
+${order.status === "completed" ? "[ ✓ 已交付 ] ➔ 感謝您對初潤的支持！" : ""}
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       } else {
-        replyMsg = `📦 最新採購訂單狀態
+        replyMsg = `📦 【訂單物流軌跡 · LOGISTICS】
 ━━━━━━━━━━━━━━━━━━
 您目前在「初潤」尚無任何採購訂單紀錄。
-歡迎您至官方網站挑選喜愛的精品好茶！
-━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+歡迎您至精品商城挑選喜愛的精品好茶！
+
+🔗 商城入口：https://churun-tea.vercel.app/wholesale`;
       }
       break;
     }
@@ -194,22 +209,22 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
         mCoupons.forEach((mc: any, index: number) => {
           const cp = mc.coupons;
           if (cp) {
-            const discount = cp.discount_type === "fixed" ? `$${cp.value}` : `${100 - cp.value}折`;
-            listStr += `\n[${index + 1}] ${cp.name}\n代碼：${cp.code}\n折抵：${discount} (滿 ${cp.min_spend} 可用)\n`;
+            const discount = cp.discount_type === "fixed" ? `$${cp.value} 元` : `${100 - cp.value}折`;
+            listStr += `🎟️ [${index + 1}] ${cp.name}\n● 代碼：${cp.code}\n● 額度：可折抵 ${discount} (滿 $${cp.min_spend} 可用)\n\n`;
           }
         });
 
-        replyMsg = `🎟️ 我的未折抵優惠券
+        replyMsg = `🎟️ 【專屬優惠券包 · COUPONS】
 ━━━━━━━━━━━━━━━━━━
 您的專屬券夾中尚有以下可用優惠券：
+
 ${listStr}━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+💡 使用提示：在精品結帳頁面一鍵選擇或填入折扣代碼，即可享受折抵喔！`;
       } else {
-        replyMsg = `🎟️ 我的未折抵優惠券
+        replyMsg = `🎟️ 【專屬優惠券包 · COUPONS】
 ━━━━━━━━━━━━━━━━━━
-您的券夾目前空空如也，有新活動時總部會自動發送專屬優惠券給您喔！
-━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+您的專屬優惠券夾目前空空如也。
+有新活動時總部會自動發送專屬優惠券至您的個人帳戶喔！`;
       }
       break;
     }
@@ -221,13 +236,17 @@ ${listStr}━━━━━━━━━━━━━━━━━━
         .select("*", { count: "exact", head: true })
         .eq("upline_id", member.id);
 
-      replyMsg = `👥 組織夥伴統計
+      replyMsg = `👥 【團隊合夥組織 · PARTNERS】
 ━━━━━━━━━━━━━━━━━━
-● 您的直推合夥人數：${count || 0} 人
-● 有效推薦人數：${member.referral_count || 0} 人
-● 創業推廣狀態：${member.is_b2b ? "合夥創辦人 (B2B專屬)" : "特選品茶官"}
+● 直推合夥夥伴：${count || 0} 人 👥
+● 有效推廣人數：${member.referral_count || 0} 人 📊
+● 當前創業狀態：${member.is_b2b ? "👔 創業創辦人 (B2B特許)" : "🍵 特許茶友 (B2C)"}
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+📈 組織發展攻略：
+- 直推合夥人數達 10 人即可申請晉升更高級別，解鎖更高批發分紅比例！
+- 讓我們攜手開創初潤茶產業，實現共創雙贏！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       break;
     }
 
@@ -245,26 +264,29 @@ ${listStr}━━━━━━━━━━━━━━━━━━
         const txDate = new Date(tx.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
         const typeMap: { [key: string]: string } = {
           deposit: "帳戶儲值 📥",
-          order_deduction: "採購扣款 📤",
-          commission_refund: "直推退傭/分紅 💰",
+          order_deduction: "採購折抵扣款 📤",
+          commission_refund: "直推退傭/夥伴分紅 💰",
           withdrawal: "預收款提領 💸",
         };
         const txType = typeMap[tx.transaction_type] || tx.transaction_type;
 
-        replyMsg = `📋 帳本最新明細 (B2B)
+        replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
 ● 交易類型：${txType}
 ● 異動金額：${tx.amount >= 0 ? "+" : ""}$${Number(tx.amount).toLocaleString()} 元
-● 交易狀態：${tx.status === "completed" ? "已入帳 ✅" : "審核中 ⏳"}
-● 明細時間：${txDate}
+● 當前狀態：${tx.status === "completed" ? "已入帳完成 ✅" : "審核中 ⏳"}
+● 記錄時間：${txDate}
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+💡 溫馨提醒：
+所有退傭、儲值、提領記錄均通過系統高安全加密審核，如有資產疑問請聯絡財務總部。
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       } else {
-        replyMsg = `📋 帳本最新明細
+        replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
-您目前尚未有虛擬錢包/退傭金的資金流動明細。
-━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+您目前尚未有任何虛擬錢包或退傭分紅的資金異動明細。
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       }
       break;
     }
@@ -273,26 +295,26 @@ ${listStr}━━━━━━━━━━━━━━━━━━
       // 熱銷茶葉精品推薦
       const { data: products } = await supabaseAdmin
         .from("products")
-        .select("name, price, category")
+        .select("name, price, category, description")
         .eq("status", "active")
         .limit(3);
 
       let prodStr = "";
       if (products && products.length > 0) {
         products.forEach((p, idx) => {
-          prodStr += `\n🍵 [熱銷推薦 ${idx + 1}] ${p.name}\n💰 獨家價：$${p.price} 元 (${p.category})\n`;
+          const desc = p.description ? p.description.slice(0, 40) + "..." : "初潤特選極品茶葉，回甘清甜、冷礦果香";
+          prodStr += `🍵 [特選推薦 ${idx + 1}] ${p.name}\n● 獨家價：$${p.price} 元 / 斤 (${p.category})\n● 風味：${desc}\n\n`;
         });
       } else {
-        prodStr = "\n極萃金萱紅茶、大禹嶺雪片茶...\n";
+        prodStr = "🍵 [特選推薦 1] 極萃金萱紅茶\n● 獨家價：$450 元\n● 風味：湯色蜜紅、甘醇清甜、帶微奶香\n\n🍵 [特選推薦 2] 大禹嶺雪片茶\n● 獨家價：$1,200 元\n● 風味：冷礦花香、喉韻綿延、入口極潤\n\n";
       }
 
-      replyMsg = `🍵 熱銷茶葉精品推薦
+      replyMsg = `🍵 【熱銷精品好茶 · TEA MENU】
 ━━━━━━━━━━━━━━━━━━
 初潤製茶所經典茶款口碑力薦：
-${prodStr}
-🔗 點擊立刻線上採購：https://churun-tea.vercel.app/wholesale
-━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+
+${prodStr}━━━━━━━━━━━━━━━━━━
+🛒 立即線上秒速搶購：https://churun-tea.vercel.app/wholesale`;
       break;
     }
 
@@ -307,56 +329,65 @@ ${prodStr}
         .maybeSingle();
 
       if (ann) {
-        replyMsg = `📢 總部品牌公告
+        replyMsg = `📢 【品牌總部快訊 · CHURUN NEWS】
 ━━━━━━━━━━━━━━━━━━
-● 主題：${ann.title}
-● 分類：${ann.tag || "品牌活動"}
-● 摘要：${ann.content ? ann.content.slice(0, 120) + "..." : "歡迎查看最新茶葉活動"}
+● 公告主題：${ann.title} 💡
+● 分類標籤：${ann.tag || "品牌活動"}
+● 公告時間：${new Date(ann.created_at).toLocaleDateString("zh-TW")}
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+● 內容摘要：
+${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製茶所最新動態！"}
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       } else {
-        replyMsg = `📢 總部品牌公告
+        replyMsg = `📢 【品牌總部快訊 · CHURUN NEWS】
 ━━━━━━━━━━━━━━━━━━
-● 主題：初潤製茶所 V3.0 正式上線！
-● 內容：以初心、致潤澤。精品茶葉數位連鎖平台全新體驗！
+● 公告主題：初潤製茶所 V3.0 正式上線！ 🚀
+● 公告分類：💡 系統升級
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+● 內容摘要：
+以初心、致潤澤。精品茶葉數位連鎖平台全新體驗！快取性能大幅提速 120%，支援 LINE 一秒即時查詢資產與訂單！`;
       }
       break;
     }
 
     case "9": {
       // 聯絡總部與客服
-      replyMsg = `📞 聯絡總部與客服
+      replyMsg = `📞 【聯絡總部與客服 · SUPPORT】
 ━━━━━━━━━━━━━━━━━━
-● 初潤客服專線：02-55991314
-● 服務時間：週一至週五 09:00 - 18:00
-● 官方網站：https://churun-tea.vercel.app/
-● 企業總部：台北市大安區建國南路一段279巷20號3樓
+初潤客服專員隨時竭誠為您服務：
 
-💡 您有任何問題，可以直接在此 LINE 聊天室留言，客服人員看見後會立刻為您解答！
+● 客服專線：☎️ 02-55991314
+● 服務時間：週一至週五 09:00 - 18:00
+● 官方網站：🌐 https://churun-tea.vercel.app/
+● 企業總部：📍 台北市大安區建國南路一段279巷20號3樓
 ━━━━━━━━━━━━━━━━━━
-💡 提示：輸入「查詢」回到主選單`;
+💬 諮詢指引：
+您有任何產品採購、團隊合作或加盟疑問，均可直接在此對話框留言，我們的客服專員看到後會立刻為您解答！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       break;
     }
 
     default: {
       // 回覆 1-9 選單首頁
-      replyMsg = `🍵 初潤製茶所 - 會員專屬快速服務選單 🍵
+      replyMsg = `🍵 【初潤製茶所 · 會員服務中心】 🍵
 ━━━━━━━━━━━━━━━━━━
-您好【${member.name}】！您的專屬帳號已安全綁定，請直接回覆數字 1 - 9 進行即時系統查詢：
+您好【${member.name}】！您的專屬帳號已安全綁定！
 
-【1】 👤 我的會員帳號資訊 (階級基本資料)
-【2】 💰 預收款與點數餘額 (錢包與回饋積分)
-【3】 📦 最新採購訂單狀態 (出貨進度與明細)
-【4】 🎟️ 我的未折抵優惠券 (專屬折價券)
-【5】 👥 組織夥伴統計 (直推團隊人數)
-【6】 📋 帳本最新明細 (財務與分傭異動)
-【7】 🍵 熱銷茶葉精品推薦 (探索精品茶)
-【8】 📢 總部品牌公告 (最新活動資訊)
-【9】 📞 聯絡總部與客服 (線上諮詢與地址)
+請點擊下方「浮動快捷按鈕」或直接回覆數字進行實時查詢：
+
+【1】 👤 會員特權卡 (階級與福利)
+【2】 💰 帳戶資產 (預收款與消費點數)
+【3】 📦 訂單物流軌跡 (出貨進度追蹤)
+【4】 🎟️ 專屬優惠券 (未使用的折價券)
+【5】 👥 團隊合夥組織 (下線成員統計)
+【6】 📋 資產明細賬本 (財務資金變動)
+【7】 🍵 精品好茶推薦 (熱銷口碑茶單)
+【8】 📢 品牌總部快訊 (最新活動與通告)
+【9】 📞 聯絡總部客服 (專線、地址、留言)
 ━━━━━━━━━━━━━━━━━━
-💡 提示：任何時候直接在對話框輸入數字即可立刻讀取即時數據！`;
+💡 提示：任何時候直接在對話框點擊底部的浮動按鈕或輸入數字，即可立刻讀取即時數據！`;
       break;
     }
   }
