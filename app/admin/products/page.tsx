@@ -574,9 +574,13 @@ function AdminProductsContent() {
                                )}
                             </div>
                             <div className="flex-1 space-y-2">
-                               <div className="flex items-center gap-3">
-                                  <h4 className="text-lg font-black text-slate-800">{product.name}</h4>
-                                  {product.sku && <span className="text-[8px] font-black bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-widest">{product.sku}</span>}
+                               <div className="flex items-center gap-3 flex-wrap">
+                                  <h4 className="text-lg font-black text-slate-800 leading-snug">{product.name}</h4>
+                                  {product.sku && (
+                                     <span className="text-[8px] font-black bg-slate-200 text-slate-500 px-2.5 py-1 rounded-full uppercase tracking-widest leading-none flex items-center h-fit select-none shrink-0">
+                                        {product.sku}
+                                     </span>
+                                  )}
                                </div>
                                <div className="flex items-center gap-4">
                                   <span className="text-xl font-black text-indigo-600">${product.price.toLocaleString()}</span>
