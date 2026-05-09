@@ -659,7 +659,7 @@ function DashboardContent() {
                 <motion.button 
                   whileTap={{ scale: 0.96 }} 
                   onClick={() => {
-                    const link = "https://www.facebook.com/churuntea";
+                    const link = "https://www.facebook.com/profile.php?id=61588161490453";
                     navigator.clipboard.writeText(link);
                     setCopiedFbLink(true);
                     setTimeout(() => setCopiedFbLink(false), 2000);
@@ -839,7 +839,7 @@ function DashboardContent() {
               </div>
               
               <div className="bg-sky-500/5 p-6 rounded-[2.5rem] border border-sky-500/10 mb-6 flex justify-center items-center shadow-inner">
-                <QRCodeCanvas value="https://www.facebook.com/churuntea" size={200} level="H" className="rounded-2xl p-3 bg-white shadow-md border border-slate-100" />
+                <QRCodeCanvas value="https://www.facebook.com/profile.php?id=61588161490453" size={200} level="H" className="rounded-2xl p-3 bg-white shadow-md border border-slate-100" />
               </div>
 
               <p className="text-[9px] font-black text-sky-600 uppercase tracking-widest">官方粉絲專頁</p>

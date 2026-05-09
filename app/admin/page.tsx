@@ -533,7 +533,7 @@ function AdminDashboardContent() {
                     { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
                     { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
                     { label: "獎金提領審核中心", icon: Wallet, action: "/admin/withdrawals" },
-                    { label: "品牌快訊與公告管理", icon: FileText, action: "/admin/news" },
+                    { label: "初潤品牌脈動與快訊公告", icon: FileText, action: "/admin/news" },
                     { label: "品牌素材與文宣管理", icon: ImageIcon, action: "/admin/materials" },
                     { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
                     { label: "商品管理", icon: Settings, action: "/admin/products" },
@@ -610,11 +610,11 @@ function AdminDashboardContent() {
                        />
                        <Area 
                          type="monotone" 
-                         dataKey="members" 
+                         dataKey="月度業績 (NT$)" 
                          stroke="#6366f1" 
                          strokeWidth={4} 
                          fillOpacity={1} 
-                         fill="url(#colorMembers)" 
+                         fill="url(#colorRevenue)" 
                        />
                     </AreaChart>
                  </ResponsiveContainer>

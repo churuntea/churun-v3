@@ -21,7 +21,8 @@ import {
   Package,
   Hash,
   Boxes,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from "lucide-react";
 
 function AdminProductsContent() {
@@ -437,32 +438,75 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
-                   <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品主圖 (點擊或拖曳)</label>
-                      <div 
-                        onDragOver={onDragOver}
-                        onDrop={onDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-slate-100 bg-slate-50 rounded-[3rem] p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-indigo-300 transition group relative"
-                      >
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".jpg,.jpeg,.png" />
-                        {formData.image_url ? (
-                          <div className="relative group">
-                             <img src={formData.image_url} alt="Preview" className="h-48 w-48 object-cover rounded-[2.5rem] shadow-2xl" />
-                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition rounded-[2.5rem] flex items-center justify-center">
-                                <Upload className="text-white w-8 h-8" />
+                                       <div className="space-y-3">
+                       <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品主圖來源</label>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                          {/* File Drop/Click Area */}
+                          <div className="md:col-span-2">
+                             <div 
+                               onDragOver={onDragOver}
+                               onDrop={onDrop}
+                               onClick={() => fileInputRef.current?.click()}
+                               className="border-2 border-dashed border-slate-100 bg-slate-50 rounded-[2.5rem] p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-indigo-300 transition group relative min-h-[180px] h-full"
+                             >
+                               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".jpg,.jpeg,.png" />
+                               {formData.image_url && formData.image_url.startsWith('data:image') ? (
+                                 <div className="text-center space-y-2">
+                                    <div className="bg-indigo-100 text-indigo-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-sm">
+                                       <CheckCircle2 className="w-6 h-6 animate-pulse" />
+                                    </div>
+                                    <p className="text-xs font-bold text-indigo-500">已載入本機圖片檔</p>
+                                    <span className="text-[9px] text-slate-300 font-bold">點擊可重新上傳</span>
+                                 </div>
+                               ) : (
+                                 <div className="text-center">
+                                    <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 mx-auto group-hover:scale-110 transition duration-500">
+                                       <Upload className="w-6 h-6 text-slate-300" />
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-400">拖曳或點擊上傳商品圖檔</p>
+                                    <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 2MB 以內)</span>
+                                 </div>
+                               )}
+                            </div>
+                          </div>
+
+                          {/* Image URL Input & Preview */}
+                          <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100/50 flex flex-col justify-between gap-4">
+                             <div className="space-y-2">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">直接指定圖片網址 (選填)</span>
+                                <input 
+                                  type="text" 
+                                  name="image_url" 
+                                  value={formData.image_url && formData.image_url.startsWith('data:image') ? "" : formData.image_url} 
+                                  onChange={handleChange} 
+                                  placeholder="例如：https://images.unsplash.com/..." 
+                                  className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-inner focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                                />
+                             </div>
+                             
+                             {/* Mini Preview Box */}
+                             <div className="w-full aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-100/50 relative">
+                                {formData.image_url ? (
+                                   <>
+                                      <img src={formData.image_url} alt="Mini Preview" className="w-full h-full object-cover" />
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setFormData(prev => ({ ...prev, image_url: "" })); }}
+                                        className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white backdrop-blur-md active:scale-90 transition"
+                                      >
+                                         <X className="w-3.5 h-3.5" />
+                                      </button>
+                                   </>
+                                ) : (
+                                   <div className="text-center text-slate-300 space-y-1">
+                                      <ImageIcon className="w-6 h-6 mx-auto" />
+                                      <span className="text-[8px] font-bold uppercase tracking-widest block">圖片預覽</span>
+                                   </div>
+                                )}
                              </div>
                           </div>
-                        ) : (
-                          <div className="text-center">
-                             <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 mx-auto group-hover:scale-110 transition duration-500">
-                                <Upload className="w-8 h-8 text-slate-300" />
-                             </div>
-                             <p className="text-sm font-bold text-slate-400">點擊上傳商品照片</p>
-                          </div>
-                        )}
-                     </div>
-                  </div>
+                       </div>
+                    </div>
 
                     <div className="space-y-3">
                        <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">

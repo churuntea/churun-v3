@@ -36,11 +36,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '品名與嘗鮮價為必填' }, { status: 400 });
     }
 
+    let finalImageUrl = image_url || null;
+
+    if (image_url && image_url.startsWith('data:image')) {
+      try {
+        const mimeType = image_url.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+        const base64Data = image_url.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const ext = mimeType.split('/')[1] || 'png';
+        const fileName = `product_${Date.now()}.${ext}`;
+        const filePath = `products/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from('avatars')
+          .upload(filePath, buffer, {
+            contentType: mimeType,
+            upsert: true
+          });
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabaseAdmin.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          finalImageUrl = publicUrl;
+        } else {
+          console.error('Product Image Upload Error:', uploadError);
+        }
+      } catch (uploadErr) {
+        console.error('Failed to parse or upload product image:', uploadErr);
+      }
+    }
+
     const insertData: any = {
       name,
       original_price: original_price || null,
       price,
-      image_url: image_url || null,
+      image_url: finalImageUrl,
       creator: creator || '未設定',
       b2c_reward_percent: b2c_reward_percent || 0,
       b2b_commission_percent: b2b_commission_percent || 0,
@@ -113,11 +144,42 @@ export async function PUT(request: Request) {
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });
 
+    let finalImageUrl = image_url || null;
+
+    if (image_url && image_url.startsWith('data:image')) {
+      try {
+        const mimeType = image_url.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+        const base64Data = image_url.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const ext = mimeType.split('/')[1] || 'png';
+        const fileName = `product_${Date.now()}.${ext}`;
+        const filePath = `products/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from('avatars')
+          .upload(filePath, buffer, {
+            contentType: mimeType,
+            upsert: true
+          });
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabaseAdmin.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          finalImageUrl = publicUrl;
+        } else {
+          console.error('Product Image Update Error:', uploadError);
+        }
+      } catch (uploadErr) {
+        console.error('Failed to parse or upload product image:', uploadErr);
+      }
+    }
+
     const updateData: any = {
       name,
       original_price: original_price || null,
       price,
-      image_url: image_url || null,
+      image_url: finalImageUrl,
       creator: creator || '未設定',
       b2c_reward_percent: b2c_reward_percent || 0,
       b2b_commission_percent: b2b_commission_percent || 0,
