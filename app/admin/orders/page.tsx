@@ -27,9 +27,54 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/app/supabase-admin";
 import { exportToCsv } from "@/utils/exportCsv";
 
+const CARRIERS = [
+  { name: "黑貓宅急便", url: (num: string) => `https://www.t-cat.com.tw/Inquire/TraceDetail.aspx?Sn=${num}` },
+  { name: "新竹物流", url: (num: string) => `https://www.hct.com.tw/Search/Search_Query.aspx?stype=1&search_no=${num}` },
+  { name: "大榮貨運", url: (num: string) => `https://www.kerrytj.com/ZH/search/search.aspx?gnum=${num}` },
+  { name: "中華郵政", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
+  { name: "7-11 交貨便", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
+  { name: "全家 店到店", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
+  { name: "門市自取 / 自家配送", url: null }
+];
+
+const getCarrierTrackingInfo = (trackingStr: string) => {
+  if (!trackingStr) return { carrierName: "黑貓宅急便", trackingNum: "" };
+  if (trackingStr.includes(": ")) {
+    const parts = trackingStr.split(": ");
+    return { carrierName: parts[0], trackingNum: parts[1] };
+  }
+  return { carrierName: "黑貓宅急便", trackingNum: trackingStr };
+};
+
+const handleOpenTrackingLink = (trackingStr: string) => {
+  const { carrierName, trackingNum } = getCarrierTrackingInfo(trackingStr);
+  if (!trackingNum) return;
+  const carrier = CARRIERS.find(c => c.name === carrierName);
+  if (carrier && carrier.url) {
+    window.open(carrier.url(trackingNum), "_blank");
+  } else {
+    alert("自取或此物流不支援線上軌跡查詢");
+  }
+};
+
+const isToday = (dateStr: string) => {
+  if (!dateStr) return false;
+  const today = new Date().toDateString();
+  return new Date(dateStr).toDateString() === today;
+};
+
+const isThisMonth = (dateStr: string) => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const now = new Date();
+  return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+};
+
 function AdminOrdersContent() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showBulkShipModal, setShowBulkShipModal] = useState(false);
+  const [bulkShipData, setBulkShipData] = useState<Record<string, { carrier: string; trackingNum: string }>>({});
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -333,6 +378,32 @@ function AdminOrdersContent() {
     }
   };
 
+  const handleSubmitBulkShip = async () => {
+    setIsLoading(true);
+    try {
+      for (const [orderId, data] of Object.entries(bulkShipData)) {
+        const finalTracking = data.trackingNum ? `${data.carrier}: ${data.trackingNum}` : "";
+        const { error } = await supabaseAdmin
+          .from("orders")
+          .update({ 
+            fulfillment_status: 'shipped',
+            tracking_number: finalTracking
+          })
+          .eq("id", orderId);
+        if (error) throw error;
+      }
+      setShowBulkShipModal(false);
+      setSelectedOrderIds([]);
+      fetchOrders();
+      alert("批量出貨及單號綁定成功！");
+    } catch (err) {
+      console.error(err);
+      alert("部分訂單更新失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, action: 'approve' | 'cancel') => {
     setIsLoading(true);
     try {
@@ -405,13 +476,46 @@ function AdminOrdersContent() {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesStatus = filterStatus === "all" || order.status === filterStatus;
+    let matchesStatus = true;
+    if (filterStatus === "pending") {
+      matchesStatus = order.status === "pending";
+    } else if (filterStatus === "preparing") {
+      matchesStatus = order.status === "completed" && order.fulfillment_status !== "shipped";
+    } else if (filterStatus === "shipped") {
+      matchesStatus = order.fulfillment_status === "shipped";
+    } else if (filterStatus === "cancelled") {
+      matchesStatus = order.status === "cancelled";
+    }
+
     const matchesSearch = 
-      order.members?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.members?.phone.includes(searchTerm) ||
-      order.id.includes(searchTerm);
+      order.members?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.members?.phone?.includes(searchTerm) ||
+      order.id?.includes(searchTerm) ||
+      order.payment_last_five?.includes(searchTerm) ||
+      order.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.shipping_info?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.shipping_info?.phone?.includes(searchTerm) ||
+      order.shipping_info?.address?.toLowerCase().includes(searchTerm.toLowerCase());
+
     return matchesStatus && matchesSearch;
   });
+
+  // ─── KPI METRICS COMPUTATIONS ───
+  const pendingAmount = orders
+    .filter(o => o.status === "pending")
+    .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+
+  const preparingCount = orders
+    .filter(o => o.status === "completed" && o.fulfillment_status !== "shipped")
+    .length;
+
+  const shippedTodayCount = orders
+    .filter(o => o.fulfillment_status === "shipped" && isToday(o.updated_at || o.created_at))
+    .length;
+
+  const monthlyRevenue = orders
+    .filter(o => o.status === "completed" && isThisMonth(o.created_at))
+    .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
   if (!isAdmin) return null;
 
@@ -439,7 +543,65 @@ function AdminOrdersContent() {
       </nav>
 
       <main className="max-w-7xl mx-auto p-10 space-y-10">
-        
+         
+        {/* ─── DYNAMIC KPI CARDS DISPLAY ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+           {/* Card 1: Pending Cash */}
+           <motion.div 
+             whileHover={{ y: -5 }}
+             className="bg-white/75 backdrop-blur-md border border-slate-100 p-6 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+           >
+              <div className="w-14 h-14 bg-amber-50 rounded-[1.5rem] flex items-center justify-center text-amber-600 shadow-inner">
+                 <Clock className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">待核對金額</p>
+                 <p className="text-xl font-black text-amber-700 tracking-tight">${pendingAmount.toLocaleString()}</p>
+              </div>
+           </motion.div>
+
+           {/* Card 2: Paid & Preparing */}
+           <motion.div 
+             whileHover={{ y: -5 }}
+             className="bg-white/75 backdrop-blur-md border border-slate-100 p-6 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+           >
+              <div className="w-14 h-14 bg-blue-50 rounded-[1.5rem] flex items-center justify-center text-blue-600 shadow-inner">
+                 <Package className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">備貨中訂單</p>
+                 <p className="text-xl font-black text-blue-700 tracking-tight">{preparingCount} 筆</p>
+              </div>
+           </motion.div>
+
+           {/* Card 3: Shipped Today */}
+           <motion.div 
+             whileHover={{ y: -5 }}
+             className="bg-white/75 backdrop-blur-md border border-slate-100 p-6 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+           >
+              <div className="w-14 h-14 bg-indigo-50 rounded-[1.5rem] flex items-center justify-center text-indigo-600 shadow-inner">
+                 <Truck className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">今日已出貨</p>
+                 <p className="text-xl font-black text-indigo-700 tracking-tight">{shippedTodayCount} 筆</p>
+              </div>
+           </motion.div>
+
+           {/* Card 4: Monthly Revenue */}
+           <motion.div 
+             whileHover={{ y: -5 }}
+             className="bg-white/75 backdrop-blur-md border border-slate-100 p-6 rounded-[2.5rem] shadow-sm flex items-center gap-6"
+           >
+              <div className="w-14 h-14 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center text-emerald-600 shadow-inner">
+                 <DollarSign className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">本月總交易額</p>
+                 <p className="text-xl font-black text-emerald-700 tracking-tight">${monthlyRevenue.toLocaleString()}</p>
+              </div>
+           </motion.div>
+        </div>
         {/* Search & Filter Bar */}
         <div className="flex flex-col md:flex-row gap-6">
            <div className="flex-1 relative">
@@ -453,13 +615,13 @@ function AdminOrdersContent() {
               />
            </div>
            <div className="flex gap-2 p-2 bg-slate-100 rounded-[2rem]">
-              {["all", "pending", "completed", "cancelled"].map((s) => (
+              {["all", "pending", "preparing", "shipped", "cancelled"].map((s) => (
                 <button 
                   key={s}
                   onClick={() => setFilterStatus(s)}
                   className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition ${filterStatus === s ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                   {s === "all" ? "全部" : s === "pending" ? "待處理" : s === "completed" ? "已完成" : "已取消"}
+                   {s === "all" ? "全部" : s === "pending" ? "待對帳 ⏳" : s === "preparing" ? "待出貨 📦" : s === "shipped" ? "已出貨 🚚" : "已取消 ✕"}
                 </button>
               ))}
            </div>
@@ -688,23 +850,49 @@ function AdminOrdersContent() {
                                   <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
                                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出貨控制台</h5>
                                     {order.status === 'completed' && (
-                                      <div className="flex gap-2">
-                                        <input 
-                                          id={`tracking-input-${order.id}`}
-                                          type="text" 
-                                          defaultValue={order.tracking_number || ''}
-                                          placeholder="請輸入物流單號"
-                                          className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
-                                        />
-                                        <button 
-                                          onClick={() => {
-                                            const input = document.getElementById(`tracking-input-${order.id}`) as HTMLInputElement;
-                                            updateFulfillment(order.id, 'shipped', input?.value || '');
-                                          }}
-                                          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition"
-                                        >
-                                          {order.fulfillment_status === 'shipped' ? '更新單號' : '確認出貨'}
-                                        </button>
+                                      <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                          <select 
+                                            id={`carrier-select-${order.id}`}
+                                            defaultValue={getCarrierTrackingInfo(order.tracking_number).carrierName}
+                                            className="bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 max-w-[150px] cursor-pointer"
+                                          >
+                                            {CARRIERS.map(c => (
+                                              <option key={c.name} value={c.name}>{c.name}</option>
+                                            ))}
+                                          </select>
+                                          <input 
+                                            id={`tracking-input-${order.id}`}
+                                            type="text" 
+                                            defaultValue={getCarrierTrackingInfo(order.tracking_number).trackingNum}
+                                            placeholder="請輸入物流單號"
+                                            className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <button 
+                                            onClick={() => {
+                                              const carrier = (document.getElementById(`carrier-select-${order.id}`) as HTMLSelectElement)?.value || "自取/其他";
+                                              const input = (document.getElementById(`tracking-input-${order.id}`) as HTMLInputElement)?.value || "";
+                                              const finalTracking = input ? `${carrier}: ${input}` : "";
+                                              updateFulfillment(order.id, 'shipped', finalTracking);
+                                            }}
+                                            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition"
+                                          >
+                                            {order.fulfillment_status === 'shipped' ? '更新單號' : '確認出貨'}
+                                          </button>
+                                        </div>
+                                        {order.tracking_number && (
+                                          <div className="flex justify-between items-center bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
+                                            <span className="text-[10px] font-bold text-slate-500">
+                                              當前單號: <span className="font-mono text-blue-600 font-black">{order.tracking_number}</span>
+                                            </span>
+                                            <button 
+                                              onClick={() => handleOpenTrackingLink(order.tracking_number)}
+                                              className="text-[9px] font-black text-indigo-600 hover:underline flex items-center gap-1"
+                                            >
+                                              🔍 追蹤配送軌跡 ➔
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                     <div className="flex gap-2">
@@ -761,7 +949,15 @@ function AdminOrdersContent() {
                         <CheckCircle2 className="w-4 h-4" /> 批量核付款
                      </button>
                      <button 
-                       onClick={handleBatchShip}
+                       onClick={() => {
+                          const initialData: Record<string, { carrier: string; trackingNum: string }> = {};
+                          orders.filter(o => selectedOrderIds.includes(o.id)).forEach(o => {
+                            const info = getCarrierTrackingInfo(o.tracking_number);
+                            initialData[o.id] = { carrier: info.carrierName || "黑貓宅急便", trackingNum: info.trackingNum || "" };
+                          });
+                          setBulkShipData(initialData);
+                          setShowBulkShipModal(true);
+                        }}
                        className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition"
                      >
                         <Truck className="w-4 h-4" /> 批量出貨
@@ -777,6 +973,145 @@ function AdminOrdersContent() {
             </motion.div>
           )}
         </AnimatePresence>
+
+      {/* ─── 批量出貨物流單號智慧錄入彈窗 (Bulk Shipping Waybill Modal) ─── */}
+      <AnimatePresence>
+        {showBulkShipModal && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-4xl shadow-2xl relative flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start pb-6 border-b border-slate-100">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <Truck className="w-6 h-6 text-indigo-600 animate-pulse" /> 批量出貨物流智慧錄入
+                  </h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    正在為 {selectedOrderIds.length} 筆已選取訂單批次綁定物流配送單號
+                  </p>
+                </div>
+                
+                {/* Global Carrier sync tool */}
+                <div className="flex items-center gap-2 bg-indigo-50/50 p-2.5 rounded-2xl border border-indigo-100/50">
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">一鍵同步物流商：</span>
+                  <select 
+                    id="global-carrier-select"
+                    className="bg-white border border-indigo-100 px-3 py-1.5 rounded-xl text-xs font-black text-slate-700 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {CARRIERS.map(c => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const selectedCarrier = (document.getElementById("global-carrier-select") as HTMLSelectElement)?.value || "黑貓宅急便";
+                      const updated = { ...bulkShipData };
+                      Object.keys(updated).forEach(id => {
+                        updated[id] = { ...updated[id], carrier: selectedCarrier };
+                      });
+                      setBulkShipData(updated);
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition"
+                  >
+                    套用全部
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable List of orders */}
+              <div className="flex-1 overflow-y-auto my-6 pr-2 space-y-4 max-h-[50vh] no-scrollbar">
+                {orders
+                  .filter(o => selectedOrderIds.includes(o.id))
+                  .map(order => {
+                    const orderData = bulkShipData[order.id] || { carrier: "黑貓宅急便", trackingNum: "" };
+                    return (
+                      <div 
+                        key={order.id} 
+                        className="bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-mono font-bold text-slate-500">
+                              #{order.id.substring(0, 8)}
+                            </span>
+                            <span className="text-sm font-black text-slate-800">
+                              {order.shipping_info?.name || order.members?.name || '無收件人'}
+                            </span>
+                            <span className="text-xs font-bold text-slate-400">
+                              ({order.shipping_info?.phone || order.members?.phone || '無電話'})
+                            </span>
+                          </div>
+                          <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                            📍 {order.shipping_info?.address || '門市自取'}
+                          </p>
+                          <div className="text-[9px] font-bold text-indigo-600/80 bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
+                            品項：{order.order_items ? order.order_items.map((i: any) => `${i.name}x${i.quantity}`).join(', ') : '無'}
+                          </div>
+                        </div>
+
+                        {/* Order Inputs */}
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                          <select 
+                            value={orderData.carrier}
+                            onChange={e => {
+                              setBulkShipData({
+                                ...bulkShipData,
+                                [order.id]: { ...orderData, carrier: e.target.value }
+                              });
+                            }}
+                            className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 cursor-pointer min-w-[140px]"
+                          >
+                            {CARRIERS.map(c => (
+                              <option key={c.name} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                          <input 
+                            type="text" 
+                            placeholder="輸入物流單號"
+                            value={orderData.trackingNum}
+                            onChange={e => {
+                              setBulkShipData({
+                                ...bulkShipData,
+                                [order.id]: { ...orderData, trackingNum: e.target.value }
+                              });
+                            }}
+                            className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 flex-1 md:w-48"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+                <button 
+                  onClick={() => setShowBulkShipModal(false)}
+                  className="px-6 py-3.5 text-slate-400 hover:text-slate-600 font-black text-xs uppercase tracking-widest"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleSubmitBulkShip}
+                  disabled={isLoading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.1em] shadow-lg shadow-indigo-600/15 flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Truck className="w-4 h-4" />
+                  )}
+                  確認整批出貨
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       </main>
     </div>
   );

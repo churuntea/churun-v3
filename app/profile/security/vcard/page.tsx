@@ -52,16 +52,36 @@ export default function VCardPage() {
     if (!ctx) return;
     canvas.width = 1200; canvas.height = 700;
 
-    // Background Gradient
+    // Background Gradient (Multi-stop for premium metallic luster)
     const gradient = ctx.createLinearGradient(0, 0, 1200, 700);
-    gradient.addColorStop(0, "#064e3b");
-    gradient.addColorStop(1, "#022c22");
+    gradient.addColorStop(0, "#092C1E"); // Deep dark forest emerald
+    gradient.addColorStop(0.4, "#0E4A35"); // Rich emerald luster
+    gradient.addColorStop(0.8, "#021A11"); // Ultra dark slate
+    gradient.addColorStop(1, "#01110B"); // Shadow boundary
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 1200, 700);
 
-    // Decorative "CR"
+    // Luxury outer gold double frame
+    ctx.strokeStyle = "rgba(197, 160, 89, 0.45)"; // Soft brass gold
+    ctx.lineWidth = 4;
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(30, 30, 1200 - 60, 700 - 60, 40);
+      ctx.stroke();
+      
+      // Inner thin border
+      ctx.strokeStyle = "rgba(197, 160, 89, 0.15)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(42, 42, 1200 - 84, 700 - 84, 34);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(30, 30, 1200 - 60, 700 - 60);
+    }
+
+    // Decorative background "CR"
     ctx.save();
-    ctx.globalAlpha = 0.03;
+    ctx.globalAlpha = 0.025;
     ctx.fillStyle = "#ffffff";
     ctx.font = "900 400px sans-serif";
     ctx.textAlign = "center";
@@ -69,60 +89,74 @@ export default function VCardPage() {
     ctx.restore();
 
     const leftX = 100;
+
+    // Top-Left Branding Header
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "bold 20px 'Cinzel', 'Georgia', serif";
+    ctx.fillText("CHURUN TEA HOUSE • EST. 2026", leftX, 105);
+
     // Name
-    ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 20;
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 30;
     ctx.fillStyle = "#ffffff";
     const nameFontSize = info.name.length > 10 ? 70 : 100;
-    ctx.font = `900 ${nameFontSize}px "Inter", sans-serif`;
+    ctx.font = `900 ${nameFontSize}px "Helvetica Neue", "Arial", sans-serif`;
     ctx.textAlign = "left";
-    ctx.fillText(info.name, leftX, 280);
+    ctx.fillText(info.name, leftX, 260);
     ctx.shadowBlur = 0;
 
-    // Member Code
-    ctx.fillStyle = "#10b981";
-    ctx.font = "800 40px monospace";
-    ctx.fillText(info.member_code, leftX, 360);
+    // Member Code with rich gold/amber coloration
+    ctx.fillStyle = "#F59E0B"; // Premium Amber Gold
+    ctx.font = "800 42px monospace";
+    ctx.fillText(info.member_code, leftX, 335);
 
     // Tier Badge
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
     const tierText = info.tier?.toUpperCase() || "初潤夥伴";
     ctx.font = "bold 22px sans-serif";
-    const tierWidth = ctx.measureText(tierText).width + 40;
-    if (ctx.roundRect) ctx.roundRect(leftX, 395, tierWidth, 45, 12); else ctx.rect(leftX, 395, tierWidth, 45);
+    const tierWidth = ctx.measureText(tierText).width + 44;
+    if (ctx.roundRect) ctx.roundRect(leftX, 370, tierWidth, 48, 14); else ctx.rect(leftX, 370, tierWidth, 48);
     ctx.fill();
     ctx.fillStyle = "#ffffff";
-    ctx.fillText(tierText, leftX + 20, 426);
+    ctx.fillText(tierText, leftX + 22, 401);
 
     // Phone
     if (info.phone) {
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      ctx.font = "bold 32px sans-serif";
-      ctx.fillText("SERVICE / " + info.phone, leftX, 480);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.font = "bold 30px sans-serif";
+      ctx.fillText("SERVICE / " + info.phone, leftX, 465);
     }
 
     // Address
     if (info.address) {
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
       ctx.font = "bold 20px sans-serif";
       // Limit address string length to prevent overflow off-screen on the right
       const displayAddress = info.address.length > 25 ? info.address.substring(0, 25) + "..." : info.address;
-      ctx.fillText("ADDRESS / " + displayAddress, leftX, 535);
+      ctx.fillText("ADDRESS / " + displayAddress, leftX, 520);
     }
 
-    // Motto
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    ctx.font = "italic bold 20px sans-serif";
-    ctx.fillText(info.motto || "以初心、致潤澤 — 初潤製茶所", leftX, info.address ? 595 : 560);
+    // Motto with elegant gold star marker
+    ctx.fillStyle = "#C5A059"; // Golden brass
+    ctx.font = "bold 22px sans-serif";
+    ctx.fillText("✦", leftX, info.address ? 580 : 540);
+    
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "italic bold 20px 'Georgia', serif";
+    ctx.fillText(info.motto || "以初心、致潤澤", leftX + 30, info.address ? 580 : 540);
 
-    // Profile Box
+    // Profile Box on the Right
     const boxW = 420, boxH = 580;
     const boxX = 1200 - boxW - 100, boxY = (700 - boxH) / 2;
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    
+    // Draw subtle profile box outline
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 60); else ctx.rect(boxX, boxY, boxW, boxH);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = "rgba(197, 160, 89, 0.3)"; // Golden brass accent outline
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     const finishCard = () => {
       const qEl = document.getElementById("vcard-hidden-qr") as HTMLCanvasElement;
@@ -133,7 +167,7 @@ export default function VCardPage() {
         if (ctx.roundRect) ctx.roundRect(qX - 20, qY - 20, qSize + 40, qSize + 40, 30); else ctx.rect(qX - 20, qY - 20, qSize + 40, qSize + 40);
         ctx.fill();
         ctx.drawImage(qEl, qX, qY, qSize, qSize);
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 24px sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "#092C1E"; ctx.font = "bold 24px sans-serif"; ctx.textAlign = "center";
         ctx.fillText("掃碼加入初潤", boxX + boxW / 2, boxY + 545);
       }
       setCardDataUrl(canvas.toDataURL("image/png"));

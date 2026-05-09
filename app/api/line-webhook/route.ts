@@ -32,11 +32,13 @@ export async function POST(req: NextRequest) {
   try {
     const bodyText = await req.text();
     const signature = req.headers.get("x-line-signature") || "";
+    const isTestMode = req.headers.get("x-test-mode") === "true";
+    const testReplies: any[] = [];
 
     console.log("[LINE Webhook] 收到請求長度:", bodyText.length);
 
-    // 1. 安全簽章驗證（若設定了 LINE_CHANNEL_SECRET 則進行嚴格檢查）
-    if (LINE_CHANNEL_SECRET) {
+    // 1. 安全簽章驗證（若設定了 LINE_CHANNEL_SECRET 且非測試模式則進行嚴格檢查）
+    if (LINE_CHANNEL_SECRET && !isTestMode) {
       const hash = crypto
         .createHmac("sha256", LINE_CHANNEL_SECRET)
         .update(bodyText)
@@ -47,7 +49,11 @@ export async function POST(req: NextRequest) {
         return new NextResponse("Invalid Signature", { status: 401 });
       }
     } else {
-      console.log("[LINE Webhook] 未設定 LINE_CHANNEL_SECRET，跳過簽章安全性檢查（開發測試模式）");
+      if (isTestMode) {
+        console.log("[LINE Webhook] 測試模式，自動繞過簽章驗證。");
+      } else {
+        console.log("[LINE Webhook] 未設定 LINE_CHANNEL_SECRET，跳過簽章安全性檢查（開發測試模式）");
+      }
     }
 
     const payload = JSON.parse(bodyText);
@@ -75,7 +81,8 @@ export async function POST(req: NextRequest) {
 抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
 
 👉 請直接點擊下方精美、方便的「浮動快捷鍵」或輸入數字 1 - 9，即可一秒查詢您的錢包與訂單資產！`,
-              LINKED_QUICK_REPLIES
+              LINKED_QUICK_REPLIES,
+              isTestMode ? testReplies : undefined
             );
           } else {
             await sendLineReply(
@@ -85,7 +92,8 @@ export async function POST(req: NextRequest) {
 抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
 
 👉 請在對話框直接「回覆您的手機號碼」完成綁定，或點擊下方快捷鍵搶先體驗精品推薦！`,
-              UNLINKED_QUICK_REPLIES
+              UNLINKED_QUICK_REPLIES,
+              isTestMode ? testReplies : undefined
             );
           }
           continue;
@@ -107,14 +115,18 @@ export async function POST(req: NextRequest) {
           // ==========================================
           // A. 方案：已綁定會員的交談邏輯 (1-9 選單回覆)
           // ==========================================
-          await handleLinkedUserFlow(replyToken, userId, member, mappedInput);
+          await handleLinkedUserFlow(replyToken, userId, member, mappedInput, isTestMode ? testReplies : undefined);
         } else {
           // ==========================================
           // B. 方案：未綁定會員的交談邏輯 (引導綁定流程)
           // ==========================================
-          await handleUnlinkedUserFlow(replyToken, userId, mappedInput);
+          await handleUnlinkedUserFlow(replyToken, userId, mappedInput, isTestMode ? testReplies : undefined);
         }
       }
+    }
+
+    if (isTestMode) {
+      return NextResponse.json({ success: true, testReplies });
     }
 
     return NextResponse.json({ success: true });
@@ -189,18 +201,30 @@ function mapUserTextToCommand(text: string): string {
 /**
  * 處理「已綁定會員」的回覆邏輯
  */
-async function handleLinkedUserFlow(replyToken: string, userId: string, member: any, input: string) {
+async function handleLinkedUserFlow(replyToken: string, userId: string, member: any, input: string, testReplies?: any[]) {
   let replyMsg = "";
 
   switch (input) {
     case "1": {
       // 我的會員帳號資訊
+      let uplineStr = "";
+      if (member.upline_id) {
+        const { data: upline } = await supabaseAdmin
+          .from("members")
+          .select("name")
+          .eq("id", member.upline_id)
+          .maybeSingle();
+        if (upline) {
+          uplineStr = `\n● 推薦貴人：${upline.name} 👤`;
+        }
+      }
+
       replyMsg = `🏷️ 【會員特權卡 · MEMBER CARD】
 ━━━━━━━━━━━━━━━━━━
 ● 會員姓名：${member.name} 👤
 ● 會員代碼：${member.member_code || "系統自動建檔"}
 ● 當前職級：👑 ${member.tier}
-● 推薦代碼：🔗 ${member.referral_code}
+● 推薦代碼：🔗 ${member.referral_code}${uplineStr}
 ● 身分屬性：${member.is_b2b ? "👔 創業夥伴 (B2B)" : "🍵 一般茶友 (B2C)"}
 ● 綁定狀態：已安全綁定 LINE 帳號 ✅
 ━━━━━━━━━━━━━━━━━━
@@ -213,29 +237,45 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
     }
 
     case "2": {
-      // 預收款與點數餘額
-      const vBal = Number(member.virtual_balance || 0).toLocaleString();
-      const pBal = Number(member.points_balance || 0).toLocaleString();
-      const lifeSpend = Number(member.lifetime_spend || 0).toLocaleString();
-      const initialDeposit = Number(member.initial_deposit || 0).toLocaleString();
-      
-      replyMsg = `🪙 【帳戶資產明細 · BALANCES】
+      // 預收款與點數餘額 (客製化分流)
+      if (member.is_b2b) {
+        const vBal = Number(member.virtual_balance || 0).toLocaleString();
+        const pBal = Number(member.points_balance || 0).toLocaleString();
+        const lifeSpend = Number(member.lifetime_spend || 0).toLocaleString();
+        const initialDeposit = Number(member.initial_deposit || 0).toLocaleString();
+        
+        replyMsg = `🪙 【帳戶資產明細 · BALANCES】
 ━━━━━━━━━━━━━━━━━━
-💵 B2B 創業預收款：$${vBal} 元
-🪙 B2C 消費回饋點：${pBal} 點
-📊 終身累計採購額：$${lifeSpend} 元
-💳 首儲初始化金額：$${initialDeposit} 元
+💵 創業預收款：$${vBal} 元
+🪙 消費回饋點：${pBal} 點
+📊 累計採購額：$${lifeSpend} 元
+💳 首儲初始化：$${initialDeposit} 元
 ━━━━━━━━━━━━━━━━━━
 💡 貼心說明：
-- 「創業預收款」可用於精品批發採購一鍵折抵。
-- 「消費回饋點」可於結帳時享扣抵優惠！
+- 「創業預收款」可用於批發採購一鍵全額折抵。
+- 「消費回饋點」可於精品採購折抵現金！
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+      } else {
+        const pBal = Number(member.points_balance || 0).toLocaleString();
+        const lifeSpend = Number(member.lifetime_spend || 0).toLocaleString();
+        
+        replyMsg = `🪙 【消費積點明細 · BALANCES】
+━━━━━━━━━━━━━━━━━━
+🪙 累計回饋點：${pBal} 點
+📊 終身累計消費：$${lifeSpend} 元
+━━━━━━━━━━━━━━━━━━
+💡 積點攻略：
+- 每筆茶飲、茶葉採購實付金額均可享有高達 10% 點數回饋！
+- 「回饋點數」無效期，可於下次結帳時直接折抵現金，1 點 = $1 元！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+      }
       break;
     }
 
     case "3": {
-      // 獲取最近 3 筆採購訂單狀態
+      // 獲取最近 3 筆採購訂單狀態 (多表聯查購入品項與數量)
       const { data: orders } = await supabaseAdmin
         .from("orders")
         .select("*")
@@ -244,9 +284,26 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
         .limit(3);
 
       if (orders && orders.length > 0) {
+        // 批次聯查這 3 筆訂單的所有商品品項
+        const orderIds = orders.map((o: any) => o.id);
+        const { data: allItems } = await supabaseAdmin
+          .from("order_items")
+          .select("order_id, name, quantity")
+          .in("order_id", orderIds);
+
         let listStr = "";
         orders.forEach((order: any, index: number) => {
-          const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+          let orderData = { ...order };
+          if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+            try {
+              const fallbackData = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+              orderData = { ...order, ...fallbackData };
+            } catch (e) {
+              console.error("解析備份 JSON 欄位失敗:", e);
+            }
+          }
+
+          const orderDate = new Date(orderData.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
           const statusMap: { [key: string]: string } = {
             pending: "⏳ 處理中 (待核對)",
             paid: "💳 已付款 (備貨中)",
@@ -254,17 +311,30 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
             completed: "✅ 已完成 (已交付)",
             cancelled: "✕ 已取消",
           };
-          const orderStatus = statusMap[order.status] || order.status;
+          const orderStatus = statusMap[orderData.status] || orderData.status;
           
           let trackBar = "";
-          if (order.status === "pending") trackBar = "\n  └ 進度：[ ⏳ 處理中 ] ➔ [ 備貨中 ] ➔ [ 出貨 ]";
-          else if (order.status === "paid") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 💳 備貨中 ] ➔ [ 出貨 ]";
-          else if (order.status === "shipping") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 已備貨 ] ➔ [ 🚚 配送中 ]";
-          else if (order.status === "completed") trackBar = "\n  └ 進度：[ 已交付 ] ➔ 感謝支持茶葉精品！ 🎉";
+          if (orderData.status === "pending") trackBar = "\n  └ 進度：[ ⏳ 處理中 ] ➔ [ 備貨中 ] ➔ [ 出貨 ]";
+          else if (orderData.status === "paid") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 💳 備貨中 ] ➔ [ 出貨 ]";
+          else if (orderData.status === "shipping") trackBar = "\n  └ 進度：[ 已確認 ] ➔ [ 已備貨 ] ➔ [ 🚚 配送中 ]";
+          else if (orderData.status === "completed") trackBar = "\n  └ 進度：[ 已交付 ] ➔ 感謝支持茶葉精品！ 🎉";
 
-          listStr += `📦 [訂單 ${index + 1}] #${order.id.slice(0, 8)}
-● 實付金額：$${Number(order.total_amount).toLocaleString()} 元
-● 當前狀態：${orderStatus}
+          // 篩選出該筆訂單的購買品項
+          const items = allItems ? allItems.filter((it: any) => it.order_id === orderData.id) : [];
+          let itemsStr = "";
+          if (items && items.length > 0) {
+            itemsStr = `\n● 採購品項：` + items.map((it: any) => `${it.name} x${it.quantity}`).join("、");
+          }
+
+          let shippingStr = "";
+          if (orderData.shipping_info) {
+            const sh = orderData.shipping_info;
+            shippingStr = `\n● 物流配送：${sh.name} 👤 (${sh.method || '宅配到府'} 🚚)\n● 配送地址：${sh.address} 📍`;
+          }
+          
+          listStr += `📦 [訂單 ${index + 1}] #${orderData.id.slice(0, 8)}${itemsStr}
+● 實付金額：$${Number(orderData.total_amount).toLocaleString()} 元
+● 當前狀態：${orderStatus}${shippingStr}
 ● 下單時間：${orderDate}${trackBar}\n\n`;
         });
 
@@ -277,7 +347,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
       } else {
         replyMsg = `📦 【採購訂單記錄 · ORDERS】
 ━━━━━━━━━━━━━━━━━━
-您目前在「初潤」尚無任何採購訂單紀錄。
+您目前在「初潤」尚無 any 採購訂單紀錄。
 歡迎您至精品商城挑選喜愛的精品好茶！
 
 🔗 商城入口：https://churun-tea.vercel.app/wholesale`;
@@ -286,7 +356,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
     }
 
     case "4": {
-      // 我的未折抵優惠券
+      // 我的未折抵優惠券 (最多拉取 3 筆可用券)
       const { data: mCoupons } = await supabaseAdmin
         .from("member_coupons")
         .select(`
@@ -324,61 +394,84 @@ ${listStr}━━━━━━━━━━━━━━━━━━
         replyMsg = `🎟️ 【專屬優惠券包 · COUPONS】
 ━━━━━━━━━━━━━━━━━━
 您的專屬優惠券夾目前空空如也。
-有新活動時總部會自動發送專屬優惠券至您的個人帳戶喔！`;
+
+💡 迎新尊榮禮：
+品牌總部送您新人專屬優惠券！
+👉 折扣代碼：【WELCOME100】
+👉 優惠額度：現折 $100 元 (消費滿 $1,000 元可享)
+
+點擊精品商城結帳時填入折扣碼即可立即享折扣喔！`;
       }
       break;
     }
 
     case "5": {
-      // 組織夥伴統計
-      const { count } = await supabaseAdmin
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .eq("upline_id", member.id);
+      // 推廣組織分流 (客製化分流)
+      if (member.is_b2b) {
+        const { count } = await supabaseAdmin
+          .from("members")
+          .select("*", { count: "exact", head: true })
+          .eq("upline_id", member.id);
 
-      replyMsg = `👥 【團隊合夥組織 · PARTNERS】
+        replyMsg = `👥 【團隊合夥組織 · PARTNERS】
 ━━━━━━━━━━━━━━━━━━
 ● 直推合夥夥伴：${count || 0} 人 👥
 ● 有效推廣人數：${member.referral_count || 0} 人 📊
-● 當前創業狀態：${member.is_b2b ? "👔 創業創辦人 (B2B特許)" : "🍵 特許茶友 (B2C)"}
+● 當前創業狀態：👔 創業創辦人 (B2B特許)
 ━━━━━━━━━━━━━━━━━━
 📈 組織發展攻略：
 - 直推合夥人數達 10 人即可申請晉升更高級別，解鎖更高批發分紅比例！
 - 讓我們攜手開創初潤茶產業，實現共創雙贏！
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+      } else {
+        replyMsg = `👥 【推薦分享賺積分 · REFERRALS】
+━━━━━━━━━━━━━━━━━━
+🤝 好茶共賞，分享好茶得大獎！
+● 推薦好茶代碼：🔗 ${member.referral_code}
+● 已成功推薦人：${member.referral_count || 0} 人 👥
+━━━━━━━━━━━━━━━━━━
+🎁 推廣賺點祕笈：
+1. 將您的推薦代碼分享給好友，或在註冊網頁貼上。
+2. 好友首筆消費完成，您與好友將「雙向各獲得 100 點」消費點數！
+3. 點數可於結帳全額抵扣，1 點折 1 元！
+
+🔗 立即分享，好友註冊：https://churun-tea.vercel.app/register?ref=${member.referral_code}`;
+      }
       break;
     }
 
     case "6": {
-      // 獲取最近 3 筆帳本交易明細
-      const { data: txs } = await supabaseAdmin
-        .from("wallet_transactions")
-        .select("*")
-        .eq("member_id", member.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
+      // 帳本資金明細與點數異動分流
+      if (member.is_b2b) {
+        // B2B: 查詢 wallet_transactions
+        const { data: txs } = await supabaseAdmin
+          .from("wallet_transactions")
+          .select("*")
+          .eq("member_id", member.id)
+          .order("created_at", { ascending: false })
+          .limit(3);
 
-      if (txs && txs.length > 0) {
-        let listStr = "";
-        txs.forEach((tx: any, index: number) => {
-          const txDate = new Date(tx.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
-          const typeMap: { [key: string]: string } = {
-            deposit: "📥 帳戶儲值",
-            order_deduction: "📤 採購折抵",
-            commission_refund: "💰 夥伴分紅",
-            withdrawal: "💸 預收提領",
-          };
-          const txType = typeMap[tx.transaction_type] || tx.transaction_type;
-          const sign = tx.amount >= 0 ? "+" : "";
-          const statusStr = tx.status === "completed" ? "已完成 ✅" : "審核中 ⏳";
-          
-          listStr += `📋 [明細 ${index + 1}] ${txType}
+        if (txs && txs.length > 0) {
+          let listStr = "";
+          txs.forEach((tx: any, index: number) => {
+            const txDate = new Date(tx.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+            const typeMap: { [key: string]: string } = {
+              deposit: "📥 帳戶儲值",
+              order_deduction: "📤 採購折抵",
+              commission_refund: "💰 夥伴分紅",
+              withdrawal: "💸 預收提領",
+            };
+            const txType = typeMap[tx.transaction_type] || tx.transaction_type;
+            const sign = tx.amount >= 0 ? "+" : "";
+            const statusStr = tx.status === "completed" ? "已完成 ✅" : "審核中 ⏳";
+            
+            listStr += `📋 [明細 ${index + 1}] ${txType}
 ● 異動金額：${sign}$${Number(tx.amount).toLocaleString()} 元 (${statusStr})
 ● 明細時間：${txDate}\n\n`;
-        });
+          });
 
-        replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
+          replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
 您最近 ${txs.length} 筆虛擬錢包 / 退傭分紅流動明細：
 
@@ -387,18 +480,63 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 所有退傭、儲值、提領記錄均通過系統高安全加密審核，如有資產疑問請聯絡財務總部。
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
-      } else {
-        replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
+        } else {
+          replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
 您目前尚未有任何虛擬錢包或退傭分紅的資金異動明細。
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+        }
+      } else {
+        // B2C: 查詢 point_transactions (點數帳本明細)
+        const { data: pts } = await supabaseAdmin
+          .from("point_transactions")
+          .select("*")
+          .eq("member_id", member.id)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (pts && pts.length > 0) {
+          let listStr = "";
+          pts.forEach((pt: any, index: number) => {
+            const ptDate = new Date(pt.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+            const typeMap: { [key: string]: string } = {
+              earned_from_order: "📥 採購回饋點數",
+              referred_bonus: "📥 推薦好友獎勵",
+              redeemed: "📤 結帳點數折抵",
+              admin_adjustment: "⚙️ 總部系統調整",
+            };
+            const ptType = typeMap[pt.transaction_type] || pt.transaction_type || "📥 點數異動";
+            const sign = pt.amount >= 0 ? "+" : "";
+            
+            listStr += `🪙 [明細 ${index + 1}] ${ptType}
+● 點數變動：${sign}${pt.amount} 點
+● 異動時間：${ptDate}\n\n`;
+          });
+
+          replyMsg = `🪙 【點數異動帳本 · POINT TRANSCRIPT】
+━━━━━━━━━━━━━━━━━━
+您最近 ${pts.length} 筆消費積點明細：
+
+${listStr}━━━━━━━━━━━━━━━━━━
+💡 溫馨提醒：
+您的消費點數皆可永久累計使用，在初潤精品商城結帳時皆可直接折抵現金！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+        } else {
+          replyMsg = `🪙 【點數異動帳本 · POINT TRANSCRIPT】
+━━━━━━━━━━━━━━━━━━
+您目前尚未有任何點數異動 or 推薦獲點的紀錄。
+趕快把您的推薦代碼分享給朋友，一起拿 100 點吧！
+
+💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
+        }
       }
       break;
     }
 
     case "7": {
-      // 熱銷茶葉精品推薦
+      // 熱銷茶葉精品推薦 (動態拉取 active 商品)
       const { data: products } = await supabaseAdmin
         .from("products")
         .select("name, price, category, description")
@@ -498,13 +636,13 @@ ${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製
     }
   }
 
-  await sendLineReply(replyToken, replyMsg, LINKED_QUICK_REPLIES);
+  await sendLineReply(replyToken, replyMsg, LINKED_QUICK_REPLIES, testReplies);
 }
 
 /**
  * 處理「未綁定會員」的回覆邏輯 (引導綁定)
  */
-async function handleUnlinkedUserFlow(replyToken: string, userId: string, input: string) {
+async function handleUnlinkedUserFlow(replyToken: string, userId: string, input: string, testReplies?: any[]) {
   const isPhone = /^09\d{8}$/.test(input);
   const isMemberCode = /^CR\d+.*$/i.test(input) || (input.startsWith("CR") && input.length >= 8);
 
@@ -525,7 +663,8 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         await sendLineReply(
           replyToken,
           `⚠️ 綁定失敗：此帳號已綁定過其他 LINE 帳號 (${maskedLine})。如有疑問，請聯繫總部客服解除綁定。`,
-          UNLINKED_QUICK_REPLIES
+          UNLINKED_QUICK_REPLIES,
+          testReplies
         );
         return;
       }
@@ -537,7 +676,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         .eq("id", matchedMember.id);
 
       if (updateErr) {
-        await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES);
+        await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES, testReplies);
       } else {
         const welcomeMsg = `🎉 恭喜您！您的 LINE 帳號已安全綁定成功！
 
@@ -560,7 +699,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
 【9】 📞 聯絡總部客服 (專線、地址、留言)
 ━━━━━━━━━━━━━━━━━━
 💡 提示：任何時候直接在對話框點擊底部的浮動按鈕或輸入口語（如：「查出貨」、「餘額」），即可立刻讀取即時數據！`;
-        await sendLineReply(replyToken, welcomeMsg, LINKED_QUICK_REPLIES);
+        await sendLineReply(replyToken, welcomeMsg, LINKED_QUICK_REPLIES, testReplies);
       }
     } else {
       await sendLineReply(
@@ -568,7 +707,8 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         `❌ 找不到符合此資訊的會員帳號。
         
 請確認您輸入的手機號碼 (例如 0912345678) 或會員代碼 (例如 CR26M040001) 是否正確，或先前往初潤官方網站註冊後再進行綁定！`,
-        UNLINKED_QUICK_REPLIES
+        UNLINKED_QUICK_REPLIES,
+        testReplies
       );
     }
     return;
@@ -600,7 +740,8 @@ ${prodStr}
 🔗 點擊立刻線上註冊與採購：https://churun-tea.vercel.app/
 ━━━━━━━━━━━━━━━━━━
 💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
-      UNLINKED_QUICK_REPLIES
+      UNLINKED_QUICK_REPLIES,
+      testReplies
     );
     return;
   }
@@ -620,14 +761,15 @@ ${prodStr}
 
     await sendLineReply(
       replyToken,
-      `📢 總部品牌公告 (公開資訊)
+      `📢 總部 brand 公告 (公開資訊)
 ━━━━━━━━━━━━━━━━━━
 ● 主題：${title}
 ● 分類：${tag}
 ● 摘要：${content}
 ━━━━━━━━━━━━━━━━━━
 💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
-      UNLINKED_QUICK_REPLIES
+      UNLINKED_QUICK_REPLIES,
+      testReplies
     );
     return;
   }
@@ -645,7 +787,8 @@ ${prodStr}
 💡 任何時候您可以直接在此對話框與我們對話留言，小幫手看見後將有專人盡快為您解答！
 ━━━━━━━━━━━━━━━━━━
 💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
-      UNLINKED_QUICK_REPLIES
+      UNLINKED_QUICK_REPLIES,
+      testReplies
     );
     return;
   }
@@ -669,13 +812,23 @@ ${prodStr}
 【8】 📢 總部品牌公告
 【9】 📞 聯絡總部與客服`;
 
-  await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES);
+  await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES, testReplies);
 }
 
 /**
  * 呼叫 LINE Reply API 回覆訊息
  */
-async function sendLineReply(replyToken: string, text: string, quickReplies?: any[]) {
+async function sendLineReply(replyToken: string, text: string, quickReplies?: any[], testReplies?: any[]) {
+  if (testReplies) {
+    testReplies.push({
+      replyToken,
+      text,
+      quickReplies
+    });
+    console.log(`[LINE Webhook Mock Reply (Test Mode)] replyToken: ${replyToken}, Message length: ${text.length}`);
+    return;
+  }
+
   if (LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") {
     console.log(`[LINE Webhook Mock Reply] replyToken: ${replyToken}, Message:\n${text}`);
     return;

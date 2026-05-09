@@ -30,6 +30,26 @@ function TransactionContent() {
   const [activeTab, setActiveTab] = useState<"wallet" | "points">("wallet");
   const [showHistory, setShowHistory] = useState(false);
 
+  const getTransactionLabel = (type: string, isWallet: boolean) => {
+    if (isWallet) {
+      switch (type) {
+        case "commission_refund": return { label: "B2B 分紅折讓", desc: "合夥人進貨折讓返還", color: "text-emerald-600 bg-emerald-50" };
+        case "withdrawal": return { label: "帳戶資金提領", desc: "提款至綁定銀行帳戶", color: "text-rose-600 bg-rose-50" };
+        case "purchase": return { label: "進貨/商品消費", desc: "商城進貨扣除貨款", color: "text-amber-600 bg-amber-50" };
+        case "deposit": return { label: "錢包儲值進貨", desc: "匯款儲值至預收帳戶", color: "text-indigo-600 bg-indigo-50" };
+        case "admin_adjustment": return { label: "總部手動調整", desc: "總部系統管理調整", color: "text-slate-600 bg-slate-50" };
+        default: return { label: type || "其他異動", desc: "錢包帳務異動紀錄", color: "text-slate-600 bg-slate-50" };
+      }
+    } else {
+      switch (type) {
+        case "points_reward": return { label: "購物積分回饋", desc: "商城消費累積之點數", color: "text-amber-600 bg-amber-50" };
+        case "redeem": return { label: "點數兌換商品", desc: "點數商城商品兌換", color: "text-rose-600 bg-rose-50" };
+        case "admin_adjustment": return { label: "總部點數調整", desc: "總部系統點數調整", color: "text-slate-600 bg-slate-50" };
+        default: return { label: type || "其他點數異動", desc: "點數異動明細紀錄", color: "text-slate-600 bg-slate-50" };
+      }
+    }
+  };
+
   useEffect(() => {
     const currentVersion = "3.0.2";
     const savedVersion = localStorage.getItem("churun_trans_version");
@@ -138,18 +158,29 @@ function TransactionContent() {
                    <p className="text-xs text-slate-300 font-bold">目前尚無異動紀錄</p>
                 </div>
               ) : (
-                transactions.slice(0, 10).map((tx) => (
-                   <div key={tx.id} className="bg-white rounded-[2.5rem] p-6 border border-slate-50 flex items-center gap-5">
-                      <div className="w-14 h-14 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-400 font-black text-xs">
-                         {tx.amount > 0 ? '+' : '-'}
-                      </div>
-                      <div className="flex-1">
-                         <h4 className="font-black text-slate-800 text-sm">{tx.transaction_type}</h4>
-                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">{new Date(tx.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <p className={`text-xl font-black tracking-tighter ${tx.amount > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{Math.abs(tx.amount).toLocaleString()}</p>
-                   </div>
-                ))
+                 transactions.slice(0, 20).map((tx) => {
+                    const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
+                    const isPositive = Number(tx.amount) > 0;
+                    return (
+                       <div key={tx.id} className="bg-white rounded-[2.5rem] p-6 border border-slate-50 flex items-center justify-between shadow-sm hover:scale-[1.01] transition duration-200">
+                          <div className="flex items-center gap-4 min-w-0">
+                             <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
+                                {isPositive ? '+' : '-'}
+                             </div>
+                             <div className="text-left min-w-0">
+                                <h4 className="font-black text-slate-800 text-sm truncate">{info.label}</h4>
+                                <p className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tight truncate">{info.desc}</p>
+                             </div>
+                          </div>
+                          <div className="text-right shrink-0 ml-4">
+                             <p className={`text-base font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                             </p>
+                             <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
+                          </div>
+                       </div>
+                    );
+                 })
               )}
            </div>
         </section>

@@ -135,9 +135,8 @@ function ProfileContent() {
       </nav>
 
       <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
-        
-        {/* Interactive VIP Card */}
-        <div className="relative h-80 w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+         {/* Interactive VIP Card */}
+         <div className="relative h-80 w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
             <motion.div 
               animate={{ rotateY: isFlipped ? 180 : 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
@@ -147,9 +146,27 @@ function ProfileContent() {
                <div className="absolute inset-0 backface-hidden bg-mesh-emerald rounded-[3.5rem] p-10 text-white flex flex-col justify-between overflow-hidden">
                   <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
                   <div className="relative z-10 flex justify-between items-start">
-                     <div>
-                        <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-2">Member Account</p>
-                        <h2 className="text-3xl font-black tracking-tight">{memberInfo.name}</h2>
+                     <div className="flex items-center gap-4">
+                        {memberInfo.avatar_url ? (
+                           <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0">
+                              <img 
+                                 src={memberInfo.avatar_url} 
+                                 className="w-full h-full object-cover" 
+                                 style={memberInfo.avatar_settings ? { 
+                                    transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                 } : undefined}
+                                 alt="Avatar" 
+                              />
+                           </div>
+                        ) : (
+                           <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 text-white/50 flex-shrink-0">
+                              <User className="w-6 h-6" />
+                           </div>
+                        )}
+                        <div>
+                           <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
+                           <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
+                        </div>
                      </div>
                      <div onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }} className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/20 transition">
                         <Sparkles className="w-3 h-3 text-amber-300" />
@@ -181,6 +198,49 @@ function ProfileContent() {
                </div>
             </motion.div>
         </div>
+
+        {/* Wallet & Points Hub */}
+        <div className="grid grid-cols-2 gap-4">
+           {/* Wallet Cash Balance */}
+           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col justify-between h-36">
+              <div className="flex justify-between items-start">
+                 <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                    <CreditCard className="w-5 h-5" />
+                 </div>
+                 {memberInfo.is_b2b && (
+                    <button onClick={() => router.push("/withdraw")} className="text-[9px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1 hover:opacity-80 transition">
+                       提領 <ArrowUpRight className="w-3 h-3" />
+                    </button>
+                 )}
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                    {memberInfo.is_b2b ? "預收貨款與分紅" : "可用儲值金"}
+                 </p>
+                 <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                    NT$ {Number(memberInfo.virtual_balance || 0).toLocaleString()}
+                 </h3>
+              </div>
+           </div>
+
+           {/* Points Balance */}
+           <div className="bg-white rounded-[2.5rem] p-6 border border-slate-50 shadow-sm flex flex-col justify-between h-36">
+              <div className="flex justify-between items-start">
+                 <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                    <Star className="w-5 h-5" />
+                 </div>
+                 <button onClick={() => router.push("/rewards")} className="text-[9px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1 hover:opacity-80 transition">
+                    明細 <ArrowUpRight className="w-3 h-3" />
+                 </button>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">累積會員點數</p>
+                 <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                    {Number(memberInfo.points_balance || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">P</span>
+                 </h3>
+              </div>
+           </div>
+         </div>
 
         {/* Benefits Modal */}
         <AnimatePresence>

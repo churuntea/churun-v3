@@ -10,10 +10,7 @@ import {
   Heart, 
   MessageCircle, 
   ChevronRight,
-  Sparkles,
   Award,
-  Zap,
-  ShoppingBag,
   Loader2
 } from "lucide-react";
 import Link from "next/link";
@@ -62,11 +59,11 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
     fetchNews();
   }, [id]);
 
-  if (isLoading) return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
+  if (isLoading) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
   
   if (!news) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center space-y-6">
-       <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center">
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-8 text-center space-y-6">
+       <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-inner border border-slate-50">
           <Tag className="w-10 h-10 text-slate-200" />
        </div>
        <h1 className="text-2xl font-black text-slate-800">找不到此快訊</h1>
@@ -75,26 +72,26 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
   );
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-32">
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-32">
       
       {/* Hero Header */}
       <div className="relative h-[50vh] min-h-[400px] w-full overflow-hidden">
          <motion.img 
-           initial={{ scale: 1.2 }}
-           animate={{ scale: 1 }}
-           transition={{ duration: 10 }}
-           src={news.image} 
-           className="w-full h-full object-cover"
-           alt={news.title}
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 10 }}
+            src={news.image} 
+            className="w-full h-full object-cover"
+            alt={news.title}
          />
-         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent"></div>
+         <div className="absolute inset-0 bg-gradient-to-t from-[#FDFBF7] via-[#FDFBF7]/20 to-transparent"></div>
          
          <nav className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
-            <button onClick={() => router.back()} className="w-12 h-12 bg-white/80 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-sm border border-white">
+            <button onClick={() => router.back()} className="w-12 h-12 bg-white/80 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-sm border border-white active:scale-95 transition">
                <ArrowLeft className="w-5 h-5 text-slate-600" />
             </button>
             <div className="flex gap-4">
-               <button className="w-12 h-12 bg-white/80 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-sm border border-white">
+               <button className="w-12 h-12 bg-white/80 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-sm border border-white active:scale-95 transition">
                   <Share2 className="w-5 h-5 text-slate-600" />
                </button>
             </div>
@@ -145,8 +142,8 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
 
         {/* Feature Cards in News */}
         <section className="grid grid-cols-1 gap-6 pt-12">
-           <div className="bg-slate-50 rounded-[3rem] p-10 border border-slate-100 flex items-center gap-8 group">
-              <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-sm group-hover:rotate-6 transition">
+           <div className="bg-white rounded-[3rem] p-10 border border-slate-100 flex items-center gap-8 group shadow-sm hover:shadow-lg transition duration-500">
+              <div className="w-20 h-20 bg-[#FDFBF7] rounded-[2rem] flex items-center justify-center shadow-inner border border-slate-50 group-hover:rotate-6 transition duration-500">
                  <Award className="w-10 h-10 text-emerald-600" />
               </div>
               <div className="space-y-1">
@@ -157,7 +154,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
         </section>
 
         {/* Interactive Stats */}
-        <div className="flex items-center justify-between py-12 border-y border-slate-50">
+        <div className="flex items-center justify-between py-12 border-y border-slate-100">
            <div className="flex items-center gap-10">
               <button onClick={() => setIsLiked(!isLiked)} className="flex items-center gap-2 group">
                  <Heart className={`w-6 h-6 transition ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-slate-300 group-hover:text-rose-500'}`} />
@@ -171,7 +168,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
            <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
                  {[1,2,3].map(i => (
-                   <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                   <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden shadow-sm">
                       <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" />
                    </div>
                  ))}
@@ -195,7 +192,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
 
       {/* Footer Branding */}
       <footer className="mt-20 py-20 text-center space-y-6">
-         <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto grayscale opacity-50">
+         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto grayscale opacity-50 shadow-sm border border-slate-100">
             <span className="text-slate-400 font-black text-sm tracking-tighter">CR</span>
          </div>
          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">

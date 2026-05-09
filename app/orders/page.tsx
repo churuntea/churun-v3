@@ -17,6 +17,36 @@ import {
   FileText
 } from "lucide-react";
 
+const CARRIERS = [
+  { name: "黑貓宅急便", url: (num: string) => `https://www.t-cat.com.tw/Inquire/TraceDetail.aspx?Sn=${num}` },
+  { name: "新竹物流", url: (num: string) => `https://www.hct.com.tw/Search/Search_Query.aspx?stype=1&search_no=${num}` },
+  { name: "大榮貨運", url: (num: string) => `https://www.kerrytj.com/ZH/search/search.aspx?gnum=${num}` },
+  { name: "中華郵政", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
+  { name: "7-11 交貨便", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
+  { name: "全家 店到店", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
+  { name: "門市自取 / 自家配送", url: null }
+];
+
+const getCarrierTrackingInfo = (trackingStr: string) => {
+  if (!trackingStr) return { carrierName: "黑貓宅急便", trackingNum: "" };
+  if (trackingStr.includes(": ")) {
+    const parts = trackingStr.split(": ");
+    return { carrierName: parts[0], trackingNum: parts[1] };
+  }
+  return { carrierName: "黑貓宅急便", trackingNum: trackingStr };
+};
+
+const handleOpenTrackingLink = (trackingStr: string) => {
+  const { carrierName, trackingNum } = getCarrierTrackingInfo(trackingStr);
+  if (!trackingNum) return;
+  const carrier = CARRIERS.find(c => c.name === carrierName);
+  if (carrier && carrier.url) {
+    window.open(carrier.url(trackingNum), "_blank");
+  } else {
+    alert("自取或此物流不支援線上軌跡查詢");
+  }
+};
+
 function OrderSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
@@ -45,6 +75,8 @@ function OrdersContent() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
   const [loadingItems, setLoadingItems] = useState<string | null>(null);
+  const [remittanceInputs, setRemittanceInputs] = useState<Record<string, string>>({});
+  const [isEditingRemittance, setIsEditingRemittance] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -102,16 +134,44 @@ function OrdersContent() {
     setLoadingItems(null);
   };
 
+  const handleUpdatePaymentLastFive = async (orderId: string, value: string) => {
+    if (!value || value.length !== 5) {
+      alert("請輸入正確的 5 碼匯款帳號末碼");
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({ payment_last_five: value })
+      .eq("id", orderId);
+    
+    if (error) {
+      console.error(error);
+      alert("提交對帳失敗，請重試");
+    } else {
+      alert("帳號末五碼回報成功！我們將會盡速為您核對對帳。");
+      const savedId = localStorage.getItem("churun_member_id");
+      if (savedId) await fetchOrders(savedId);
+      // Exit editing mode
+      setIsEditingRemittance(prev => ({ ...prev, [orderId]: false }));
+    }
+    setIsLoading(false);
+  };
+
   const filteredOrders = orders.filter(order => {
     if (activeTab === "all") return true;
+    if (activeTab === "processing") return order.status !== "cancelled" && order.fulfillment_status !== "shipped";
+    if (activeTab === "shipped") return order.fulfillment_status === "shipped" && order.status !== "completed";
+    if (activeTab === "completed") return order.status === "completed";
     return order.status === activeTab;
   });
 
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-emerald-500 text-white shadow-emerald-500/20';
-      case 'processing': return 'bg-amber-500 text-white shadow-amber-500/20';
-      case 'shipped': return 'bg-indigo-500 text-white shadow-indigo-500/20';
+      case 'pending': return 'bg-amber-500 text-white shadow-amber-500/20';
+      case 'paid': return 'bg-blue-500 text-white shadow-blue-500/20';
+      case 'shipping': return 'bg-indigo-500 text-white shadow-indigo-500/20';
       default: return 'bg-slate-400 text-white shadow-slate-400/20';
     }
   };
@@ -119,9 +179,11 @@ function OrdersContent() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'completed': return '訂單已完成';
-      case 'processing': return '處理中';
-      case 'shipped': return '商品已發貨';
-      default: return '已取消';
+      case 'pending': return '待核對/待處理';
+      case 'paid': return '已付款/備貨中';
+      case 'shipping': return '商品已發貨';
+      case 'cancelled': return '已取消';
+      default: return status || '已取消';
     }
   };
 
@@ -193,23 +255,111 @@ function OrdersContent() {
                         </div>
                         <div className="text-right">
                            <p className="text-2xl font-black text-slate-800 tracking-tighter">${Number(order.total_amount).toLocaleString()}</p>
-                           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 block">紅利已發放</span>
+                           {order.status === 'cancelled' ? (
+                              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 block">訂單已取消</span>
+                           ) : order.status === 'pending' ? (
+                              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest mt-1 block">⏳ 對帳審核中</span>
+                           ) : (
+                              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 block">
+                                 {Number(order.b2b_commission || 0) > 0 ? (
+                                    `分紅返還 +NT$ ${Number(order.b2b_commission).toLocaleString()}`
+                                 ) : (
+                                    `獲得積分 +${Number(order.reward_points || Math.floor(order.total_amount / 100)).toLocaleString()} P`
+                                 )}
+                              </span>
+                           )}
                         </div>
                      </div>
 
                      {/* Visual Timeline */}
                      <div className="space-y-3">
-                        <div className="flex justify-between text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                           <span>下單成功</span>
-                           <span>物流配送</span>
-                           <span>簽收完成</span>
+                        <div className="flex justify-between text-[8px] font-black tracking-widest text-slate-300">
+                           <span className={order.status !== 'cancelled' ? 'text-emerald-600 font-extrabold' : ''}>下單成功</span>
+                           <span className={order.fulfillment_status === 'shipped' ? 'text-indigo-600 font-extrabold' : ''}>包裹配送中</span>
+                           <span className={(order.status === 'completed' && order.fulfillment_status === 'shipped') ? 'text-emerald-700 font-extrabold' : ''}>簽收完成</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden flex gap-1">
-                           <div className={`h-full rounded-full transition-all duration-1000 ${order.status ? 'bg-emerald-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
-                           <div className={`h-full rounded-full transition-all duration-1000 ${['shipped', 'completed'].includes(order.status) ? 'bg-emerald-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
-                           <div className={`h-full rounded-full transition-all duration-1000 ${order.status === 'completed' ? 'bg-emerald-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${order.status !== 'cancelled' ? 'bg-emerald-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${order.fulfillment_status === 'shipped' ? 'bg-indigo-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${(order.status === 'completed' && order.fulfillment_status === 'shipped') ? 'bg-emerald-600 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
                         </div>
                      </div>
+
+                     {/* ─── 物流配送即時查單卡 (Smart Logistics tracking) ─── */}
+                     {order.fulfillment_status === 'shipped' && order.tracking_number && (
+                        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-3 mt-4">
+                           <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                                 <Truck className="w-5 h-5 animate-bounce" />
+                              </div>
+                              <div>
+                                 <p className="text-[10px] font-black text-indigo-700 uppercase tracking-wider">包裹已發貨 ➔ {getCarrierTrackingInfo(order.tracking_number).carrierName}</p>
+                                 <p className="text-xs font-mono font-bold text-slate-600 mt-0.5">{getCarrierTrackingInfo(order.tracking_number).trackingNum}</p>
+                              </div>
+                           </div>
+                           <button 
+                             onClick={() => handleOpenTrackingLink(order.tracking_number)}
+                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition shadow-md shadow-indigo-600/10 flex items-center gap-1.5"
+                           >
+                              追蹤包裹 ➔
+                           </button>
+                        </div>
+                     )}
+
+                     {/* ─── 匯款末五碼回報對帳表單 (Remittance payment tracking form) ─── */}
+                     {order.status === 'pending' && (
+                        <div className="bg-amber-50/30 border border-amber-100/70 rounded-2xl p-4 mt-4 space-y-3 text-left">
+                           {/* Check if already submitted remittance code */}
+                           {order.payment_last_five && !isEditingRemittance[order.id] ? (
+                              <div className="flex items-center justify-between gap-4">
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center text-sm font-black">
+                                       ⏳
+                                    </div>
+                                    <div>
+                                       <p className="text-[10px] font-black text-amber-700 tracking-wider">已回報帳號末五碼</p>
+                                       <p className="text-xs font-black text-slate-700 mt-0.5">【 {order.payment_last_five} 】對帳核對中</p>
+                                    </div>
+                                 </div>
+                                 <button 
+                                   onClick={() => {
+                                     setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || "" }));
+                                     setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
+                                   }}
+                                   className="text-slate-400 hover:text-slate-600 text-[10px] font-black tracking-widest transition uppercase"
+                                 >
+                                    修改末碼
+                                 </button>
+                              </div>
+                           ) : (
+                              <div className="space-y-2">
+                                 <div className="flex justify-between items-center">
+                                    <p className="text-[10px] font-black text-amber-700 tracking-wider">請回報匯款帳號末五碼對帳</p>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Remittance Submission</span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                    <input 
+                                      type="text" 
+                                      maxLength={5}
+                                      placeholder="請輸入匯款後五碼"
+                                      value={remittanceInputs[order.id] || ""}
+                                      onChange={e => {
+                                        const cleanVal = e.target.value.replace(/\D/g, ""); // only digits
+                                        setRemittanceInputs(prev => ({ ...prev, [order.id]: cleanVal }));
+                                      }}
+                                      className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 flex-1 placeholder:text-slate-300 font-mono"
+                                    />
+                                    <button 
+                                      onClick={() => handleUpdatePaymentLastFive(order.id, remittanceInputs[order.id] || "")}
+                                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition shadow-lg shadow-amber-500/10 flex items-center gap-1"
+                                    >
+                                       送出對帳 ✓
+                                    </button>
+                                 </div>
+                              </div>
+                           )}
+                        </div>
+                     )}
 
                       {/* Expanded Items */}
                       <AnimatePresence>
@@ -238,6 +388,23 @@ function OrdersContent() {
                                          <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">折扣碼優惠</span>
                                       </div>
                                       <span className="text-sm font-black">-${Number(order.original_amount - order.total_amount).toLocaleString()}</span>
+                                   </div>
+                                )}
+
+                                {order.shipping_info && (
+                                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mt-4 space-y-2 text-left">
+                                      <span className="text-[8px] font-black uppercase text-emerald-700 tracking-[0.2em] block">📦 物流配送資訊</span>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[11px] font-bold text-slate-600 border-t border-slate-100/50">
+                                         <p>👤 收件姓名：<span className="text-slate-800">{order.shipping_info.name}</span></p>
+                                         <p>📞 聯絡電話：<span className="text-slate-800">{order.shipping_info.phone}</span></p>
+                                         <p className="sm:col-span-2">📍 配送地址：<span className="text-slate-800">{order.shipping_info.address}</span></p>
+                                         <p className="sm:col-span-2">🚚 物流方式：<span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[9px] inline-block mt-0.5">{order.shipping_info.method || "宅配到府"}</span></p>
+                                      </div>
+                                      {order.notes && (
+                                         <p className="text-[11px] font-black text-slate-500 mt-2 pt-2 border-t border-dashed border-slate-200">
+                                            💬 買家備註：<span className="font-medium text-slate-600">{order.notes}</span>
+                                         </p>
+                                      )}
                                    </div>
                                 )}
                              </div>

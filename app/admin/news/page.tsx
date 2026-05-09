@@ -8,13 +8,12 @@ import {
   Megaphone, 
   Plus, 
   Trash2, 
-  Edit3, 
   ArrowLeft, 
   Loader2, 
-  CheckCircle2, 
   X,
-  Eye
+  MegaphoneOff
 } from "lucide-react";
+import Toast, { ToastType } from "../../../components/Toast";
 
 function AdminNewsContent() {
   const router = useRouter();
@@ -27,6 +26,18 @@ function AdminNewsContent() {
     tag: "NEW",
     color: "bg-emerald-900"
   });
+
+  // Toast States
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastType, setToastType] = useState<ToastType>("success");
+  const [showToast, setShowToast] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  const triggerToast = (msg: string, type: ToastType = "success") => {
+    setToastMsg(msg);
+    setToastType(type);
+    setShowToast(true);
+  };
 
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("churun_admin_auth");
@@ -45,12 +56,17 @@ function AdminNewsContent() {
       if (data.success) {
         setNews(data.announcements);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    }
     setIsLoading(false);
   };
 
   const handleSave = async () => {
-    if (!currentNews.title) return alert("請輸入標題");
+    if (!currentNews.title) {
+      triggerToast("請輸入公告標題", "error");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/announcements", {
@@ -60,28 +76,38 @@ function AdminNewsContent() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("公告已成功發布！");
+        triggerToast("🎉 公告已成功發布！", "success");
         setIsEditing(false);
         setCurrentNews({ title: "", tag: "NEW", color: "bg-emerald-900" });
         fetchNews();
       } else {
-        alert("發布失敗: " + data.error);
+        triggerToast("發布失敗: " + data.error, "error");
       }
-    } catch (err: any) { alert("系統錯誤: " + err.message); }
+    } catch (err: any) { 
+      triggerToast("系統錯誤: " + err.message, "error"); 
+    }
     setIsSubmitting(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("確定要刪除此公告嗎？")) return;
+  const executeDelete = async () => {
+    if (!deleteTargetId) return;
     try {
       const res = await fetch("/api/announcements", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ id: deleteTargetId })
       });
       const data = await res.json();
-      if (data.success) fetchNews();
-    } catch (err: any) { alert("系統錯誤: " + err.message); }
+      if (data.success) {
+        triggerToast("🎉 公告已成功刪除！", "success");
+        fetchNews();
+      } else {
+        triggerToast("刪除失敗: " + data.error, "error");
+      }
+    } catch (err: any) { 
+      triggerToast("系統錯誤: " + err.message, "error"); 
+    }
+    setDeleteTargetId(null);
   };
 
   const getTagColor = (tag: string) => {
@@ -120,9 +146,9 @@ function AdminNewsContent() {
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在載入公告資料...</p>
              </div>
            ) : news.length === 0 ? (
-             <div className="text-center py-32 bg-white rounded-[3rem] border border-slate-50 shadow-sm">
-                <Megaphone className="w-16 h-16 text-slate-100 mx-auto mb-4" />
-                <p className="text-sm font-bold text-slate-300">目前尚無發布公告</p>
+             <div className="text-center py-32 bg-white rounded-[3rem] border border-slate-50 shadow-sm flex flex-col items-center justify-center space-y-4">
+                <MegaphoneOff className="w-16 h-16 text-slate-100" />
+                <p className="text-xs font-bold text-slate-300">目前尚無發布公告</p>
              </div>
            ) : news.map((item, i) => (
              <motion.div 
@@ -151,7 +177,7 @@ function AdminNewsContent() {
                 
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition duration-300">
                    <button 
-                     onClick={() => handleDelete(item.id)}
+                     onClick={() => setDeleteTargetId(item.id)}
                      className="p-4 bg-slate-50 text-rose-300 rounded-2xl hover:bg-rose-50 hover:text-rose-600 transition"
                    >
                       <Trash2 className="w-5 h-5" />
@@ -163,6 +189,7 @@ function AdminNewsContent() {
 
       </main>
 
+      {/* Save Modal */}
       <AnimatePresence>
         {isEditing && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -226,6 +253,55 @@ function AdminNewsContent() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteTargetId && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setDeleteTargetId(null)}
+               className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
+             />
+             <motion.div 
+               initial={{ scale: 0.9, y: 20, opacity: 0 }}
+               animate={{ scale: 1, y: 0, opacity: 1 }}
+               exit={{ scale: 0.9, y: 20, opacity: 0 }}
+               className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl text-center relative overflow-hidden"
+             >
+                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                   <Trash2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">確定刪除公告？</h3>
+                <p className="text-xs text-slate-400 font-bold leading-relaxed mb-8">此操作將永久移除此公告，團隊成員與貴賓將無法再看到此內容。</p>
+                <div className="grid grid-cols-2 gap-4">
+                   <button 
+                     onClick={() => setDeleteTargetId(null)} 
+                     className="py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition"
+                   >
+                      取消返回
+                   </button>
+                   <button 
+                     onClick={executeDelete} 
+                     className="py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition shadow-lg shadow-rose-600/10"
+                   >
+                      確認刪除 ✕
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Toast notification feedback */}
+      <Toast 
+        message={toastMsg}
+        type={toastType}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
 
     </div>
   );

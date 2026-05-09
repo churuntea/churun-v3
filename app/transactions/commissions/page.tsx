@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../supabase";
+import { motion } from "framer-motion";
+import { 
+  ArrowLeft, 
+  Coins, 
+  Award, 
+  Sparkles, 
+  TrendingUp, 
+  ArrowUpRight,
+  Loader2,
+  HelpCircle
+} from "lucide-react";
 
 export default function CommissionHistory() {
   const router = useRouter();
@@ -43,57 +54,94 @@ export default function CommissionHistory() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-24">
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 p-4 flex items-center gap-4 max-w-md mx-auto">
-        <Link href="/" className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-        </Link>
-        <h1 className="text-lg font-bold text-slate-900">推廣獎金明細</h1>
+    <div className="min-h-screen bg-[#FDFBF7] pb-24">
+      {/* Header */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 max-w-lg mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
+         <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+            <ArrowLeft className="w-4 h-4 text-slate-400" />
+         </button>
+         <h1 className="text-xs font-black tracking-[0.3em] text-slate-800 uppercase leading-none">推廣獎金明細</h1>
+         <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+            <HelpCircle className="w-4 h-4 text-slate-300" />
+         </div>
       </nav>
 
-      <main className="max-w-md mx-auto p-5 space-y-6">
+      <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
         {memberInfo && (
-          <section className="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">可提領獎金總額</p>
-            <h2 className="text-4xl font-light mb-4">${Number(memberInfo.virtual_balance).toLocaleString()}</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-white/10 px-2 py-1 rounded-full text-white/70">創業夥伴專屬</span>
-            </div>
-          </section>
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative bg-slate-900 p-10 rounded-[3rem] shadow-2xl shadow-emerald-900/10 text-white overflow-hidden"
+          >
+             <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
+             <div className="relative z-10 flex justify-between items-start mb-6">
+                <div className="space-y-1">
+                   <p className="text-[10px] font-black tracking-[0.3em] uppercase text-emerald-400">Available Commission</p>
+                   <p className="text-sm font-bold text-white/50">目前累積可提領分紅</p>
+                </div>
+                <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-1.5">
+                   <Sparkles className="w-3 h-3 text-amber-300" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-white">創業夥伴專屬</span>
+                </div>
+             </div>
+             
+             <h2 className="text-4xl font-black tracking-tighter leading-none relative z-10">
+                NT$ {Number(memberInfo.virtual_balance).toLocaleString()}
+             </h2>
+             
+             <div className="mt-8 flex justify-between items-center relative z-10 pt-6 border-t border-white/10">
+                <div className="flex items-center gap-2">
+                   <Coins className="w-4 h-4 text-emerald-400" />
+                   <span className="text-xs font-black text-slate-300">分紅帳戶</span>
+                </div>
+                <button onClick={() => router.push("/withdraw")} className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1 hover:opacity-80 transition">
+                   申請提領 <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+             </div>
+          </motion.section>
         )}
 
-        <section className="space-y-4">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider ml-1">獎金紀錄</h3>
+        <section className="space-y-6">
+           <div className="px-4 flex justify-between items-center">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">獎金發放動態</h3>
+              <TrendingUp className="w-4 h-4 text-slate-300" />
+           </div>
           
           {isLoading ? (
-            <div className="text-center py-10 text-slate-400">載入中...</div>
+             <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>
           ) : commissions.length === 0 ? (
-            <div className="bg-white p-12 rounded-[2.5rem] text-center border border-gray-100">
-               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <div className="bg-white p-16 rounded-[2.5rem] text-center border border-slate-50 shadow-sm">
+               <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-slate-300">
+                  <Coins className="w-6 h-6" />
                </div>
-               <p className="text-sm text-slate-500">尚無推廣獎金紀錄</p>
+               <p className="text-xs font-bold text-slate-300">目前尚未有推廣獎勵發放紀錄</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {commissions.map((tx) => (
-                <div key={tx.id} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">推廣獎金</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        下線: {tx.orders?.member?.name || "未知"} | 訂單總額: ${Number(tx.orders?.total_amount).toLocaleString()}
-                      </p>
-                    </div>
+              {commissions.map((tx, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  key={tx.id} 
+                  className="bg-white p-6 rounded-[2.5rem] border border-slate-50 shadow-sm flex justify-between items-center hover:scale-[1.01] transition duration-200"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                     <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-[1.25rem] flex items-center justify-center shrink-0">
+                        <Award className="w-5 h-5" />
+                     </div>
+                     <div className="text-left min-w-0">
+                        <p className="text-sm font-black text-slate-800">推廣佣金折讓</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight truncate">
+                           下線: <span className="text-slate-600">{tx.orders?.member?.name || "合夥成員"}</span> | 訂單額: NT$ {Number(tx.orders?.total_amount || 0).toLocaleString()}
+                        </p>
+                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-emerald-600">+${Number(tx.amount).toLocaleString()}</p>
-                    <p className="text-[10px] text-slate-300 mt-0.5">{new Date(tx.created_at).toLocaleDateString()}</p>
+                  <div className="text-right shrink-0 ml-4">
+                     <p className="text-base font-black tracking-tighter text-emerald-600">+NT$ {Number(tx.amount).toLocaleString()}</p>
+                     <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}

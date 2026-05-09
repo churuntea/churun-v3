@@ -31,7 +31,8 @@ import {
   TrendingUp,
   Heart,
   CheckCircle2,
-  IdCard
+  IdCard,
+  Image as ImageIcon
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
@@ -522,12 +523,14 @@ function DashboardContent() {
         </section>
 
         {/* Brand Insights Feed */}
-        <section className="grid grid-cols-4 gap-4 px-2">
+        <section className="grid grid-cols-3 gap-y-6 gap-x-4 px-2">
            {[
              { label: "特選精品", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
              { label: "點數商城", icon: Gift, href: "/store", color: "bg-emerald-50 text-emerald-600" },
              { label: "組織管理", icon: Users, href: "/organization", color: "bg-amber-50 text-amber-600" },
-             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" }
+             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" },
+             { label: "品牌脈動", icon: Megaphone, href: "#brand-news", color: "bg-rose-50 text-rose-600" },
+             { label: "品牌素材", icon: ImageIcon, href: "/materials", color: "bg-cyan-50 text-cyan-600" }
            ].map((act, i) => (
              <Link href={act.href} key={i} className="flex flex-col items-center gap-3">
                 <div className={`w-16 h-16 ${act.color} rounded-[2rem] flex items-center justify-center shadow-sm border border-white`}>
@@ -539,7 +542,7 @@ function DashboardContent() {
         </section>
 
         {/* Announcements */}
-        <section className="space-y-6">
+        <section id="brand-news" className="space-y-6">
            <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase px-2">初潤品牌脈動</h3>
            <div className="flex gap-6 overflow-x-auto pb-10 px-2 no-scrollbar">
                {announcements.length === 0 ? (

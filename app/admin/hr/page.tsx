@@ -43,6 +43,30 @@ const PERMISSION_MODULES = [
   { key: "withdrawals", label: "提領審核與發放", icon: ShieldCheck, desc: "審核 B2B 創業夥伴的佣金提領申請與匯款" }
 ];
 
+// 快速職能預設配置對照表
+const ROLE_PRESETS = [
+  {
+    name: "👑 總經理 / 創辦人 (Super GM)",
+    desc: "解鎖全系統 9 大功能模組之所有管理與審查權限",
+    perms: { coupons: true, posters: true, members: true, evaluation: true, orders: true, settlement: true, products: true, backup: true, withdrawals: true }
+  },
+  {
+    name: "💼 財務結算與審計總監 (Finance Master)",
+    desc: "一鍵授予優惠券建立、會員審查、獎金結算與提領審核發放權限",
+    perms: { coupons: true, posters: false, members: true, evaluation: false, orders: false, settlement: true, products: false, backup: false, withdrawals: true }
+  },
+  {
+    name: "🚚 倉儲物流與營運主管 (Logistics Chief)",
+    desc: "一鍵授予商品項目上架調整與訂單出貨、物流狀態異動權限",
+    perms: { coupons: false, posters: false, members: false, evaluation: false, orders: true, settlement: false, products: true, backup: false, withdrawals: false }
+  },
+  {
+    name: "🎨 品牌行銷與公關專員 (Marketing Specialist)",
+    desc: "一鍵授予優惠券發發、公版海報行銷DM上傳與最新消息公告權限",
+    perms: { coupons: true, posters: true, members: false, evaluation: false, orders: false, settlement: false, products: false, backup: false, withdrawals: false }
+  }
+];
+
 function AdminHRContent() {
   const router = useRouter();
   const [staff, setStaff] = useState<any[]>([]);
@@ -54,6 +78,7 @@ function AdminHRContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("全部");
   const [selectedStatus, setSelectedStatus] = useState("全部");
+  const [selectedPermission, setSelectedPermission] = useState("全部");
 
   // 表單資料
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -191,6 +216,20 @@ function AdminHRContent() {
       return;
     }
 
+    // 1. 台灣手機號碼格式驗證 (10 位數字且 09 開頭)
+    if (!/^09\d{8}$/.test(formData.phone)) {
+      alert("⚠️ 手機號碼格式不正確！請輸入 10 位數的台灣手機號碼 (如 0912345678)");
+      return;
+    }
+
+    // 2. 員工工號標準首碼提示
+    if (!formData.staff_id.toUpperCase().startsWith("CR_ST")) {
+      const confirmCustomId = confirm("💡 溫馨提示：初潤製茶所建議員工工號以「CR_ST」為開頭格式 (例如 CR_ST005)，以維持內部編碼統一與系統安全性。確定要使用目前的自定義工號嗎？");
+      if (!confirmCustomId) {
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const isEdit = !!editingId;
@@ -242,8 +281,9 @@ function AdminHRContent() {
     
     const matchesDept = selectedDept === "全部" || person.department === selectedDept;
     const matchesStatus = selectedStatus === "全部" || person.status === selectedStatus;
+    const matchesPermission = selectedPermission === "全部" || person.permissions?.[selectedPermission] === true;
 
-    return matchesSearch && matchesDept && matchesStatus;
+    return matchesSearch && matchesDept && matchesStatus && matchesPermission;
   });
 
   // 2. 統計計算
@@ -350,32 +390,44 @@ function AdminHRContent() {
              >
                 {/* 搜尋與過濾面板 */}
                 <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-2xl shadow-slate-200/10 space-y-6">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">關鍵字檢索</label>
-                         <input 
-                           type="text" 
-                           placeholder="🔍 搜尋職員姓名、員工編號、手機號碼..." 
-                           value={searchQuery}
-                           onChange={(e) => setSearchQuery(e.target.value)}
-                           className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-slate-900/5 transition"
-                         />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">在職狀態</label>
-                         <div className="flex gap-2">
-                            {["全部", "active", "suspended", "left"].map((st) => (
-                               <button
-                                 key={st}
-                                 onClick={() => setSelectedStatus(st)}
-                                 className={`px-4 py-3 rounded-2xl text-xs font-black tracking-widest transition-all border ${selectedStatus === st ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-slate-50 text-slate-400 border-slate-100 hover:text-slate-700'}`}
-                               >
-                                  {st === "全部" ? "全部狀態" : st === "active" ? "在職中" : st === "suspended" ? "已停權" : "已離職"}
-                               </button>
-                            ))}
-                         </div>
-                      </div>
-                   </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">關鍵字檢索</label>
+                          <input 
+                            type="text" 
+                            placeholder="🔍 搜尋職員姓名、員工工號、手機號碼..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-slate-50 border-none p-4 rounded-2xl text-xs font-bold text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-slate-900/5 transition"
+                          />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">在職狀態過濾</label>
+                          <select
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                            className="w-full bg-slate-50 border-none p-4 rounded-2xl text-xs font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-slate-900/5 transition appearance-none"
+                          >
+                             <option value="全部">全部狀態 (All Status)</option>
+                             <option value="active">在職正常 (Active)</option>
+                             <option value="suspended">已停權停用 (Suspended)</option>
+                             <option value="left">已離職註銷 (Left)</option>
+                          </select>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">系統權限授權篩選</label>
+                          <select
+                            value={selectedPermission}
+                            onChange={(e) => setSelectedPermission(e.target.value)}
+                            className="w-full bg-slate-50 border-none p-4 rounded-2xl text-xs font-black text-slate-800 shadow-inner outline-none focus:ring-4 focus:ring-slate-900/5 transition appearance-none"
+                          >
+                             <option value="全部">全部權限模組 (All Modules)</option>
+                             {PERMISSION_MODULES.map(mod => (
+                               <option key={mod.key} value={mod.key}>僅顯示具「{mod.label}」者</option>
+                             ))}
+                          </select>
+                       </div>
+                    </div>
 
                    {/* 部門標籤 */}
                    <div className="space-y-2 pt-4 border-t border-slate-100">
@@ -600,6 +652,38 @@ function AdminHRContent() {
                                </button>
                             ))}
                          </div>
+                      </div>
+                   </div>
+
+                   {/* 快速職務角色預設套用 */}
+                   <div className="pt-8 border-t border-slate-100 space-y-4">
+                      <div className="space-y-1">
+                         <h4 className="text-sm font-black text-slate-800 tracking-wider">🌟 職務角色權限預設 (Role Presets)</h4>
+                         <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">一鍵自動快速配置對應職責之系統功能授權，無須手動繁瑣逐項點選</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         {ROLE_PRESETS.map((preset, idx) => {
+                            const isMatching = Object.entries(preset.perms).every(([k, v]) => formData.permissions[k] === v);
+                            const activeCount = Object.values(preset.perms).filter(Boolean).length;
+                            return (
+                               <button
+                                 key={idx}
+                                 type="button"
+                                 onClick={() => {
+                                   setFormData(prev => ({ ...prev, permissions: { ...preset.perms } }));
+                                 }}
+                                 className={`p-5 text-left rounded-3xl border transition-all flex flex-col justify-between group ${isMatching ? 'bg-indigo-50/50 border-indigo-200 ring-4 ring-indigo-500/5' : 'bg-slate-50/70 hover:bg-slate-100/50 border-slate-100 hover:border-slate-200'}`}
+                               >
+                                  <div className="flex justify-between items-center w-full">
+                                     <span className={`text-xs font-black transition-colors ${isMatching ? 'text-indigo-900' : 'text-slate-700'}`}>{preset.name}</span>
+                                     <span className={`text-[9px] px-2 py-0.5 font-bold rounded-full transition-all ${isMatching ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                        {activeCount} 項模組授權
+                                     </span>
+                                  </div>
+                                  <span className="text-[10px] font-medium text-slate-400 mt-2 leading-relaxed">{preset.desc}</span>
+                               </button>
+                            );
+                         })}
                       </div>
                    </div>
 

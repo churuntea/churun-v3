@@ -112,6 +112,7 @@ function StoreContent() {
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [addressSearchTerm, setAddressSearchTerm] = useState("");
   const [showAddressBookModal, setShowAddressBookModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -309,6 +310,54 @@ function StoreContent() {
     } catch (err) {
       console.error(err);
       alert("系統錯誤");
+    }
+    setIsCheckingOut(false);
+  };
+
+  const submitAndShowPayment = async () => {
+    if (shippingInfo.method === '自取' && !shippingInfo.address) {
+       alert("請在上方門市卡片中，點擊選擇您的自取門市");
+       return;
+    }
+    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+       alert("請填寫完整的收件資訊");
+       return;
+    }
+
+    setIsCheckingOut(true);
+    setOrderItems([...cart]);
+    setLastOrderAmount(finalPrice);
+    setIsOrderCreated(false);
+    setShowShippingModal(false);
+    setShowPaymentModal(true);
+    
+    try {
+      const res = await fetch("/api/orders/dynamic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyer_id: memberInfo.id,
+          items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
+          discountAmount: discountAmount,
+          couponCode: activeCoupon ? activeCoupon.code : null,
+          shippingInfo: shippingInfo
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsOrderCreated(true);
+        clearCart();
+        fetchData(memberInfo.id); 
+      } else {
+        alert(data.error || "結帳失敗");
+        setShowPaymentModal(false);
+        setShowShippingModal(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("系統錯誤");
+      setShowPaymentModal(false);
+      setShowShippingModal(true);
     }
     setIsCheckingOut(false);
   };
@@ -1098,27 +1147,14 @@ function StoreContent() {
                   </div>
                </div>
 
-               <div className="space-y-4">
-                  <button 
-                    onClick={() => {
-                      if (shippingInfo.method === '自取' && !shippingInfo.address) {
-                         alert("請在上方門市卡片中，點擊選擇您的自取門市");
-                         return;
-                       }
-                       if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
-                        alert("請填寫完整的收件資訊");
-                        return;
-                      }
-                      setShowShippingModal(false);
-                      setLastOrderAmount(finalPrice);
-                      setIsOrderCreated(false);
-                      setShowPaymentModal(true);
-                    }}
-                    className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
-                  >
-                     確認資訊，取得匯款帳號
-                  </button>
-                  <button 
+                <div className="space-y-4">
+                   <button 
+                     onClick={submitAndShowPayment}
+                     className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
+                   >
+                      確認無誤，送出訂單
+                   </button>
+                   <button 
                     onClick={() => {
                       setShowShippingModal(false);
                       setShowConfirmModal(true);
@@ -1289,16 +1325,21 @@ function StoreContent() {
                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">匯款帳號</span>
                        <div className="flex justify-between items-center gap-2">
                           <span id="bank-account-num" className="text-sm font-black text-emerald-900 tracking-wider">214-03-500450-5</span>
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText("214-03-500450-5");
-                              alert("帳號已複製！");
-                            }}
-                            className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-tighter hover:bg-emerald-600 hover:text-white transition"
-                          >
-                             複製帳號
-                          </button>
-                       </div>
+                           <button 
+                             onClick={() => {
+                               navigator.clipboard.writeText("214-03-500450-5");
+                               setCopied(true);
+                               setTimeout(() => setCopied(false), 2000);
+                             }}
+                             className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all duration-300 ${
+                               copied 
+                                 ? "bg-emerald-500 text-white shadow-md scale-105" 
+                                 : "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                             }`}
+                           >
+                              {copied ? "已複製 ✓" : "複製帳號"}
+                           </button>
+                        </div>
                     </div>
                  </div>
               </div>
@@ -1351,22 +1392,52 @@ function StoreContent() {
                           <span className="font-bold text-slate-600">{item.name}</span>
                           <span className="font-black text-slate-400">x{item.quantity}</span>
                        </div>
-                     ))}
-                  </div>
-                  
+                      ))}
+                   </div>
                   <button 
                     onClick={() => {
                       setShowPaymentModal(false);
                       setIsCartOpen(false);
+                      router.push("/orders");
                     }}
                     className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                   >
                      完成結帳，前往查看
                   </button>
-                </div>
+                 </div>
               )}
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Full-Screen Premium Blur Loading Overlay */}
+      <AnimatePresence>
+        {isCheckingOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex flex-col items-center justify-center text-white"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-950/80 backdrop-blur-2xl rounded-[3rem] p-12 max-w-sm text-center space-y-6 border border-white/10 shadow-2xl flex flex-col items-center"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/35 rounded-full blur-xl animate-pulse"></div>
+                <Loader2 className="w-12 h-12 text-emerald-400 animate-spin relative z-10" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-400">安全提單傳輸中</h4>
+                <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
+                  正在為您向茶葉精品庫存庫確認，並建立專屬採購訂單，請稍候...
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

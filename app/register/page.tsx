@@ -204,7 +204,7 @@ function RegisterContent() {
   };
 
   return (
-    <div className="min-h-screen bg-blue-50 flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6 relative overflow-hidden">
       
       
       <div className="absolute inset-0 pointer-events-none">
