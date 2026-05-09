@@ -57,7 +57,17 @@ function AdminMaterialsContent() {
   };
 
   const handleSave = async () => {
-    if (!currentMaterial.title || !currentMaterial.url) return alert("請輸入標題與連結");
+    if (!currentMaterial.title) return alert("請輸入素材名稱 / 標題");
+    
+    // For text-type materials (copywriting), we don't require an external URL. 
+    // We automatically default it to "text" to satisfy database non-null constraints.
+    const materialPayload = { ...currentMaterial };
+    if (materialPayload.file_type === 'text' && !materialPayload.url) {
+      materialPayload.url = 'text';
+    }
+
+    if (!materialPayload.url) return alert("請輸入檔案連結 (URL)");
+
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/materials", {
@@ -223,10 +233,17 @@ function AdminMaterialsContent() {
                       </div>
                    </div>
 
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">檔案連結 (URL)</label>
-                      <input type="text" value={currentMaterial.url} onChange={e => setCurrentMaterial({...currentMaterial, url: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl text-sm font-bold" placeholder="https://..." />
-                   </div>
+                    {currentMaterial.file_type !== 'text' ? (
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">檔案連結 (URL)</label>
+                          <input type="text" value={currentMaterial.url} onChange={e => setCurrentMaterial({...currentMaterial, url: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl text-sm font-bold" placeholder="https://..." />
+                       </div>
+                    ) : (
+                       <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-100/40 text-emerald-800 text-[11px] flex items-start gap-3">
+                          <span className="font-black bg-emerald-600 text-white px-2 py-0.5 rounded text-[9px] uppercase tracking-wider shrink-0 mt-0.5">INFO</span>
+                          <span className="leading-relaxed">此為<strong>純文字社群文案</strong>素材，系統已自動啟用專屬文字排版通道，<strong>無須手動輸入上傳檔案連結</strong>。</span>
+                       </div>
+                    )}
 
                    <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">描述 / 文案內容</label>

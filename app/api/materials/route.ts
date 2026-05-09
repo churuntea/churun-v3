@@ -20,14 +20,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { id, title, category, url, file_type, thumbnail_url, description } = body;
 
-    if (!title || !category || !url || !file_type) {
+    let finalUrl = url;
+    if (file_type === 'text' && !finalUrl) {
+      finalUrl = 'text';
+    }
+
+    if (!title || !category || !finalUrl || !file_type) {
       return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
     }
 
     const materialData = {
       title,
       category,
-      url,
+      url: finalUrl,
       file_type,
       thumbnail_url,
       description

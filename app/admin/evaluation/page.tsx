@@ -470,7 +470,7 @@ function EvaluationContent() {
       
       {/* Navigation Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-6 max-w-5xl mx-auto flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-slate-100">
-        <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
+        <button onClick={() => router.push('/admin')} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-50">
           <ArrowLeft className="w-4 h-4 text-slate-400" />
         </button>
         <div className="text-center">

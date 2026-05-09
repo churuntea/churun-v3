@@ -522,55 +522,137 @@ function AdminDashboardContent() {
 
         {/* Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-           {/* Left: 快捷管理操作 */}
-           <div className="space-y-6 lg:col-span-1">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase px-2">快捷管理操作</h3>
-              <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
-                  {[
-                    { label: "優惠券與派發管理", icon: Ticket, action: "/admin/coupons" },
-                    { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
-                    { label: "會員總覽與資料匯出", icon: Users, action: "/admin/members" },
-                    { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
-                    { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" },
-                    { label: "獎金提領審核中心", icon: Wallet, action: "/admin/withdrawals" },
-                    { label: "初潤品牌脈動與快訊公告", icon: FileText, action: "/admin/news" },
-                    { label: "品牌素材與文宣管理", icon: ImageIcon, action: "/admin/materials" },
-                    { label: "獎金發放結算", icon: Wallet, action: "/api/cron/settlement" },
-                    { label: "商品管理", icon: Settings, action: "/admin/products" },
-                    { label: "人事與權限管理", icon: ShieldCheck, action: "/admin/hr" },
-                    { label: "數據庫備份", icon: Database, action: "#" }
-                  ].map((act, i) => (
-                    <button 
-                     key={i}
-                     onClick={async () => {
-                         if (act.label === "數據庫備份") {
-                            setShowBackupModal(true);
-                            handleGenerateBackup(backupTimeframe);
-                            return;
-                         }
-                         if (act.action.startsWith('/')) {
-                           if (act.action.includes('/api/')) {
-                              const res = await fetch(act.action, { method: 'POST' });
-                              const d = await res.json();
-                              alert(d.message || d.error);
-                           } else {
-                              router.push(act.action);
-                           }
-                        }
-                     }}
-                     className="w-full flex items-center justify-between p-5 bg-slate-50 rounded-2xl hover:bg-slate-900 hover:text-white transition group"
-                   >
-                      <div className="flex items-center gap-4">
-                         <act.icon className="w-5 h-5 text-slate-400 group-hover:text-white" />
-                         <span className="text-sm font-bold">{act.label}</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
-                   </button>
-                 ))}
-              </div>
-           </div>
+           {/* Left: 快捷管理操作 - 4大核心視覺專區 */}
+            <div className="space-y-6 lg:col-span-1">
+               <div className="flex justify-between items-center px-2">
+                  <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">核心管理專區</h3>
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-full">HQ Console</span>
+               </div>
 
-           {/* Right: 業績與成長趨勢 */}
+               {/* Zone 1: 行銷管理區 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-pink-50 text-pink-500 rounded-xl flex items-center justify-center font-bold">📢</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">行銷管理區</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Marketing & Materials</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     {[
+                        { label: "商品管理", icon: Settings, action: "/admin/products" },
+                        { label: "優惠卷與派發管理", icon: Ticket, action: "/admin/coupons" },
+                        { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
+                        { label: "品牌素材與文宣管理", icon: ImageIcon, action: "/admin/materials" },
+                        { label: "初潤 brand 脈動與快訊公告", icon: FileText, action: "/admin/news" }
+                     ].map((act, i) => (
+                        <button 
+                           key={act.label}
+                           onClick={() => router.push(act.action)}
+                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label === "初潤 brand 脈動與快訊公告" ? "初潤品牌脈動與快訊公告" : act.label}</span>
+                           </div>
+                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                        </button>
+                     ))}
+                  </div>
+               </div>
+
+               {/* Zone 2: 會員管理區 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center font-bold">👥</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">會員管理區</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Members & Bonuses</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     {[
+                        { label: "會員總攬與資料匯出", icon: Users, action: "/admin/members" },
+                        { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
+                        { label: "獎金提醒審核中心", icon: Wallet, action: "/admin/withdrawals" },
+                        { label: "獎金發放結構", icon: TrendingUp, action: "/api/cron/settlement" },
+                        { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" }
+                     ].map((act, i) => (
+                        <button 
+                           key={act.label}
+                           onClick={async () => {
+                              if (act.action.includes('/api/')) {
+                                 if (!confirm("確定要執行全體獎金發放與業績結算嗎？此動作將發放分紅並扣除相關帳戶餘額！")) return;
+                                 const res = await fetch(act.action, { method: 'POST' });
+                                 const d = await res.json();
+                                 alert(d.message || d.error);
+                              } else {
+                                 router.push(act.action);
+                              }
+                           }}
+                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                           </div>
+                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                        </button>
+                     ))}
+                  </div>
+               </div>
+
+               {/* Zone 3: 人事與權限管理 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-bold">🔑</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">人事與權限管理</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">HR & Permissions</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <button 
+                        onClick={() => router.push("/admin/hr")}
+                        className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                     >
+                        <div className="flex items-center gap-3">
+                           <ShieldCheck className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                           <span className="text-xs font-bold text-slate-700 group-hover:text-white">人事與權限管理</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                     </button>
+                  </div>
+               </div>
+
+               {/* Zone 4: 數據庫備份 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center font-bold">📊</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">數據庫備份</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Database Backup</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <button 
+                        onClick={() => {
+                           setShowBackupModal(true);
+                           handleGenerateBackup(backupTimeframe);
+                        }}
+                        className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                     >
+                        <div className="flex items-center gap-3">
+                           <Database className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                           <span className="text-xs font-bold text-slate-700 group-hover:text-white">數據庫備份</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                     </button>
+                  </div>
+               </div>
+            </div>
+            
+            {/* Right: 業績與成長趨勢 */}
            <div className="lg:col-span-2 space-y-6">
               <div className="flex justify-between items-center px-4">
                  <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase flex items-center gap-2">

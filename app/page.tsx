@@ -333,6 +333,35 @@ function DashboardContent() {
     }
   };
 
+  const handleUpdateMotto = async (newMotto: string) => {
+    try {
+      setMemberMotto(newMotto);
+      if (currentUserId) {
+        await supabase
+          .from("members")
+          .update({ motto: newMotto })
+          .eq("id", currentUserId);
+        
+        // Update local SWR cache smoothly so page transitions keep it intact
+        const memberKey = `churun_cache:member:${currentUserId}`;
+        const localCache = localStorage.getItem(memberKey);
+        if (localCache) {
+          try {
+            const parsed = JSON.parse(localCache);
+            if (parsed && parsed.data) {
+              parsed.data.motto = newMotto;
+              localStorage.setItem(memberKey, JSON.stringify(parsed));
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("更新座右銘失敗:", err);
+    }
+  };
+
   if (isLoading || !memberInfo) return <DashboardSkeleton />;
 
   const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -378,10 +407,25 @@ function DashboardContent() {
                             <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
                          </div>
                          <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
-                          <div className="flex items-center gap-2 mt-3 overflow-hidden max-w-[200px] sm:max-w-none">
-                             <div className="w-5 h-[1px] bg-white/20 shrink-0"></div>
-                             <p className="text-[10px] sm:text-[11px] font-bold text-white/80 tracking-[0.2em] sm:tracking-[0.4em] uppercase italic whitespace-nowrap overflow-hidden text-ellipsis">{memberMotto}</p>
-                             <div className="w-5 h-[1px] bg-white/20 shrink-0"></div>
+                          <div className="flex items-center gap-2 mt-3 overflow-hidden max-w-[200px] sm:max-w-none select-none">
+                             <div className="w-3 h-[1px] bg-white/20 shrink-0"></div>
+                             <p 
+                               onClick={() => {
+                                 const newMotto = prompt("✍️ 請輸入您的座右銘/初心格言 (限 15 字以內):", memberMotto);
+                                 if (newMotto !== null) {
+                                   const cleanMotto = newMotto.trim().slice(0, 15) || "以初心、致潤澤";
+                                   handleUpdateMotto(cleanMotto);
+                                 }
+                               }}
+                               className="text-[10px] sm:text-[11px] font-bold text-white/80 hover:text-amber-300 tracking-[0.15em] sm:tracking-[0.25em] uppercase italic whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer transition flex items-center gap-1"
+                               title="點擊編輯座右銘"
+                             >
+                                <span>{memberMotto}</span>
+                                <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-none stroke-current stroke-[2.5] opacity-50 shrink-0">
+                                   <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                </svg>
+                             </p>
+                             <div className="w-3 h-[1px] bg-white/20 shrink-0"></div>
                           </div>
                       </div>
                    </div>
@@ -496,7 +540,7 @@ function DashboardContent() {
                         )}
                      </Link>
                    );
-                 })()}
+                })()}
               </div>
            </motion.div>
         </motion.section>
@@ -505,45 +549,101 @@ function DashboardContent() {
         <section className="space-y-6">
            <div className="flex justify-between items-center px-4">
               <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">榮譽成就勳章</h3>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
+                 Elite Achievements
+              </span>
            </div>
-           <div className="grid grid-cols-3 gap-3 pb-4 px-2">
-              {[
-                { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "bg-indigo-50 text-indigo-500", earned: true },
-                { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "bg-emerald-50 text-emerald-500", earned: Number(downlines?.length || 0) >= 5 },
-                { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "bg-amber-50 text-amber-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
-              ].map((badge, i) => (
-                 <div key={i} className="p-4 sm:p-6 rounded-[2rem] border bg-white border-slate-100 shadow-xl flex flex-col items-center gap-3 sm:gap-4">
-                    <div className={`w-12 h-12 sm:w-14 sm:h-14 ${badge.color} rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center shadow-inner`}>
-                       <badge.icon className="w-6 h-6 sm:w-7 sm:h-7" />
-                    </div>
-                    <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-800 text-center whitespace-nowrap">{badge.name}</h4>
-                 </div>
-              ))}
-           </div>
+           
+           {(() => {
+              const badgeList = [
+                { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "from-indigo-500 to-purple-600", earned: true },
+                { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "from-emerald-500 to-teal-600", earned: Number(downlines?.length || 0) >= 5 },
+                { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "from-amber-400 to-orange-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
+              ];
+
+              return (
+                <div className="grid grid-cols-3 gap-3.5 pb-2 px-2">
+                   {badgeList.map((badge, i) => (
+                      <div 
+                        key={i} 
+                        className={`p-4 sm:p-5 rounded-[2.2rem] border relative overflow-hidden transition-all duration-300 flex flex-col items-center gap-3.5 bg-white shadow-xl ${
+                          badge.earned 
+                            ? 'border-emerald-100/40 shadow-emerald-950/5' 
+                            : 'border-slate-100/60 opacity-60'
+                        }`}
+                      >
+                         {/* Unlocked / Locked Floating Indicator */}
+                         <div className="absolute top-3.5 right-3.5 shrink-0">
+                            {badge.earned ? (
+                               <span className="flex h-1.5 w-1.5 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                               </span>
+                            ) : (
+                               <span className="text-[8px] leading-none text-slate-300">🔒</span>
+                            )}
+                         </div>
+
+                         {/* Badge Icon Circular Block */}
+                         <div className={`w-12 h-12 rounded-[1.4rem] flex items-center justify-center shadow-md relative ${
+                           badge.earned 
+                             ? `bg-gradient-to-tr ${badge.color} text-white` 
+                             : 'bg-slate-50 text-slate-300 border border-slate-100'
+                         }`}>
+                            <badge.icon className="w-5 h-5" />
+                         </div>
+
+                         {/* Badge Details */}
+                         <div className="space-y-0.5 text-center">
+                            <h4 className="text-[10px] font-black tracking-widest text-slate-800 whitespace-nowrap">
+                               {badge.name}
+                            </h4>
+                            <p className="text-[8px] font-bold text-slate-400 whitespace-nowrap">
+                               {badge.desc}
+                            </p>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+              );
+           })()}
         </section>
+      </motion.main>
 
         {/* Brand Insights Feed */}
-        <section className="grid grid-cols-3 gap-y-6 gap-x-4 px-2">
+        <section className="grid grid-cols-3 gap-3 px-2">
            {[
-             { label: "特選精品", icon: ShoppingBag, href: "/wholesale", color: "bg-indigo-50 text-indigo-600" },
-             { label: "點數商城", icon: Gift, href: "/store", color: "bg-emerald-50 text-emerald-600" },
-             { label: "組織管理", icon: Users, href: "/organization", color: "bg-amber-50 text-amber-600" },
-             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "bg-slate-50 text-slate-600" },
-             { label: "品牌脈動", icon: Megaphone, href: "#brand-news", color: "bg-rose-50 text-rose-600" },
-             { label: "品牌素材", icon: ImageIcon, href: "/materials", color: "bg-cyan-50 text-cyan-600" }
+             { label: "特選精品", icon: ShoppingBag, href: "/wholesale", color: "from-indigo-50 to-indigo-100/40 hover:to-indigo-100 text-indigo-700 border-indigo-100/20" },
+             { label: "點數商城", icon: Gift, href: "/store", color: "from-emerald-50 to-emerald-100/40 hover:to-emerald-100 text-emerald-700 border-emerald-100/20" },
+             { label: "組織管理", icon: Users, href: "/organization", color: "from-amber-50 to-amber-100/40 hover:to-amber-100 text-amber-700 border-amber-100/20" },
+             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "from-slate-100/50 to-slate-200/40 hover:to-slate-200 text-slate-700 border-slate-200/20" },
+             { label: "品牌脈動", icon: Megaphone, href: "#brand-news", color: "from-rose-50 to-rose-100/40 hover:to-rose-100 text-rose-700 border-rose-100/20" },
+             { label: "品牌素材", icon: ImageIcon, href: "/materials", color: "from-cyan-50 to-cyan-100/40 hover:to-cyan-100 text-cyan-700 border-cyan-100/20" }
            ].map((act, i) => (
-             <Link href={act.href} key={i} className="flex flex-col items-center gap-3">
-                <div className={`w-16 h-16 ${act.color} rounded-[2rem] flex items-center justify-center shadow-sm border border-white`}>
-                   <act.icon className="w-6 h-6" />
-                </div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{act.label}</span>
+             <Link href={act.href} key={i}>
+                <motion.div 
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  className={`bg-gradient-to-b ${act.color} border p-4.5 rounded-[2.2rem] flex flex-col items-center justify-center gap-3.5 shadow-md active:shadow-sm transition-all duration-300 aspect-square cursor-pointer`}
+                >
+                   <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-white/80 shrink-0">
+                      <act.icon className="w-5 h-5" />
+                   </div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 leading-none">{act.label}</span>
+                </motion.div>
              </Link>
            ))}
         </section>
 
         {/* Announcements */}
         <section id="brand-news" className="space-y-6">
-           <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase px-2">初潤品牌脈動</h3>
+           <div className="flex justify-between items-center px-2">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">初潤品牌脈動</h3>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
+                 Latest Brand Stories
+              </span>
+           </div>
+
            <div className="flex gap-6 overflow-x-auto pb-10 px-2 no-scrollbar">
                {announcements.length === 0 ? (
                  <div className="w-full py-20 text-center bg-white rounded-[3rem] border border-slate-50">
@@ -551,20 +651,45 @@ function DashboardContent() {
                     <p className="text-xs font-bold text-slate-300">目前尚無品牌快訊</p>
                  </div>
                ) : announcements.map((news) => (
-                 <Link key={news.id} href={`/brand/news/${news.id}`} className="min-w-[300px] flex-shrink-0 block relative group">
-                   <div className="bg-white rounded-[3rem] border border-slate-50 shadow-xl overflow-hidden">
-                      <div className="h-44 w-full relative">
-                         <img src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} alt={news.title} className="w-full h-full object-cover" />
+                 <Link key={news.id} href={`/brand/news/${news.id}`} className="min-w-[290px] w-[290px] flex-shrink-0 block relative group">
+                   <motion.div 
+                     whileHover={{ y: -6 }}
+                     className="bg-white rounded-[2.8rem] border border-slate-100 shadow-xl overflow-hidden group hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 text-left"
+                   >
+                      <div className="h-44 w-full relative overflow-hidden">
+                         <img 
+                           src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} 
+                           alt={news.title} 
+                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+                         />
+                         {/* Floating Tag */}
+                         <div className="absolute top-4 left-4 flex gap-1.5 z-10">
+                            <span className={`px-2.5 py-1 rounded-full text-[8px] font-black text-white uppercase tracking-widest shadow-sm ${
+                              news.tag === "NEW" ? 'bg-emerald-900' : news.tag === "EVENT" ? 'bg-indigo-600' : 'bg-amber-600'
+                            }`}>
+                               {news.tag || "NEWS"}
+                            </span>
+                         </div>
                       </div>
-                      <div className="p-8">
-                         <h4 className="font-bold text-slate-800 text-lg">{news.title}</h4>
+                      <div className="p-7 space-y-3">
+                         <p className="text-[8px] font-bold text-slate-400 tracking-wider">
+                            {new Date(news.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                         </p>
+                         <h4 className="font-bold text-slate-800 text-base leading-snug group-hover:text-emerald-900 transition-colors line-clamp-2">
+                            {news.title}
+                         </h4>
+                         {news.content && (
+                            <p className="text-[10px] font-bold text-slate-400 line-clamp-2 leading-relaxed">
+                               {news.content}
+                            </p>
+                         )}
                       </div>
-                   </div>
+                   </motion.div>
                  </Link>
                ))}
            </div>
         </section>
-      </motion.main>
+
 
       {/* Share Hub Modal */}
       <AnimatePresence>
@@ -585,7 +710,7 @@ function DashboardContent() {
                   <p className="text-2xl font-black text-slate-900 tracking-widest mt-0.5">{memberInfo?.member_code}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
                   const link = `${window.location.origin}/register?ref=${memberInfo?.member_code}`;
                   navigator.clipboard.writeText(link);
@@ -595,6 +720,7 @@ function DashboardContent() {
                   <UserPlus className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">{copiedLink ? '已複製！' : '推薦註冊連結'}</span>
                 </motion.button>
+
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
                   setShowShareHub(false);
                   setTimeout(() => setShowQrModal(true), 300);
@@ -602,11 +728,13 @@ function DashboardContent() {
                   <QrCode className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">顯示 QR 碼</span>
                 </motion.button>
+
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/profile/security/vcard'); }} className="bg-amber-50 text-amber-700 border border-amber-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
                   <IdCard className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">電子名片</span>
                 </motion.button>
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); setTimeout(() => setShowPosterSelector(true), 300); }} className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
+
+                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/materials?tool=poster'); }} className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
                   <Sparkles className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">產生海報</span>
                 </motion.button>
@@ -749,6 +877,24 @@ function DashboardContent() {
                 {!isGeneratingPoster && (
                   <>
                     <p className="text-sm font-black text-slate-800 mb-4 text-center">請確認海報上的聯絡資訊是否有誤？</p>
+
+                     {/* Sharing Member's Contact Info Card */}
+                     <div className="w-full bg-slate-50/60 rounded-[2rem] p-5 border border-slate-100 mb-5 text-left space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">目前聯絡設定</span>
+                           <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">動態同步中</span>
+                        </div>
+                        <div className="grid grid-cols-[65px_1fr] gap-x-2 gap-y-2 text-xs text-slate-600">
+                           <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">聯 絡 人：</span>
+                           <span className="font-black text-slate-800">{memberInfo?.name || "未填寫"}</span>
+                           
+                           <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">聯絡電話：</span>
+                           <span className="font-black text-slate-800">{memberInfo?.phone || "未填寫"}</span>
+                           
+                           <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider">聯絡地址：</span>
+                           <span className="font-black text-slate-800 break-all leading-normal">{memberInfo?.address || "未填寫"}</span>
+                        </div>
+                     </div>
                     <div className="grid grid-cols-2 gap-3 w-full mb-3">
                       <button onClick={() => { setShowPosterPreview(false); router.push('/profile/security/profile-settings'); }} className="bg-slate-50 hover:bg-slate-100 text-slate-600 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2 border border-slate-200 shadow-sm">
                         <User className="w-4 h-4" /> 修正資料
