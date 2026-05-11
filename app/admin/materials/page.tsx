@@ -30,6 +30,16 @@ function AdminMaterialsContent() {
   const [isUploadingDefault, setIsUploadingDefault] = useState<string | null>(null);
   const [isUploadingLocal, setIsUploadingLocal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cropperData, setCropperData] = useState<{
+    isOpen: boolean;
+    imageSrc: string;
+    zoom: number;
+    posX: number;
+    posY: number;
+    onConfirm: (croppedBase64: string) => void;
+  } | null>(null);
+  const [isCropperDragging, setIsCropperDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentMaterial, setCurrentMaterial] = useState<any>({
     title: "",
     category: "品牌主視覺",
@@ -38,47 +48,122 @@ function AdminMaterialsContent() {
     description: ""
   });
 
+  const handleCropperMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsCropperDragging(true);
+    setDragStart({ x: e.clientX - (cropperData?.posX || 0), y: e.clientY - (cropperData?.posY || 0) });
+  };
+
+  const handleCropperMouseMove = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isCropperDragging || !cropperData) return;
+    setCropperData({
+      ...cropperData,
+      posX: e.clientX - dragStart.x,
+      posY: e.clientY - dragStart.y
+    });
+  };
+
+  const handleCropperMouseUp = () => {
+    setIsCropperDragging(false);
+  };
+
+  const handleCropperTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    setIsCropperDragging(true);
+    setDragStart({ 
+      x: e.touches[0].clientX - (cropperData?.posX || 0), 
+      y: e.touches[0].clientY - (cropperData?.posY || 0) 
+    });
+  };
+
+  const handleCropperTouchMove = (e: React.TouchEvent) => {
+    if (!isCropperDragging || !cropperData || e.touches.length !== 1) return;
+    setCropperData({
+      ...cropperData,
+      posX: e.touches[0].clientX - dragStart.x,
+      posY: e.touches[0].clientY - dragStart.y
+    });
+  };
+
+  const handleConfirmCrop = () => {
+    if (!cropperData) return;
+    const img = new Image();
+    img.src = cropperData.imageSrc;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 300, 300);
+
+        ctx.save();
+        ctx.translate(150, 150);
+        ctx.scale(cropperData.zoom, cropperData.zoom);
+        const scaleFactor = 300 / 288;
+        ctx.translate(cropperData.posX * scaleFactor / cropperData.zoom, cropperData.posY * scaleFactor / cropperData.zoom);
+        
+        ctx.drawImage(img, -150, -150, 300, 300);
+        ctx.restore();
+
+        const croppedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        cropperData.onConfirm(croppedBase64);
+        setCropperData(null);
+      }
+    };
+  };
+
   const handleUploadDefaultAvatar = async (gender: 'male' | 'female', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploadingDefault(gender);
     const reader = new FileReader();
-    reader.onload = async (ev) => {
+    reader.onload = (ev) => {
       const base64 = ev.target?.result as string;
-      const title = gender === 'male' ? "預設頭像 - 男生潤寶" : "預設頭像 - 女生潤寶";
-      
-      const existing = materials.find(m => m.category === "系統預設頭像" && m.title === title);
-      
-      try {
-        const payload = {
-          id: existing?.id || null,
-          title,
-          category: "系統預設頭像",
-          file_type: "image",
-          url: base64,
-          description: `系統全域預設之${gender === 'male' ? '男生' : '女生'}會員大頭照`
-        };
-        
-        const res = await fetch("/api/materials", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert(`${gender === 'male' ? '男生' : '女生'}潤寶頭像更新成功！`);
-          fetchMaterials();
-        } else {
-          alert("更新失敗: " + data.error);
+      setCropperData({
+        isOpen: true,
+        imageSrc: base64,
+        zoom: 1.1,
+        posX: 0,
+        posY: 0,
+        onConfirm: async (croppedBase64) => {
+          setIsUploadingDefault(gender);
+          const title = gender === 'male' ? "預設頭像 - 男生潤寶" : "預設頭像 - 女生潤寶";
+          const existing = materials.find(m => m.category === "系統預設頭像" && m.title === title);
+          try {
+            const payload = {
+              id: existing?.id || null,
+              title,
+              category: "系統預設頭像",
+              file_type: "image",
+              url: croppedBase64,
+              description: `系統全域預設之${gender === 'male' ? '男生' : '女生'}會員大頭照`
+            };
+            
+            const res = await fetch("/api/materials", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+              alert(`${gender === 'male' ? '男生' : '女生'}潤寶頭像更新成功！`);
+              fetchMaterials();
+            } else {
+              alert("更新失敗: " + data.error);
+            }
+          } catch (err: any) {
+            alert("上傳失敗: " + err.message);
+          } finally {
+            setIsUploadingDefault(null);
+          }
         }
-      } catch (err: any) {
-        alert("上傳失敗: " + err.message);
-      } finally {
-        setIsUploadingDefault(null);
-      }
+      });
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   useEffect(() => {
