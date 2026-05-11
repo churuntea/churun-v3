@@ -15,7 +15,8 @@ import {
   XCircle, 
   ChevronLeft, 
   Loader2, 
-  Trash2, 
+  Trash2,
+  Pencil, 
   AlertCircle,
   Clock,
   Sparkles
@@ -37,6 +38,9 @@ export default function CouponsAdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [filterTab, setFilterTab] = useState<'all' | 'welcome' | 'regular'>('all');
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   
   // Create Coupon Form State
@@ -222,10 +226,46 @@ export default function CouponsAdminPage() {
     }
   };
 
+  const handleUpdateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCoupon) return;
+    
+    setIsSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from("coupons")
+        .update({
+          name: editingCoupon.name.trim(),
+          discount_type: editingCoupon.discount_type,
+          value: Number(editingCoupon.value),
+          min_spend: Number(editingCoupon.min_spend),
+          description: editingCoupon.description?.trim() || ""
+        })
+        .eq("id", editingCoupon.id);
+        
+      if (error) throw error;
+      
+      showFeedback("success", `優惠券 【${editingCoupon.name}】 更新成功！`);
+      setEditingCoupon(null);
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showFeedback("error", `更新失敗: ${err.message || "未知錯誤"}`);
+    }
+    setIsSavingEdit(false);
+  };
+
   const showFeedback = (type: "success" | "error", text: string) => {
     setFeedbackMsg({ type, text });
     setTimeout(() => setFeedbackMsg(null), 5000);
   };
+
+  const filteredCoupons = coupons.filter(c => {
+    const isWelcome = c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100";
+    if (filterTab === 'welcome') return isWelcome;
+    if (filterTab === 'regular') return !isWelcome;
+    return true;
+  });
 
   const filteredMembersForSearch = searchQuery.trim() === ""
     ? members.slice(0, 50)
@@ -386,11 +426,48 @@ export default function CouponsAdminPage() {
                   className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/10 transition"
                 >
                   <option value="" disabled>請選擇優惠券</option>
-                  {coupons.map(c => (
-                    <option key={c.id} value={c.id}>
-                      [{c.code}] {c.name} — {c.discount_type === 'fixed' ? `$${c.value}` : `${100-c.value}折`} (滿 ${c.min_spend})
-                    </option>
-                  ))}
+                  {filteredCoupons.map(c => (
+                  <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                    <td className="p-4">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-slate-800">{c.name}</p>
+                        <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">{c.code}</span>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-xs font-bold text-indigo-600">
+                        {c.discount_type === 'fixed' ? `$${Number(c.value).toLocaleString()}` : `${100 - c.value}折`}
+                      </span>
+                    </td>
+                    <td className="p-4 text-xs font-bold text-slate-700">${Number(c.min_spend).toLocaleString()}</td>
+                    <td className="p-4 text-[11px] font-medium text-slate-400">{c.description || "無說明"}</td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          onClick={() => setEditingCoupon(c)}
+                          className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition inline-flex items-center"
+                          title="編輯優惠券"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
+                        {c.code !== "WELCOME100" ? (
+                          <button 
+                            onClick={() => handleDeleteCoupon(c.id, c.name)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition inline-flex items-center"
+                            title="刪除優惠券"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            系統保護
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
                 </select>
               </div>
 
@@ -523,6 +600,31 @@ export default function CouponsAdminPage() {
                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Active Coupon Library</p>
               </div>
             </div>
+
+          {/* Categorized Filter Tabs */}
+          <div className="flex flex-wrap gap-3 border-b border-slate-100 pb-4">
+            {[
+              { id: 'all', label: '🎫 全部優惠券', count: coupons.length },
+              { id: 'welcome', label: '🎁 迎新專屬券 (NEW_)', count: coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100").length },
+              { id: 'regular', label: '🛍️ 一般活動券', count: coupons.filter(c => !(c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100")).length },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setFilterTab(tab.id as any)}
+                className={`px-5 py-2.5 rounded-full text-xs font-black transition-all flex items-center gap-2 border select-none ${
+                  filterTab === tab.id 
+                    ? 'bg-emerald-950 text-white border-emerald-950 shadow-md shadow-emerald-950/10 scale-102' 
+                    : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${filterTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
             <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
               共計 {coupons.length} 款
             </span>
@@ -571,10 +673,10 @@ export default function CouponsAdminPage() {
                     </td>
                   </tr>
                 ))}
-                {coupons.length === 0 && (
+                {filteredCoupons.length === 0 && (
                   <tr>
                     <td colSpan={5} className="p-10 text-center text-xs font-bold text-slate-400">
-                      目前資料庫無任何優惠券，請在上方新增！
+                      {filterTab === 'all' ? '目前資料庫無任何優惠券，請在上方新增！' : '此分類目前無任何優惠券'}
                     </td>
                   </tr>
                 )}
@@ -583,6 +685,126 @@ export default function CouponsAdminPage() {
           </div>
         </div>
 
+      
+
+      {/* Edit Coupon Modal */}
+      <AnimatePresence>
+        {editingCoupon && (
+          <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-xl shadow-2xl relative border border-slate-100"
+            >
+              <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                    <Pencil className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black tracking-wider text-slate-800">修改優惠券參數</h3>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Edit Coupon Fields</p>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setEditingCoupon(null)}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-black transition"
+                >
+                  ✕ 關閉
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateCoupon} className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">優惠券代碼 (不可修改)</label>
+                    <input 
+                      type="text" 
+                      value={editingCoupon.code}
+                      disabled
+                      className="w-full bg-slate-100 border border-slate-200 p-4 rounded-xl text-xs font-black text-slate-400 outline-none cursor-not-allowed uppercase"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">優惠券顯示名稱</label>
+                    <input 
+                      type="text" 
+                      value={editingCoupon.name}
+                      onChange={e => setEditingCoupon({...editingCoupon, name: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">折抵類型</label>
+                    <select 
+                      value={editingCoupon.discount_type}
+                      onChange={e => setEditingCoupon({...editingCoupon, discount_type: e.target.value as 'fixed' | 'percent'})}
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
+                    >
+                      <option value="fixed">固定折抵金額 ($)</option>
+                      <option value="percent">比例打折 (%)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">折抵面值</label>
+                    <input 
+                      type="number" 
+                      value={editingCoupon.value || ""}
+                      onChange={e => setEditingCoupon({...editingCoupon, value: Number(e.target.value)})}
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">最低消費門檻 ($)</label>
+                    <input 
+                      type="number" 
+                      value={editingCoupon.min_spend || ""}
+                      onChange={e => setEditingCoupon({...editingCoupon, min_spend: Number(e.target.value)})}
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">活動簡介與描述</label>
+                  <textarea 
+                    value={editingCoupon.description || ""}
+                    rows={3}
+                    onChange={e => setEditingCoupon({...editingCoupon, description: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setEditingCoupon(null)}
+                    className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isSavingEdit}
+                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-white p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                  >
+                    {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+                    儲存更新
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       </main>
     </div>
   );
