@@ -541,6 +541,87 @@ function AdminMaterialsContent() {
         )}
       </AnimatePresence>
 
+      {cropperData && cropperData.isOpen && (
+         <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-md shadow-2xl flex flex-col items-center space-y-8 border border-slate-100"
+            >
+               <div className="text-center">
+                  <h3 className="text-lg font-black text-slate-900 tracking-wider">微調預設頭像</h3>
+                  <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Adjust, Zoom & Align Avatar</p>
+               </div>
+
+               {/* Cropper Box */}
+               <div className="relative w-72 h-72 rounded-full overflow-hidden border-4 border-emerald-950 bg-slate-100 shadow-inner cursor-move select-none"
+                    onMouseDown={handleCropperMouseDown}
+                    onMouseMove={handleCropperMouseMove}
+                    onMouseUp={handleCropperMouseUp}
+                    onMouseLeave={handleCropperMouseUp}
+                    onTouchStart={handleCropperTouchStart}
+                    onTouchMove={handleCropperTouchMove}
+                    onTouchEnd={handleCropperMouseUp}
+               >
+                  <img 
+                    src={cropperData.imageSrc} 
+                    alt="Crop preview" 
+                    className="absolute pointer-events-none max-w-none origin-center"
+                    style={{
+                       transform: `translate(${cropperData.posX}px, ${cropperData.posY}px) scale(${cropperData.zoom})`,
+                       left: '50%',
+                       top: '50%',
+                       marginTop: '-144px',
+                       marginLeft: '-144px',
+                       width: '288px',
+                       height: '288px',
+                       objectFit: 'contain'
+                    }}
+                  />
+                  {/* Circle crop guide border */}
+                  <div className="absolute inset-0 border-[16px] border-black/20 rounded-full pointer-events-none" />
+               </div>
+
+               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center leading-relaxed">
+                  💡 請在圓圈內【按住拖曳】調整對齊位置
+               </p>
+
+               {/* Zoom Slider */}
+               <div className="w-full space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">放大縮小 (Zoom)</span>
+                     <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">{Math.round(cropperData.zoom * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="3" 
+                    step="0.02"
+                    value={cropperData.zoom}
+                    onChange={(e) => setCropperData({ ...cropperData, zoom: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-800"
+                  />
+               </div>
+
+               <div className="flex gap-4 w-full">
+                  <button 
+                    onClick={() => setCropperData(null)}
+                    className="flex-1 bg-slate-50 border border-slate-100 text-slate-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    onClick={handleConfirmCrop}
+                    className="flex-1 bg-emerald-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-950/10 active:scale-95 transition"
+                  >
+                    確定套用
+                  </button>
+               </div>
+            </motion.div>
+         </div>
+      )}
+
     </div>
   );
 }
