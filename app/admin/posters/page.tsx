@@ -202,6 +202,11 @@ export default function AdminPosters() {
                           ) : (
                              <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100">不轉外網</span>
                           )}
+                          {temp.is_active ? (
+                             <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200">上架中</span>
+                          ) : (
+                             <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full border border-rose-100">暫不上架</span>
+                          )}
                        </div>
                    </div>
                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
@@ -277,7 +282,33 @@ export default function AdminPosters() {
                             </button>
                          </div>
                        </div>
-                      <div>
+                                             <div>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">上架狀態 (是否對會員開放使用)</label>
+                         <div className="flex gap-4">
+                            <button
+                              type="button"
+                              onClick={() => setEditingTemplate({
+                                ...editingTemplate,
+                                is_active: true
+                              })}
+                              className={`flex-1 h-11 flex items-center justify-center rounded-xl font-bold text-xs whitespace-nowrap transition-all ${editingTemplate.is_active ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                            >
+                               🟢 立即上架 (會員可見並可下載分享)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingTemplate({
+                                ...editingTemplate,
+                                is_active: false
+                              })}
+                              className={`flex-1 h-11 flex items-center justify-center rounded-xl font-bold text-xs whitespace-nowrap transition-all ${!editingTemplate.is_active ? 'bg-rose-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                            >
+                               🔴 暫不上架 (隱藏、會員不可見)
+                            </button>
+                         </div>
+                       </div>
+
+<div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
                           <span>公版圖片上傳 / URL</span>
                         </label>
