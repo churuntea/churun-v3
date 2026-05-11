@@ -155,11 +155,11 @@ function RegisterContent() {
         
         // 1. 自動發放 WELCOME100 迎新折價券到其庫存
         try {
-          const welcomeCodes = ["WELCOME100", "WELCOME50", "GIFT_REDEEM"];
+          // 查詢所有以 NEW_ 開頭的優惠券，以及舊有的 WELCOME100
           const { data: welcomeCoupons } = await supabase
             .from("coupons")
             .select("id, name")
-            .in("code", welcomeCodes);
+            .or("code.ilike.NEW_%,code.eq.WELCOME100");
 
           if (welcomeCoupons && welcomeCoupons.length > 0) {
             const insertRows = welcomeCoupons.map(c => ({
