@@ -106,6 +106,23 @@ export default function AdminPosters() {
     else fetchTemplates();
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      const { error } = await supabase
+        .from('poster_templates')
+        .update({ is_active: newStatus })
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Update local state instantly
+      setTemplates(prev => prev.map(t => t.id === id ? { ...t, is_active: newStatus } : t));
+    } catch (err: any) {
+      alert('更新狀態失敗: ' + err.message);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -198,11 +215,17 @@ export default function AdminPosters() {
                       <div className="flex gap-2 items-center">
                           <span className="text-[9px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">{temp.category || temp.config?.category || '茶葉'}</span>
                           
-                          {temp.is_active ? (
-                             <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200">上架中</span>
-                          ) : (
-                             <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full border border-rose-100">暫不上架</span>
-                          )}
+                          <button
+                            onClick={() => handleToggleActive(temp.id, temp.is_active)}
+                            className={`text-[9px] font-black px-2.5 py-1 rounded-full border transition-all active:scale-95 flex items-center gap-1 cursor-pointer hover:shadow-sm ${
+                              temp.is_active 
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200' 
+                                : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'
+                            }`}
+                            title="點選切換上架狀態"
+                          >
+                            {temp.is_active ? '🟢 上架中' : '🔴 暫不上架'}
+                          </button>
                        </div>
                    </div>
                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
