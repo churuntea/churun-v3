@@ -197,11 +197,7 @@ export default function AdminPosters() {
                       <h3 className="font-black text-slate-800">{temp.name}</h3>
                       <div className="flex gap-2 items-center">
                           <span className="text-[9px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">{temp.category || temp.config?.category || '茶葉'}</span>
-                          {temp.config?.is_external ? (
-                             <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full border border-amber-100">轉外網</span>
-                          ) : (
-                             <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100">不轉外網</span>
-                          )}
+                          
                           {temp.is_active ? (
                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200">上架中</span>
                           ) : (
@@ -251,37 +247,7 @@ export default function AdminPosters() {
                         </div>
                       </div>
 
-                       <div>
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">跳轉行為 (外網連結設定)</label>
-                         <div className="flex gap-4">
-                            <button
-                              type="button"
-                              onClick={() => setEditingTemplate({
-                                ...editingTemplate,
-                                config: {
-                                  ...editingTemplate.config,
-                                  is_external: false
-                                }
-                              })}
-                              className={`flex-1 h-11 flex items-center justify-center rounded-xl font-bold text-xs whitespace-nowrap transition-all ${!editingTemplate.config?.is_external ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
-                            >
-                               不轉外網 (本地產生器)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingTemplate({
-                                ...editingTemplate,
-                                config: {
-                                  ...editingTemplate.config,
-                                  is_external: true
-                                }
-                              })}
-                              className={`flex-1 h-11 flex items-center justify-center rounded-xl font-bold text-xs whitespace-nowrap transition-all ${editingTemplate.config?.is_external ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
-                            >
-                               轉外網 (新分頁開連結)
-                            </button>
-                         </div>
-                       </div>
+                       
                                              <div>
                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">上架狀態 (是否對會員開放使用)</label>
                          <div className="flex gap-4">
