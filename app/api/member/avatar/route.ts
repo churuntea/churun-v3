@@ -13,14 +13,14 @@ export async function POST(request: Request) {
     let avatarUrl = null;
 
     // 1. 處理頭像上傳
-    if (avatarBase64 && avatarBase64.startsWith('data:image')) {
-      const mimeType = avatarBase64.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+    if (avatarBase64 && (avatarBase64.startsWith('data:image') || avatarBase64.startsWith('data:video'))) {
+      const mimeType = avatarBase64.match(/data:([^;]+);base64/)?.[1] || (avatarBase64.startsWith('data:video') ? 'video/mp4' : 'image/png');
       const base64Data = avatarBase64.split(',')[1];
       const buffer = Buffer.from(base64Data, 'base64');
       
       // 為了避免快取，我們可以用 memberId 當檔名，但在 URL 後面加 timestamp
       // 或者乾脆檔名就加 timestamp
-      const ext = mimeType.split('/')[1] || 'png';
+      const ext = mimeType.split('/')[1] || (avatarBase64.startsWith('data:video') ? 'mp4' : 'png');
       const fileName = `${memberId}_${Date.now()}.${ext}`;
       const filePath = `avatars/${fileName}`;
 

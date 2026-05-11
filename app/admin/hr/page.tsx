@@ -27,7 +27,14 @@ import {
   Phone,
   Hash,
   AlertTriangle,
-  BadgeAlert
+  BadgeAlert,
+  Crown,
+  Sparkles,
+  Zap,
+  Award,
+  Star,
+  Heart,
+  TrendingUp
 } from "lucide-react";
 
 // 權限模組對應清單，提供圖示與說明
@@ -67,12 +74,101 @@ const ROLE_PRESETS = [
   }
 ];
 
+
+// 預設等級特權與保級/晉升設定資料
+const DEFAULT_TIERS_CONFIG = [
+  { 
+    name: '初潤靈魂伴侶', 
+    privileges: [
+      '專屬匯率：30元 = 1點', 
+      '累積消費滿 $50,000 晉升', 
+      '每月保級：消費 $1,000 或 直推 3 人', 
+      '未達標降級至 初潤知己'
+    ],
+    color: 'from-amber-400 via-amber-200 to-amber-500',
+    icon: 'Crown'
+  },
+  { 
+    name: '初潤知己', 
+    privileges: [
+      '專屬匯率：40元 = 1點', 
+      '累積消費滿 $25,000 晉升', 
+      '每月保級：消費 $600 或 直推 2 人', 
+      '未達標降級至 初潤閨蜜'
+    ],
+    color: 'from-emerald-400 to-emerald-600',
+    icon: 'Heart'
+  },
+  { 
+    name: '初潤閨蜜', 
+    privileges: [
+      '專屬匯率：50元 = 1點', 
+      '累積滿 $12,000 (或儲值 1 萬直升)', 
+      '每季保級：消費 $1,200 或 直推 2 人', 
+      '未達標降級至 初潤好朋友'
+    ],
+    color: 'from-rose-400 to-rose-600',
+    icon: 'Sparkles'
+  },
+  { 
+    name: '初潤好朋友', 
+    privileges: [
+      '專屬匯率：60元 = 1點', 
+      '累積消費滿 $6,000 晉升', 
+      '每季保級：消費 $600 或 直推 1 人', 
+      '未達標降級至 初潤青少年'
+    ],
+    color: 'from-indigo-400 to-indigo-600',
+    icon: 'Star'
+  },
+  { 
+    name: '初潤青少年', 
+    privileges: [
+      '專屬匯率：70元 = 1點', 
+      '累積消費滿 $3,000 晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-blue-400 to-blue-600',
+    icon: 'TrendingUp'
+  },
+  { 
+    name: '初潤小朋友', 
+    privileges: [
+      '專屬匯率：80元 = 1點', 
+      '累積消費滿 $1,500 晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-sky-400 to-sky-600',
+    icon: 'Award'
+  },
+  { 
+    name: '初潤幼兒園', 
+    privileges: [
+      '專屬匯率：90元 = 1點', 
+      '完成首次消費即可晉升', 
+      '無保級壓力'
+    ],
+    color: 'from-teal-400 to-teal-600',
+    icon: 'ShieldCheck'
+  },
+  { 
+    name: '初潤寶寶', 
+    privileges: [
+      '專屬匯率：100元 = 1點', 
+      '加入 LINE@ 註冊即可獲得', 
+      '無保級壓力'
+    ],
+    color: 'from-slate-400 to-slate-600',
+    icon: 'Zap'
+  }
+];
+
 function AdminHRContent() {
   const router = useRouter();
   const [staff, setStaff] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<"list" | "form" | "audit">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "form" | "tiers">("list");
   
   // 搜尋與篩選狀態
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,9 +202,96 @@ function AdminHRContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // 職級等級特權與獎勵設定相關狀態
+  const [tiersConfig, setTiersConfig] = useState<any[]>([]);
+  const [isLoadingTiers, setIsLoadingTiers] = useState(false);
+  const [selectedTierIdx, setSelectedTierIdx] = useState<number | null>(null);
+  const [editingPrivs, setEditingPrivs] = useState<string[]>([]);
+  const [isSavingTiers, setIsSavingTiers] = useState(false);
+
+  const getTierIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Crown': return Crown;
+      case 'Heart': return Heart;
+      case 'Sparkles': return Sparkles;
+      case 'Star': return Star;
+      case 'TrendingUp': return TrendingUp;
+      case 'Award': return Award;
+      case 'ShieldCheck': return ShieldCheck;
+      case 'Zap': return Zap;
+      default: return Award;
+    }
+  };
+
+  const fetchTiersConfig = async () => {
+    setIsLoadingTiers(true);
+    try {
+      const res = await fetch("/api/materials");
+      const data = await res.json();
+      if (data.success) {
+        const dbConfigs = data.materials.filter((m: any) => m.category === "職級特權設定");
+        const mergedConfigs = DEFAULT_TIERS_CONFIG.map(def => {
+          const matched = dbConfigs.find((m: any) => m.title === def.name);
+          return {
+            ...def,
+            id: matched?.id || null,
+            privileges: matched ? JSON.parse(matched.description) : def.privileges
+          };
+        });
+        setTiersConfig(mergedConfigs);
+      }
+    } catch (err) {
+      console.error("載入職級特權設定失敗:", err);
+    }
+    setIsLoadingTiers(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === "tiers") {
+      fetchTiersConfig();
+    }
+  }, [activeTab]);
+
+  const handleSaveTierConfig = async (idx: number) => {
+    const tier = tiersConfig[idx];
+    setIsSavingTiers(true);
+    try {
+      const res = await fetch("/api/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: tier.id || undefined,
+          title: tier.name,
+          category: "職級特權設定",
+          url: "text",
+          file_type: "text",
+          description: JSON.stringify(editingPrivs.filter(Boolean))
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`🎉 ${tier.name} 特權與獎勵設定儲存成功！`);
+        setSelectedTierIdx(null);
+        fetchTiersConfig();
+      } else {
+        alert("❌ 儲存失敗: " + data.error);
+      }
+    } catch (err: any) {
+      alert("⚠️ 系統連線異常: " + err.message);
+    }
+    setIsSavingTiers(false);
+  };
+
+  const handleResetTierToDefault = (idx: number) => {
+    if (confirm("💡 確定要將此職級重設回系統預設設定嗎？（儲存後生效）")) {
+      setEditingPrivs([...DEFAULT_TIERS_CONFIG[idx].privileges]);
+    }
+  };
+  
   // 總經理安全軌跡稽核狀態
   const [adminTitle, setAdminTitle] = useState("");
   const [adminName, setAdminName] = useState("");
+  const [adminDept, setAdminDept] = useState("");
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
@@ -119,6 +302,7 @@ function AdminHRContent() {
         const parsed = JSON.parse(userStr);
         setAdminTitle(parsed.title || "");
         setAdminName(parsed.name || "");
+        setAdminDept(parsed.department || "");
       } catch (e) {
         console.error(e);
       }
@@ -410,6 +594,20 @@ function AdminHRContent() {
            >
               ➕ 建立新職員資料
            </button>
+           <button
+             type="button"
+             onClick={() => { setSelectedTierIdx(null); setActiveTab("tiers"); }}
+             className={`pb-4 px-6 text-sm font-black tracking-widest transition-all border-b-2 ${activeTab === "tiers" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+           >
+              🏆 各職級特權與獎勵設定
+           </button>
+           <button 
+             type="button"
+             onClick={() => { setSelectedTierIdx(null); setActiveTab("tiers"); }}
+             className={`pb-4 px-6 text-sm font-black tracking-widest transition-all border-b-2 ${activeTab === "tiers" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+           >
+              🏆 各職級特權與獎勵設定
+           </button>
            {editingId && (
              <button 
                className="pb-4 px-6 text-sm font-black tracking-widest border-b-2 border-indigo-600 text-indigo-600"
@@ -579,9 +777,9 @@ function AdminHRContent() {
                    </div>
                 )}
              </motion.div>
-           ) : (
-             <motion.div
-               key="form"
+           ) : activeTab === "form" ? (
+              <motion.div
+                key="form"
                initial={{ opacity: 0, y: 15 }}
                animate={{ opacity: 1, y: 0 }}
                exit={{ opacity: 0, y: -15 }}
@@ -807,7 +1005,190 @@ function AdminHRContent() {
                    </div>
                 </form>
              </motion.div>
-           )}
+           ) : (
+              <motion.div
+                key="tiers"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-8 animate-fade-in"
+              >
+                 {/* 職級與特權編輯面板 */}
+                 <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl">
+                    <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-indigo-500 rounded-full blur-[80px] opacity-20"></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                          <Crown className="w-6 h-6 text-amber-400" />
+                       </div>
+                       <div>
+                          <h3 className="text-xl font-black tracking-wider">八階會員等級與榮耀特權配置</h3>
+                          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mt-1">
+                             在這裡可以直接修改各職級所獲得的專屬回饋匯率、晉升門檻、保級標準等明細。修改完成後，前台「職級榮耀殿堂」將即時同步更新！
+                          </p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {isLoadingTiers ? (
+                    <div className="bg-white rounded-[3rem] py-32 flex flex-col items-center gap-4 border border-slate-50 shadow-2xl">
+                       <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">同步職級特權資料庫中...</p>
+                    </div>
+                 ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                       {/* 左側 職級選單 */}
+                       <div className={`${selectedTierIdx !== null ? 'lg:col-span-5' : 'lg:col-span-12'} grid grid-cols-1 md:grid-cols-2 ${selectedTierIdx !== null ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-6 transition-all duration-300`}>
+                          {tiersConfig.map((tier, idx) => {
+                             const isSelected = selectedTierIdx === idx;
+                             const IconComp = getTierIcon(tier.icon);
+                             return (
+                                <div
+                                   key={idx}
+                                   onClick={() => {
+                                      setSelectedTierIdx(idx);
+                                      setEditingPrivs([...tier.privileges]);
+                                   }}
+                                   className={`relative group cursor-pointer p-6 rounded-[2.5rem] border transition duration-300 overflow-hidden ${isSelected ? 'bg-indigo-900 border-indigo-950 text-white shadow-xl ring-4 ring-indigo-500/10' : 'bg-white border-slate-100 hover:border-slate-200 text-slate-800 shadow-xl shadow-slate-200/5 hover:shadow-2xl hover:shadow-slate-200/10'}`}
+                                >
+                                   <div className="flex items-center gap-4">
+                                      <div className={`w-12 h-12 bg-gradient-to-br ${tier.color} rounded-2xl flex items-center justify-center text-white shadow-md`}>
+                                         <IconComp className="w-6 h-6" />
+                                      </div>
+                                      <div className="space-y-1 flex-1">
+                                         <h4 className="text-sm font-black tracking-tight">{tier.name}</h4>
+                                         <p className={`text-[9px] font-bold uppercase tracking-widest ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                            {tier.privileges.length} 項特權配置
+                                         </p>
+                                      </div>
+                                      {!isSelected && (
+                                         <div className="w-8 h-8 bg-slate-50 text-slate-400 group-hover:bg-slate-900 group-hover:text-white rounded-xl flex items-center justify-center transition">
+                                            <Settings className="w-4 h-4" />
+                                         </div>
+                                      )}
+                                   </div>
+                                   {/* 快速摘要前兩項特權 */}
+                                   <div className="mt-4 pt-4 border-t border-dashed border-slate-200/10 flex flex-col gap-1">
+                                      {tier.privileges.slice(0, 2).map((p, pIdx) => (
+                                         <div key={pIdx} className="flex items-center gap-2 text-[11px] font-bold">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-indigo-300' : 'bg-indigo-500'}`} />
+                                            <span className={isSelected ? 'text-indigo-200 truncate' : 'text-slate-400 truncate'}>{p}</span>
+                                         </div>
+                                      ))}
+                                   </div>
+                                </div>
+                             );
+                          })}
+                       </div>
+
+                       {/* 右側 編輯面板 */}
+                       {selectedTierIdx !== null && (
+                          <div className="lg:col-span-7 bg-white rounded-[3rem] p-8 border border-slate-50 shadow-2xl space-y-8 h-fit animate-fade-in">
+                             {(() => {
+                                const tier = tiersConfig[selectedTierIdx];
+                                const IconComp = getTierIcon(tier.icon);
+                                return (
+                                   <>
+                                      <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+                                         <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 bg-gradient-to-br ${tier.color} rounded-2xl flex items-center justify-center text-white`}>
+                                               <IconComp className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                               <h4 className="text-md font-black text-slate-800">{tier.name} - 編輯特權明細</h4>
+                                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">系統職級階梯專屬特權調整</p>
+                                            </div>
+                                         </div>
+                                         <button 
+                                            type="button"
+                                            onClick={() => setSelectedTierIdx(null)}
+                                            className="p-2 hover:bg-slate-50 rounded-full transition text-slate-400 hover:text-slate-600"
+                                         >
+                                            <X className="w-5 h-5" />
+                                         </button>
+                                      </div>
+
+                                      {/* 編輯行清單 */}
+                                      <div className="space-y-4">
+                                         <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">特權內容明細 (點擊垃圾桶可刪除該行)</label>
+                                            <button
+                                               type="button"
+                                               onClick={() => setEditingPrivs([...editingPrivs, ""])}
+                                               className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition flex items-center gap-1"
+                                            >
+                                               <Plus className="w-3.5 h-3.5" /> 新增一行
+                                            </button>
+                                         </div>
+
+                                         <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                                            {editingPrivs.map((priv, pIdx) => (
+                                               <div key={pIdx} className="flex items-center gap-3">
+                                                  <div className="w-6 h-6 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-xs font-black select-none">
+                                                     {pIdx + 1}
+                                                  </div>
+                                                  <input
+                                                     type="text"
+                                                     value={priv}
+                                                     onChange={(e) => {
+                                                        const updated = [...editingPrivs];
+                                                        updated[pIdx] = e.target.value;
+                                                        setEditingPrivs(updated);
+                                                     }}
+                                                     placeholder="輸入特權/回饋內容描述 (例如: 累積消費滿 $10,000 晉升)"
+                                                     className="flex-1 bg-slate-50 border-none px-4 py-3 rounded-xl text-xs font-bold text-slate-800 shadow-inner outline-none focus:ring-2 focus:ring-indigo-500/10 transition"
+                                                  />
+                                                  <button
+                                                     type="button"
+                                                     onClick={() => {
+                                                        const updated = editingPrivs.filter((_, idx) => idx !== pIdx);
+                                                        setEditingPrivs(updated);
+                                                     }}
+                                                     className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                                                  >
+                                                     <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                               </div>
+                                            ))}
+
+                                            {editingPrivs.length === 0 && (
+                                               <p className="text-xs text-center font-bold text-slate-300 py-8">
+                                                  目前無任何特權明細，請點選「新增一行」開始輸入。
+                                               </p>
+                                            )}
+                                         </div>
+                                      </div>
+
+                                      {/* 送出或重設 */}
+                                      <div className="flex gap-4 pt-6 border-t border-slate-100">
+                                         <button
+                                            type="button"
+                                            disabled={isSavingTiers}
+                                            onClick={() => handleSaveTierConfig(selectedTierIdx)}
+                                            className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-widest hover:bg-slate-800 transition active:scale-[0.98] flex items-center justify-center gap-2"
+                                         >
+                                            {isSavingTiers ? (
+                                               <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                               "儲存變更並同步至前台"
+                                            )}
+                                         </button>
+                                         <button
+                                            type="button"
+                                            onClick={() => handleResetTierToDefault(selectedTierIdx)}
+                                            className="px-6 py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-xs tracking-widest hover:bg-slate-100 transition"
+                                         >
+                                            重設系統預設
+                                         </button>
+                                      </div>
+                                   </>
+                                );
+                             })()}
+                          </div>
+                       )}
+                    </div>
+                 )}
+              </motion.div>
+            )}
         </AnimatePresence>
       </div>
     </div>

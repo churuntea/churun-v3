@@ -21,6 +21,15 @@ import {
   Link as LinkIcon
 } from "lucide-react";
 
+const isVideoUrl = (url: string) => {
+  if (!url) return false;
+  return url.startsWith("data:video/") || 
+         url.toLowerCase().endsWith(".mp4") || 
+         url.toLowerCase().endsWith(".mov") || 
+         url.toLowerCase().endsWith(".webm") || 
+         (url.includes("/materials/material_") && (url.toLowerCase().endsWith(".mp4") || url.toLowerCase().endsWith(".mov") || url.toLowerCase().endsWith(".webm")));
+};
+
 function AdminMaterialsContent() {
   const router = useRouter();
   const [materials, setMaterials] = useState<any[]>([]);
@@ -88,6 +97,15 @@ function AdminMaterialsContent() {
 
   const handleConfirmCrop = () => {
     if (!cropperData) return;
+
+    const isVideo = cropperData.imageSrc.startsWith('data:video/');
+    const isGif = cropperData.imageSrc.startsWith('data:image/gif');
+    if (isVideo || isGif) {
+      cropperData.onConfirm(cropperData.imageSrc);
+      setCropperData(null);
+      return;
+    }
+
     const img = new Image();
     img.src = cropperData.imageSrc;
     img.onload = () => {
@@ -119,6 +137,10 @@ function AdminMaterialsContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isGif = file.type === 'image/gif';
+    const isVideo = file.type.startsWith('video/');
+    const isAnimation = isGif || isVideo;
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const base64 = ev.target?.result as string;
@@ -137,8 +159,8 @@ function AdminMaterialsContent() {
               id: existing?.id || null,
               title,
               category: "系統預設頭像",
-              file_type: "image",
-              url: croppedBase64,
+              file_type: isVideo ? "video" : "image",
+              url: isAnimation ? base64 : croppedBase64,
               description: `系統全域預設之${gender === 'male' ? '男生' : '女生'}會員大頭照`
             };
             
@@ -199,18 +221,26 @@ function AdminMaterialsContent() {
 
     if (!materialPayload.url) return alert("請輸入檔案連結 (URL)");
 
+    const isExt = currentMaterial.is_external || false;
+    const extFlag = ` [is_external:${isExt}]`;
+    const cleanDesc = (currentMaterial.description || "").replace(/\s*\[is_external:(true|false)\]\s*$/, "");
+    materialPayload.description = cleanDesc + extFlag;
+
+    // Clean up temporary local ui fields
+    delete (materialPayload as any).is_external;
+
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/materials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentMaterial)
+        body: JSON.stringify(materialPayload)
       });
       const data = await res.json();
       if (data.success) {
         alert("素材已儲存！");
         setIsEditing(false);
-        setCurrentMaterial({ title: "", category: "品牌主視覺", url: "", file_type: "image", description: "" });
+        setCurrentMaterial({ title: "", category: "品牌主視覺", url: "", file_type: "image", description: "", is_external: false });
         fetchMaterials();
       } else {
         alert("儲存失敗: " + data.error);
@@ -256,7 +286,7 @@ function AdminMaterialsContent() {
          </div>
          <button 
            onClick={() => {
-             setCurrentMaterial({ title: "", category: "品牌主視覺", url: "", file_type: "image", description: "" });
+             setCurrentMaterial({ title: "", category: "品牌主視覺", url: "", file_type: "image", description: "", is_external: false });
              setIsEditing(true);
            }}
            className="bg-white text-emerald-900 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg active:scale-95 transition"
@@ -282,8 +312,12 @@ function AdminMaterialsContent() {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 rounded-[2.5rem] p-6 border border-slate-100">
               {/* 男生潤寶 */}
               <div className="flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100/50 shadow-sm relative group">
-                 <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100">
-                    <img src={maleAvatarUrl} className="w-full h-full object-cover" alt="Male Runbao" />
+                 <div className="rounded-full overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100" style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px' }}>
+                     {isVideoUrl(maleAvatarUrl) ? (
+                        <video src={maleAvatarUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ objectFit: 'cover' }} />
+                     ) : (
+                        <img src={maleAvatarUrl} className="w-full h-full object-cover" alt="Male Runbao" />
+                     )}
                     {isUploadingDefault === 'male' && (
                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                           <Loader2 className="w-5 h-5 animate-spin text-white" />
@@ -298,15 +332,19 @@ function AdminMaterialsContent() {
                     <p className="text-[10px] text-slate-400 font-bold tracking-wider leading-relaxed">未設定大頭照之男會員預設顯示此圖片。</p>
                     <label className="inline-block bg-emerald-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition shadow-md shadow-emerald-900/10 hover:bg-emerald-800 mt-1">
                        上傳更換
-                       <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadDefaultAvatar('male', e)} />
+                       <input type="file" className="hidden" accept="image/*,video/*" onChange={(e) => handleUploadDefaultAvatar('male', e)} />
                     </label>
                  </div>
               </div>
 
               {/* 女生潤寶 */}
               <div className="flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100/50 shadow-sm relative group">
-                 <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100">
-                    <img src={femaleAvatarUrl} className="w-full h-full object-cover" alt="Female Runbao" />
+                 <div className="rounded-full overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100" style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px' }}>
+                     {isVideoUrl(femaleAvatarUrl) ? (
+                        <video src={femaleAvatarUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ objectFit: 'cover' }} />
+                     ) : (
+                        <img src={femaleAvatarUrl} className="w-full h-full object-cover" alt="Female Runbao" />
+                     )}
                     {isUploadingDefault === 'female' && (
                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                           <Loader2 className="w-5 h-5 animate-spin text-white" />
@@ -321,7 +359,7 @@ function AdminMaterialsContent() {
                     <p className="text-[10px] text-slate-400 font-bold tracking-wider leading-relaxed">未設定大頭照之女會員預設顯示此圖片。</p>
                     <label className="inline-block bg-emerald-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition shadow-md shadow-emerald-900/10 hover:bg-emerald-800 mt-1">
                        上傳更換
-                       <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadDefaultAvatar('female', e)} />
+                       <input type="file" className="hidden" accept="image/*,video/*" onChange={(e) => handleUploadDefaultAvatar('female', e)} />
                     </label>
                  </div>
               </div>
@@ -359,7 +397,16 @@ function AdminMaterialsContent() {
                        </div>
                     </div>
                     <div className="flex gap-2">
-                       <button onClick={() => { setCurrentMaterial(item); setIsEditing(true); }} className="p-3 text-slate-300 hover:text-emerald-600 transition"><Edit3 className="w-4 h-4" /></button>
+                       <button onClick={() => {
+                          const isExternal = item.description?.includes("[is_external:true]") || false;
+                          const cleanDesc = item.description?.replace(/\s*\[is_external:(true|false)\]\s*$/, "") || "";
+                          setCurrentMaterial({
+                             ...item,
+                             is_external: isExternal,
+                             description: cleanDesc
+                          });
+                          setIsEditing(true);
+                       }} className="p-3 text-slate-300 hover:text-emerald-600 transition"><Edit3 className="w-4 h-4" /></button>
                        <button onClick={() => handleDelete(item.id)} className="p-3 text-slate-300 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
                     </div>
                  </div>
@@ -371,7 +418,15 @@ function AdminMaterialsContent() {
                  )}
 
                  {item.description && (
-                    <p className="text-xs text-slate-400 font-medium mb-4 line-clamp-2 italic">「 {item.description} 」</p>
+                    <p className="text-xs text-slate-400 font-medium mb-4 line-clamp-2 italic">
+                       「 {item.description.replace(/\s*\[is_external:(true|false)\]\s*$/, "")} 」
+                       {item.description.includes("[is_external:true]") && (
+                          <span className="text-[8px] font-black ml-2 bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100">轉外網</span>
+                       )}
+                       {item.description.includes("[is_external:false]") && (
+                          <span className="text-[8px] font-black ml-2 bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100">不轉外網</span>
+                       )}
+                    </p>
                  )}
 
                  <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
@@ -490,6 +545,26 @@ function AdminMaterialsContent() {
                       </div>
                    </div>
 
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">跳轉行為 (外網連結設定)</label>
+                       <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setCurrentMaterial({...currentMaterial, is_external: false})}
+                            className={`flex-1 h-12 flex items-center justify-center rounded-xl font-bold text-xs transition-all ${!currentMaterial.is_external ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                          >
+                             不轉外網 (本地下載)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurrentMaterial({...currentMaterial, is_external: true})}
+                            className={`flex-1 h-12 flex items-center justify-center rounded-xl font-bold text-xs transition-all ${currentMaterial.is_external ? 'bg-emerald-950 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}
+                          >
+                             轉外網 (開新分頁)
+                          </button>
+                       </div>
+                    </div>
+
                     {currentMaterial.file_type !== 'text' ? (
                        <div className="space-y-2">
                            <div className="flex justify-between items-center mb-1">
@@ -564,44 +639,142 @@ function AdminMaterialsContent() {
                     onTouchMove={handleCropperTouchMove}
                     onTouchEnd={handleCropperMouseUp}
                >
-                  <img 
-                    src={cropperData.imageSrc} 
-                    alt="Crop preview" 
-                    className="absolute pointer-events-none max-w-none origin-center"
-                    style={{
-                       transform: `translate(${cropperData.posX}px, ${cropperData.posY}px) scale(${cropperData.zoom})`,
-                       left: '50%',
-                       top: '50%',
-                       marginTop: '-144px',
-                       marginLeft: '-144px',
-                       width: '288px',
-                       height: '288px',
-                       objectFit: 'contain'
-                    }}
-                  />
+                  {cropperData.imageSrc.startsWith('data:video/') ? (
+                     <video 
+                       src={cropperData.imageSrc} 
+                       autoPlay 
+                       loop 
+                       muted 
+                       playsInline
+                       className="absolute pointer-events-none max-w-none origin-center"
+                       style={{
+                          transform: `translate(${cropperData.posX}px, ${cropperData.posY}px) scale(${cropperData.zoom})`,
+                          left: '50%',
+                          top: '50%',
+                          marginTop: '-144px',
+                          marginLeft: '-144px',
+                          width: '288px',
+                          height: '288px',
+                          objectFit: 'contain'
+                       }}
+                     />
+                  ) : (
+                     <img 
+                       src={cropperData.imageSrc} 
+                       alt="Crop preview" 
+                       className="absolute pointer-events-none max-w-none origin-center"
+                       style={{
+                          transform: `translate(${cropperData.posX}px, ${cropperData.posY}px) scale(${cropperData.zoom})`,
+                          left: '50%',
+                          top: '50%',
+                          marginTop: '-144px',
+                          marginLeft: '-144px',
+                          width: '288px',
+                          height: '288px',
+                          objectFit: 'contain'
+                       }}
+                     />
+                  )}
                   {/* Circle crop guide border */}
                   <div className="absolute inset-0 border-[16px] border-black/20 rounded-full pointer-events-none" />
                </div>
 
-               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center leading-relaxed">
-                  💡 請在圓圈內【按住拖曳】調整對齊位置
-               </p>
+               {/* Animation Notice if GIF or Video */}
+               {(cropperData.imageSrc.startsWith('data:video/') || cropperData.imageSrc.startsWith('data:image/gif')) && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-[10px] text-amber-800 flex items-start gap-2.5 max-w-sm">
+                     <span className="bg-amber-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shrink-0">動畫模式</span>
+                     <span className="leading-relaxed font-bold">偵測到動畫/影片格式！系統將自動以上傳原檔保存動態效果（裁切功能僅對靜態圖片生效，在此處調整為預覽對齊效果）。</span>
+                  </div>
+               )}
 
-               {/* Zoom Slider */}
-               <div className="w-full space-y-2">
+               <div className="w-full flex flex-col items-center gap-3 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">微調對齊位置 (Align)</span>
+                  <div className="grid grid-cols-3 gap-2 w-32">
+                     <div></div>
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, posY: cropperData.posY - 10 })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-slate-700 transition"
+                       title="向上微調"
+                     >
+                        ▲
+                     </button>
+                     <div></div>
+
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, posX: cropperData.posX - 10 })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-slate-700 transition"
+                       title="向左微調"
+                     >
+                        ◀
+                     </button>
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, posX: 0, posY: 0, zoom: 1.1 })}
+                       className="w-10 h-10 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-black text-slate-500 text-sm transition"
+                       title="重設位置"
+                     >
+                        ↺
+                     </button>
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, posX: cropperData.posX + 10 })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-slate-700 transition"
+                       title="向右微調"
+                     >
+                        ▶
+                     </button>
+
+                     <div></div>
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, posY: cropperData.posY + 10 })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-slate-700 transition"
+                       title="向下微調"
+                     >
+                        ▼
+                     </button>
+                     <div></div>
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider text-center">
+                     💡 亦可直接在圓圈內【按住拖曳】調整位置
+                  </p>
+               </div>
+
+               {/* Zoom Slider & Buttons */}
+               <div className="w-full bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-3">
                   <div className="flex justify-between items-center px-1">
-                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">放大縮小 (Zoom)</span>
+                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-bold">縮放大小 (Zoom)</span>
                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">{Math.round(cropperData.zoom * 100)}%</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="3" 
-                    step="0.02"
-                    value={cropperData.zoom}
-                    onChange={(e) => setCropperData({ ...cropperData, zoom: parseFloat(e.target.value) })}
-                    className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-800"
-                  />
+                  <div className="flex items-center gap-3">
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, zoom: Math.max(1.0, cropperData.zoom - 0.1) })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-lg text-slate-700 transition"
+                       title="縮小"
+                     >
+                        -
+                     </button>
+                     <input 
+                       type="range" 
+                       min="1" 
+                       max="3" 
+                       step="0.02"
+                       value={cropperData.zoom}
+                       onChange={(e) => setCropperData({ ...cropperData, zoom: parseFloat(e.target.value) })}
+                       className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-800 outline-none"
+                     />
+                     <button 
+                       type="button"
+                       onClick={() => setCropperData({ ...cropperData, zoom: Math.min(3.0, cropperData.zoom + 0.1) })}
+                       className="w-10 h-10 bg-white border border-slate-100 hover:bg-emerald-50 hover:text-emerald-900 active:scale-95 rounded-xl shadow-sm flex items-center justify-center font-bold text-lg text-slate-700 transition"
+                       title="放大"
+                     >
+                        +
+                     </button>
+                  </div>
                </div>
 
                <div className="flex gap-4 w-full">

@@ -25,12 +25,12 @@ export async function POST(request: Request) {
       finalUrl = 'text';
     }
 
-    if (finalUrl && finalUrl.startsWith('data:image')) {
+    if (finalUrl && (finalUrl.startsWith('data:image') || finalUrl.startsWith('data:video'))) {
       try {
-        const mimeType = finalUrl.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+        const mimeType = finalUrl.match(/data:([^;]+);base64/)?.[1] || (finalUrl.startsWith('data:video') ? 'video/mp4' : 'image/png');
         const base64Data = finalUrl.split(',')[1];
         const buffer = Buffer.from(base64Data, 'base64');
-        const ext = mimeType.split('/')[1] || 'png';
+        const ext = mimeType.split('/')[1] || (finalUrl.startsWith('data:video') ? 'mp4' : 'png');
         const fileName = `material_${Date.now()}.${ext}`;
         const filePath = `materials/${fileName}`;
 

@@ -15,6 +15,16 @@ import {
 } from "lucide-react";
 import Toast, { ToastType } from "@/components/Toast";
 
+const isVideoUrl = (url: string) => {
+  if (!url) return false;
+  return url.startsWith("data:video/") || 
+         url.toLowerCase().endsWith(".mp4") || 
+         url.toLowerCase().endsWith(".mov") || 
+         url.toLowerCase().endsWith(".webm") || 
+         (url.includes("/materials/material_") && (url.toLowerCase().endsWith(".mp4") || url.toLowerCase().endsWith(".mov") || url.toLowerCase().endsWith(".webm")));
+};
+
+
 export default function ProfileSettingsPage() {
   const router = useRouter();
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -172,25 +182,53 @@ export default function ProfileSettingsPage() {
 
           {/* Avatar Display with Spring Motion */}
           <div className="flex flex-col items-center gap-5 bg-slate-50 rounded-[2rem] p-6">
-            <div className="w-28 h-28 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-slate-100 relative">
-              <motion.img 
-                src={(memberAvatar && memberAvatar !== "https://i.ibb.co/6R2M5X1/churun-baby.png") ? memberAvatar : (memberGender === "女" ? femaleDefault : maleDefault)} 
-                className="w-full h-full object-cover" 
-                animate={{ 
-                  scale: avatarZoom, 
-                  y: avatarOffset 
-                }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 120, 
-                  damping: 18 
-                }}
-                alt="Avatar" 
-              />
+            <div className="rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-slate-100 relative" style={{ width: '112px', height: '112px', minWidth: '112px', minHeight: '112px' }}>
+              {(() => {
+                const avatarSrc = (memberAvatar && memberAvatar !== "https://i.ibb.co/6R2M5X1/churun-baby.png") ? memberAvatar : (memberGender === "女" ? femaleDefault : maleDefault);
+                const isVid = isVideoUrl(avatarSrc);
+                if (isVid) {
+                  return (
+                    <motion.video
+                      src={avatarSrc}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                      style={{ objectFit: 'cover' }}
+                      animate={{ 
+                        scale: avatarZoom, 
+                        y: avatarOffset 
+                      }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 120, 
+                        damping: 18 
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <motion.img 
+                    src={avatarSrc} 
+                    className="w-full h-full object-cover" 
+                    animate={{ 
+                      scale: avatarZoom, 
+                      y: avatarOffset 
+                    }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 120, 
+                      damping: 18 
+                    }}
+                    alt="Avatar" 
+                  />
+                );
+              })()}
             </div>
             <label className="bg-emerald-900 text-white px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] cursor-pointer active:scale-95 transition shadow-lg shadow-emerald-900/20 hover:bg-emerald-800">
               更換照片
-              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+              <input type="file" className="hidden" accept="image/*,video/*" onChange={handleAvatarUpload} />
             </label>
           </div>
 

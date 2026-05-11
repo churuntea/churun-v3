@@ -37,6 +37,16 @@ import {
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 
+const isVideoUrl = (url: string) => {
+  if (!url) return false;
+  return url.startsWith("data:video/") || 
+         url.toLowerCase().endsWith(".mp4") || 
+         url.toLowerCase().endsWith(".mov") || 
+         url.toLowerCase().endsWith(".webm") || 
+         (url.includes("/materials/material_") && (url.toLowerCase().endsWith(".mp4") || url.toLowerCase().endsWith(".mov") || url.toLowerCase().endsWith(".webm")));
+};
+
+
 const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
 
 function ProfileContent() {
@@ -157,23 +167,41 @@ function ProfileContent() {
                   <div className="relative z-10 flex justify-between items-start">
                      <div className="flex items-center gap-4">
                          {(() => {
-                            const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
-                            const resolvedSrc = hasCustomAvatar 
-                               ? memberInfo.avatar_url 
-                               : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
-                            return (
-                               <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100">
-                                  <img 
-                                     src={resolvedSrc} 
-                                     className="w-full h-full object-cover" 
-                                     style={memberInfo.avatar_settings ? { 
-                                        transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                     } : undefined}
-                                     alt="Avatar" 
-                                  />
-                               </div>
-                            );
-                         })()}
+                             const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
+                             const resolvedSrc = hasCustomAvatar 
+                                ? memberInfo.avatar_url 
+                                : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
+                             const isVid = isVideoUrl(resolvedSrc);
+                             return (
+                                <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100 relative" style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}>
+                                   {isVid ? (
+                                      <video 
+                                         src={resolvedSrc} 
+                                         autoPlay 
+                                         loop 
+                                         muted 
+                                         playsInline 
+                                         className="w-full h-full object-cover" 
+                                         style={{
+                                            objectFit: 'cover',
+                                            ...(memberInfo.avatar_settings ? { 
+                                               transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                            } : {})
+                                         }}
+                                      />
+                                   ) : (
+                                      <img 
+                                         src={resolvedSrc} 
+                                         className="w-full h-full object-cover" 
+                                         style={memberInfo.avatar_settings ? { 
+                                            transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                         } : undefined}
+                                         alt="Avatar" 
+                                      />
+                                   )}
+                                </div>
+                             );
+                          })()}
                         <div>
                            <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
                            <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>

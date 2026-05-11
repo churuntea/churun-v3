@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import { motion } from "framer-motion";
 import { 
   ArrowLeft, 
@@ -113,6 +115,42 @@ const TIERS = [
 ];
 
 export default function Rewards() {
+  const [tiers, setTiers] = useState<any[]>(TIERS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTiersPrivileges = async () => {
+      try {
+        const res = await fetch("/api/materials");
+        const data = await res.json();
+        if (data.success) {
+          const dbConfigs = data.materials.filter((m: any) => m.category === "職級特權設定");
+          if (dbConfigs.length > 0) {
+            const updatedTiers = TIERS.map(staticTier => {
+              const matched = dbConfigs.find((m: any) => m.title === staticTier.name);
+              if (matched) {
+                try {
+                  const privileges = JSON.parse(matched.description);
+                  if (Array.isArray(privileges)) {
+                    return { ...staticTier, privileges };
+                  }
+                } catch (e) {
+                  console.error("Failed to parse privileges for", staticTier.name, e);
+                }
+              }
+              return staticTier;
+            });
+            setTiers(updatedTiers);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch dynamic tiers config:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTiersPrivileges();
+  }, []);
   const router = useRouter();
 
   const containerVariants = {
@@ -164,7 +202,7 @@ export default function Rewards() {
 
         {/* Tiers List */}
         <section className="space-y-8">
-           {TIERS.map((tier, i) => (
+           {tiers.map((tier, i) => (
              <motion.div 
                key={i} 
                variants={itemVariants}

@@ -45,6 +45,12 @@ if (!(global as any).globalFallbackAuditLogs) {
 }
 const fallbackAuditLogs = (global as any).globalFallbackAuditLogs;
 
+// Global map to record login failed attempts across serverless invocations
+if (!(global as any).globalLoginAttemptsMap) {
+  (global as any).globalLoginAttemptsMap = {};
+}
+const loginAttemptsMap = (global as any).globalLoginAttemptsMap;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -88,12 +94,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '帳號或密碼錯誤' }, { status: 401 });
     }
 
-    // 3. Verify Password (plain-text for extremely straightforward enterprise custom password setting)
-    if (staffUser.password !== password) {
-      return NextResponse.json({ success: false, error: '密碼錯誤' }, { status: 401 });
+    const sId = staffUser.staff_id;
+
+    // A. Check if already locked out
+    if (staffUser.status === 'locked' || (loginAttemptsMap[sId] || 0) >= 3) {
+      // Force status update to locked if in-memory attempts met 3 but DB hasn't been updated yet
+      if (staffUser.status !== 'locked') {
+        if (!isFallback) {
+          await supabaseAdmin.from('hr_profiles').update({ status: 'locked' }).eq('staff_id', sId);
+        } else {
+          staffUser.status = 'locked';
+        }
+      }
+      return NextResponse.json({ 
+        success: false, 
+        error: '此帳號密碼錯誤超過三次已遭鎖定，請洽人事主管或總經理進行解鎖。' 
+      }, { status: 403 });
     }
 
+    // 3. Verify Password (plain-text for extremely straightforward enterprise custom password setting)
+    if (staffUser.password !== password) {
+      // Record failed attempt
+      loginAttemptsMap[sId] = (loginAttemptsMap[sId] || 0) + 1;
+      const attempts = loginAttemptsMap[sId];
+
+      if (attempts >= 3) {
+        // Lock the account immediately!
+        if (!isFallback) {
+          await supabaseAdmin.from('hr_profiles').update({ status: 'locked' }).eq('staff_id', sId);
+        } else {
+          staffUser.status = 'locked';
+        }
+        return NextResponse.json({ 
+          success: false, 
+          error: '密碼錯誤！累計錯誤已達三次，此帳號已被立即鎖定，請洽人事主管解鎖。' 
+        }, { status: 401 });
+      }
+
+      return NextResponse.json({ 
+        success: false, 
+        error: `密碼錯誤！您已累計錯誤 ${attempts} 次，連續錯誤達 3 次帳號將立即鎖定！` 
+      }, { status: 401 });
+    }
+
+    // Password verified! Reset attempts
+    loginAttemptsMap[sId] = 0;
+
     if (staffUser.status !== 'active') {
+      if (staffUser.status === 'locked') {
+        return NextResponse.json({ success: false, error: '此帳號密碼錯誤超過三次已遭鎖定，請洽人事主管或總經理進行解鎖。' }, { status: 403 });
+      }
       return NextResponse.json({ success: false, error: '此帳號已被停權或註銷，請洽系統管理員' }, { status: 403 });
     }
 

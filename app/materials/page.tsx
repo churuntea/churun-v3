@@ -100,8 +100,31 @@ function MaterialsContent() {
     alert("文案已複製到剪貼簿！");
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      window.open(url, '_blank');
+    }
+  };
+
   // Poster Generation Logic
   const handleGeneratePoster = async (template: any) => {
+    if (template.config?.is_external) {
+      setShowPosterSelector(false);
+      window.open(template.url, '_blank');
+      return;
+    }
+
     setSelectedPoster(template);
     setShowPosterSelector(false);
     setIsGeneratingPoster(true);
@@ -264,15 +287,23 @@ function MaterialsContent() {
                            <h4 className="font-black text-slate-800 text-lg tracking-tight">{mat.title}</h4>
                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Official Assets</p>
                         </div>
-                        <a 
-                          href={mat.url} 
-                          download 
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-14 h-14 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-900/20 active:scale-90 transition"
-                        >
-                           <Download className="w-6 h-6" />
-                        </a>
+                        {mat.description?.includes("[is_external:true]") ? (
+                            <a 
+                              href={mat.url} 
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-14 h-14 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-900/20 active:scale-90 transition"
+                            >
+                               <Download className="w-6 h-6" />
+                            </a>
+                         ) : (
+                            <button 
+                              onClick={() => handleDownload(mat.url, mat.title)}
+                              className="w-14 h-14 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-900/20 active:scale-90 transition"
+                            >
+                               <Download className="w-6 h-6" />
+                            </button>
+                         )}
                      </div>
                   </motion.div>
                 ))}
@@ -296,10 +327,10 @@ function MaterialsContent() {
                         <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{mat.category}</span>
                      </div>
                      <div className="bg-slate-50 rounded-2xl p-6 text-xs text-slate-500 leading-relaxed font-medium whitespace-pre-wrap italic">
-                        {mat.description}
+                        {mat.description?.replace(/\s*\[is_external:(true|false)\]\s*$/, "")}
                      </div>
                      <button 
-                       onClick={() => handleCopy(mat.description)}
+                       onClick={() => handleCopy(mat.description?.replace(/\s*\[is_external:(true|false)\]\s*$/, "") || "")}
                        className="w-full bg-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-900/10 active:scale-95 transition"
                      >
                         <Copy className="w-4 h-4" /> 複製推廣文案
@@ -349,7 +380,7 @@ function MaterialsContent() {
 
                <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-4">
                   {(() => {
-                     const filtered = posterTemplates.filter(p => p.category === selectedPosterCategory);
+                     const filtered = posterTemplates.filter(p => (p.category || p.config?.category || '茶葉') === selectedPosterCategory);
                      if (filtered.length === 0) {
                         return (
                           <div className="text-center py-12 bg-slate-50 rounded-2xl">

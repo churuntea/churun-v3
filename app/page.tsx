@@ -261,6 +261,12 @@ function DashboardContent() {
   };
 
   const handleGeneratePoster = async (template: any) => {
+    if (template.config?.is_external) {
+      setShowPosterSelector(false);
+      window.open(template.url, '_blank');
+      return;
+    }
+
     setSelectedPoster(template);
     setShowPosterSelector(false);
     setIsGeneratingPoster(true);
@@ -613,7 +619,7 @@ function DashboardContent() {
               );
            })()}
         </section>
-      </motion.main>
+      
 
         {/* Brand Insights Feed */}
         <section className="grid grid-cols-3 gap-3 px-2">
@@ -694,6 +700,7 @@ function DashboardContent() {
                ))}
            </div>
         </section>
+      </motion.main>
 
 
       {/* Share Hub Modal */}
