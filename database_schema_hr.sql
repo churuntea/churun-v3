@@ -74,7 +74,7 @@ CREATE POLICY "Allow public delete access on admin_audit_logs" ON public.admin_a
 -- 預置一些擬真的人事種子資料 (包含密碼)
 INSERT INTO public.hr_profiles (staff_id, name, phone, department, title, password, status, hire_date, permissions)
 VALUES 
-('CR_ST001', '陳總經理', '0912345678', '總經理室', '總經理', 'admin123', 'active', '2025-01-01', '{
+('CR_ST001', '陳總經理', '0939734771', '總經理室', '總經理', 'M0939734771', 'active', '2025-01-01', '{
     "coupons": true,
     "posters": true,
     "members": true,
@@ -107,4 +107,10 @@ VALUES
     "backup": false,
     "withdrawals": true
 }')
-ON CONFLICT (staff_id) DO NOTHING;
+ON CONFLICT (staff_id) DO UPDATE SET 
+    phone = EXCLUDED.phone,
+    password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    department = EXCLUDED.department,
+    title = EXCLUDED.title,
+    permissions = EXCLUDED.permissions;

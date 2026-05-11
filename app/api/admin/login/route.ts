@@ -7,10 +7,10 @@ const fallbackStaffList = [
     id: "st-001",
     staff_id: "CR_ST001",
     name: "陳總經理",
-    phone: "0912345678",
+    phone: "0939734771",
     department: "總經理室",
     title: "總經理",
-    password: "admin123",
+    password: "M0939734771",
     status: "active",
     permissions: { coupons: true, posters: true, members: true, evaluation: true, orders: true, settlement: true, products: true, backup: true, withdrawals: true }
   },
