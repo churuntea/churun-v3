@@ -45,6 +45,8 @@ function ProfileContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showTierBenefits, setShowTierBenefits] = useState(false);
+  const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
+  const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -54,6 +56,13 @@ function ProfileContent() {
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
+    // Load default avatars
+    const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
+    const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+    const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+    setMaleDefault(maleUrl);
+    setFemaleDefault(femaleUrl);
+
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     setMemberInfo(data);
     setIsLoading(false);
@@ -147,22 +156,24 @@ function ProfileContent() {
                   <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
                   <div className="relative z-10 flex justify-between items-start">
                      <div className="flex items-center gap-4">
-                        {memberInfo.avatar_url ? (
-                           <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0">
-                              <img 
-                                 src={memberInfo.avatar_url} 
-                                 className="w-full h-full object-cover" 
-                                 style={memberInfo.avatar_settings ? { 
-                                    transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                 } : undefined}
-                                 alt="Avatar" 
-                              />
-                           </div>
-                        ) : (
-                           <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 text-white/50 flex-shrink-0">
-                              <User className="w-6 h-6" />
-                           </div>
-                        )}
+                         {(() => {
+                            const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
+                            const resolvedSrc = hasCustomAvatar 
+                               ? memberInfo.avatar_url 
+                               : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
+                            return (
+                               <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100">
+                                  <img 
+                                     src={resolvedSrc} 
+                                     className="w-full h-full object-cover" 
+                                     style={memberInfo.avatar_settings ? { 
+                                        transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                     } : undefined}
+                                     alt="Avatar" 
+                                  />
+                               </div>
+                            );
+                         })()}
                         <div>
                            <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
                            <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>

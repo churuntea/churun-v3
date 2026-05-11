@@ -25,8 +25,37 @@ export async function POST(request: Request) {
       finalUrl = 'text';
     }
 
+    if (finalUrl && finalUrl.startsWith('data:image')) {
+      try {
+        const mimeType = finalUrl.match(/data:([^;]+);base64/)?.[1] || 'image/png';
+        const base64Data = finalUrl.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const ext = mimeType.split('/')[1] || 'png';
+        const fileName = `material_${Date.now()}.${ext}`;
+        const filePath = `materials/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, buffer, {
+            contentType: mimeType,
+            upsert: true
+          });
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          finalUrl = publicUrl;
+        } else {
+          console.error('Material Image Upload Error:', uploadError);
+        }
+      } catch (uploadErr) {
+        console.error('Failed to parse or upload material image:', uploadErr);
+      }
+    }
+
     if (!title || !category || !finalUrl || !file_type) {
-      return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
+      return NextResponse.json({ success: false, error: '缺少必要參數或上傳失敗' }, { status: 400 });
     }
 
     const materialData = {

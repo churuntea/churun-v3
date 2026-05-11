@@ -12,6 +12,7 @@ let fallbackStaffList: any[] = [
     title: "總經理",
     status: "active",
     hire_date: "2025-01-01",
+    password: "admin123",
     permissions: {
       coupons: true,
       posters: true,
@@ -34,6 +35,7 @@ let fallbackStaffList: any[] = [
     title: "副總經理",
     status: "active",
     hire_date: "2025-02-15",
+    password: "admin123",
     permissions: {
       coupons: true,
       posters: true,
@@ -56,6 +58,7 @@ let fallbackStaffList: any[] = [
     title: "財務主管",
     status: "active",
     hire_date: "2025-03-01",
+    password: "admin123",
     permissions: {
       coupons: false,
       posters: false,
@@ -98,7 +101,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { staff_id, name, phone, department, title, status, hire_date, permissions } = body;
+    const { staff_id, name, phone, department, title, password, status, hire_date, permissions } = body;
 
     if (!staff_id || !name || !phone) {
       return NextResponse.json({ success: false, error: '員工編號、姓名與手機為必填' }, { status: 400 });
@@ -109,6 +112,7 @@ export async function POST(request: Request) {
       name,
       phone,
       department: department || '一般部門',
+      password: password || 'admin123',
       title: title || '一般職員',
       status: status || 'active',
       hire_date: hire_date || new Date().toISOString().split('T')[0],
@@ -174,7 +178,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, staff_id, name, phone, department, title, status, hire_date, permissions } = body;
+    const { id, staff_id, name, phone, department, title, password, status, hire_date, permissions } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: '缺少識別 ID' }, { status: 400 });
@@ -186,6 +190,7 @@ export async function PUT(request: Request) {
       phone,
       department,
       title,
+      password: password || 'admin123',
       status,
       hire_date,
       permissions

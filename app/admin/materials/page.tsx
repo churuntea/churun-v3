@@ -27,6 +27,9 @@ function AdminMaterialsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingDefault, setIsUploadingDefault] = useState<string | null>(null);
+  const [isUploadingLocal, setIsUploadingLocal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [currentMaterial, setCurrentMaterial] = useState<any>({
     title: "",
     category: "品牌主視覺",
@@ -34,6 +37,49 @@ function AdminMaterialsContent() {
     file_type: "image",
     description: ""
   });
+
+  const handleUploadDefaultAvatar = async (gender: 'male' | 'female', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingDefault(gender);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      const title = gender === 'male' ? "預設頭像 - 男生潤寶" : "預設頭像 - 女生潤寶";
+      
+      const existing = materials.find(m => m.category === "系統預設頭像" && m.title === title);
+      
+      try {
+        const payload = {
+          id: existing?.id || null,
+          title,
+          category: "系統預設頭像",
+          file_type: "image",
+          url: base64,
+          description: `系統全域預設之${gender === 'male' ? '男生' : '女生'}會員大頭照`
+        };
+        
+        const res = await fetch("/api/materials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`${gender === 'male' ? '男生' : '女生'}潤寶頭像更新成功！`);
+          fetchMaterials();
+        } else {
+          alert("更新失敗: " + data.error);
+        }
+      } catch (err: any) {
+        alert("上傳失敗: " + err.message);
+      } finally {
+        setIsUploadingDefault(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("churun_admin_auth");
@@ -109,6 +155,10 @@ function AdminMaterialsContent() {
     }
   };
 
+  const displayMaterials = materials.filter(m => m.category !== "系統預設頭像");
+  const maleAvatarUrl = materials.find(m => m.category === "系統預設頭像" && m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+  const femaleAvatarUrl = materials.find(m => m.category === "系統預設頭像" && m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
       
@@ -132,19 +182,80 @@ function AdminMaterialsContent() {
 
       <main className="max-w-5xl mx-auto p-10 space-y-10">
         
+        {/* 系統會員預設頭像 (潤寶) 專區 */}
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-6">
+           <div className="flex justify-between items-center px-2">
+              <div>
+                 <h2 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase flex items-center gap-2">
+                    <span>👥 會員預設頭像（潤寶）設定</span>
+                    <span className="text-[8px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-100 font-bold uppercase tracking-wider">System Config</span>
+                 </h2>
+                 <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Default Member Avatar (Male & Female Runbao)</p>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 rounded-[2.5rem] p-6 border border-slate-100">
+              {/* 男生潤寶 */}
+              <div className="flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100/50 shadow-sm relative group">
+                 <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100">
+                    <img src={maleAvatarUrl} className="w-full h-full object-cover" alt="Male Runbao" />
+                    {isUploadingDefault === 'male' && (
+                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                       </div>
+                    )}
+                 </div>
+                 <div className="space-y-2 flex-1 min-w-0">
+                    <h4 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm">
+                       <span>男生版預設頭像 (潤寶)</span>
+                       <span className="text-[7px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">Male</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-bold tracking-wider leading-relaxed">未設定大頭照之男會員預設顯示此圖片。</p>
+                    <label className="inline-block bg-emerald-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition shadow-md shadow-emerald-900/10 hover:bg-emerald-800 mt-1">
+                       上傳更換
+                       <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadDefaultAvatar('male', e)} />
+                    </label>
+                 </div>
+              </div>
+
+              {/* 女生潤寶 */}
+              <div className="flex items-center gap-6 bg-white p-6 rounded-3xl border border-slate-100/50 shadow-sm relative group">
+                 <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-slate-100/80 shadow-md relative shrink-0 bg-slate-100">
+                    <img src={femaleAvatarUrl} className="w-full h-full object-cover" alt="Female Runbao" />
+                    {isUploadingDefault === 'female' && (
+                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                       </div>
+                    )}
+                 </div>
+                 <div className="space-y-2 flex-1 min-w-0">
+                    <h4 className="font-black text-slate-800 tracking-tight flex items-center gap-2 text-sm">
+                       <span>女生版預設頭像 (潤寶)</span>
+                       <span className="text-[7px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-bold">Female</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-bold tracking-wider leading-relaxed">未設定大頭照之女會員預設顯示此圖片。</p>
+                    <label className="inline-block bg-emerald-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition shadow-md shadow-emerald-900/10 hover:bg-emerald-800 mt-1">
+                       上傳更換
+                       <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadDefaultAvatar('female', e)} />
+                    </label>
+                 </div>
+              </div>
+           </div>
+        </div>
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
              <Loader2 className="w-10 h-10 animate-spin text-slate-200" />
              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">載入素材中...</p>
           </div>
-        ) : materials.length === 0 ? (
+        ) : displayMaterials.length === 0 ? (
           <div className="text-center py-32 bg-white rounded-[3rem] border border-slate-50 shadow-sm">
              <ImageIcon className="w-16 h-16 text-slate-100 mx-auto mb-4" />
              <p className="text-sm font-bold text-slate-300">目前尚無素材，請點擊上方按鈕新增</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {materials.map((item, i) => (
+            {displayMaterials.map((item, i) => (
               <motion.div 
                 key={item.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -199,8 +310,69 @@ function AdminMaterialsContent() {
                initial={{ scale: 0.9, y: 20, opacity: 0 }}
                animate={{ scale: 1, y: 0, opacity: 1 }}
                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); if (currentMaterial.file_type !== 'text') setIsDragging(true); }}
+               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                className="bg-white rounded-[3rem] p-10 w-full max-w-xl shadow-2xl space-y-8 relative overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar"
              >
+                {/* Drag & Drop Visual Overlay */}
+                <AnimatePresence>
+                   {isDragging && currentMaterial.file_type !== 'text' && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+                        onDrop={(e) => {
+                           e.preventDefault();
+                           e.stopPropagation();
+                           setIsDragging(false);
+                           
+                           const file = e.dataTransfer.files?.[0];
+                           if (!file) return;
+                           
+                           if (file.size > 50 * 1024 * 1024) {
+                              alert("⚠️ 檔案大小不能超過 50MB！");
+                              return;
+                           }
+
+                           let matchedType = currentMaterial.file_type;
+                           if (file.type.startsWith('image/')) {
+                              matchedType = 'image';
+                           } else if (file.type.startsWith('video/')) {
+                              matchedType = 'video';
+                           } else if (file.type === 'application/pdf') {
+                              matchedType = 'pdf';
+                           }
+
+                           setIsUploadingLocal(true);
+                           const reader = new FileReader();
+                           reader.onload = (ev) => {
+                              setCurrentMaterial({
+                                 ...currentMaterial,
+                                 file_type: matchedType,
+                                 url: ev.target?.result as string
+                              });
+                              setIsUploadingLocal(false);
+                           };
+                           reader.onerror = () => {
+                              alert("⚠️ 讀取拖放檔案失敗");
+                              setIsUploadingLocal(false);
+                           };
+                           reader.readAsDataURL(file);
+                        }}
+                        className="absolute inset-0 bg-emerald-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-8 text-center text-white border-4 border-dashed border-white/30 rounded-[3rem]"
+                      >
+                         <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center mb-4 text-3xl animate-bounce">
+                            📁
+                         </div>
+                         <h4 className="text-lg font-black mb-1.5">放開以載入本地檔案</h4>
+                         <p className="text-[10px] text-white/60 font-black max-w-xs leading-relaxed uppercase tracking-wider">
+                            將自動偵測檔案類型並存檔，支援圖片、影片或 PDF
+                         </p>
+                      </motion.div>
+                   )}
+                </AnimatePresence>
                 <div className="flex justify-between items-center">
                    <h3 className="text-2xl font-black text-slate-900">編輯素材內容</h3>
                    <button onClick={() => setIsEditing(false)} className="p-2 bg-slate-50 rounded-xl"><X className="w-5 h-5" /></button>
@@ -235,7 +407,28 @@ function AdminMaterialsContent() {
 
                     {currentMaterial.file_type !== 'text' ? (
                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">檔案連結 (URL)</label>
+                           <div className="flex justify-between items-center mb-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">檔案連結 (URL)</label>
+                              {currentMaterial.file_type === 'image' && (
+                                 <label className="text-[9px] font-black text-emerald-700 uppercase tracking-widest cursor-pointer hover:underline bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
+                                    <span>上傳圖片檔案</span>
+                                    <input 
+                                       type="file" 
+                                       className="hidden" 
+                                       accept="image/*" 
+                                       onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => {
+                                             setCurrentMaterial({...currentMaterial, url: ev.target?.result as string});
+                                          };
+                                          reader.readAsDataURL(file);
+                                       }} 
+                                    />
+                                 </label>
+                              )}
+                           </div>
                           <input type="text" value={currentMaterial.url} onChange={e => setCurrentMaterial({...currentMaterial, url: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl text-sm font-bold" placeholder="https://..." />
                        </div>
                     ) : (

@@ -332,7 +332,7 @@ function MaterialsContent() {
                
                {/* Poster Categories */}
                <div className="flex gap-2 overflow-x-auto pb-4 shrink-0 no-scrollbar">
-                  {["茶葉", "咖啡", "品牌"].map(cat => (
+                  {["茶葉", "禮盒", "豬肉製品"].map(cat => (
                     <button 
                       key={cat} 
                       onClick={() => setSelectedPosterCategory(cat)} 

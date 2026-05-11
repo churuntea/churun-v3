@@ -85,6 +85,8 @@ function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [memberAvatar, setMemberAvatar] = useState<string | null>(null);
+  const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
+  const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [avatarOffset, setAvatarOffset] = useState(0);
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
@@ -122,6 +124,12 @@ function DashboardContent() {
       setIsLoading(true);
 
       try {
+        // 0. 系統預設頭像載入
+        const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
+        const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+        const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+        setMaleDefault(maleUrl);
+        setFemaleDefault(femaleUrl);
         // 1. 智慧會員個人資料快取 (SWR 緩存 30 秒，本地持久化)
         const memberKey = `churun_cache:member:${currentUserId}`;
         const mData = await fetchWithSWR(memberKey, async () => {
@@ -133,8 +141,8 @@ function DashboardContent() {
           useLocal: true, 
           onBackgroundUpdate: (fresh) => {
             setMemberInfo(fresh);
-            if (fresh?.avatar_url) {
-              setMemberAvatar(fresh.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png" ? fresh.avatar_url : `${fresh.avatar_url}?t=${Date.now()}`);
+            if (fresh) {
+              setMemberAvatar((fresh?.avatar_url && fresh.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png") ? `${fresh.avatar_url}?t=${Date.now()}` : (fresh?.avatar_settings?.gender === "女" ? femaleUrl : maleUrl));
             }
             if (fresh?.avatar_settings) {
               setAvatarZoom(fresh.avatar_settings.zoom || 1);
@@ -145,14 +153,11 @@ function DashboardContent() {
         });
 
         setMemberInfo(mData);
-        if (mData?.avatar_url) {
-          if (mData.avatar_url === "https://i.ibb.co/6R2M5X1/churun-baby.png") {
-            setMemberAvatar(mData.avatar_url);
-          } else {
-            setMemberAvatar(`${mData.avatar_url}?t=${Date.now()}`);
-          }
-        } else {
-          setMemberAvatar("https://i.ibb.co/6R2M5X1/churun-baby.png");
+        if (true) {
+          const resolved = (mData?.avatar_url && mData.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png")
+            ? `${mData.avatar_url}?t=${Date.now()}`
+            : (mData?.avatar_settings?.gender === "女" ? femaleUrl : maleUrl);
+          setMemberAvatar(resolved);
         }
         if (mData?.avatar_settings) {
           setAvatarZoom(mData.avatar_settings.zoom || 1);

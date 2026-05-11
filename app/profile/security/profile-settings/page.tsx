@@ -10,7 +10,8 @@ import {
   Loader2,
   CheckCircle2,
   Sparkles,
-  MapPin
+  MapPin,
+  User
 } from "lucide-react";
 import Toast, { ToastType } from "@/components/Toast";
 
@@ -21,6 +22,9 @@ export default function ProfileSettingsPage() {
   const [memberAvatar, setMemberAvatar] = useState<string | null>(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [avatarOffset, setAvatarOffset] = useState(0);
+  const [memberGender, setMemberGender] = useState("男");
+  const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
+  const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
   const [memberAddress, setMemberAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -47,12 +51,21 @@ export default function ProfileSettingsPage() {
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
+    
+    // Load default avatars
+    const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
+    const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+    const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+    setMaleDefault(maleUrl);
+    setFemaleDefault(femaleUrl);
+
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     setMemberInfo(data);
     if (data?.avatar_url) setMemberAvatar(data.avatar_url);
     if (data?.avatar_settings) {
       setAvatarZoom(data.avatar_settings.zoom || 1);
       setAvatarOffset(data.avatar_settings.offset || 0);
+      setMemberGender(data.avatar_settings.gender || "男");
     }
     if (data?.motto) setMemberMotto(data.motto);
     if (data?.address) setMemberAddress(data.address);
@@ -99,7 +112,7 @@ export default function ProfileSettingsPage() {
         body: JSON.stringify({
           memberId: userId,
           avatarBase64: isNewUpload ? memberAvatar : null,
-          avatarSettings: { zoom: avatarZoom, offset: avatarOffset },
+          avatarSettings: { zoom: avatarZoom, offset: avatarOffset, gender: memberGender },
           motto: memberMotto,
           address: memberAddress,
         }),
@@ -110,7 +123,7 @@ export default function ProfileSettingsPage() {
         setMemberInfo((prev: any) => ({
           ...prev,
           avatar_url: result.avatarUrl || prev.avatar_url,
-          avatar_settings: { zoom: avatarZoom, offset: avatarOffset },
+          avatar_settings: { zoom: avatarZoom, offset: avatarOffset, gender: memberGender },
           motto: memberMotto,
           address: memberAddress,
         }));
@@ -160,24 +173,20 @@ export default function ProfileSettingsPage() {
           {/* Avatar Display with Spring Motion */}
           <div className="flex flex-col items-center gap-5 bg-slate-50 rounded-[2rem] p-6">
             <div className="w-28 h-28 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-slate-100 relative">
-              {memberAvatar ? (
-                <motion.img 
-                  src={memberAvatar} 
-                  className="w-full h-full object-cover" 
-                  animate={{ 
-                    scale: avatarZoom, 
-                    y: avatarOffset 
-                  }}
-                  transition={{ 
-                    type: "spring", 
-                    stiffness: 120, 
-                    damping: 18 
-                  }}
-                  alt="Avatar" 
-                />
-              ) : (
-                <img src="https://i.ibb.co/6R2M5X1/churun-baby.png" className="w-full h-full object-cover" alt="Default" />
-              )}
+              <motion.img 
+                src={(memberAvatar && memberAvatar !== "https://i.ibb.co/6R2M5X1/churun-baby.png") ? memberAvatar : (memberGender === "女" ? femaleDefault : maleDefault)} 
+                className="w-full h-full object-cover" 
+                animate={{ 
+                  scale: avatarZoom, 
+                  y: avatarOffset 
+                }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 120, 
+                  damping: 18 
+                }}
+                alt="Avatar" 
+              />
             </div>
             <label className="bg-emerald-900 text-white px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] cursor-pointer active:scale-95 transition shadow-lg shadow-emerald-900/20 hover:bg-emerald-800">
               更換照片
@@ -186,40 +195,67 @@ export default function ProfileSettingsPage() {
           </div>
 
           {/* Zoom & Offset with Premium Sliders */}
-          {memberAvatar && (
-            <div className="space-y-6 px-1">
-              <div className="space-y-2">
-                <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                  <span>縮放比例</span>
-                  <span className="text-emerald-700 font-extrabold">{Math.round(avatarZoom * 100)}%</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="3" 
-                  step="0.01" 
-                  value={avatarZoom}
-                  onChange={e => setAvatarZoom(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-900 outline-none" 
-                />
+          <div className="space-y-6 px-1">
+            <div className="space-y-2">
+              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                <span>縮放比例</span>
+                <span className="text-emerald-700 font-extrabold">{Math.round(avatarZoom * 100)}%</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                  <span>垂直偏移</span>
-                  <span className="text-emerald-700 font-extrabold">{avatarOffset}px</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="-100" 
-                  max="100" 
-                  step="1" 
-                  value={avatarOffset}
-                  onChange={e => setAvatarOffset(parseInt(e.target.value))}
-                  className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-900 outline-none" 
-                />
-              </div>
+              <input 
+                type="range" 
+                min="1" 
+                max="3" 
+                step="0.01" 
+                value={avatarZoom}
+                onChange={e => setAvatarZoom(parseFloat(e.target.value))}
+                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-900 outline-none" 
+              />
             </div>
-          )}
+            <div className="space-y-2">
+              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                <span>垂直偏移</span>
+                <span className="text-emerald-700 font-extrabold">{avatarOffset}px</span>
+              </div>
+              <input 
+                type="range" 
+                min="-100" 
+                max="100" 
+                step="1" 
+                value={avatarOffset}
+                onChange={e => setAvatarOffset(parseInt(e.target.value))}
+                className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-900 outline-none" 
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Gender Settings */}
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
+          <div className="flex justify-between items-center px-2 mb-2">
+            <div>
+              <h2 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">您的性別</h2>
+              <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Gender</p>
+            </div>
+            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100">
+               <User className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+             <button 
+                type="button"
+                onClick={() => setMemberGender("男")}
+                className={`py-5 rounded-2xl font-black text-xs tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 border ${memberGender === "男" ? 'bg-emerald-900 text-white border-emerald-900 shadow-lg shadow-emerald-900/10 scale-[1.02]' : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100/50'}`}
+             >
+                男 (Male)
+             </button>
+             <button 
+                type="button"
+                onClick={() => setMemberGender("女")}
+                className={`py-5 rounded-2xl font-black text-xs tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 border ${memberGender === "女" ? 'bg-emerald-900 text-white border-emerald-900 shadow-lg shadow-emerald-900/10 scale-[1.02]' : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100/50'}`}
+             >
+                女 (Female)
+             </button>
+          </div>
         </div>
 
         {/* Motto */}

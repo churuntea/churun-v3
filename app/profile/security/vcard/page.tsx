@@ -35,16 +35,22 @@ export default function VCardPage() {
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
+    
+    // Load default avatars from database
+    const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
+    const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+    const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     setMemberInfo(data);
     setIsLoading(false);
     if (data) {
        // Auto-generate after a short delay for data loading
-       setTimeout(() => generateCard(data), 500);
+       setTimeout(() => generateCard(data, maleUrl, femaleUrl), 500);
     }
   };
 
-  const generateCard = (info: any) => {
+  const generateCard = (info: any, maleUrl: string, femaleUrl: string) => {
     if (!info) return;
     setIsGenerating(true);
     const canvas = document.createElement("canvas");
@@ -58,105 +64,95 @@ export default function VCardPage() {
     gradient.addColorStop(0.4, "#0E4A35"); // Rich emerald luster
     gradient.addColorStop(0.8, "#021A11"); // Ultra dark slate
     gradient.addColorStop(1, "#01110B"); // Shadow boundary
+
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 1200, 700);
 
-    // Luxury outer gold double frame
-    ctx.strokeStyle = "rgba(197, 160, 89, 0.45)"; // Soft brass gold
-    ctx.lineWidth = 4;
-    if (ctx.roundRect) {
-      ctx.beginPath();
-      ctx.roundRect(30, 30, 1200 - 60, 700 - 60, 40);
-      ctx.stroke();
-      
-      // Inner thin border
-      ctx.strokeStyle = "rgba(197, 160, 89, 0.15)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(42, 42, 1200 - 84, 700 - 84, 34);
-      ctx.stroke();
-    } else {
-      ctx.strokeRect(30, 30, 1200 - 60, 700 - 60);
+    // Premium abstract geometric luxury lines
+    ctx.strokeStyle = "rgba(212, 163, 89, 0.08)"; // Very subtle gold
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+       ctx.beginPath();
+       ctx.moveTo(0, 100 + i * 80);
+       ctx.bezierCurveTo(300, 50 + i * 120, 800, 650 - i * 120, 1200, 600 - i * 80);
+       ctx.stroke();
     }
 
-    // Decorative background "CR"
-    ctx.save();
-    ctx.globalAlpha = 0.025;
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "900 400px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("CR", 600, 500);
-    ctx.restore();
+    // Dynamic brand pattern background
+    ctx.fillStyle = "rgba(212, 163, 89, 0.03)";
+    for (let x = 30; x < 1200; x += 100) {
+       for (let y = 30; y < 700; y += 100) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+       }
+    }
 
-    const leftX = 100;
-
-    // Top-Left Branding Header
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = "bold 20px 'Cinzel', 'Georgia', serif";
-    ctx.fillText("CHURUN TEA HOUSE • EST. 2026", leftX, 105);
-
-    // Name
-    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 30;
-    ctx.fillStyle = "#ffffff";
-    const nameFontSize = info.name.length > 10 ? 70 : 100;
-    ctx.font = `900 ${nameFontSize}px "Helvetica Neue", "Arial", sans-serif`;
-    ctx.textAlign = "left";
-    ctx.fillText(info.name, leftX, 260);
-    ctx.shadowBlur = 0;
-
-    // Member Code with rich gold/amber coloration
-    ctx.fillStyle = "#F59E0B"; // Premium Amber Gold
-    ctx.font = "800 42px monospace";
-    ctx.fillText(info.member_code, leftX, 335);
-
-    // Tier Badge
-    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    // Left Column Info Panel (Glassmorphic Backdrop)
+    const boxX = 60, boxY = 60, boxW = 440, boxH = 580;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.02)";
     ctx.beginPath();
-    const tierText = info.tier?.toUpperCase() || "初潤夥伴";
-    ctx.font = "bold 22px sans-serif";
-    const tierWidth = ctx.measureText(tierText).width + 44;
-    if (ctx.roundRect) ctx.roundRect(leftX, 370, tierWidth, 48, 14); else ctx.rect(leftX, 370, tierWidth, 48);
+    if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 40); else ctx.rect(boxX, boxY, boxW, boxH);
     ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(tierText, leftX + 22, 401);
-
-    // Phone
-    if (info.phone) {
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.font = "bold 30px sans-serif";
-      ctx.fillText("SERVICE / " + info.phone, leftX, 465);
-    }
-
-    // Address
-    if (info.address) {
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.font = "bold 20px sans-serif";
-      // Limit address string length to prevent overflow off-screen on the right
-      const displayAddress = info.address.length > 25 ? info.address.substring(0, 25) + "..." : info.address;
-      ctx.fillText("ADDRESS / " + displayAddress, leftX, 520);
-    }
-
-    // Motto with elegant gold star marker
-    ctx.fillStyle = "#C5A059"; // Golden brass
-    ctx.font = "bold 22px sans-serif";
-    ctx.fillText("✦", leftX, info.address ? 580 : 540);
-    
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = "italic bold 20px 'Georgia', serif";
-    ctx.fillText(info.motto || "以初心、致潤澤", leftX + 30, info.address ? 580 : 540);
-
-    // Profile Box on the Right
-    const boxW = 420, boxH = 580;
-    const boxX = 1200 - boxW - 100, boxY = (700 - boxH) / 2;
-    
-    // Draw subtle profile box outline
-    ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 60); else ctx.rect(boxX, boxY, boxW, boxH);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(197, 160, 89, 0.3)"; // Golden brass accent outline
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+
+    // Right Column VIP Content Panel (Glassmorphic Backdrop)
+    const cardX = 540, cardY = 60, cardW = 600, cardH = 580;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cardX, cardY, cardW, cardH, 40); else ctx.rect(cardX, cardY, cardW, cardH);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Card Title & Logo
+    ctx.fillStyle = "#D4A359"; // Premium Gold
+    ctx.font = "black 20px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("CHURUN TEA BRANDS", cardX + 50, cardY + 75);
+
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.font = "800 10px sans-serif";
+    ctx.fillText("ESTABLISHED IN 2024 / AUTHENTIC & PREMIUM", cardX + 50, cardY + 100);
+
+    // Decorative divider line
+    ctx.strokeStyle = "rgba(212, 163, 89, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardX + 50, cardY + 125);
+    ctx.lineTo(cardX + cardW - 50, cardY + 125);
+    ctx.stroke();
+
+    // Member Info Text Grid (Right Card Panel)
+    const textStartY = cardY + 185;
+    const items = [
+      { label: "尊貴會員姓名", val: info.name || "初潤尊榮會員" },
+      { label: "專屬推薦代碼", val: info.member_code || "------" },
+      { label: "目前會員身分", val: info.tier_name || "初潤摯友" },
+      { label: "個人專屬座右銘", val: info.motto || "以初心、致潤澤" }
+    ];
+
+    items.forEach((item, index) => {
+       const rowY = textStartY + index * 95;
+       ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+       ctx.font = "bold 14px sans-serif";
+       ctx.fillText(item.label, cardX + 50, rowY);
+
+       ctx.fillStyle = "#ffffff";
+       ctx.font = index === 3 ? "bold 20px sans-serif" : "900 24px sans-serif";
+       ctx.fillText(item.val, cardX + 50, rowY + 35);
+    });
+
+    // Outer decorative badge
+    ctx.fillStyle = "rgba(212, 163, 89, 0.1)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cardX + cardW - 140, cardY + 45, 90, 32, 10); else ctx.rect(cardX + cardW - 140, cardY + 45, 90, 32);
+    ctx.fill();
+    ctx.fillStyle = "#D4A359"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("OFFICIAL", cardX + cardW - 95, cardY + 65);
 
     const finishCard = () => {
       const qEl = document.getElementById("vcard-hidden-qr") as HTMLCanvasElement;
@@ -177,7 +173,7 @@ export default function VCardPage() {
     const drawDefaultAvatar = () => {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = "https://i.ibb.co/6R2M5X1/churun-baby.png";
+      img.src = info.avatar_settings?.gender === "女" ? femaleUrl : maleUrl;
       img.onload = () => {
         ctx.save();
         const aSize = 240, aX = boxX + (boxW - aSize) / 2, aY = boxY + 40;
@@ -203,29 +199,31 @@ export default function VCardPage() {
       };
     };
 
-    const avatarUrl = info.avatar_url;
+    const rawAvatarUrl = info.avatar_url;
+    const hasCustomAvatar = rawAvatarUrl && !rawAvatarUrl.includes("churun-baby.png");
+    const avatarUrl = hasCustomAvatar ? rawAvatarUrl : (info.avatar_settings?.gender === "女" ? femaleUrl : maleUrl);
     const settings = info.avatar_settings || { zoom: 1, offset: 0 };
-    if (avatarUrl && !avatarUrl.includes("churun-baby")) {
-      const img = new Image(); img.crossOrigin = "anonymous"; img.src = avatarUrl;
-      img.onload = () => {
-        try {
-          ctx.save();
-          const aSize = 240, aX = boxX + (boxW - aSize) / 2, aY = boxY + 40;
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(aX, aY, aSize, aSize, 50); else ctx.rect(aX, aY, aSize, aSize);
-          ctx.clip();
-          const aspect = img.width / img.height;
-          let tW = aSize, tH = aSize;
-          if (aspect > 1) { tW = aSize * aspect * settings.zoom; tH = aSize * settings.zoom; }
-          else { tH = (aSize / aspect) * settings.zoom; tW = aSize * settings.zoom; }
-          ctx.drawImage(img, aX - (tW - aSize) / 2, aY - (tH - aSize) / 2 + settings.offset, tW, tH);
-          ctx.restore();
-          finishCard();
-        } catch (e) { drawDefaultAvatar(); finishCard(); }
-      };
-      img.onerror = () => { drawDefaultAvatar(); finishCard(); };
-    } else { drawDefaultAvatar(); finishCard(); }
+
+    const img = new Image(); img.crossOrigin = "anonymous"; img.src = avatarUrl;
+    img.onload = () => {
+      try {
+        ctx.save();
+        const aSize = 240, aX = boxX + (boxW - aSize) / 2, aY = boxY + 40;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(aX, aY, aSize, aSize, 50); else ctx.rect(aX, aY, aSize, aSize);
+        ctx.clip();
+        const aspect = img.width / img.height;
+        let tW = aSize, tH = aSize;
+        if (aspect > 1) { tW = aSize * aspect * (settings.zoom || 1); tH = aSize * (settings.zoom || 1); }
+        else { tH = (aSize / aspect) * (settings.zoom || 1); tW = aSize * (settings.zoom || 1); }
+        ctx.drawImage(img, aX - (tW - aSize) / 2, aY - (tH - aSize) / 2 + (settings.offset || 0), tW, tH);
+        ctx.restore();
+        finishCard();
+      } catch (e) { drawDefaultAvatar(); }
+    };
+    img.onerror = () => { drawDefaultAvatar(); };
   };
+
 
   const downloadCard = () => {
     if (!cardDataUrl) return;

@@ -210,7 +210,7 @@ export default function AdminPosters() {
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">所屬分類</label>
                         <div className="flex gap-2">
-                           {['茶葉', '禮盒', '豬後製品'].map(cat => (
+                           {['茶葉', '禮盒', '豬肉製品'].map(cat => (
                               <button
                                 key={cat}
                                 type="button"

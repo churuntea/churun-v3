@@ -53,6 +53,8 @@ function AdminDashboardContent() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [password, setPassword] = useState("");
+  const [adminUser, setAdminUser] = useState<any>(null);
+  const [account, setAccount] = useState("");
   const [stats, setStats] = useState({
     totalMembers: 0,
     totalB2B: 0,
@@ -209,14 +211,74 @@ function AdminDashboardContent() {
   };
 
   useEffect(() => {
-    const auth = sessionStorage.getItem("churun_admin_auth");
-    if (auth === "true") {
-      setIsAdmin(true);
-      fetchStats();
+    const userStr = sessionStorage.getItem("churun_admin_user");
+    if (userStr) {
+      try {
+        const parsedUser = JSON.parse(userStr);
+        setAdminUser(parsedUser);
+        setIsAdmin(true);
+        fetchStats();
+      } catch (e) {
+        sessionStorage.removeItem("churun_admin_user");
+        setIsLoading(false);
+      }
     } else {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin || !adminUser) return;
+    const logId = sessionStorage.getItem("churun_admin_log_id");
+    if (!logId) return;
+
+    // Report initial landing
+    fetch("/api/admin/audit-logs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logId, feature: "管理控制台首頁" })
+    }).catch(err => console.error(err));
+
+    const interval = setInterval(() => {
+      fetch("/api/admin/audit-logs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId })
+      }).catch(err => console.error(err));
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isAdmin, adminUser]);
+
+  const logFeatureAccess = async (featureName: string) => {
+    const logId = sessionStorage.getItem("churun_admin_log_id");
+    if (!logId) return;
+    try {
+      await fetch("/api/admin/audit-logs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId, feature: featureName })
+      });
+    } catch (err) {
+      console.error("Audit log feature access failed:", err);
+    }
+  };
+
+  const handleActionClick = async (label: string, action: string, permKey?: string) => {
+    if (permKey && adminUser && !adminUser.permissions?.[permKey]) {
+      alert(`🔒 權限不足！您目前的職務帳號並未獲授權「${label}」模組。請洽陳總經理或人事部門進行加權。`);
+      return;
+    }
+    await logFeatureAccess(label);
+    if (action.includes('/api/')) {
+      if (!confirm(`確定要執行 ${label} 嗎？此動作將發放分紅並扣除相關帳戶餘額！`)) return;
+      const res = await fetch(action, { method: 'POST' });
+      const d = await res.json();
+      alert(d.message || d.error);
+    } else {
+      router.push(action);
+    }
+  };
 
   const fetchStats = async () => {
     setIsLoading(true);
@@ -414,19 +476,38 @@ function AdminDashboardContent() {
     }
   }, [orders, chartTimeframe]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "admin123") {
-      sessionStorage.setItem("churun_admin_auth", "true");
-      setIsAdmin(true);
-      fetchStats();
-    } else {
-      alert("密碼錯誤");
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        sessionStorage.setItem("churun_admin_user", JSON.stringify(data.user));
+        sessionStorage.setItem("churun_admin_log_id", data.logId);
+        // Also set compatibility churun_admin_auth
+        sessionStorage.setItem("churun_admin_auth", "true");
+        setAdminUser(data.user);
+        setIsAdmin(true);
+        fetchStats();
+      } else {
+        alert("❌ " + (data.error || "登入失敗"));
+      }
+    } catch (err: any) {
+      alert("⚠️ 系統登入異常: " + err.message);
     }
+    setIsLoading(false);
   };
 
   const handleLogout = () => {
+    sessionStorage.removeItem("churun_admin_user");
+    sessionStorage.removeItem("churun_admin_log_id");
     sessionStorage.removeItem("churun_admin_auth");
+    setAdminUser(null);
     setIsAdmin(false);
   };
 
@@ -452,16 +533,29 @@ function AdminDashboardContent() {
            <h1 className="text-2xl font-black text-white tracking-tight mb-2">總部授權中心</h1>
            <p className="text-xs text-slate-500 uppercase tracking-[0.3em] mb-10">Restricted Area</p>
            
-           <form onSubmit={handleLogin} className="space-y-6">
-              <input 
-                type="password" 
-                placeholder="請輸入管理授權碼" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 p-5 rounded-2xl text-white text-center font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none transition"
-              />
-              <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition shadow-xl shadow-indigo-600/20">
-                 啟動指揮系統
+           <form onSubmit={handleLogin} className="space-y-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">管理帳號 (員工工號或手機)</label>
+                <input 
+                  type="text" 
+                  placeholder="請輸入員工工號或手機" 
+                  value={account}
+                  onChange={e => setAccount(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-2xl text-white font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none transition"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">管理密碼</label>
+                <input 
+                  type="password" 
+                  placeholder="請輸入密碼 (預設為 admin123)" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 p-4 rounded-2xl text-white font-bold focus:ring-2 focus:ring-indigo-500/50 outline-none transition"
+                />
+              </div>
+              <button type="submit" className="w-full bg-indigo-600 text-white py-5 mt-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition shadow-xl shadow-indigo-600/20">
+                 驗證並啟動指揮系統
               </button>
            </form>
         </div>
@@ -478,6 +572,11 @@ function AdminDashboardContent() {
                <Zap className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-sm font-black tracking-[0.2em] uppercase">HQ Command Center</h1>
+            {adminUser && (
+              <span className="text-[10px] font-black text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-3.5 py-1.5 rounded-full backdrop-blur-md">
+                👤 {adminUser.name} ({adminUser.title})
+              </span>
+            )}
          </div>
          <div className="flex items-center gap-6">
             <button onClick={fetchStats} className="p-2 text-slate-400 hover:text-white transition">
@@ -613,7 +712,7 @@ function AdminDashboardContent() {
                   </div>
                   <div className="space-y-2">
                      <button 
-                        onClick={() => router.push("/admin/hr")}
+                        onClick={() => handleActionClick("人事與權限管理", "/admin/hr")}
                         className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
                      >
                         <div className="flex items-center gap-3">
@@ -637,6 +736,11 @@ function AdminDashboardContent() {
                   <div className="space-y-2">
                      <button 
                         onClick={() => {
+                           if (adminUser && !adminUser.permissions?.backup) {
+                              alert("🔒 權限不足！您目前的職務並未獲授權「數據庫備份」模組。");
+                              return;
+                           }
+                           logFeatureAccess("數據庫備份");
                            setShowBackupModal(true);
                            handleGenerateBackup(backupTimeframe);
                         }}

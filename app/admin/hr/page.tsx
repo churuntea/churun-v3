@@ -72,7 +72,7 @@ function AdminHRContent() {
   const [staff, setStaff] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<"list" | "form">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "form" | "audit">("list");
   
   // 搜尋與篩選狀態
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,6 +88,7 @@ function AdminHRContent() {
     phone: "",
     department: "營運部",
     title: "專員",
+    password: "",
     status: "active",
     hire_date: "",
     permissions: {
@@ -104,6 +105,45 @@ function AdminHRContent() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 總經理安全軌跡稽核狀態
+  const [adminTitle, setAdminTitle] = useState("");
+  const [adminName, setAdminName] = useState("");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  useEffect(() => {
+    const userStr = sessionStorage.getItem("churun_admin_user");
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        setAdminTitle(parsed.title || "");
+        setAdminName(parsed.name || "");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  const fetchAuditLogs = async () => {
+    setIsLoadingAudit(true);
+    try {
+      const userStr = sessionStorage.getItem("churun_admin_user");
+      if (!userStr) return;
+      const parsed = JSON.parse(userStr);
+      
+      const res = await fetch(`/api/admin/audit-logs?title=${encodeURIComponent(parsed.title || '')}&name=${encodeURIComponent(parsed.name || '')}`);
+      const data = await res.json();
+      if (data.success) {
+        setAuditLogs(data.logs || []);
+      } else {
+        alert("❌ " + data.error);
+      }
+    } catch (err: any) {
+      console.error("載入審計日誌失敗:", err);
+    }
+    setIsLoadingAudit(false);
+  };
 
   // 初始化今日日期
   useEffect(() => {
@@ -167,6 +207,7 @@ function AdminHRContent() {
       phone: person.phone,
       department: person.department,
       title: person.title,
+      password: person.password || "admin123",
       status: person.status,
       hire_date: person.hire_date ? person.hire_date.substring(0, 10) : "",
       permissions: {
@@ -193,6 +234,7 @@ function AdminHRContent() {
       department: "營運部",
       title: "專員",
       status: "active",
+      password: "",
       hire_date: new Date().toISOString().split('T')[0],
       permissions: {
         coupons: false,
