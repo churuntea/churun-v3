@@ -66,12 +66,8 @@ export async function POST(request: Request) {
         .single();
 
       if (error) {
-        if (error.message.includes('relation "public.hr_profiles" does not exist') || error.code === '42P01') {
-          isFallback = true;
-        } else {
-          // If simply not found
-          return NextResponse.json({ success: false, error: '帳號或密碼錯誤' }, { status: 401 });
-        }
+        // Table doesn't exist, has older columns, or row is simply not found
+        isFallback = true;
       } else {
         staffUser = data;
       }
@@ -79,18 +75,17 @@ export async function POST(request: Request) {
       isFallback = true;
     }
 
-    // 2. Fallback check if DB not exist/not synced
-    if (isFallback) {
+    // 2. Fallback check if DB fails or matching user is not found in DB
+    if (isFallback || !staffUser) {
       const matched = fallbackStaffList.find(s => s.staff_id === account || s.phone === account);
       if (matched) {
         staffUser = matched;
-      } else {
-        return NextResponse.json({ success: false, error: '帳號或密碼錯誤 (備援模式)' }, { status: 401 });
+        isFallback = true;
       }
     }
 
     if (!staffUser) {
-      return NextResponse.json({ success: false, error: '此管理帳號不存在' }, { status: 401 });
+      return NextResponse.json({ success: false, error: '帳號或密碼錯誤' }, { status: 401 });
     }
 
     // 3. Verify Password (plain-text for extremely straightforward enterprise custom password setting)
