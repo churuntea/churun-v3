@@ -1068,7 +1068,7 @@ function AdminHRContent() {
                                    </div>
                                    {/* 快速摘要前兩項特權 */}
                                    <div className="mt-4 pt-4 border-t border-dashed border-slate-200/10 flex flex-col gap-1">
-                                      {tier.privileges.slice(0, 2).map((p, pIdx) => (
+                                      {tier.privileges.slice(0, 2).map((p: string, pIdx: number) => (
                                          <div key={pIdx} className="flex items-center gap-2 text-[11px] font-bold">
                                             <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-indigo-300' : 'bg-indigo-500'}`} />
                                             <span className={isSelected ? 'text-indigo-200 truncate' : 'text-slate-400 truncate'}>{p}</span>

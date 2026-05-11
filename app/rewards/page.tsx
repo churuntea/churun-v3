@@ -235,7 +235,7 @@ export default function Rewards() {
                    <div className="space-y-4">
                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-4">解鎖特權內容</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         {tier.privileges.map((priv, j) => (
+                         {tier.privileges.map((priv: string, j: number) => (
                            <div key={j} className="flex items-center gap-3">
                               <CheckCircle2 className={`w-4 h-4 ${tier.locked ? 'text-slate-200' : 'text-emerald-500'}`} />
                               <span className={`text-sm font-bold ${tier.locked ? 'text-slate-300' : 'text-slate-600'}`}>{priv}</span>
