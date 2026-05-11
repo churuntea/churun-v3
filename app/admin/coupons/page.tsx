@@ -19,7 +19,9 @@ import {
   Pencil, 
   AlertCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 interface Coupon {
@@ -50,7 +52,8 @@ export default function CouponsAdminPage() {
     discount_type: "fixed" as 'fixed' | 'percent',
     value: 0,
     min_spend: 0,
-    description: ""
+    description: "",
+    is_active: true
   });
 
   // Delivery Form State
@@ -121,7 +124,7 @@ export default function CouponsAdminPage() {
           discount_type: newCoupon.discount_type,
           value: Number(newCoupon.value),
           min_spend: Number(newCoupon.min_spend),
-          description: newCoupon.description.trim()
+          description: newCoupon.is_active ? newCoupon.description.trim() : `[UNPUBLISHED] ${newCoupon.description.trim()}`
         })
         .select();
 
@@ -134,7 +137,8 @@ export default function CouponsAdminPage() {
         discount_type: "fixed",
         value: 0,
         min_spend: 0,
-        description: ""
+        description: "",
+        is_active: true
       });
       fetchData();
     } catch (err: any) {
@@ -223,6 +227,34 @@ export default function CouponsAdminPage() {
     } catch (err: any) {
       console.error(err);
       showFeedback("error", `刪除失敗: ${err.message}`);
+    }
+  };
+
+  const handleToggleActive = async (coupon: Coupon) => {
+    const isCurrentlyActive = !coupon.description?.startsWith('[UNPUBLISHED]');
+    let newDescription = coupon.description || '';
+    
+    if (isCurrentlyActive) {
+      // Toggle to unpublished: prepend '[UNPUBLISHED]'
+      newDescription = '[UNPUBLISHED] ' + newDescription.trim();
+    } else {
+      // Toggle to active: strip '[UNPUBLISHED]'
+      newDescription = newDescription.slice('[UNPUBLISHED]'.length).trim();
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("coupons")
+        .update({ description: newDescription })
+        .eq("id", coupon.id);
+        
+      if (error) throw error;
+      
+      showFeedback("success", `優惠券 【${coupon.name}】 ${isCurrentlyActive ? '已下架 (非上架)' : '已上架成功'}！`);
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showFeedback("error", `調整上架狀態失敗: ${err.message}`);
     }
   };
 
@@ -350,7 +382,7 @@ export default function CouponsAdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">折抵類型</label>
                   <select 
@@ -358,29 +390,40 @@ export default function CouponsAdminPage() {
                     onChange={e => setNewCoupon({...newCoupon, discount_type: e.target.value as 'fixed' | 'percent'})}
                     className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
                   >
-                    <option value="fixed">固定折抵金額 ($)</option>
+                    <option value="fixed">固定折抵 ($)</option>
                     <option value="percent">比例打折 (%)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">折抵面值 (VALUE)</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">折抵面值</label>
                   <input 
                     type="number" 
-                    placeholder={newCoupon.discount_type === 'fixed' ? "金額 (如: 100)" : "比例 (如 12 代表12% off即88折)"}
+                    placeholder={newCoupon.discount_type === 'fixed' ? "金額" : "比例"}
                     value={newCoupon.value || ""}
                     onChange={e => setNewCoupon({...newCoupon, value: Number(e.target.value)})}
                     className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最低消費門檻 ($)</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最少門檻 ($)</label>
                   <input 
                     type="number" 
-                    placeholder="0 代表無門檻" 
+                    placeholder="無門檻" 
                     value={newCoupon.min_spend || ""}
                     onChange={e => setNewCoupon({...newCoupon, min_spend: Number(e.target.value)})}
                     className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">初始上架狀態</label>
+                  <select 
+                    value={newCoupon.is_active ? 'active' : 'inactive'}
+                    onChange={e => setNewCoupon({...newCoupon, is_active: e.target.value === 'active'})}
+                    className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
+                  >
+                    <option value="active">🟢 立即上架</option>
+                    <option value="inactive">🟠 暫不上架</option>
+                  </select>
                 </div>
               </div>
 
@@ -426,48 +469,14 @@ export default function CouponsAdminPage() {
                   className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/10 transition"
                 >
                   <option value="" disabled>請選擇優惠券</option>
-                  {filteredCoupons.map(c => (
-                  <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
-                    <td className="p-4">
-                      <div className="space-y-1">
-                        <p className="text-xs font-black text-slate-800">{c.name}</p>
-                        <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">{c.code}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-xs font-bold text-indigo-600">
-                        {c.discount_type === 'fixed' ? `$${Number(c.value).toLocaleString()}` : `${100 - c.value}折`}
-                      </span>
-                    </td>
-                    <td className="p-4 text-xs font-bold text-slate-700">${Number(c.min_spend).toLocaleString()}</td>
-                    <td className="p-4 text-[11px] font-medium text-slate-400">{c.description || "無說明"}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button 
-                          onClick={() => setEditingCoupon(c)}
-                          className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition inline-flex items-center"
-                          title="編輯優惠券"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-
-                        {c.code !== "WELCOME100" ? (
-                          <button 
-                            onClick={() => handleDeleteCoupon(c.id, c.name)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition inline-flex items-center"
-                            title="刪除優惠券"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                            系統保護
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                  {coupons.filter(c => !c.description?.startsWith('[UNPUBLISHED]')).map(c => (
+                    <option key={c.id} value={c.id}>
+                      [{c.code}] {c.name} — {c.discount_type === 'fixed' ? `$${Number(c.value).toLocaleString()}` : `${100 - c.value}折`} (滿 ${Number(c.min_spend).toLocaleString()})
+                    </option>
+                  ))}
+                  {coupons.filter(c => !c.description?.startsWith('[UNPUBLISHED]')).length === 0 && (
+                    <option value="" disabled>（目前尚無任何上架中的優惠券）</option>
+                  )}
                 </select>
               </div>
 
@@ -656,9 +665,37 @@ export default function CouponsAdminPage() {
                       </span>
                     </td>
                     <td className="p-4 text-xs font-bold text-slate-700">${Number(c.min_spend).toLocaleString()}</td>
-                    <td className="p-4 text-[11px] font-medium text-slate-400">{c.description || "無說明"}</td>
+                    <td className="p-4 text-[11px] font-medium text-slate-400">
+                      {c.description
+                        ? c.description.startsWith('[UNPUBLISHED]')
+                          ? c.description.slice('[UNPUBLISHED]'.length).trim() || "無說明"
+                          : c.description
+                        : "無說明"}
+                    </td>
                     <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-2.5">
+                        <button
+                          onClick={() => handleToggleActive(c)}
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-black transition flex items-center gap-1.5 select-none ${
+                            !c.description?.startsWith('[UNPUBLISHED]')
+                              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100/80 border border-emerald-100'
+                              : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-100'
+                          }`}
+                          title={!c.description?.startsWith('[UNPUBLISHED]') ? "點擊下架此優惠券" : "點擊上架此優惠券"}
+                        >
+                          {!c.description?.startsWith('[UNPUBLISHED]') ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>已上架</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>非上架</span>
+                            </>
+                          )}
+                        </button>
+
                         <button 
                           onClick={() => setEditingCoupon(c)}
                           className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition inline-flex items-center"
@@ -676,7 +713,7 @@ export default function CouponsAdminPage() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         ) : (
-                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-wider select-none">
                             系統保護
                           </span>
                         )}
@@ -750,7 +787,7 @@ export default function CouponsAdminPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">折抵類型</label>
                     <select 
@@ -758,7 +795,7 @@ export default function CouponsAdminPage() {
                       onChange={e => setEditingCoupon({...editingCoupon, discount_type: e.target.value as 'fixed' | 'percent'})}
                       className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
                     >
-                      <option value="fixed">固定折抵金額 ($)</option>
+                      <option value="fixed">固定折抵 ($)</option>
                       <option value="percent">比例打折 (%)</option>
                     </select>
                   </div>
@@ -773,7 +810,7 @@ export default function CouponsAdminPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">最低消費門檻 ($)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">最少門檻 ($)</label>
                     <input 
                       type="number" 
                       value={editingCoupon.min_spend || ""}
@@ -782,14 +819,47 @@ export default function CouponsAdminPage() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">上架與展示狀態</label>
+                    <select 
+                      value={editingCoupon.description?.startsWith('[UNPUBLISHED]') ? 'inactive' : 'active'}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const hasPrefix = editingCoupon.description?.startsWith('[UNPUBLISHED]');
+                        let newDesc = editingCoupon.description || '';
+                        
+                        if (val === 'inactive' && !hasPrefix) {
+                          newDesc = '[UNPUBLISHED] ' + newDesc.trim();
+                        } else if (val === 'active' && hasPrefix) {
+                          newDesc = newDesc.slice('[UNPUBLISHED]'.length).trim();
+                        }
+                        setEditingCoupon({...editingCoupon, description: newDesc});
+                      }}
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
+                    >
+                      <option value="active">🟢 立即上架</option>
+                      <option value="inactive">🟠 暫不上架</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">活動簡介與描述</label>
                   <textarea 
-                    value={editingCoupon.description || ""}
+                    value={editingCoupon.description
+                      ? editingCoupon.description.startsWith('[UNPUBLISHED]')
+                        ? editingCoupon.description.slice('[UNPUBLISHED]'.length).trim()
+                        : editingCoupon.description
+                      : ""}
                     rows={3}
-                    onChange={e => setEditingCoupon({...editingCoupon, description: e.target.value})}
+                    onChange={e => {
+                      const textVal = e.target.value;
+                      const isUnpublished = editingCoupon.description?.startsWith('[UNPUBLISHED]');
+                      setEditingCoupon({
+                        ...editingCoupon,
+                        description: isUnpublished ? `[UNPUBLISHED] ${textVal.trim()}` : textVal.trim()
+                      });
+                    }}
                     className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition resize-none"
                   />
                 </div>

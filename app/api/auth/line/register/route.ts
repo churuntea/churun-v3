@@ -123,26 +123,31 @@ export async function POST(request: Request) {
       // 查詢所有以 NEW_ 開頭的優惠券，以及舊有的 WELCOME100
       const { data: welcomeCoupons } = await supabase
         .from('coupons')
-        .select('id, name')
+        .select('id, name, description')
         .or('code.ilike.NEW_%,code.eq.WELCOME100');
 
       if (welcomeCoupons && welcomeCoupons.length > 0) {
-        const insertRows = welcomeCoupons.map(c => ({
-          member_id: newMember.id,
-          coupon_id: c.id,
-          is_used: false
-        }));
+        // 排除掉被設定為不上架 (description 開頭為 [UNPUBLISHED]) 的優惠券
+        const activeWelcomeCoupons = welcomeCoupons.filter(c => !c.description?.startsWith('[UNPUBLISHED]'));
+        
+        if (activeWelcomeCoupons.length > 0) {
+          const insertRows = activeWelcomeCoupons.map(c => ({
+            member_id: newMember.id,
+            coupon_id: c.id,
+            is_used: false
+          }));
 
-        await supabase.from('member_coupons').insert(insertRows);
+          await supabase.from('member_coupons').insert(insertRows);
 
-        // 發送獲得優惠券的通知
-        const namesList = welcomeCoupons.map(c => `【${c.name}】`).join('、');
-        await supabase.from('notifications').insert({
-          member_id: newMember.id,
-          title: '🎁 獲得新會員專屬迎新禮包！',
-          content: `恭喜您獲得 ${namesList}！已存入您的個人券包，快到商城體驗吧！`,
-          type: 'system'
-        });
+          // 發送獲得優惠券的通知
+          const namesList = activeWelcomeCoupons.map(c => `【${c.name}】`).join('、');
+          await supabase.from('notifications').insert({
+            member_id: newMember.id,
+            title: '🎁 獲得新會員專屬迎新禮包！',
+            content: `恭喜您獲得 ${namesList}！已存入您的個人券包，快到商城體驗吧！`,
+            type: 'system'
+          });
+        }
       }
     } catch (couponErr) {
       console.error('自動發送迎新券失敗:', couponErr);
