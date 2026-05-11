@@ -642,7 +642,7 @@ export default function CouponsAdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {coupons.map(c => (
+                {filteredCoupons.map(c => (
                   <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
                     <td className="p-4">
                       <div className="space-y-1">
@@ -658,18 +658,29 @@ export default function CouponsAdminPage() {
                     <td className="p-4 text-xs font-bold text-slate-700">${Number(c.min_spend).toLocaleString()}</td>
                     <td className="p-4 text-[11px] font-medium text-slate-400">{c.description || "無說明"}</td>
                     <td className="p-4 text-right">
-                      {c.code !== "WELCOME100" ? (
+                      <div className="flex items-center justify-end gap-1.5">
                         <button 
-                          onClick={() => handleDeleteCoupon(c.id, c.name)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition inline-flex items-center"
+                          onClick={() => setEditingCoupon(c)}
+                          className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition inline-flex items-center"
+                          title="編輯優惠券"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
-                      ) : (
-                        <span className="text-[9px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-full uppercase tracking-wider">
-                          系統保護
-                        </span>
-                      )}
+
+                        {c.code !== "WELCOME100" ? (
+                          <button 
+                            onClick={() => handleDeleteCoupon(c.id, c.name)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition inline-flex items-center"
+                            title="刪除優惠券"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            系統保護
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
