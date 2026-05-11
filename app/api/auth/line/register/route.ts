@@ -120,24 +120,27 @@ export async function POST(request: Request) {
 
     // 🎁 自動發放 WELCOME100 迎新折價券到其庫存 (比照原本註冊)
     try {
-      const { data: welcomeCoupon } = await supabase
+      const welcomeCodes = ['WELCOME100', 'WELCOME50', 'GIFT_REDEEM'];
+      const { data: welcomeCoupons } = await supabase
         .from('coupons')
-        .select('id')
-        .eq('code', 'WELCOME100')
-        .maybeSingle();
+        .select('id, name')
+        .in('code', welcomeCodes);
 
-      if (welcomeCoupon) {
-        await supabase.from('member_coupons').insert({
+      if (welcomeCoupons && welcomeCoupons.length > 0) {
+        const insertRows = welcomeCoupons.map(c => ({
           member_id: newMember.id,
-          coupon_id: welcomeCoupon.id,
+          coupon_id: c.id,
           is_used: false
-        });
+        }));
 
-        // 發送系統通知
+        await supabase.from('member_coupons').insert(insertRows);
+
+        // 發送獲得優惠券的通知
+        const namesList = welcomeCoupons.map(c => `【${c.name}】`).join('、');
         await supabase.from('notifications').insert({
           member_id: newMember.id,
-          title: '🎁 獲得註冊迎新折價券！',
-          content: '恭喜您獲得一張【新會員迎新折價券】！滿 $500 現折 $100，已存入您的個人券包，快到商城下單體驗吧！',
+          title: '🎁 獲得新會員專屬迎新禮包！',
+          content: `恭喜您獲得 ${namesList}！已存入您的個人券包，快到商城體驗吧！`,
           type: 'system'
         });
       }
