@@ -254,7 +254,7 @@ function AdminProductsContent() {
   };
 
   const processFile = (file: File) => {
-    if (file.size > 2 * 1024 * 1024) return alert("檔案太大 (請小於 2MB)");
+    if (file.size > 10 * 1024 * 1024) return alert("檔案太大 (請小於 10MB)");
     const reader = new FileReader();
     reader.onload = (e) => setFormData(prev => ({ ...prev, image_url: e.target?.result as string }));
     reader.readAsDataURL(file);
@@ -494,7 +494,7 @@ function AdminProductsContent() {
                                        <Upload className="w-6 h-6 text-slate-300" />
                                     </div>
                                     <p className="text-xs font-bold text-slate-400">拖曳或點擊上傳商品圖檔</p>
-                                    <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 2MB 以內)</span>
+                                    <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 10MB 以內)</span>
                                  </div>
                                )}
                             </div>
