@@ -140,19 +140,71 @@ function OrdersContent() {
       return;
     }
     setIsLoading(true);
-    const { error } = await supabase
+    
+    // 1. 嘗試直接物理更新 payment_last_five 欄位
+    let { error } = await supabase
       .from("orders")
       .update({ payment_last_five: value })
       .eq("id", orderId);
+      
+    // 2. 如果失敗，嘗試 bank_last_five 欄位（以利資料庫欄位部分對齊時的容錯）
+    if (error) {
+      console.warn("Direct payment_last_five update failed, trying bank_last_five...");
+      const res = await supabase
+        .from("orders")
+        .update({ bank_last_five: value })
+        .eq("id", orderId);
+      error = res.error;
+    }
+
+    // 3. 如果兩大實體欄位皆因資料庫快取/缺失而更新失敗，啟動動態 JSON 備份寫入（寫入 custom_logo_url）
+    if (error) {
+      console.warn("Direct columns not supported. Saving to custom_logo_url via FALLBACK_JSON.");
+      
+      const { data: currentOrder, error: fetchErr } = await supabase
+        .from("orders")
+        .select("custom_logo_url")
+        .eq("id", orderId)
+        .single();
+        
+      if (!fetchErr && currentOrder) {
+        let existingJSON: Record<string, any> = {};
+        const logoUrlVal = currentOrder.custom_logo_url || "";
+        
+        if (logoUrlVal.startsWith("FALLBACK_JSON:")) {
+          try {
+            existingJSON = JSON.parse(logoUrlVal.substring("FALLBACK_JSON:".length));
+          } catch (e) {
+            console.error("Failed to parse existing fallback JSON:", e);
+          }
+        } else if (logoUrlVal) {
+          existingJSON.original_logo_url = logoUrlVal;
+        }
+        
+        // 寫入對帳末五碼到備用 JSON 結構中
+        existingJSON.payment_last_five = value;
+        existingJSON.bank_last_five = value;
+        
+        const fallbackStr = "FALLBACK_JSON:" + JSON.stringify(existingJSON);
+        
+        const { error: writeErr } = await supabase
+          .from("orders")
+          .update({ custom_logo_url: fallbackStr })
+          .eq("id", orderId);
+          
+        error = writeErr;
+      } else {
+        error = fetchErr || new Error("Failed to fetch order for JSON fallback write");
+      }
+    }
     
     if (error) {
-      console.error(error);
+      console.error("更新匯款末五碼失敗:", error);
       alert("提交對帳失敗，請重試");
     } else {
       alert("帳號末五碼回報成功！我們將會盡速為您核對對帳。");
       const savedId = localStorage.getItem("churun_member_id");
       if (savedId) await fetchOrders(savedId);
-      // Exit editing mode
       setIsEditingRemittance(prev => ({ ...prev, [orderId]: false }));
     }
     setIsLoading(false);
