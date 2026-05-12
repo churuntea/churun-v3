@@ -82,40 +82,57 @@ export async function POST(request: Request) {
       description: description || null
     };
 
-    // 第一步：嘗試完整寫入
-    let { data, error } = await supabaseAdmin
-      .from('products')
-      .insert(insertData)
-      .select()
-      .single();
+    // 採用動態自我修復迴圈：若因欄位缺失報錯，則自動從寫入資料中剃除該欄位並重試
+    let attempts = 0;
+    let data = null;
+    let error = null;
 
-    // 如果因不支援 description 欄位報錯，降級移除 description 後重試
-    if (error && (error.message.includes('column "description"') || error.message.includes("'description' column") || error.code === '42703')) {
-      console.warn("Supabase products table lacks 'description' column. Stripping description and retrying.");
-      delete insertData.description;
-      const { data: retryData, error: retryError } = await supabaseAdmin
-        .from('products')
-        .insert(insertData)
-        .select()
-        .single();
-      data = retryData;
-      error = retryError;
-    }
-
-    // 如果還是因不支援 category 欄位報錯，繼續降級
-    if (error && (error.message.includes('column "category"') || error.message.includes("'category' column") || error.code === '42703')) {
-      console.warn("Supabase products table lacks 'category' column. Fallback to name prefix naming.");
-      delete insertData.category;
-      insertData.name = `[${category || '全部商品'}] ${name}`; // 將分類前綴到名稱中相容
-      
-      const { data: retryData, error: retryError } = await supabaseAdmin
+    while (attempts < 15) {
+      const res = await supabaseAdmin
         .from('products')
         .insert(insertData)
         .select()
         .single();
       
-      data = retryData;
-      error = retryError;
+      data = res.data;
+      error = res.error;
+
+      if (!error) {
+        break;
+      }
+
+      // 檢查是否為欄位不支援之錯誤 (PostgREST schema cache 或 PostgreSQL 錯誤)
+      const errMsg = error.message || "";
+      let missingColumn: string | null = null;
+
+      // 匹配模式 1: "Could not find the 'xxx' column ..." (PostgREST schema cache mismatch)
+      const match1 = errMsg.match(/Could not find the '([^']+)' column/i);
+      // 匹配模式 2: column "xxx" does not exist (PostgreSQL column error)
+      const match2 = errMsg.match(/column "([^"]+)"/i);
+
+      if (match1) {
+        missingColumn = match1[1];
+      } else if (match2) {
+        missingColumn = match2[1];
+      }
+
+      if (missingColumn && missingColumn in insertData) {
+        console.warn(`[API Products POST Fallback] Table lacks column '${missingColumn}'. Stripping and retrying.`);
+        
+        // 分類欄位降級處理：若不支援 category，則將其附加到商品名稱前綴
+        if (missingColumn === 'category') {
+          const cat = insertData.category || category || '全部商品';
+          if (!insertData.name.startsWith('[')) {
+            insertData.name = `[${cat}] ${insertData.name}`;
+          }
+        }
+        
+        delete insertData[missingColumn];
+        attempts++;
+      } else {
+        // 非欄位缺失引起之常規錯誤，停止重試
+        break;
+      }
     }
 
     if (error) throw error;
@@ -190,43 +207,57 @@ export async function PUT(request: Request) {
       description: description || null
     };
 
-    // 第一步：嘗試完整更新
-    let { data, error } = await supabaseAdmin
-      .from('products')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    // 採用動態自我修復迴圈：若因欄位缺失報錯，則自動從更新資料中剃除該欄位並重試
+    let attempts = 0;
+    let data = null;
+    let error = null;
 
-    // 如果不支援 description 欄位，移除後重試
-    if (error && (error.message.includes('column "description"') || error.message.includes("'description' column") || error.code === '42703')) {
-      console.warn("Supabase products table lacks 'description' column on UPDATE. Stripping description.");
-      delete updateData.description;
-      const { data: retryData, error: retryError } = await supabaseAdmin
-        .from('products')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-      data = retryData;
-      error = retryError;
-    }
-
-    // 如果不支援 category 欄位，移除後重試
-    if (error && (error.message.includes('column "category"') || error.message.includes("'category' column") || error.code === '42703')) {
-      console.warn("Supabase products table lacks 'category' column on UPDATE. Falling back to name prefix.");
-      delete updateData.category;
-      updateData.name = `[${category || '全部商品'}] ${name}`;
-      
-      const { data: retryData, error: retryError } = await supabaseAdmin
+    while (attempts < 15) {
+      const res = await supabaseAdmin
         .from('products')
         .update(updateData)
         .eq('id', id)
         .select()
         .single();
       
-      data = retryData;
-      error = retryError;
+      data = res.data;
+      error = res.error;
+
+      if (!error) {
+        break;
+      }
+
+      // 檢查是否為欄位不支援之錯誤
+      const errMsg = error.message || "";
+      let missingColumn: string | null = null;
+
+      // 匹配模式 1: "Could not find the 'xxx' column ..." (PostgREST schema cache mismatch)
+      const match1 = errMsg.match(/Could not find the '([^']+)' column/i);
+      // 匹配模式 2: column "xxx" does not exist (PostgreSQL column error)
+      const match2 = errMsg.match(/column "([^"]+)"/i);
+
+      if (match1) {
+        missingColumn = match1[1];
+      } else if (match2) {
+        missingColumn = match2[1];
+      }
+
+      if (missingColumn && missingColumn in updateData) {
+        console.warn(`[API Products PUT Fallback] Table lacks column '${missingColumn}'. Stripping and retrying.`);
+        
+        // 分類欄位降級處理
+        if (missingColumn === 'category') {
+          const cat = updateData.category || category || '全部商品';
+          if (!updateData.name.startsWith('[')) {
+            updateData.name = `[${cat}] ${updateData.name}`;
+          }
+        }
+        
+        delete updateData[missingColumn];
+        attempts++;
+      } else {
+        break;
+      }
     }
 
     if (error) throw error;
