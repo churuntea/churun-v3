@@ -23,7 +23,8 @@ import {
   Check,
   Plus,
   Heart,
-  MapPin
+  MapPin,
+  Package
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
@@ -96,11 +97,13 @@ function StoreContent() {
     phone: '',
     address: '',
     notes: '',
-    method: '宅配到府',
+    method: '自取',
     senderName: '',
     senderPhone: '',
-    senderAddress: ''
+    senderAddress: '',
+    senderNotes: ''
   });
+  const [showConfirmSenderModal, setShowConfirmSenderModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -118,6 +121,7 @@ function StoreContent() {
   const [isEditingSender, setIsEditingSender] = useState(false);
   const [senderAddressSearchTerm, setSenderAddressSearchTerm] = useState("");
   const [addressBookTarget, setAddressBookTarget] = useState<'sender' | 'recipient'>('recipient');
+  const [showConfirmRecipientModal, setShowConfirmRecipientModal] = useState(false);
   const [syncAsDefault, setSyncAsDefault] = useState(false);
 
   const [cvsBrand, setCvsBrand] = useState("7-11");
@@ -195,6 +199,25 @@ function StoreContent() {
       localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
     }
     alert(`已成功儲存「${cleanAlias}」至您的常用地址簿！`);
+  };
+
+  const handleRecipientNext = () => {
+    if (shippingInfo.method === '超商取貨') {
+      if (!cvsStoreName || !cvsStoreCode) {
+        alert("請輸入超商門市名稱與店號");
+        return;
+      }
+      shippingInfo.address = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
+    }
+    if (shippingInfo.method === '自取' && !shippingInfo.address) {
+       alert("請在上方門市卡片中，點擊選擇您的自取門市");
+       return;
+    }
+    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+       alert("請填寫完整的收件資訊");
+       return;
+    }
+    setShowConfirmRecipientModal(true);
   };
 
   const handleSaveSenderAddress = () => {
@@ -295,12 +318,13 @@ function StoreContent() {
         setShippingInfo({
           name: mData.name || '',
           phone: mData.phone || '',
-          address: mData.address || '',
+          address: '',
           notes: '',
-          method: '宅配到府',
+          method: '自取',
           senderName: mData.name || '',
           senderPhone: mData.phone || '',
-          senderAddress: mData.address || ''
+          senderAddress: mData.address || '',
+          senderNotes: ''
         });
       }
 
@@ -1087,7 +1111,8 @@ function StoreContent() {
                                     ...prev,
                                     senderName: memberInfo.name || '',
                                     senderPhone: memberInfo.phone || '',
-                                    senderAddress: memberInfo.address || ''
+                                    senderAddress: memberInfo.address || '',
+                                    senderNotes: ''
                                   }));
                                 }
                               }}
@@ -1129,7 +1154,8 @@ function StoreContent() {
                                    ...shippingInfo,
                                    senderName: memberInfo.name || '',
                                    senderPhone: memberInfo.phone || '',
-                                   senderAddress: memberInfo.address || ''
+                                   senderAddress: memberInfo.address || '',
+                                   senderNotes: ''
                                  });
                                }
                              }}
@@ -1211,7 +1237,8 @@ function StoreContent() {
                                                 ...shippingInfo,
                                                 senderName: addr.name,
                                                 senderPhone: addr.phone,
-                                                senderAddress: addr.address
+                                                senderAddress: addr.address,
+                                                 senderNotes: addr.senderNotes || ''
                                               });
                                            }}
                                            className="flex-shrink-0 bg-white border border-slate-100 hover:border-slate-300 px-3 py-2 rounded-xl text-left transition relative group"
@@ -1264,13 +1291,24 @@ function StoreContent() {
                                    placeholder="請輸入寄件人地址 (選填)"
                                  />
                               </div>
+
+                              <div>
+                                 <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">備註 (選填)</label>
+                                 <input 
+                                   type="text" 
+                                   value={shippingInfo.senderNotes}
+                                   onChange={e => setShippingInfo({...shippingInfo, senderNotes: e.target.value})}
+                                   className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                                   placeholder="請輸入備註 (選填)"
+                                 />
+                              </div>
                            </div>
                         )}
                      </div>
 
                      <div className="space-y-4 pt-4">
                         <button 
-                          onClick={() => setShippingSubStep('recipient')}
+                          onClick={() => setShowConfirmSenderModal(true)}
                           className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                         >
                            下一步：填寫收件
@@ -1505,7 +1543,7 @@ function StoreContent() {
                         <div className="space-y-3">
                            <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">物流方式</label>
                            <div className="grid grid-cols-3 gap-2">
-                              {['宅配到府', '超商取貨', '自取'].map(m => {
+                              {['自取', '超商取貨', '宅配到府'].map(m => {
                                  const isSelected = shippingInfo.method === m;
                                  return (
                                     <button
@@ -1631,18 +1669,20 @@ function StoreContent() {
                               </div>
                            </div>
                         ) : (
-                           <div>
+                           isEditingShipping ? (
+                               <div>
                               <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">
                                  {shippingInfo.method === '宅配到府' ? '寄送地址' : '詳細地址'}
                               </label>
                               <textarea 
                                 value={shippingInfo.address}
                                 onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
-                                readOnly={!isEditingShipping}
-                                className={`w-full border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20 ${!isEditingShipping ? 'bg-slate-100/50 text-slate-500 cursor-not-allowed' : 'bg-slate-50'}`}
+                                
+                                className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
                                 placeholder={shippingInfo.method === '宅配到府' ? '請輸入完整收件地址' : '請輸入詳細地址'}
                               />
                            </div>
+                            ) : null
                         )}
 
                         <div>
@@ -1658,7 +1698,7 @@ function StoreContent() {
 
                      <div className="space-y-4 pt-4">
                         <button 
-                          onClick={submitAndShowPayment}
+                          onClick={handleRecipientNext}
                           className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
                         >
                            確認無誤，送出訂單
@@ -1676,6 +1716,70 @@ function StoreContent() {
           </div>
         )}
       </AnimatePresence>
+      {/* Step 2.1: Double-Confirmation Modal for Sender Details */}
+      <AnimatePresence>
+        {showConfirmSenderModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowConfirmSenderModal(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 text-center border border-slate-100"
+            >
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-amber-100">
+                <span className="text-2xl font-black">👤</span>
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">再次確認寄件人資訊</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Please Double Confirm Sender Details</p>
+              
+              <div className="bg-slate-50 rounded-[2rem] p-6 text-left space-y-3.5 mb-8 border border-slate-100/50">
+                <div className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-200/50">
+                  <span className="font-black text-slate-400">👤 姓名</span>
+                  <span className="font-extrabold text-slate-800 text-right">{shippingInfo.senderName || memberInfo?.name || "姓名未填"}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-200/50">
+                  <span className="font-black text-slate-400">📞 電話</span>
+                  <span className="font-extrabold text-slate-800 text-right">{shippingInfo.senderPhone || memberInfo?.phone || "電話未填"}</span>
+                </div>
+                <div className="flex flex-col text-xs pb-2.5 border-b border-slate-200/50 gap-1">
+                  <span className="font-black text-slate-400">📍 地址</span>
+                  <span className="font-extrabold text-slate-700 leading-relaxed text-left break-all">{shippingInfo.senderAddress || memberInfo?.address || "無"}</span>
+                </div>
+                <div className="flex flex-col text-xs gap-1">
+                  <span className="font-black text-slate-400">💬 寄件備註</span>
+                  <span className="font-extrabold text-rose-600 leading-relaxed text-left break-all">{shippingInfo.senderNotes || "無"}</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <button 
+                  onClick={() => {
+                    setShowConfirmSenderModal(false);
+                    setShippingSubStep('recipient');
+                  }}
+                  className="w-full bg-emerald-950 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-950/20 active:scale-95 transition-all duration-200"
+                >
+                  確認無誤，填寫收件
+                </button>
+                <button 
+                  onClick={() => setShowConfirmSenderModal(false)}
+                  className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition"
+                >
+                  返回修改
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Step 2.5: Advanced Address Book Modal */}
       <AnimatePresence>
         {showAddressBookModal && (
@@ -1739,12 +1843,22 @@ function StoreContent() {
                       <div
                         key={addr.id}
                         onClick={() => {
-                          setShippingInfo({
+                          if (addressBookTarget === 'sender') {
+                            setShippingInfo({
+                              ...shippingInfo,
+                              senderName: addr.name,
+                              senderPhone: addr.phone,
+                              senderAddress: addr.address,
+                              senderNotes: addr.senderNotes || ''
+                            });
+                          } else {
+                            setShippingInfo({
                             ...shippingInfo,
                             name: addr.name,
                             phone: addr.phone,
                             address: addr.address
                           });
+                          }
                           setShowAddressBookModal(false);
                         }}
                         className="bg-slate-50/50 hover:bg-emerald-50/30 border border-slate-100 hover:border-emerald-100/30 p-5 rounded-2xl text-left transition cursor-pointer flex justify-between items-center gap-4 relative group"

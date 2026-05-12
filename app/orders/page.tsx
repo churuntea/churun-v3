@@ -407,7 +407,15 @@ function OrdersContent() {
                                          <p className="sm:col-span-2">📍 配送地址：<span className="text-slate-800">{order.shipping_info.address}</span></p>
                                          <p className="sm:col-span-2">🚚 物流方式：<span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[9px] inline-block mt-0.5">{order.shipping_info.method || "宅配到府"}</span></p>
                                       </div>
-                                      {order.notes && (
+                                      {order.shipping_info.senderName && (
+                                          <div className="text-[11px] font-bold text-slate-600 mt-2 pt-2 border-t border-slate-200/50 space-y-1">
+                                             <p>👤 寄件姓名：<span className="text-slate-800">{order.shipping_info.senderName}</span></p>
+                                             {order.shipping_info.senderPhone && <p>📞 寄件電話：<span className="text-slate-800">{order.shipping_info.senderPhone}</span></p>}
+                                             {order.shipping_info.senderAddress && <p>📍 寄件地址：<span className="text-slate-800">{order.shipping_info.senderAddress}</span></p>}
+                                             {order.shipping_info.senderNotes && <p className="text-rose-600">💬 寄件備註：<span className="font-extrabold">{order.shipping_info.senderNotes}</span></p>}
+                                          </div>
+                                       )}
+                                       {order.notes && (
                                          <p className="text-[11px] font-black text-slate-500 mt-2 pt-2 border-t border-dashed border-slate-200">
                                             💬 買家備註：<span className="font-medium text-slate-600">{order.notes}</span>
                                          </p>

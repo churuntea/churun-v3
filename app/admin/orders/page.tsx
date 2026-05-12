@@ -146,9 +146,14 @@ function AdminOrdersContent() {
             </div>
             <div class="info-box">
               <div class="info-title">寄件人資訊</div>
-              <div class="info-value">姓名: ${shipping.sender_name || '初潤製茶所'}</div>
-              <div class="info-value">電話: ${shipping.sender_phone || '0939734771'}</div>
-              <div class="info-value" style="margin-top: 10px;">地址: ${shipping.sender_address || '南投縣草屯鎮自由街34號'}</div>
+              <div class="info-value">姓名: ${shipping.sender_name || shipping.senderName || '初潤製茶所'}</div>
+              <div class="info-value">電話: ${shipping.sender_phone || shipping.senderPhone || '0939734771'}</div>
+              <div class="info-value" style="margin-top: 10px;">地址: ${shipping.sender_address || shipping.senderAddress || '南投縣草屯鎮自由街34號'}</div>
+              ${(shipping.sender_notes || shipping.senderNotes) ? `
+                <div class="info-value" style="margin-top: 8px; color: #dc2626; font-size: 11px;">
+                  備註: ${shipping.sender_notes || shipping.senderNotes}
+                </div>
+              ` : ''}
             </div>
             <div class="info-box">
               <div class="info-title">訂單資訊</div>
@@ -834,13 +839,16 @@ function AdminOrdersContent() {
                                       <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.address}</span></p>
                                       
                                       {/* 寄件人資訊 */}
-                                      {order.shipping_info.sender_name && (
+                                      {(order.shipping_info.sender_name || order.shipping_info.senderName) && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">指定寄件人 (代發代寄)</p>
-                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄件人</span> <span className="font-black text-slate-800">{order.shipping_info.sender_name}</span></p>
-                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.sender_phone}</span></p>
-                                          {order.shipping_info.sender_address && (
-                                            <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.sender_address}</span></p>
+                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄件人</span> <span className="font-black text-slate-800">{order.shipping_info.sender_name || order.shipping_info.senderName}</span></p>
+                                          <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">聯絡電話</span> <span className="font-black text-slate-800">{order.shipping_info.sender_phone || order.shipping_info.senderPhone}</span></p>
+                                          {(order.shipping_info.sender_address || order.shipping_info.senderAddress) && (
+                                            <p className="text-sm"><span className="text-slate-400 mr-2 text-[10px] uppercase font-bold tracking-widest">寄送地址</span> <span className="font-black text-slate-800">{order.shipping_info.sender_address || order.shipping_info.senderAddress}</span></p>
+                                          )}
+                                          {(order.shipping_info.sender_notes || order.shipping_info.senderNotes) && (
+                                            <p className="text-sm"><span className="text-rose-500 mr-2 text-[10px] uppercase font-black tracking-widest">寄件備註</span> <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{order.shipping_info.sender_notes || order.shipping_info.senderNotes}</span></p>
                                           )}
                                         </div>
                                       )}

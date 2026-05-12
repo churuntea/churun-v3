@@ -143,7 +143,8 @@ export async function POST(request: Request) {
         method: shippingInfo.method || '宅配到府',
         sender_name: shippingInfo.senderName || '',
         sender_phone: shippingInfo.senderPhone || '',
-        sender_address: shippingInfo.senderAddress || ''
+        sender_address: shippingInfo.senderAddress || '',
+        sender_notes: shippingInfo.senderNotes || ''
       };
       if (shippingInfo.notes) {
         orderData.notes = shippingInfo.notes;
