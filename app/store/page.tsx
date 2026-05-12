@@ -124,6 +124,7 @@ function StoreContent() {
   const [senderAddressSearchTerm, setSenderAddressSearchTerm] = useState("");
   const [addressBookTarget, setAddressBookTarget] = useState<'sender' | 'recipient'>('recipient');
   const [showConfirmRecipientModal, setShowConfirmRecipientModal] = useState(false);
+  const [showFinalDoubleConfirmModal, setShowFinalDoubleConfirmModal] = useState(false);
   const [syncAsDefault, setSyncAsDefault] = useState(false);
 
   const [cvsBrand, setCvsBrand] = useState("7-11");
@@ -236,7 +237,8 @@ function StoreContent() {
     };
 
     setShippingInfo(finalShippingInfo);
-    submitAndShowPayment(finalShippingInfo);
+    setShowShippingModal(false);
+    setShowFinalDoubleConfirmModal(true);
   };
 
   const handleSaveSenderAddress = () => {
@@ -455,6 +457,7 @@ function StoreContent() {
     setLastOrderAmount(finalPrice + fee);
     setIsOrderCreated(false);
     setShowShippingModal(false);
+    setShowFinalDoubleConfirmModal(false);
     setShowPaymentModal(true);
     
     try {
@@ -1800,6 +1803,171 @@ function StoreContent() {
                   className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition"
                 >
                   返回修改
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Step 3.5: Final Double-Confirmation Modal for Store Checkout */}
+      <AnimatePresence>
+        {showFinalDoubleConfirmModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFinalDoubleConfirmModal(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10 border border-slate-100 max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-950 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                <span className="text-xl">📝</span>
+              </div>
+              <h3 className="text-lg font-black text-slate-900 text-center mb-1">訂單最終全面核對</h3>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center mb-6">Please Double Confirm Order Details</p>
+
+              <div className="space-y-4">
+                {/* 1. 訂購商品明細 */}
+                <div className="bg-slate-50/70 border border-slate-100/50 p-5 rounded-3xl text-left space-y-3.5">
+                   <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                      <span className="text-xs">📦</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">訂購商品明細</span>
+                   </div>
+                   <div className="space-y-2.5 max-h-32 overflow-y-auto no-scrollbar pr-1">
+                      {cart.map((item) => (
+                         <div key={item.id} className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-600 truncate max-w-[200px]">{item.name}</span>
+                            <span className="font-black text-slate-800 shrink-0">x {item.quantity} (${(item.price * item.quantity).toLocaleString()})</span>
+                         </div>
+                      ))}
+                   </div>
+
+                   <div className="border-t border-slate-200/60 pt-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center text-slate-500 font-bold">
+                         <span>商品小計</span>
+                         <span>${totalPrice.toLocaleString()}</span>
+                      </div>
+                      {discountAmount > 0 && (
+                         <div className="flex justify-between items-center text-rose-500 font-bold">
+                            <span>優惠折抵</span>
+                            <span>-${discountAmount.toLocaleString()}</span>
+                         </div>
+                      )}
+                      <div className="flex justify-between items-center text-slate-500 font-bold">
+                         <span>運費小計 ({shippingInfo.method})</span>
+                         <span>{shippingInfo.method === '自取' ? "免運 ($0)" : (finalPrice >= 1000 ? "免運 ($0)" : "$70")}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-t border-slate-200/60 pt-2.5 text-slate-800 font-black">
+                         <span className="text-xs font-black text-slate-900">採購應付總額</span>
+                         <span className="text-base text-emerald-900 font-black">
+                            ${(finalPrice + (shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元
+                         </span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* 2. 寄件與收件人資訊 */}
+                <div className="bg-slate-50/70 border border-slate-100/50 p-5 rounded-3xl text-left space-y-3">
+                   <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                      <span className="text-xs">👤</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">物流配送資訊</span>
+                   </div>
+                   
+                   <div className="space-y-2 text-xs">
+                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
+                         <span className="font-black text-slate-400">👤 寄件人</span>
+                         <span className="col-span-2 font-bold text-slate-800 text-right">
+                            {shippingInfo.senderName || memberInfo?.name} ({shippingInfo.senderPhone || memberInfo?.phone})
+                         </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
+                         <span className="font-black text-slate-400">👤 收件人</span>
+                         <span className="col-span-2 font-bold text-slate-800 text-right">
+                            {shippingInfo.name} ({shippingInfo.phone})
+                         </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
+                         <span className="font-black text-slate-400">📍 收件地址</span>
+                         <span className="col-span-2 font-extrabold text-slate-700 leading-relaxed text-right break-all">
+                            {shippingInfo.address}
+                         </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                         <span className="font-black text-slate-400">💬 備註</span>
+                         <span className="col-span-2 font-bold text-slate-600 text-right break-all">
+                            {shippingInfo.notes || "無"}
+                         </span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* 3. 匯款資訊預覽 */}
+                <div className="bg-emerald-50/50 border border-emerald-100/60 p-5 rounded-3xl text-left space-y-3">
+                   <div className="flex items-center gap-1.5 pb-1 border-b border-emerald-100/40">
+                      <span className="text-xs">🏦</span>
+                      <span className="text-[10px] font-black text-emerald-900/60 uppercase tracking-wider">預定匯款帳戶資訊</span>
+                   </div>
+                   <div className="space-y-1.5 text-xs font-bold text-slate-700">
+                      <div className="flex justify-between">
+                         <span className="text-emerald-900/60">匯款銀行</span>
+                         <span className="text-slate-800">國泰世華銀行 (013)</span>
+                      </div>
+                      <div className="flex justify-between">
+                         <span className="text-emerald-900/60">帳戶名稱</span>
+                         <span className="text-slate-800">安信商業有限公司</span>
+                      </div>
+                      <div className="flex justify-between">
+                         <span className="text-emerald-900/60">匯款帳號</span>
+                         <span className="text-slate-800 select-all font-mono">214-03-500450-5</span>
+                      </div>
+                      <div className="flex justify-between border-t border-emerald-100/40 pt-2 mt-1">
+                         <span className="text-emerald-950 font-black">匯款總金額</span>
+                         <span className="text-sm font-black text-emerald-900">
+                            ${(finalPrice + (shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元
+                         </span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* 注意事項 */}
+                <div className="bg-amber-50/40 border border-amber-900/10 p-4 rounded-2xl text-left">
+                   <p className="text-[9px] font-black text-amber-800 leading-relaxed">
+                      ⚠️ 提示：請確實核對上述商品、配送及匯款資料。確認無誤後點擊「送出訂單」，系統將為您保留庫存並建立訂單，您可以於稍後完成轉帳。
+                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-3.5 pt-6">
+                <button 
+                  onClick={() => {
+                     submitAndShowPayment(shippingInfo);
+                  }}
+                  disabled={isCheckingOut}
+                  className="w-full bg-emerald-900 hover:bg-emerald-850 disabled:opacity-50 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                   {isCheckingOut ? (
+                      <>
+                         <Loader2 className="w-4 h-4 animate-spin" />
+                         <span>訂單建立中...</span>
+                      </>
+                   ) : "確認無誤，送出訂單"}
+                </button>
+                <button 
+                  onClick={() => {
+                     setShowFinalDoubleConfirmModal(false);
+                     setShowShippingModal(true);
+                     setShippingSubStep('recipient');
+                  }}
+                  className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition text-center"
+                >
+                  返回修改收件資訊
                 </button>
               </div>
             </motion.div>
