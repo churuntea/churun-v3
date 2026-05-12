@@ -208,31 +208,35 @@ function StoreContent() {
     const finalPhone = shippingInfo.phone || memberInfo?.phone || '';
     const finalAddress = shippingInfo.address || (shippingInfo.method !== '自取' ? (memberInfo?.address || '') : '');
 
+    let computedAddress = finalAddress;
     if (shippingInfo.method === '超商取貨') {
       if (!cvsStoreName || !cvsStoreCode) {
         alert("請輸入超商門市名稱與店號");
         return;
       }
-      shippingInfo.address = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
+      computedAddress = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
     } else if (shippingInfo.method === '自取') {
       if (!shippingInfo.address) {
          alert("請在上方門市卡片中，點擊選擇您的自取門市");
          return;
       }
-    } else {
-      shippingInfo.address = finalAddress;
+      computedAddress = shippingInfo.address;
     }
 
-    if (!finalName || !finalPhone || !shippingInfo.address) {
+    if (!finalName || !finalPhone || !computedAddress) {
        alert("請填寫完整的收件資訊");
        return;
     }
 
-    // Assign final computed safe values
-    shippingInfo.name = finalName;
-    shippingInfo.phone = finalPhone;
+    const finalShippingInfo = {
+      ...shippingInfo,
+      name: finalName,
+      phone: finalPhone,
+      address: computedAddress
+    };
 
-    submitAndShowPayment();
+    setShippingInfo(finalShippingInfo);
+    submitAndShowPayment(finalShippingInfo);
   };
 
   const handleSaveSenderAddress = () => {
@@ -433,12 +437,13 @@ function StoreContent() {
     setIsCheckingOut(false);
   };
 
-  const submitAndShowPayment = async () => {
-    if (shippingInfo.method === '自取' && !shippingInfo.address) {
+  const submitAndShowPayment = async (info?: any) => {
+    const currentShippingInfo = info || shippingInfo;
+    if (currentShippingInfo.method === '自取' && !currentShippingInfo.address) {
        alert("請在上方門市卡片中，點擊選擇您的自取門市");
        return;
     }
-    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+    if (!currentShippingInfo.name || !currentShippingInfo.phone || !currentShippingInfo.address) {
        alert("請填寫完整的收件資訊");
        return;
     }
@@ -446,7 +451,7 @@ function StoreContent() {
     setIsCheckingOut(true);
     setOrderItems([...cart]);
     setLastTotalPrice(totalPrice);
-    const fee = shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
+    const fee = currentShippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
     setLastOrderAmount(finalPrice + fee);
     setIsOrderCreated(false);
     setShowShippingModal(false);
@@ -457,17 +462,17 @@ function StoreContent() {
         await supabase
           .from("members")
           .update({
-            name: shippingInfo.name,
-            phone: shippingInfo.phone,
-            address: shippingInfo.address
+            name: currentShippingInfo.name,
+            phone: currentShippingInfo.phone,
+            address: currentShippingInfo.address
           })
           .eq("id", memberInfo.id);
         
         setMemberInfo((prev: any) => ({
           ...prev,
-          name: shippingInfo.name,
-          phone: shippingInfo.phone,
-          address: shippingInfo.address
+          name: currentShippingInfo.name,
+          phone: currentShippingInfo.phone,
+          address: currentShippingInfo.address
         }));
       }
 
@@ -479,7 +484,7 @@ function StoreContent() {
           items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
           discountAmount: discountAmount,
           couponCode: activeCoupon ? activeCoupon.code : null,
-          shippingInfo: shippingInfo
+          shippingInfo: currentShippingInfo
         })
       });
       const data = await res.json();
