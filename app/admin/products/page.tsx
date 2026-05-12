@@ -22,7 +22,9 @@ import {
   Hash,
   Boxes,
   AlertTriangle,
-  X
+  X,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 function AdminProductsContent() {
@@ -180,6 +182,34 @@ function AdminProductsContent() {
       alert("🎉 刪除分類大項成功！");
     } catch (err: any) {
       alert("刪除分類失敗: " + err.message);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === categories.length - 1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const updated = [...categories];
+    const temp = updated[index];
+    updated[index] = updated[newIndex];
+    updated[newIndex] = temp;
+
+    setIsSavingCategory(true);
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updated) })
+        .eq("title", "[SYSTEM_CATEGORIES]");
+      
+      if (error) throw error;
+      
+      dbCache.invalidate("churun_cache:categories");
+      setCategories(updated);
+    } catch (err: any) {
+      alert("排序失敗: " + err.message);
     } finally {
       setIsSavingCategory(false);
     }
@@ -770,7 +800,7 @@ function AdminProductsContent() {
                  <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">目前已啟用的大項分類</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                       {categories.map((cat) => {
+                       {categories.map((cat, index) => {
                           // 計算屬於該大項的商品數量
                           const productCount = products.filter(p => p.category === cat).length;
                           return (
@@ -782,13 +812,36 @@ function AdminProductsContent() {
                                    <span className="text-sm font-black text-slate-800">{cat}</span>
                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">目前關聯品項: {productCount} 個</span>
                                 </div>
-                                <button 
-                                  type="button"
-                                  onClick={() => handleDeleteCategory(cat)}
-                                  className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50 active:scale-90"
-                                >
-                                   <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                   <button 
+                                     type="button"
+                                     disabled={index === 0 || isSavingCategory}
+                                     onClick={() => handleMoveCategory(index, 'up')}
+                                     className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-25 disabled:pointer-events-none rounded-xl transition duration-200 active:scale-90"
+                                     title="向上移動"
+                                   >
+                                      <ArrowUp className="w-4 h-4" />
+                                   </button>
+                                   <button 
+                                     type="button"
+                                     disabled={index === categories.length - 1 || isSavingCategory}
+                                     onClick={() => handleMoveCategory(index, 'down')}
+                                     className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-25 disabled:pointer-events-none rounded-xl transition duration-200 active:scale-90"
+                                     title="向下移動"
+                                   >
+                                      <ArrowDown className="w-4 h-4" />
+                                   </button>
+                                   <div className="w-px h-6 bg-slate-200/60 mx-1" />
+                                   <button 
+                                     type="button"
+                                     disabled={isSavingCategory}
+                                     onClick={() => handleDeleteCategory(cat)}
+                                     className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition duration-200 active:scale-90"
+                                     title="刪除"
+                                   >
+                                      <Trash2 className="w-4 h-4" />
+                                   </button>
+                                </div>
                              </div>
                           );
                        })}
