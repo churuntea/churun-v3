@@ -204,21 +204,34 @@ function StoreContent() {
   };
 
   const handleRecipientNext = () => {
+    const finalName = shippingInfo.name || memberInfo?.name || '';
+    const finalPhone = shippingInfo.phone || memberInfo?.phone || '';
+    const finalAddress = shippingInfo.address || (shippingInfo.method !== '自取' ? (memberInfo?.address || '') : '');
+
     if (shippingInfo.method === '超商取貨') {
       if (!cvsStoreName || !cvsStoreCode) {
         alert("請輸入超商門市名稱與店號");
         return;
       }
       shippingInfo.address = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
+    } else if (shippingInfo.method === '自取') {
+      if (!shippingInfo.address) {
+         alert("請在上方門市卡片中，點擊選擇您的自取門市");
+         return;
+      }
+    } else {
+      shippingInfo.address = finalAddress;
     }
-    if (shippingInfo.method === '自取' && !shippingInfo.address) {
-       alert("請在上方門市卡片中，點擊選擇您的自取門市");
-       return;
-    }
-    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+
+    if (!finalName || !finalPhone || !shippingInfo.address) {
        alert("請填寫完整的收件資訊");
        return;
     }
+
+    // Assign final computed safe values
+    shippingInfo.name = finalName;
+    shippingInfo.phone = finalPhone;
+
     submitAndShowPayment();
   };
 
