@@ -95,13 +95,44 @@ export async function POST(request: Request) {
     // 3. 建立訂單 (狀態改為 pending，待管理者確認)
     const finalAmount = Math.max(0, totalAmount - discountAmount);
     
+    // 產生人性化訂單編號 (會員 B, 合夥人 P, 品牌大使 A)
+    let buyerPrefix = 'B';
+    if (buyer.is_b2b) {
+      if (buyer.tier === 'ambassador' || buyer.tier === '初潤知己' || buyer.tier === '初潤靈魂伴侶' || buyer.type === 'ambassador') {
+        buyerPrefix = 'A';
+      } else {
+        buyerPrefix = 'P';
+      }
+    }
+    const date = new Date();
+    const tzDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+    const yy = String(tzDate.getFullYear()).slice(-2);
+    const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(tzDate.getDate()).padStart(2, '0');
+    const dateString = `${yy}${mm}${dd}`;
+
+    const startOfDay = new Date(tzDate.getFullYear(), tzDate.getMonth(), tzDate.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(tzDate.getFullYear(), tzDate.getMonth(), tzDate.getDate(), 23, 59, 59, 999);
+    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
+
+    const { count, error: countError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDayUTC.toISOString())
+      .lte('created_at', endOfDayUTC.toISOString());
+
+    const seqStr = String((count || 0) + 1).padStart(4, '0');
+    const orderNumber = `${buyerPrefix}${dateString}A${seqStr}`;
+    
     const orderData: any = {
       member_id: buyer.id,
       total_amount: finalAmount,
       original_amount: totalAmount,
       status: 'pending',
       reward_points: totalB2CPoints,
-      b2b_commission: totalB2BCommission
+      b2b_commission: totalB2BCommission,
+      order_number: orderNumber
     };
 
     if (shippingInfo) {
@@ -124,7 +155,7 @@ export async function POST(request: Request) {
     let orderError = null;
 
     // 定義可能缺失的自訂擴充欄位，當發生 DB 欄位不存在錯誤時會自動排除並進行備份
-    const schemaSensitiveColumns = ['shipping_info', 'notes', 'reward_points', 'b2b_commission', 'bank_last_five'];
+    const schemaSensitiveColumns = ['shipping_info', 'notes', 'reward_points', 'b2b_commission', 'bank_last_five', 'order_number'];
     let serializedBackup: any = {};
 
     // 智慧漸進式欄位排除寫入迴圈 (最高重試 6 次以應對多個潛在缺失欄位)
@@ -239,7 +270,7 @@ export async function POST(request: Request) {
 親愛的茶友 ${buyer.name} 您好：
 
 您的特選精品採購訂單已成功建立！
-● 訂單編號：${order.id.slice(0, 8)}...
+● 訂單編號：${orderNumber}
 ● 採購總額：$${finalAmount.toLocaleString()} 元
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
 ● 配送收件人：${shippingInfo?.name || buyer.name}

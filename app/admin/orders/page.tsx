@@ -129,7 +129,7 @@ function AdminOrdersContent() {
         </head>
         <body>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <span style="font-weight: bold; font-size: 12px; color: #999;">訂單編號: ${order.id}</span>
+            <span style="font-weight: bold; font-size: 12px; color: #999;">訂單編號: ${order.order_number || order.id}</span>
             <button onclick="window.print()" style="background: #111827; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">列印此單</button>
           </div>
           <div class="header">
@@ -251,7 +251,7 @@ function AdminOrdersContent() {
       const items = o.order_items ? o.order_items.map((i: any) => `${i.name} x${i.quantity}`).join(', ') : '無';
       return `
         <tr style="font-size: 12px; border-bottom: 1px solid #eee;">
-          <td style="padding: 10px 8px; font-weight: bold; font-family: monospace;">${o.id.substring(0,8)}</td>
+          <td style="padding: 10px 8px; font-weight: bold; font-family: monospace;">${o.order_number || o.id.substring(0,8)}</td>
           <td style="padding: 10px 8px;">
             <div style="font-weight: bold;">${shipping.name || o.members?.name || '無'}</div>
             ${shipping.sender_name ? `<div style="font-size: 10px; color: #d97706; margin-top: 4px; font-weight: 900;">指定寄件: ${shipping.sender_name}</div>` : ''}
@@ -491,6 +491,7 @@ function AdminOrdersContent() {
       order.members?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.members?.phone?.includes(searchTerm) ||
       order.id?.includes(searchTerm) ||
+      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.payment_last_five?.includes(searchTerm) ||
       order.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.shipping_info?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -701,7 +702,9 @@ function AdminOrdersContent() {
                               </div>
                               <div className="space-y-1">
                                  <p className="text-sm font-black text-slate-800">{new Date(order.created_at).toLocaleDateString()}</p>
-                                 <p className="text-[9px] font-mono text-slate-300">ID: {order.id.substring(0, 8)}...</p>
+                                 <p className="text-[10px] font-bold text-slate-400 font-mono">
+                                    {order.order_number ? `編號: ${order.order_number}` : `ID: ${order.id.substring(0, 8)}...`}
+                                 </p>
                               </div>
                            </div>
                         </td>

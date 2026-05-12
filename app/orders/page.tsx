@@ -251,7 +251,14 @@ function OrdersContent() {
                            <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${getStatusStyle(order.status)}`}>
                               {getStatusLabel(order.status)}
                            </div>
-                           <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">ID: {order.id.slice(-8).toUpperCase()}</h4>
+                           <h4 
+                             onClick={() => fetchOrderItems(order.id)}
+                             className="text-[10px] font-black text-slate-400 hover:text-slate-900 cursor-pointer transition uppercase tracking-[0.15em]"
+                             title="點擊查詢訂單詳情"
+                           >
+                              {order.order_number ? `編號: ${order.order_number}` : `ID: ${order.id.slice(-8).toUpperCase()}`}
+                              <span className="text-[7px] px-1 bg-slate-100 text-slate-500 rounded ml-1 font-bold">點擊查詢</span>
+                           </h4>
                         </div>
                         <div className="text-right">
                            <p className="text-2xl font-black text-slate-800 tracking-tighter">${Number(order.total_amount).toLocaleString()}</p>
