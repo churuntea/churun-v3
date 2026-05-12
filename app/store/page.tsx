@@ -105,8 +105,10 @@ function StoreContent() {
   });
   const [showConfirmSenderModal, setShowConfirmSenderModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
+  const [lastTotalPrice, setLastTotalPrice] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   const [couponInput, setCouponInput] = useState("");
@@ -217,7 +219,7 @@ function StoreContent() {
        alert("請填寫完整的收件資訊");
        return;
     }
-    setShowConfirmRecipientModal(true);
+    submitAndShowPayment();
   };
 
   const handleSaveSenderAddress = () => {
@@ -369,6 +371,7 @@ function StoreContent() {
     if (cart.length === 0) return;
     setIsCheckingOut(true);
     setOrderItems([...cart]);
+    setLastTotalPrice(totalPrice);
     
     try {
       if (syncAsDefault && memberInfo) {
@@ -403,6 +406,8 @@ function StoreContent() {
       const data = await res.json();
       if (data.success) {
         setIsOrderCreated(true);
+        setCreatedOrderId(data.orderId);
+        setCreatedOrderNumber(data.orderNumber);
         clearCart();
         fetchData(memberInfo.id); 
       } else {
@@ -427,7 +432,9 @@ function StoreContent() {
 
     setIsCheckingOut(true);
     setOrderItems([...cart]);
-    setLastOrderAmount(finalPrice);
+    setLastTotalPrice(totalPrice);
+    const fee = shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
+    setLastOrderAmount(finalPrice + fee);
     setIsOrderCreated(false);
     setShowShippingModal(false);
     setShowPaymentModal(true);
@@ -465,6 +472,8 @@ function StoreContent() {
       const data = await res.json();
       if (data.success) {
         setIsOrderCreated(true);
+        setCreatedOrderId(data.orderId);
+        setCreatedOrderNumber(data.orderNumber);
         clearCart();
         fetchData(memberInfo.id); 
       } else {
@@ -1995,38 +2004,157 @@ function StoreContent() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-8">
-                   {shippingInfo.method === '自取' && (
-                     <div className="bg-emerald-50/60 rounded-2xl p-4 text-left border border-emerald-100/40 space-y-1">
-                        <p className="text-[10px] font-black text-emerald-850 flex items-center gap-1.5">
-                           <MapPin className="w-3.5 h-3.5 text-emerald-700" /> 🏪 門市自取說明
-                        </p>
-                        <p className="text-[10px] font-bold text-emerald-700 leading-relaxed">
-                           您已選擇【{shippingInfo.address.split('(')[0]}】。請於完成匯款後，前往個人中心回報帳號末五碼，管理員確認入帳後，將第一時間聯絡您預約前往門市自取茶品！
-                        </p>
-                     </div>
-                   )}
-                  <div className="bg-slate-50 rounded-[2rem] p-6 space-y-4 border border-slate-100 max-h-48 overflow-y-auto no-scrollbar">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">訂購明細</p>
-                     {orderItems.map((item, idx) => (
-                       <div key={idx} className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-600">{item.name}</span>
-                          <span className="font-black text-slate-400">x{item.quantity}</span>
-                       </div>
-                      ))}
+                <div className="space-y-6 text-left">
+                   {/* Premium Receipt Header */}
+                   <div className="bg-emerald-900/5 rounded-[2rem] p-6 border border-emerald-900/10 text-center relative overflow-hidden">
+                      <span className="absolute top-0 right-0 -mr-4 -mt-4 w-12 h-12 bg-emerald-500/10 rounded-full blur-xl"></span>
+                      <p className="text-[8px] font-black tracking-widest text-emerald-800 uppercase mb-1">CHURUN TEA HOUSE DIGITAL RECEIPT</p>
+                      <h4 className="text-sm font-black text-slate-800">精選茶品點數商城訂單已建立</h4>
+                      {createdOrderNumber && (
+                         <div className="mt-2.5 inline-block bg-slate-900 text-white px-3.5 py-1 rounded-full text-[9px] font-black tracking-wider">
+                            單號: #{createdOrderNumber}
+                         </div>
+                      )}
                    </div>
-                  <button 
-                    onClick={() => {
-                      setShowPaymentModal(false);
-                      setIsCartOpen(false);
-                      router.push("/orders");
-                    }}
-                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
-                  >
-                     完成結帳，前往查看
-                  </button>
-                 </div>
-              )}
+
+                   {/* CVS/Pickup Notice if applicable */}
+                   {shippingInfo.method === '自取' ? (
+                      <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-1">
+                         <p className="text-[10px] font-black text-emerald-800 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-700" /> 🏪 門市自取說明
+                         </p>
+                         <p className="text-[10px] font-bold text-emerald-750 leading-relaxed">
+                            請於完成匯款後，前往個人中心回報帳號末五碼，管理員將第一時間安排您至【{shippingInfo.address.split('(')[0]}】取貨！
+                         </p>
+                      </div>
+                   ) : shippingInfo.method === '超商取貨' ? (
+                      <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl space-y-1">
+                         <p className="text-[10px] font-black text-blue-800 flex items-center gap-1.5">
+                            🏪 超商門市取件
+                         </p>
+                         <p className="text-[10px] font-bold text-blue-700 leading-relaxed">
+                            商品將寄送至指定的超商門市。請留意簡訊通知，並持證件前往取件。
+                         </p>
+                      </div>
+                   ) : null}
+
+                   {/* 1. 品項與明細 (Products) */}
+                   <div className="bg-slate-50/70 rounded-[2rem] p-5 border border-slate-100 space-y-3.5">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">🛒 訂購品項與金額</p>
+                      <div className="space-y-2.5 max-h-40 overflow-y-auto no-scrollbar pr-1">
+                         {orderItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs">
+                               <span className="font-extrabold text-slate-600 truncate max-w-[170px]">{item.name}</span>
+                               <span className="font-black text-slate-800">x{item.quantity} (${(item.price * item.quantity).toLocaleString()})</span>
+                            </div>
+                         ))}
+                      </div>
+
+                      <div className="border-t border-slate-200/50 pt-3.5 space-y-2 text-xs">
+                         <div className="flex justify-between items-center text-slate-400 font-bold">
+                            <span>商品原價總計</span>
+                            <span>${lastTotalPrice.toLocaleString()}</span>
+                         </div>
+                         {discountAmount > 0 && (
+                            <div className="flex justify-between items-center text-rose-500 font-bold">
+                               <span>優惠折抵 ({activeCoupon?.name})</span>
+                               <span>-${discountAmount.toLocaleString()}</span>
+                            </div>
+                         )}
+                         <div className="flex justify-between items-center text-slate-400 font-bold">
+                            <span>運費 ({shippingInfo.method})</span>
+                            <span>{shippingInfo.method === '自取' ? '$0 (自取免運)' : ((Math.max(0, lastTotalPrice - discountAmount)) >= 1000 ? '$0 (滿千免運)' : '$70')}</span>
+                         </div>
+                         <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2.5 text-slate-900 font-black">
+                            <span className="text-xs">應付總金額</span>
+                            <span className="text-base text-emerald-900 font-black">${lastOrderAmount.toLocaleString()} 元</span>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* 2. 訂購人與收件人資訊 */}
+                   <div className="bg-slate-50/70 rounded-[2rem] p-5 border border-slate-100 space-y-3.5">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">👤 配送與聯絡資訊</p>
+                      
+                      {/* 訂購人 */}
+                      <div className="text-xs pb-3 border-b border-slate-200/40 space-y-1">
+                         <div className="flex justify-between items-center">
+                            <span className="font-black text-slate-400">訂購人 (寄件人)</span>
+                            <span className="font-extrabold text-slate-700">{shippingInfo.senderName || memberInfo?.name || "會員本人"}</span>
+                         </div>
+                         <p className="text-[10px] text-slate-400 text-right">{shippingInfo.senderPhone || memberInfo?.phone}</p>
+                      </div>
+
+                      {/* 收件人 */}
+                      <div className="text-xs space-y-2">
+                         <div className="flex justify-between items-center">
+                            <span className="font-black text-slate-400">收件人</span>
+                            <span className="font-extrabold text-slate-700">{shippingInfo.name}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                            <span className="font-black text-slate-400">收件人電話</span>
+                            <span className="font-extrabold text-slate-700">{shippingInfo.phone}</span>
+                         </div>
+                         <div className="flex flex-col gap-1 pt-1">
+                            <span className="font-black text-slate-400">收件地址</span>
+                            <span className="font-extrabold text-slate-700 leading-relaxed text-left break-all">{shippingInfo.address}</span>
+                         </div>
+                         {shippingInfo.notes && (
+                            <div className="flex flex-col gap-1 pt-1">
+                               <span className="font-black text-slate-400">訂單備註</span>
+                               <span className="font-extrabold text-rose-600/90 leading-relaxed text-left break-all">{shippingInfo.notes}</span>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+
+                   {/* 3. 匯款資訊 */}
+                   <div className="bg-slate-900 text-white rounded-[2rem] p-6 space-y-4 shadow-lg border border-white/5">
+                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">🏦 專屬匯款轉帳帳號</p>
+                      <div className="space-y-2 text-xs">
+                         <div className="flex justify-between">
+                            <span className="text-white/60 font-bold">銀行代碼</span>
+                            <span className="font-extrabold text-white">國泰世華銀行 (013)</span>
+                         </div>
+                         <div className="flex justify-between">
+                            <span className="text-white/60 font-bold">戶名</span>
+                            <span className="font-extrabold text-white">安信商業有限公司</span>
+                         </div>
+                         <div className="flex justify-between items-center pt-2.5 border-t border-white/10">
+                            <span className="text-white/60 font-bold">匯款帳號</span>
+                            <div className="flex items-center gap-1.5">
+                               <span className="font-black text-emerald-300 tracking-wider">214-03-500450-5</span>
+                               <button 
+                                 type="button"
+                                 onClick={() => {
+                                   navigator.clipboard.writeText("214-03-500450-5");
+                                   setCopied(true);
+                                   setTimeout(() => setCopied(false), 2000);
+                                 }}
+                                 className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-[8px] font-black rounded-lg transition"
+                               >
+                                  {copied ? "已複製" : "複製"}
+                               </button>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-[9px] text-emerald-300 leading-relaxed font-bold">
+                         💡 請匯入正確金額 <span className="underline">${lastOrderAmount.toLocaleString()}</span> 元。完成後至個人中心點選【回報匯款】，管理員核對完成後系統將發放紅利點數。
+                      </div>
+                   </div>
+
+                   <button 
+                     onClick={() => {
+                       setShowPaymentModal(false);
+                       setIsCartOpen(false);
+                       router.push("/orders");
+                     }}
+                     className="w-full bg-slate-900 hover:bg-slate-800 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-950/20 active:scale-[0.98] transition duration-200"
+                   >
+                      完成結帳，前往查看
+                   </button>
+                </div>
+               )}
             </motion.div>
           </div>
         )}

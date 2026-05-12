@@ -95,6 +95,13 @@ export async function POST(request: Request) {
     // 3. 建立訂單 (狀態改為 pending，待管理者確認)
     const finalAmount = Math.max(0, totalAmount - discountAmount);
     
+    // 計算運費邏輯：自取為 $0，超商取貨或宅配到府若金額 999 內收 $70，1000 以上免運
+    let shippingFee = 0;
+    if (shippingInfo && shippingInfo.method !== '自取') {
+      shippingFee = finalAmount >= 1000 ? 0 : 70;
+    }
+    const orderTotalAmount = finalAmount + shippingFee;
+
     // 產生人性化訂單編號 (會員 B, 合夥人 P, 品牌大使 A)
     let buyerPrefix = 'B';
     if (buyer.is_b2b) {
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
     
     const orderData: any = {
       member_id: buyer.id,
-      total_amount: finalAmount,
+      total_amount: orderTotalAmount, // 儲存包含運費後的總計金額
       original_amount: totalAmount,
       status: 'pending',
       reward_points: totalB2CPoints,
@@ -144,7 +151,8 @@ export async function POST(request: Request) {
         sender_name: shippingInfo.senderName || '',
         sender_phone: shippingInfo.senderPhone || '',
         sender_address: shippingInfo.senderAddress || '',
-        sender_notes: shippingInfo.senderNotes || ''
+        sender_notes: shippingInfo.senderNotes || '',
+        shipping_fee: shippingFee // 額外紀錄運費，方便前端與後台明細讀取
       };
       if (shippingInfo.notes) {
         orderData.notes = shippingInfo.notes;
@@ -252,7 +260,7 @@ export async function POST(request: Request) {
     await supabase.from('notifications').insert({
       member_id: buyer.id,
       title: '訂單已建立，待審核',
-      content: `您的訂單 $${finalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
+      content: `您的訂單 $${orderTotalAmount.toLocaleString()} 已建立成功，請完成匯款。管理員將在 1-2 個工作天內核對入帳。`,
       type: 'order'
     });
 
@@ -272,7 +280,9 @@ export async function POST(request: Request) {
 
 您的特選精品採購訂單已成功建立！
 ● 訂單編號：${orderNumber}
-● 採購總額：$${finalAmount.toLocaleString()} 元
+● 商品小計：$${finalAmount.toLocaleString()} 元
+● 運費金額：$${shippingFee.toLocaleString()} 元
+● 採購總額：$${orderTotalAmount.toLocaleString()} 元
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
 ● 配送收件人：${shippingInfo?.name || buyer.name}
 ━━━━━━━━━━━━━━━━━━
@@ -283,7 +293,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
       await sendLinePushNotification(buyer.line_id, pushText);
     }
 
-    return NextResponse.json({ success: true, message, orderId: order.id });
+    return NextResponse.json({ success: true, message, orderId: order.id, orderNumber: order.order_number });
 
   } catch (error: any) {
     console.error('Order Error:', error);

@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
-import "./globals.css";
-import PageTransition from "@/components/PageTransition";
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  weight: ["100", "300", "400", "700", "900"],
-});
+// Local font fallback to prevent build-time network download failures on Google Fonts
+const outfit = {
+  variable: "font-sans",
+};
 
 export const metadata: Metadata = {
   title: "CHURUN - PREMIUM V3.0.0",
@@ -22,6 +17,8 @@ export const viewport = {
   viewportFit: "cover",
 };
 
+import "./globals.css";
+import PageTransition from "@/components/PageTransition";
 import { CartProvider } from "./context/CartContext";
 
 export default function RootLayout({
@@ -34,6 +31,11 @@ export default function RootLayout({
       lang="zh-TW"
       className={`${outfit.variable} h-full antialiased overflow-x-hidden w-full`}
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;400;700;900&display=swap" rel="stylesheet" />
+      </head>
       <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans overflow-x-hidden w-full">
         <CartProvider>
           <PageTransition>

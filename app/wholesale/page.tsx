@@ -57,7 +57,7 @@ function WholesaleContent() {
   // 採購與配送優化狀態
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showShippingModal, setShowShippingModal] = useState(false);
-  const [shippingSubStep, setShippingSubStep] = useState<'sender' | 'recipient'>('sender');
+  const [shippingSubStep, setShippingSubStep] = useState<'sender' | 'recipient' | 'payment_review'>('sender');
   const [showAddressBookModal, setShowAddressBookModal] = useState(false);
   const [addressSearchTerm, setAddressSearchTerm] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
@@ -229,6 +229,13 @@ function WholesaleContent() {
   };
 
   const handleRecipientNext = () => {
+    if (!shippingInfo.name && memberInfo) {
+      shippingInfo.name = memberInfo.name || '';
+    }
+    if (!shippingInfo.phone && memberInfo) {
+      shippingInfo.phone = memberInfo.phone || '';
+    }
+
     if (shippingInfo.method === '超商取貨') {
       if (!cvsStoreName || !cvsStoreCode) {
         alert("請輸入超商門市名稱與店號");
@@ -244,7 +251,7 @@ function WholesaleContent() {
        alert("請填寫完整的收件資訊");
        return;
     }
-    setShowConfirmRecipientModal(true);
+    setShippingSubStep('payment_review');
   };
 
   const handleSaveSenderAddress = () => {
@@ -314,9 +321,16 @@ function WholesaleContent() {
   const discountAmount = getDiscountAmount();
   const finalAmount = Math.max(0, totalAmount - discountAmount);
 
+  const getShippingFee = () => {
+    if (shippingInfo.method === '自取') return 0;
+    return finalAmount >= 1000 ? 0 : 70;
+  };
+  const shippingFee = getShippingFee();
+  const orderTotalAmount = finalAmount + shippingFee;
+
   const handleCheckout = async () => {
     if (totalAmount <= 0) return;
-    if (memberInfo.virtual_balance < finalAmount) {
+    if (memberInfo.virtual_balance < orderTotalAmount) {
       alert("預收款餘額不足，請先聯繫總部儲值。");
       return;
     }
@@ -372,7 +386,7 @@ function WholesaleContent() {
           console.error("更新優惠券狀態為已使用失敗:", couponErr);
         }
       }
-      router.push(`/order-success?id=${result.orderId || ''}&amount=${finalAmount}`);
+      router.push(`/order-success?id=${result.orderId || ''}&amount=${orderTotalAmount}`);
     } else {
       alert("結帳失敗: " + result.error);
       setIsSubmitting(false);
@@ -1017,7 +1031,7 @@ function WholesaleContent() {
                         </button>
                      </div>
                   </div>
-               ) : (
+               ) : shippingSubStep === 'recipient' ? (
                   <div className="space-y-6">
                      {/* Progress Bar */}
                      <div className="flex items-center justify-between mb-8 px-4 shrink-0">
@@ -1068,6 +1082,9 @@ function WholesaleContent() {
                      </div>
 
                      <div className="space-y-5">
+                         {shippingInfo.method === '宅配到府' && (
+                            <>
+
                         {/* Default Address Summary Box */}
                         {!isEditingShipping ? (
                            <div className="bg-emerald-50/20 border border-emerald-900/10 p-6 rounded-[2rem] text-left space-y-3 shadow-inner">
@@ -1110,6 +1127,8 @@ function WholesaleContent() {
                               <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Change Recipient Details</p>
                            </div>
                         </label>
+                            </>
+                         )}
 
                         {isEditingShipping && (
                            <motion.div 
@@ -1389,23 +1408,150 @@ function WholesaleContent() {
                         </div>
                      </div>
 
-                     <div className="space-y-4 pt-4">
-                        <button 
-                          onClick={handleRecipientNext}
-                          disabled={isSubmitting}
-                          className="w-full bg-emerald-950 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-955/20 flex items-center justify-center gap-2"
-                        >
-                           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "我已確認，送出採購訂單"}
-                        </button>
-                        <button 
-                          onClick={() => setShippingSubStep('sender')}
-                          className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
-                        >
-                           上一步 (修改確認寄件)
-                        </button>
-                     </div>
-                  </div>
-               )}
+                                           <div className="space-y-4 pt-4">
+                         <button 
+                           onClick={handleRecipientNext}
+                           className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
+                         >
+                            確認無誤，下一步 (進入總確認)
+                         </button>
+                         <button 
+                           onClick={() => setShippingSubStep('sender')}
+                           className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
+                         >
+                            上一步 (修改確認寄件)
+                         </button>
+                      </div>
+                   </div>
+                ) : (
+                   <div className="space-y-6">
+                      {/* Step 4: Progress Bar */}
+                      <div className="flex items-center justify-between mb-8 px-4 shrink-0">
+                         <div className="flex flex-col items-center">
+                            <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
+                            <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認明細</span>
+                         </div>
+                         <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
+                         <div className="flex flex-col items-center">
+                            <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
+                            <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認寄件</span>
+                         </div>
+                         <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
+                         <div className="flex flex-col items-center">
+                            <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
+                            <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">填寫收件</span>
+                         </div>
+                         <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
+                         <div className="flex flex-col items-center">
+                            <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">4</span>
+                            <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">扣款確認</span>
+                         </div>
+                      </div>
+
+                      {/* Step 4 Contents */}
+                      <div className="text-center">
+                         <h3 className="text-xl font-black text-slate-900">採購扣款與訂單總確認</h3>
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Virtual Balance Payment Confirmation</p>
+                      </div>
+
+                      {/* Virtual Balance Card */}
+                      <div className="bg-gradient-to-br from-slate-900 to-emerald-955 text-white p-6 rounded-[2rem] text-left space-y-4 shadow-xl">
+                         <div className="flex justify-between items-center">
+                            <span className="text-[8px] font-black bg-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-widest text-emerald-300">
+                               💰 預收款帳戶餘額
+                            </span>
+                            <span className="text-[9px] text-white/50 font-bold uppercase tracking-widest">Pre-payments Balance</span>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                               <p className="text-[10px] font-bold text-white/60">目前餘額</p>
+                               <p className="text-base font-black tracking-wide">${(memberInfo?.virtual_balance || 0).toLocaleString()} 元</p>
+                            </div>
+                            <div>
+                               <p className="text-[10px] font-bold text-emerald-300/80">應扣款總額</p>
+                               <p className="text-base font-black text-emerald-300 tracking-wide">-${orderTotalAmount.toLocaleString()} 元</p>
+                            </div>
+                         </div>
+                         <div className="border-t border-white/10 pt-3 flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-white/60">扣款後餘額</span>
+                            <span className="text-xs font-black text-emerald-200">
+                               ${( (memberInfo?.virtual_balance || 0) - orderTotalAmount ).toLocaleString()} 元
+                            </span>
+                         </div>
+                      </div>
+
+                      {/* Itemized Order Confirmation Box */}
+                      <div className="bg-slate-50 border border-slate-100 p-6 rounded-[2rem] text-left space-y-4">
+                         <span className="text-[8px] font-black text-slate-400 bg-slate-200/50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            🛒 採購商品明細
+                         </span>
+                         <div className="space-y-3 max-h-40 overflow-y-auto no-scrollbar">
+                            {Object.entries(cart).map(([id, qty]) => {
+                               const product = products.find(p => p.id === id);
+                               if (!product) return null;
+                               return (
+                                  <div key={id} className="flex justify-between items-center text-xs">
+                                     <span className="font-bold text-slate-600 truncate max-w-[180px]">{product.name}</span>
+                                     <span className="font-black text-slate-800 shrink-0">x {qty} (${(product.wholesale_price * qty).toLocaleString()})</span>
+                                  </div>
+                               );
+                            })}
+                         </div>
+
+                         <div className="border-t border-slate-200/60 pt-3 space-y-2 text-xs">
+                            <div className="flex justify-between items-center text-slate-500 font-bold">
+                               <span>商品小計</span>
+                               <span>${totalAmount.toLocaleString()}</span>
+                            </div>
+                            {discountAmount > 0 && (
+                               <div className="flex justify-between items-center text-rose-500 font-bold">
+                                  <span>優惠券折抵</span>
+                                  <span>-${discountAmount.toLocaleString()}</span>
+                               </div>
+                            )}
+                            <div className="flex justify-between items-center text-slate-500 font-bold">
+                               <span>運費小計 ({shippingInfo.method})</span>
+                               <span>{shippingFee === 0 ? "免運 ($0)" : `${shippingFee}`}</span>
+                            </div>
+                            <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-800 font-black">
+                               <span className="text-sm">應扣款總額</span>
+                               <span className="text-base text-emerald-900 font-extrabold">${orderTotalAmount.toLocaleString()} 元</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Order Summary Confirmation Card */}
+                      <div className="bg-amber-50/40 border border-amber-900/10 p-5 rounded-2xl text-left space-y-2">
+                         <p className="text-[9px] font-black text-amber-800 bg-amber-100/60 px-2.5 py-1 rounded-full uppercase tracking-widest w-max">
+                            ⚠️ 採購確認注意事項
+                         </p>
+                         <p className="text-[11px] font-bold text-amber-900/80 leading-relaxed">
+                            請確認您的收件人姓名、電話、地址以及寄件人備註無誤。送出採購訂單後，系統將直接從您的加盟合作商預收款帳戶餘額中扣減應扣款總額，並立即同步發布出貨通知至總部物流中心。
+                         </p>
+                      </div>
+
+                      <div className="space-y-4 pt-4">
+                         <button 
+                           onClick={handleCheckout}
+                           disabled={isSubmitting}
+                           className="w-full bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20 transition flex items-center justify-center gap-2"
+                         >
+                            {isSubmitting ? (
+                               <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>採購提單中...</span>
+                               </>
+                            ) : "確認無誤，送出採購單扣款"}
+                         </button>
+                         <button 
+                           onClick={() => setShippingSubStep('recipient')}
+                           className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
+                         >
+                            上一步 (修改收件資訊)
+                         </button>
+                      </div>
+                   </div>
+                )}
             </motion.div>
           </div>
         )}
