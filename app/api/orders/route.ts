@@ -168,3 +168,82 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const { orderId, lastFive } = await request.json();
+
+    if (!orderId || !lastFive || lastFive.length !== 5) {
+      return NextResponse.json({ success: false, error: '缺少必要參數或末五碼長度不正確' }, { status: 400 });
+    }
+
+    console.log(`[API PUT Orders] Received request to update remittance last five to ${lastFive} for Order ${orderId}`);
+
+    // 1. 嘗試直接使用 admin 權限物理更新 payment_last_five 欄位
+    let { error } = await supabase
+      .from('orders')
+      .update({ payment_last_five: lastFive })
+      .eq('id', orderId);
+
+    // 2. 若不支援，嘗試物理更新 bank_last_five 欄位
+    if (error) {
+      console.warn(`[API PUT Orders] Direct payment_last_five update failed (likely missing column). Trying bank_last_five...`);
+      const res = await supabase
+        .from('orders')
+        .update({ bank_last_five: lastFive })
+        .eq('id', orderId);
+      error = res.error;
+    }
+
+    // 3. 若均失敗，啟動備份寫入機制（將欄位包裝寫入 custom_logo_url）
+    if (error) {
+      console.warn(`[API PUT Orders] Physical columns failed. Saving to custom_logo_url as FALLBACK_JSON.`);
+      
+      const { data: currentOrder, error: fetchErr } = await supabase
+        .from('orders')
+        .select('custom_logo_url')
+        .eq('id', orderId)
+        .single();
+
+      if (!fetchErr && currentOrder) {
+        let existingJSON: Record<string, any> = {};
+        const logoUrlVal = currentOrder.custom_logo_url || '';
+
+        if (logoUrlVal.startsWith('FALLBACK_JSON:')) {
+          try {
+            existingJSON = JSON.parse(logoUrlVal.substring('FALLBACK_JSON:'.length));
+          } catch (e) {
+            console.error('[API PUT Orders] Failed to parse existing fallback JSON:', e);
+          }
+        } else if (logoUrlVal) {
+          existingJSON.original_logo_url = logoUrlVal;
+        }
+
+        existingJSON.payment_last_five = lastFive;
+        existingJSON.bank_last_five = lastFive;
+
+        const fallbackStr = 'FALLBACK_JSON:' + JSON.stringify(existingJSON);
+
+        const { error: writeErr } = await supabase
+          .from('orders')
+          .update({ custom_logo_url: fallbackStr })
+          .eq('id', orderId);
+
+        error = writeErr;
+      } else {
+        error = fetchErr || new Error('Failed to fetch order for JSON fallback write');
+      }
+    }
+
+    if (error) {
+      console.error('[API PUT Orders] All write attempts failed:', error);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: '匯款末五碼回報成功' });
+
+  } catch (error: any) {
+    console.error('[API PUT Orders] Server Exception:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
