@@ -82,6 +82,130 @@ function AdminOrdersContent() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
+  // 自取點管理狀態與載入
+  const [showPickupPointsModal, setShowPickupPointsModal] = useState(false);
+  const [pickupPoints, setPickupPoints] = useState<any[]>([]);
+  const [editingPickupPointId, setEditingPickupPointId] = useState<string | null>(null);
+  const [pickupForm, setPickupForm] = useState({
+    name: "",
+    contact_person: "",
+    phone: "",
+    address: "",
+    notes: ""
+  });
+  const [isSavingPickupPoint, setIsSavingPickupPoint] = useState(false);
+
+  const fetchPickupPoints = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("title", "[SYSTEM_PICKUP_POINTS]")
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data && data.content) {
+        try {
+          const parsed = JSON.parse(data.content);
+          if (Array.isArray(parsed)) {
+            setPickupPoints(parsed);
+            return;
+          }
+        } catch (e) {
+          console.error("解析自取點 JSON 失敗:", e);
+        }
+      }
+
+      // 預設備份
+      const defaultPoints = [
+        { id: "caotun", name: "草屯自由總店", address: "南投縣草屯鎮自由街34號", contact_person: "陳總經理", phone: "0939734771", notes: "營業時間：09:00 - 21:00" },
+        { id: "daye", name: "台中大業店", address: "台中市南屯區大業路234號", contact_person: "台中店長", phone: "04-23214567", notes: "營業時間：10:00 - 22:00" },
+        { id: "caotun_b2c", name: "南投草屯自取點", address: "南投縣草屯鎮草鞋墩一街 (請聯繫總部預約自取)", contact_person: "草屯客服", phone: "聯絡總部辦理", notes: "請先致電客服預約" },
+        { id: "xinzhuang_b2c", name: "新北新莊自取點", address: "新北市新莊區中正路 (請聯繫總部預約自取)", contact_person: "新莊客服", phone: "聯絡總部辦理", notes: "請先致電客服預約" },
+        { id: "wugu_b2c", name: "新北五股自取點", address: "新北市五股區成泰路 (請聯繫總部預約自取)", contact_person: "五股客服", phone: "聯絡總部辦理", notes: "請先致電客服預約" },
+        { id: "xinyi_b2c", name: "台北信義自取點", address: "台北市信義區松山路 (請聯繫總部預約自取)", contact_person: "信義客服", phone: "聯絡總部辦理", notes: "請先致電客服預約" }
+      ];
+
+      await supabase
+        .from("announcements")
+        .insert({
+          title: "[SYSTEM_PICKUP_POINTS]",
+          tag: "SYSTEM",
+          content: JSON.stringify(defaultPoints),
+          color: "bg-emerald-900"
+        });
+
+      setPickupPoints(defaultPoints);
+    } catch (err) {
+      console.error("載入自取點失敗:", err);
+    }
+  };
+
+  const handleSavePickupPoint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pickupForm.name || !pickupForm.address) {
+      alert("據點名稱與地址為必填欄位！");
+      return;
+    }
+
+    setIsSavingPickupPoint(true);
+    try {
+      let updatedPoints = [...pickupPoints];
+      if (editingPickupPointId) {
+        updatedPoints = updatedPoints.map(pt => 
+          pt.id === editingPickupPointId 
+            ? { ...pt, ...pickupForm } 
+            : pt
+        );
+      } else {
+        const newPoint = {
+          id: Math.random().toString(36).substring(2, 9),
+          ...pickupForm
+        };
+        updatedPoints.push(newPoint);
+      }
+
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updatedPoints) })
+        .eq("title", "[SYSTEM_PICKUP_POINTS]");
+
+      if (error) throw error;
+
+      setPickupPoints(updatedPoints);
+      setPickupForm({ name: "", contact_person: "", phone: "", address: "", notes: "" });
+      setEditingPickupPointId(null);
+      alert("🎉 自取地點儲存成功！");
+    } catch (err: any) {
+      alert("儲存自取地點失敗: " + err.message);
+    } finally {
+      setIsSavingPickupPoint(false);
+    }
+  };
+
+  const handleDeletePickupPoint = async (id: string) => {
+    if (!confirm("確定要刪除此自取地點嗎？")) return;
+    
+    setIsSavingPickupPoint(true);
+    try {
+      const updatedPoints = pickupPoints.filter(pt => pt.id !== id);
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updatedPoints) })
+        .eq("title", "[SYSTEM_PICKUP_POINTS]");
+
+      if (error) throw error;
+
+      setPickupPoints(updatedPoints);
+      alert("🎉 自取地點刪除成功！");
+    } catch (err: any) {
+      alert("刪除自取地點失敗: " + err.message);
+    } finally {
+      setIsSavingPickupPoint(false);
+    }
+  };
+
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
     if (auth !== "true") {
@@ -90,6 +214,7 @@ function AdminOrdersContent() {
     }
     setIsAdmin(true);
     fetchOrders();
+    fetchPickupPoints();
   }, [router]);
 
   const handlePrintPackingSlip = (order: any) => {
@@ -539,6 +664,12 @@ function AdminOrdersContent() {
             </div>
          </div>
          <div className="flex gap-2">
+            <button 
+               onClick={() => setShowPickupPointsModal(true)} 
+               className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-[1.5rem] hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/20 text-[10px] font-black uppercase tracking-widest"
+            >
+               📍 自取點管理
+            </button>
             <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest">
                <Download className="w-4 h-4" /> 匯出訂單 (CSV)
             </button>
@@ -1118,6 +1249,217 @@ function AdminOrdersContent() {
                   )}
                   確認整批出貨
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showPickupPointsModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[3.5rem] p-10 max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-50"
+            >
+              {/* Modal Header */}
+              <div className="flex justify-between items-center pb-6 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-inner">
+                    <Truck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800">自取點管理中心</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Manage Self-Pickup Locations</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowPickupPointsModal(false);
+                    setEditingPickupPointId(null);
+                    setPickupForm({ name: "", contact_person: "", phone: "", address: "", notes: "" });
+                  }}
+                  className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition active:scale-95"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body - 2 Columns */}
+              <div className="flex-1 overflow-y-auto py-8 grid grid-cols-1 md:grid-cols-5 gap-10 min-h-0 pr-2">
+                {/* Left Column: Existing List */}
+                <div className="md:col-span-3 space-y-4 overflow-y-auto max-h-[60vh] pr-2">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                     📋 現有自取據點 ({pickupPoints.length})
+                  </h4>
+                  {pickupPoints.map((pt) => (
+                    <div 
+                      key={pt.id} 
+                      className={`p-6 rounded-3xl border transition flex flex-col gap-3 ${
+                        editingPickupPointId === pt.id 
+                          ? "bg-emerald-50/30 border-emerald-500 shadow-lg shadow-emerald-500/5" 
+                          : "bg-slate-50 border-slate-100 hover:bg-white hover:shadow-md"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full uppercase tracking-widest leading-none">
+                            自取據點
+                          </span>
+                          <h5 className="font-black text-slate-800 text-sm mt-1">{pt.name}</h5>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingPickupPointId(pt.id);
+                              setPickupForm({
+                                name: pt.name || "",
+                                contact_person: pt.contact_person || "",
+                                phone: pt.phone || "",
+                                address: pt.address || "",
+                                notes: pt.notes || ""
+                              });
+                            }}
+                            className="px-4 py-2 bg-white hover:bg-indigo-50 border border-slate-100 rounded-xl text-xs font-black text-indigo-600 transition shadow-sm active:scale-95"
+                          >
+                            編輯
+                          </button>
+                          <button
+                            onClick={() => handleDeletePickupPoint(pt.id)}
+                            className="px-4 py-2 bg-white hover:bg-rose-50 border border-slate-100 rounded-xl text-xs font-black text-rose-600 transition shadow-sm active:scale-95"
+                          >
+                            刪除
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200/40 text-[11px] font-bold text-slate-500">
+                        <div>
+                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-0.5">👤 據點負責人</p>
+                          <p className="text-slate-700">{pt.contact_person || "未設定"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-0.5">📞 連絡電話</p>
+                          <p className="text-slate-700">{pt.phone || "未設定"}</p>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] font-bold text-slate-500 space-y-2 pt-2 border-t border-slate-200/40">
+                        <div>
+                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-0.5">📍 據點地址</p>
+                          <p className="text-slate-700 break-all leading-relaxed">{pt.address}</p>
+                        </div>
+                        {pt.notes && (
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-0.5">📝 備註說明</p>
+                            <p className="text-slate-600 italic break-all leading-relaxed">{pt.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {pickupPoints.length === 0 && (
+                    <div className="py-12 text-center text-slate-300 font-bold space-y-2">
+                      <Truck className="w-10 h-10 mx-auto text-slate-200" />
+                      <p className="text-xs">尚無自取地點，請在右側新增！</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Add/Edit Form */}
+                <div className="md:col-span-2 bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 flex flex-col justify-between max-h-[60vh] overflow-y-auto">
+                  <form onSubmit={handleSavePickupPoint} className="space-y-4">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                      {editingPickupPointId ? "✏️ 編輯自取點" : "✨ 新增自取點"}
+                    </h4>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">據點名稱 (必填)</label>
+                      <input 
+                        type="text" 
+                        value={pickupForm.name}
+                        onChange={e => setPickupForm({ ...pickupForm, name: e.target.value })}
+                        placeholder="例：台北大安店、桃園桃子點..." 
+                        className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">據點負責人</label>
+                      <input 
+                        type="text" 
+                        value={pickupForm.contact_person}
+                        onChange={e => setPickupForm({ ...pickupForm, contact_person: e.target.value })}
+                        placeholder="例：張主管" 
+                        className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">連絡電話</label>
+                      <input 
+                        type="text" 
+                        value={pickupForm.phone}
+                        onChange={e => setPickupForm({ ...pickupForm, phone: e.target.value })}
+                        placeholder="例：0912345678" 
+                        className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">地址 (必填)</label>
+                      <input 
+                        type="text" 
+                        value={pickupForm.address}
+                        onChange={e => setPickupForm({ ...pickupForm, address: e.target.value })}
+                        placeholder="例：台北市大安區忠孝東路三段..." 
+                        className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">備註說明</label>
+                      <textarea 
+                        value={pickupForm.notes}
+                        onChange={e => setPickupForm({ ...pickupForm, notes: e.target.value })}
+                        placeholder="例：營業時間、特定預約說明等..." 
+                        rows={2}
+                        className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-sm focus:ring-2 focus:ring-emerald-500/10 outline-none resize-none leading-relaxed"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <button 
+                        type="submit"
+                        disabled={isSavingPickupPoint}
+                        className="flex-1 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-md transition active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        {isSavingPickupPoint ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : editingPickupPointId ? (
+                          "儲存修改"
+                        ) : (
+                          "確認新增"
+                        )}
+                      </button>
+                      {editingPickupPointId && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setEditingPickupPointId(null);
+                            setPickupForm({ name: "", contact_person: "", phone: "", address: "", notes: "" });
+                          }}
+                          className="px-6 py-4 bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition active:scale-95"
+                        >
+                          取消
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
               </div>
             </motion.div>
           </div>

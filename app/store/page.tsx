@@ -131,6 +131,39 @@ function StoreContent() {
   const [cvsStoreName, setCvsStoreName] = useState("");
   const [cvsStoreCode, setCvsStoreCode] = useState("");
 
+  const [dynamicPickupPoints, setDynamicPickupPoints] = useState<any[]>([
+    { name: "草屯自由總店", address: "南投縣草屯鎮自由街34號" },
+    { name: "台中大業店", address: "台中市南屯區大業路234號" },
+    { name: "南投草屯自取點", address: "南投縣草屯鎮草鞋墩一街 (請聯繫總部預約自取)" },
+    { name: "新北新莊自取點", address: "新北市新莊區中正路 (請聯繫總部預約自取)" },
+    { name: "新北五股自取點", address: "新北市五股區成泰路 (請聯繫總部預約自取)" },
+    { name: "台北信義自取點", address: "台北市信義區松山路 (請聯繫總部預約自取)" }
+  ]);
+
+  useEffect(() => {
+    const fetchDynamicPickupPoints = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("announcements")
+          .select("*")
+          .eq("title", "[SYSTEM_PICKUP_POINTS]")
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data && data.content) {
+          const parsed = JSON.parse(data.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDynamicPickupPoints(parsed);
+          }
+        }
+      } catch (err) {
+        console.error("載入動態自取點失敗:", err);
+      }
+    };
+    fetchDynamicPickupPoints();
+  }, []);
+
   useEffect(() => {
     if (shippingInfo.method === '超商取貨') {
       const compiledAddress = `[${cvsBrand}] 門市:${cvsStoreName || ''} (店號:${cvsStoreCode || ''})`;
@@ -1622,10 +1655,7 @@ function StoreContent() {
                            <div className="space-y-4 pt-2">
                               <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">選擇自取門市</label>
                               <div className="grid grid-cols-2 gap-3">
-                                 {[
-                                    { name: "草屯自由總店", address: "南投縣草屯鎮自由街34號" },
-                                    { name: "台中大業店", address: "台中市南屯區大業路234號" }
-                                 ].map(store => {
+                                 {dynamicPickupPoints.map(store => {
                                     const isSelected = shippingInfo.address.startsWith(store.name);
                                     return (
                                        <div 
