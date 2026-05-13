@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/supabase-admin";
 import * as crypto from "crypto";
 
+export const dynamic = 'force-dynamic';
+
 // 取得環境變數（支援本機設定與 Vercel 後台，附帶萬用測試用備用金鑰）
-const LINE_CHANNEL_ACCESS_TOKEN: string = "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rKyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
+const LINE_CHANNEL_ACCESS_TOKEN: string = "CiRlqfOcTMzqJiMP4sDhyLXRcnumu3xBCjCgEXhCvAW1PwF7x5gRquHYibBGwbEb4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoNHFA9hLLN4NzcLRxhsTi6ixe6SdatJ5VX7swRxbIpgRAdB04t89/10/w1cDnyilFU=";
 const LINE_CHANNEL_SECRET: string = "62fe3ed0c41fc24d2959dc2977c11db6";
 
 const LINKED_QUICK_REPLIES = [
