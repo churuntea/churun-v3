@@ -3,8 +3,8 @@ import { supabaseAdmin } from "@/app/supabase-admin";
 import * as crypto from "crypto";
 
 // 取得環境變數（支援本機設定與 Vercel 後台，附帶萬用測試用備用金鑰）
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "7nQFdUw26iwA4KU7fVDMv5dZK8Ar8EodfSfzc0nyPdV27BU9XTWdnBtAC2ZLsnDWBKDJXwmRvt5qvyGHUqSViSj+IOV0OYqqKXBzLoxHVjWxVwLmzNJB1PJbgt6gLVPFqX3pVuZ6XGcwQAw2fgVDzgdB04t89/1O/w1cDnyilFU=";
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "6fdb11183b1f54868d7f096b33b195a7";
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZaVHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rkyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "62fe3ed0c41fc24d2959dc2977c11db6";
 
 const LINKED_QUICK_REPLIES = [
   { type: "action", action: { type: "message", label: "👤 帳號資訊", text: "1" } },
@@ -344,7 +344,7 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
 
 ${listStr}━━━━━━━━━━━━━━━━━━
 📦 出貨與配送進度核對，歡迎隨時加入【初潤出貨專屬 LINE】由專員一對一為您核對安排：
-👉 https://lin.ee/oBBw4O3 (ID: @285pmiuj)
+👉 https://line.me/R/ti/p/@947vpgjp (ID: @947vpgjp)
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       } else {
@@ -611,7 +611,7 @@ ${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製
 
 📦 【訂單出貨與物流窗口】
 ● 服務範圍：訂單出貨進度、快遞配送狀態、出貨急單核對
-● 出貨專屬 LINE：👉 https://lin.ee/oBBw4O3 (LINE ID: @285pmiuj)
+● 出貨專屬 LINE：👉 https://line.me/R/ti/p/@947vpgjp (LINE ID: @947vpgjp)
 ● 任何出貨與快遞問題，請直接加入此出貨專用帳號，將有出貨物流專員為您一對一對接服務！
 ━━━━━━━━━━━━━━━━━━
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;

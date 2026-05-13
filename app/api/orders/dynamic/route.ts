@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "7nQFdUw26iwA4KU7fVDMv5dZK8Ar8EodfSfzc0nyPdV27BU9XTWdnBtAC2ZLsnDWBKDJXwmRvt5qvyGHUqSViSj+IOV0OYqqKXBzLoxHVjWxVwLmzNJB1PJbgt6gLVPFqX3pVuZ6XGcwQAw2fgVDzgdB04t89/1O/w1cDnyilFU=";
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZaVHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rkyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
 
 async function sendLinePushNotification(toUserId: string, text: string) {
   if (!toUserId || LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") return;
@@ -289,7 +289,7 @@ export async function POST(request: Request) {
 🍵 採購商品明細：
 ${itemsList}━━━━━━━━━━━━━━━━━━
 💡 提示：本訂單出貨將由【初潤出貨物流中心】專屬處理。請加入下方出貨客服 LINE 帳號，由專員快速為您對接安排：
-👉 https://lin.ee/oBBw4O3 (LINE ID: @285pmiuj)`;
+👉 https://line.me/R/ti/p/@947vpgjp (LINE ID: @947vpgjp)`;
 
       await sendLinePushNotification(buyer.line_id, pushText);
     }

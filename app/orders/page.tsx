@@ -445,7 +445,7 @@ function OrdersContent() {
                          <div className="flex items-center gap-2">
                             {order.status !== 'cancelled' && (
                                <a 
-                                 href="https://lin.ee/oBBw4O3" 
+                                 href="https://line.me/R/ti/p/@947vpgjp" 
                                  target="_blank" 
                                  rel="noopener noreferrer"
                                  className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-1"

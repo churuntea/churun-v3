@@ -33,7 +33,7 @@ export default function SupportPage() {
       icon: MessageCircle,
       color: "bg-emerald-500",
       action: "加入出貨 LINE",
-      href: "https://lin.ee/oBBw4O3"
+      href: "https://line.me/R/ti/p/@947vpgjp"
     },
     {
       title: "電話專線服務",

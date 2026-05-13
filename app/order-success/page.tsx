@@ -306,7 +306,7 @@ function OrderSuccessContent() {
 
          {/* Shipping LINE CTA */}
          <motion.a 
-           href="https://lin.ee/oBBw4O3"
+           href="https://line.me/R/ti/p/@947vpgjp"
            target="_blank"
            rel="noopener noreferrer"
            whileHover={{ scale: 1.02 }}
