@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
-const LINE_CHANNEL_ACCESS_TOKEN: string = "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZaVHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rkyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
+const LINE_CHANNEL_ACCESS_TOKEN: string = "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rKyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
 
 async function sendLinePushNotification(toUserId: string, text: string) {
   if (!toUserId || LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") return;
