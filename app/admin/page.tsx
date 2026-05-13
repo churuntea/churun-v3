@@ -67,15 +67,31 @@ function AdminDashboardContent() {
   const [chartTimeframe, setChartTimeframe] = useState<"6months" | "30days">("6months");
   const [chartData, setChartData] = useState<any[]>([]);
   const [topPartners, setTopPartners] = useState<any[]>([]);
+  const [selectedMetric, setSelectedMetric] = useState<"revenue" | "ordersCount" | "aov">("revenue");
+  const [logisticsStats, setLogisticsStats] = useState({ pickup: 0, cvs: 0, home: 0 });
+  const [orderStatusCounts, setOrderStatusCounts] = useState({ pending: 0, paid: 0, shipped: 0, completed: 0, cancelled: 0, refunded: 0 });
+  const [pickupStats, setPickupStats] = useState<any[]>([]);
+  const [showTableBreakdown, setShowTableBreakdown] = useState(false);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reorderRate, setReorderRate] = useState(0);
+  const [newVsOldRevenue, setNewVsOldRevenue] = useState({ newCustRev: 0, oldCustRev: 0 });
+  const [peakHoursData, setPeakHoursData] = useState({ morning: 0, afternoon: 0, evening: 0, night: 0 });
+  const [categoryShares, setCategoryShares] = useState<any[]>([]);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupTimeframe, setBackupTimeframe] = useState("month");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditSearchQuery, setAuditSearchQuery] = useState("");
+  const [b2bVsB2cShare, setB2bVsB2cShare] = useState({ b2bRev: 0, b2cRev: 0 });
+  const [orderTiers, setOrderTiers] = useState({ tier1: 0, tier2: 0, tier3: 0, tier4: 0 });
+  const [productRepeatScores, setProductRepeatScores] = useState<any[]>([]);
+  const [marketingSubTab, setMarketingSubTab] = useState<"persona" | "pricing">("persona");
   const [isGeneratingBackup, setIsGeneratingBackup] = useState(false);
   const [backupData, setBackupData] = useState<any>(null);
 
   // 新增：大師級備份與還原擴充狀態
-  const [backupTab, setBackupTab] = useState<"stats" | "full" | "restore">("stats");
+  const [backupTab, setBackupTab] = useState<"stats" | "full" | "restore" | "audit">("stats");
   const [isFullBackingUp, setIsFullBackingUp] = useState(false);
   const [fullBackupData, setFullBackupData] = useState<any>(null);
   const [restoreFile, setRestoreFile] = useState<any>(null);
@@ -84,6 +100,32 @@ function AdminDashboardContent() {
   const [confirmText, setConfirmText] = useState("");
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreLogs, setRestoreLogs] = useState<string[]>([]);
+
+  const fetchAuditLogs = async () => {
+    if (!adminUser) return;
+    setIsAuditing(true);
+    try {
+      const title = adminUser.title || "";
+      const name = adminUser.name || "";
+      const res = await fetch(`/api/admin/audit-logs?title=${encodeURIComponent(title)}&name=${encodeURIComponent(name)}`);
+      const result = await res.json();
+      if (result.success) {
+        setAuditLogs(result.logs || []);
+      } else {
+        console.warn("Audit logs fetch failed:", result.error);
+        setAuditLogs([]);
+      }
+    } catch (err: any) {
+      console.error("Audit log fetch error:", err.message);
+    }
+    setIsAuditing(false);
+  };
+
+  useEffect(() => {
+    if (backupTab === "audit" && showBackupModal) {
+      fetchAuditLogs();
+    }
+  }, [backupTab, showBackupModal]);
 
   const handleGenerateBackup = async (timeframe: string) => {
     setIsGeneratingBackup(true);
@@ -297,12 +339,29 @@ function AdminDashboardContent() {
 
       const { data: recentOrders } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at")
+        .select("id, total_amount, status, created_at, shipping_info, custom_logo_url")
         .gte("created_at", sixMonthsAgo.toISOString())
         .order("created_at", { ascending: true });
 
       const safeOrders = recentOrders || [];
-      setOrders(safeOrders);
+
+      // 支援解讀備份在 custom_logo_url 的 JSON 欄位（以解決資料庫未更新到最新欄位時的容錯）
+      const processedOrders = (safeOrders || []).map((order: any) => {
+        if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+          try {
+            const fallbackData = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+            return {
+              ...order,
+              ...fallbackData
+            };
+          } catch (e) {
+            console.error("解析備份 JSON 欄位失敗:", e);
+          }
+        }
+        return order;
+      });
+
+      setOrders(processedOrders);
 
       // 計算今日業績、本月業績、待處理訂單數
       const localToday = new Date();
@@ -313,12 +372,26 @@ function AdminDashboardContent() {
       let todayRev = 0;
       let monthRev = 0;
 
-      safeOrders.forEach(o => {
+      // 進階統計變數
+      let logisticsCounts = { pickup: 0, cvs: 0, home: 0 };
+      let statusCounts = { pending: 0, paid: 0, shipped: 0, completed: 0, cancelled: 0, refunded: 0 };
+      let pickupPointsPopularity: Record<string, { name: string; count: number; revenue: number }> = {};
+
+      processedOrders.forEach(o => {
+        const status = o.status || "pending";
+        // 累積訂單狀態
+        if (status === "pending") statusCounts.pending++;
+        else if (status === "paid") statusCounts.paid++;
+        else if (status === "shipped") statusCounts.shipped++;
+        else if (status === "completed") statusCounts.completed++;
+        else if (status === "cancelled") statusCounts.cancelled++;
+        else if (status === "refunded") statusCounts.refunded++;
+
         const orderDate = new Date(o.created_at);
         const oYMD = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, "0")}-${String(orderDate.getDate()).padStart(2, "0")}`;
         const oYM = oYMD.substring(0, 7);
 
-        if (o.status !== 'cancelled' && o.status !== 'refunded') {
+        if (status !== 'cancelled' && status !== 'refunded') {
           const amt = Number(o.total_amount) || 0;
           if (oYMD === localTodayYMD) {
             todayRev += amt;
@@ -326,9 +399,45 @@ function AdminDashboardContent() {
           if (oYM === localThisMonthYM) {
             monthRev += amt;
           }
+
+          // 累積物流統計
+          const shipping = o.shipping_info || {};
+          const method = shipping.method || "宅配到府";
+          if (method === "自取") {
+            logisticsCounts.pickup++;
+            
+            // 匹配自取據點名稱
+            const address = shipping.address || "";
+            let matchedName = "其他自取點";
+            if (address.includes("草屯自由總店") || address.includes("草屯總店")) matchedName = "草屯自由總店";
+            else if (address.includes("台中大業店")) matchedName = "台中大業店";
+            else if (address.includes("南投草屯自取點")) matchedName = "南投草屯自取點";
+            else if (address.includes("新北新莊自取點")) matchedName = "新北新莊自取點";
+            else if (address.includes("新北五股自取點")) matchedName = "新北五股自取點";
+            else if (address.includes("台北信義自取點")) matchedName = "台北信義自取點";
+            else {
+              const bracketIndex = address.indexOf(" (");
+              if (bracketIndex > 0) {
+                matchedName = address.substring(0, bracketIndex);
+              } else if (address) {
+                matchedName = address.substring(0, 15);
+              }
+            }
+
+            if (!pickupPointsPopularity[matchedName]) {
+              pickupPointsPopularity[matchedName] = { name: matchedName, count: 0, revenue: 0 };
+            }
+            pickupPointsPopularity[matchedName].count++;
+            pickupPointsPopularity[matchedName].revenue += amt;
+
+          } else if (method === "超商取貨" || method.includes("超商") || method.includes("7-11") || method.includes("全家")) {
+            logisticsCounts.cvs++;
+          } else {
+            logisticsCounts.home++;
+          }
         }
 
-        if (o.status === 'pending' || o.status === 'paid' || o.status === 'shipped') {
+        if (status === 'pending' || status === 'paid' || status === 'shipped') {
           activeOrderSum += 1;
         }
       });
@@ -341,6 +450,14 @@ function AdminDashboardContent() {
         todayRevenue: todayRev,
         monthRevenue: monthRev
       });
+
+      setLogisticsStats(logisticsCounts);
+      setOrderStatusCounts(statusCounts);
+
+      // 自取點熱度排行榜
+      const sortedPickupPoints = Object.values(pickupPointsPopularity)
+        .sort((a, b) => b.count - a.count);
+      setPickupStats(sortedPickupPoints);
 
       // 3. 獲取前 3 名合夥人業績排行榜
       const { data: topB2B } = await supabase
@@ -355,11 +472,11 @@ function AdminDashboardContent() {
       // 4. 獲取銷售量前 3 名商品排行榜
       const { data: itemsData } = await supabase
         .from("order_items")
-        .select("name, quantity, price");
+        .select("product_id, name, quantity, price");
 
       const prodMap: Record<string, { name: string; quantity: number; revenue: number }> = {};
       if (itemsData) {
-        itemsData.forEach(item => {
+        (itemsData as any[]).forEach(item => {
           const name = item.name || "其他商品";
           const qty = Number(item.quantity) || 0;
           const price = Number(item.price) || 0;
@@ -377,6 +494,178 @@ function AdminDashboardContent() {
 
       setTopProducts(topProdsList);
 
+      // == 🎯 新增：品牌行銷與客群戰略決策運算 ==
+      
+      // A. 下單黃金時段統計
+      let peakCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+      processedOrders.forEach(o => {
+        const orderDate = new Date(o.created_at);
+        const hour = orderDate.getHours();
+        if (hour >= 6 && hour < 12) peakCounts.morning++;
+        else if (hour >= 12 && hour < 18) peakCounts.afternoon++;
+        else if (hour >= 18 && hour < 24) peakCounts.evening++;
+        else peakCounts.night++;
+      });
+      setPeakHoursData(peakCounts);
+
+      // B. 會員回購率與新舊客貢獻額
+      const memberOrderHistory: Record<string, { count: number; totalRevenue: number }> = {};
+      processedOrders.forEach(o => {
+        if (o.status !== "cancelled" && o.status !== "refunded") {
+          const mid = o.member_id || "guest";
+          const amt = Number(o.total_amount) || 0;
+          if (!memberOrderHistory[mid]) {
+            memberOrderHistory[mid] = { count: 0, totalRevenue: 0 };
+          }
+          memberOrderHistory[mid].count += 1;
+          memberOrderHistory[mid].totalRevenue += amt;
+        }
+      });
+
+      let repeatBuyersCount = 0;
+      let totalUniqueBuyers = 0;
+      let newCustRevenue = 0;
+      let oldCustRevenue = 0;
+
+      Object.entries(memberOrderHistory).forEach(([mid, h]) => {
+        if (mid !== "guest") {
+          totalUniqueBuyers++;
+          if (h.count >= 2) {
+            repeatBuyersCount++;
+            oldCustRevenue += h.totalRevenue;
+          } else {
+            newCustRevenue += h.totalRevenue;
+          }
+        } else {
+          newCustRevenue += h.totalRevenue;
+        }
+      });
+
+      const calculatedReorderRate = totalUniqueBuyers > 0 ? Number(((repeatBuyersCount / totalUniqueBuyers) * 100).toFixed(1)) : 0;
+      setReorderRate(calculatedReorderRate);
+      setNewVsOldRevenue({
+        newCustRev: newCustRevenue,
+        oldCustRev: oldCustRevenue
+      });
+
+      // C. 產品分類銷售比重 (動態匹配 product.category)
+      const { data: allProds } = await supabase
+        .from("products")
+        .select("id, name, category");
+
+      const prodCategories: Record<string, string> = {};
+      (allProds || []).forEach(p => {
+        let cat = p.category || "極萃系列";
+        if (!p.category && p.name && p.name.startsWith("[")) {
+          const match = p.name.match(/^\[(.*?)\]\s*(.*)$/);
+          if (match) {
+            cat = match[1];
+          }
+        }
+        prodCategories[p.name || ""] = cat;
+        if (p.id) {
+          prodCategories[p.id] = cat;
+        }
+      });
+
+      const catSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+      if (itemsData) {
+        (itemsData as any[]).forEach(item => {
+          const name = item.name || "其他商品";
+          const qty = Number(item.quantity) || 0;
+          const price = Number(item.price) || 0;
+          const amt = qty * price;
+          
+          let catName = prodCategories[name] || prodCategories[item.product_id] || "極萃系列";
+          if (!catSales[catName]) {
+            catSales[catName] = { name: catName, quantity: 0, revenue: 0 };
+          }
+          catSales[catName].quantity += qty;
+          catSales[catName].revenue += amt;
+        });
+      }
+
+      const categorySharesList = Object.values(catSales)
+        .sort((a, b) => b.revenue - a.revenue);
+      setCategoryShares(categorySharesList);
+
+      // == 📈 新增：大師級客單價區間與合夥通路佔比運算 ==
+      let b2bTotal = 0;
+      let b2cTotal = 0;
+      let tier1Count = 0; // NT$ 1 - 299
+      let tier2Count = 0; // NT$ 300 - 999
+      let tier3Count = 0; // NT$ 1000 - 2999
+      let tier4Count = 0; // NT$ 3000+
+
+      processedOrders.forEach(o => {
+        if (o.status !== "cancelled" && o.status !== "refunded") {
+          const amt = Number(o.total_amount) || 0;
+          
+          // 1. B2B / B2C 通路佔比
+          const isB2B = o.members?.is_b2b || false;
+          if (isB2B) {
+            b2bTotal += amt;
+          } else {
+            b2cTotal += amt;
+          }
+
+          // 2. 客單價金額區間
+          if (amt < 300) tier1Count++;
+          else if (amt < 1000) tier2Count++;
+          else if (amt < 3000) tier3Count++;
+          else tier4Count++;
+        }
+      });
+
+      setB2bVsB2cShare({ b2bRev: b2bTotal, b2cRev: b2cTotal });
+      setOrderTiers({ tier1: tier1Count, tier2: tier2Count, tier3: tier3Count, tier4: tier4Count });
+
+      // 3. 會員重覆購買同一商品的忠誠度排名 (Product Loyalty Hook)
+      const prodReorderStats: Record<string, { name: string; repeatCount: number }> = {};
+      
+      if (itemsData && processedOrders) {
+        const orderMemberMap: Record<string, string> = {};
+        processedOrders.forEach(o => {
+          if (o.status !== "cancelled" && o.status !== "refunded") {
+            orderMemberMap[o.id] = o.member_id || "guest";
+          }
+        });
+
+        const memberProdOrders: Record<string, Record<string, Set<string>>> = {};
+
+        (itemsData as any[]).forEach(item => {
+          const orderId = item.order_id;
+          const memberId = orderMemberMap[orderId];
+          const name = item.name || "其他商品";
+
+          if (memberId && memberId !== "guest") {
+            if (!memberProdOrders[memberId]) {
+              memberProdOrders[memberId] = {};
+            }
+            if (!memberProdOrders[memberId][name]) {
+              memberProdOrders[memberId][name] = new Set<string>();
+            }
+            memberProdOrders[memberId][name].add(orderId);
+          }
+        });
+
+        Object.entries(memberProdOrders).forEach(([mid, prods]) => {
+          Object.entries(prods).forEach(([name, orderSet]) => {
+            if (orderSet.size >= 2) {
+              if (!prodReorderStats[name]) {
+                prodReorderStats[name] = { name, repeatCount: 0 };
+              }
+              prodReorderStats[name].repeatCount += (orderSet.size - 1);
+            }
+          });
+        });
+      }
+
+      const repeatScoresList = Object.values(prodReorderStats)
+        .sort((a, b) => b.repeatCount - a.repeatCount)
+        .slice(0, 3);
+      setProductRepeatScores(repeatScoresList);
+
     } catch (err) { 
       console.error("fetchStats error:", err); 
     }
@@ -389,22 +678,27 @@ function AdminDashboardContent() {
       // 載入高質感模擬數據 (當數據庫完全空白時，給予精美圖形展示)
       if (chartTimeframe === "6months") {
         setChartData([
-          { name: '1月', "月度業績 (NT$)": 15000, "成交筆數": 18 },
-          { name: '2月', "月度業績 (NT$)": 22000, "成交筆數": 25 },
-          { name: '3月', "月度業績 (NT$)": 29000, "成交筆數": 32 },
-          { name: '4月', "月度業績 (NT$)": 38000, "成交筆數": 48 },
-          { name: '5月', "月度業績 (NT$)": 47000, "成交筆數": 60 },
-          { name: '6月', "月度業績 (NT$)": 55000, "成交筆數": 75 },
+          { name: '1月', "銷售業績 (NT$)": 15000, "成交訂單數 (筆)": 18, "客單價 (AOV)": 833, "月度業績 (NT$)": 15000, "成交筆數": 18 },
+          { name: '2月', "銷售業績 (NT$)": 22000, "成交訂單數 (筆)": 25, "客單價 (AOV)": 880, "月度業績 (NT$)": 22000, "成交筆數": 25 },
+          { name: '3月', "銷售業績 (NT$)": 29000, "成交訂單數 (筆)": 32, "客單價 (AOV)": 906, "月度業績 (NT$)": 29000, "成交筆數": 32 },
+          { name: '4月', "銷售業績 (NT$)": 38000, "成交訂單數 (筆)": 48, "客單價 (AOV)": 791, "月度業績 (NT$)": 38000, "成交筆數": 48 },
+          { name: '5月', "銷售業績 (NT$)": 47000, "成交訂單數 (筆)": 60, "客單價 (AOV)": 783, "月度業績 (NT$)": 47000, "成交筆數": 60 },
+          { name: '6月', "銷售業績 (NT$)": 55000, "成交訂單數 (筆)": 75, "客單價 (AOV)": 733, "月度業績 (NT$)": 55000, "成交筆數": 75 },
         ]);
       } else {
         const mockDays = [];
         for (let i = 29; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
+          const rev = Math.floor(Math.random() * 4000) + 800;
+          const count = Math.floor(Math.random() * 4) + 1;
           mockDays.push({
             name: `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`,
-            "月度業績 (NT$)": Math.floor(Math.random() * 4000) + 800,
-            "成交筆數": Math.floor(Math.random() * 4) + 1
+            "銷售業績 (NT$)": rev,
+            "成交訂單數 (筆)": count,
+            "客單價 (AOV)": Math.round(rev / count),
+            "月度業績 (NT$)": rev,
+            "成交筆數": count
           });
         }
         setChartData(mockDays);
@@ -437,11 +731,18 @@ function AdminDashboardContent() {
         }
       });
 
-      const formatted = monthsList.map(key => ({
-        name: monthStats[key].label,
-        "月度業績 (NT$)": monthStats[key].revenue,
-        "成交筆數": monthStats[key].ordersCount
-      }));
+      const formatted = monthsList.map(key => {
+        const rev = monthStats[key].revenue;
+        const count = monthStats[key].ordersCount;
+        return {
+          name: monthStats[key].label,
+          "銷售業績 (NT$)": rev,
+          "成交訂單數 (筆)": count,
+          "客單價 (AOV)": count > 0 ? Math.round(rev / count) : 0,
+          "月度業績 (NT$)": rev,
+          "成交筆數": count
+        };
+      });
       setChartData(formatted);
     } else {
       const daysList: string[] = [];
@@ -467,11 +768,18 @@ function AdminDashboardContent() {
         }
       });
 
-      const formatted = daysList.map(key => ({
-        name: dayStats[key].label,
-        "月度業績 (NT$)": dayStats[key].revenue,
-        "成交筆數": dayStats[key].ordersCount
-      }));
+      const formatted = daysList.map(key => {
+        const rev = dayStats[key].revenue;
+        const count = dayStats[key].ordersCount;
+        return {
+          name: dayStats[key].label,
+          "銷售業績 (NT$)": rev,
+          "成交訂單數 (筆)": count,
+          "客單價 (AOV)": count > 0 ? Math.round(rev / count) : 0,
+          "月度業績 (NT$)": rev,
+          "成交筆數": count
+        };
+      });
       setChartData(formatted);
     }
   }, [orders, chartTimeframe]);
@@ -756,60 +1064,641 @@ function AdminDashboardContent() {
                </div>
             </div>
             
-            {/* Right: 業績與成長趨勢 */}
+            {/* Right: 業績與成長趨勢 (已深度升級為商業智慧指揮面板) */}
            <div className="lg:col-span-2 space-y-6">
-              <div className="flex justify-between items-center px-4">
-                 <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase flex items-center gap-2">
-                    <Activity className="w-4 h-4" /> 業績與成長趨勢
-                 </h3>
-                 {/* Interactive Timeframe Toggle Buttons */}
-                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                 <div>
+                    <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase flex items-center gap-2">
+                       <Activity className="w-4 h-4 text-indigo-500 animate-pulse" /> 業績與成長智慧趨勢
+                    </h3>
+                    <p className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">Interactive Business Intelligence Console</p>
+                 </div>
+                 
+                 <div className="flex flex-wrap gap-2 items-center">
+                    {/* Timeframe selector */}
+                    <div className="flex gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                       <button
+                         onClick={() => setChartTimeframe("6months")}
+                         className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${chartTimeframe === "6months" ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-700"}`}
+                       >
+                          6個月趨勢
+                       </button>
+                       <button
+                         onClick={() => setChartTimeframe("30days")}
+                         className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${chartTimeframe === "30days" ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-700"}`}
+                       >
+                          30天日報
+                       </button>
+                    </div>
+
+                    {/* Table breakdown trigger button */}
                     <button
-                      onClick={() => setChartTimeframe("6months")}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${chartTimeframe === "6months" ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-700"}`}
+                      onClick={() => setShowTableBreakdown(!showTableBreakdown)}
+                      className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition flex items-center gap-1.5 ${showTableBreakdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                     >
-                       6個月趨勢
-                    </button>
-                    <button
-                      onClick={() => setChartTimeframe("30days")}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${chartTimeframe === "30days" ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-700"}`}
-                    >
-                       30天日報
+                      📊 {showTableBreakdown ? '收合明細' : '展開明細表格'}
                     </button>
                  </div>
               </div>
-              <div className="bg-white rounded-[4rem] p-10 border border-slate-50 shadow-sm h-[400px]">
+
+              {/* Metric Tabs Controlling the Recharts display */}
+              <div className="grid grid-cols-3 gap-2 bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/60">
+                 {[
+                   { id: "revenue", label: "銷售業績 (NT$)", key: "銷售業績 (NT$)", color: "text-indigo-600" },
+                   { id: "ordersCount", label: "成交訂單數 (筆)", key: "成交訂單數 (筆)", color: "text-emerald-600" },
+                   { id: "aov", label: "平均客單價 (AOV)", key: "客單價 (AOV)", color: "text-pink-600" }
+                 ].map(m => {
+                   const isActive = selectedMetric === m.id;
+                   const valSum = chartData.reduce((acc, curr) => acc + (curr[m.key] || 0), 0);
+                   const avgVal = chartData.length > 0 ? Math.round(valSum / chartData.length) : 0;
+                   return (
+                     <button
+                       key={m.id}
+                       onClick={() => setSelectedMetric(m.id as any)}
+                       className={`py-3 px-2 rounded-xl flex flex-col items-center justify-center transition-all ${isActive ? 'bg-white text-slate-900 shadow-sm font-black border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
+                     >
+                       <span className="text-[10px] tracking-wide block">{m.label}</span>
+                       <span className={`text-[9px] font-mono mt-0.5 font-black ${isActive ? m.color : 'text-slate-300'}`}>
+                         {m.id === "revenue" ? `NT$ ${valSum.toLocaleString()}` : m.id === "ordersCount" ? `${valSum} 筆` : `均價 ${avgVal}`}
+                       </span>
+                     </button>
+                   );
+                 })}
+              </div>
+
+              <div className="bg-white rounded-[4rem] p-10 border border-slate-50 shadow-sm h-[400px] relative">
                  <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                        <defs>
-                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                             <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.25}/>
-                             <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
+                          <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                             <stop offset="5%" stopColor={selectedMetric === 'revenue' ? '#4f46e5' : selectedMetric === 'ordersCount' ? '#10b981' : '#ec4899'} stopOpacity={0.25}/>
+                             <stop offset="95%" stopColor={selectedMetric === 'revenue' ? '#818cf8' : selectedMetric === 'ordersCount' ? '#34d399' : '#f472b6'} stopOpacity={0}/>
                           </linearGradient>
                        </defs>
                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 900, fill: '#cbd5e1'}} dy={10} />
                        <YAxis hide />
                        <Tooltip 
-                         contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '12px' }}
-                         itemStyle={{ color: '#818cf8', fontWeight: 900 }}
+                         contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '16px', color: '#fff', fontSize: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                         itemStyle={{ fontWeight: 900 }}
                        />
                        <Area 
                          type="monotone" 
-                         dataKey="月度業績 (NT$)" 
-                         stroke="#6366f1" 
+                         dataKey={selectedMetric === 'revenue' ? "銷售業績 (NT$)" : selectedMetric === 'ordersCount' ? "成交訂單數 (筆)" : "客單價 (AOV)"} 
+                         stroke={selectedMetric === 'revenue' ? '#6366f1' : selectedMetric === 'ordersCount' ? '#10b981' : '#ec4899'} 
                          strokeWidth={4} 
                          fillOpacity={1} 
-                         fill="url(#colorRevenue)" 
+                         fill="url(#colorMetric)" 
                        />
                     </AreaChart>
                  </ResponsiveContainer>
+              </div>
+
+              {/* Collapsible Detailed Analytics Breakdown Table & CSV Download */}
+              <AnimatePresence>
+                {showTableBreakdown && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm overflow-hidden"
+                  >
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                       <div>
+                          <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                             📋 營運趨勢細項報表
+                          </h4>
+                          <p className="text-[8px] font-black text-slate-400 mt-0.5">Numerical Operations spreadsheet report</p>
+                       </div>
+                       <button
+                         onClick={() => {
+                           if (chartData.length === 0) return;
+                           const headers = ["時間區間", "銷售業績 (NT$)", "成交訂單數 (筆)", "客單價 (AOV)"];
+                           const rows = chartData.map(item => [
+                             item.name,
+                             item["銷售業績 (NT$)"] || item["月度業績 (NT$)"] || 0,
+                             item["成交訂單數 (筆)"] || item["成交筆數"] || 0,
+                             item["客單價 (AOV)"] || 0
+                           ]);
+
+                           const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+                             + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                           
+                           const encodedUri = encodeURI(csvContent);
+                           const link = document.createElement("a");
+                           link.setAttribute("href", encodedUri);
+                           link.setAttribute("download", `churun_analytics_${chartTimeframe}_${new Date().toISOString().slice(0, 10)}.csv`);
+                           document.body.appendChild(link);
+                           link.click();
+                           document.body.removeChild(link);
+                         }}
+                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition flex items-center gap-1 shadow-md shadow-indigo-600/10 active:scale-95"
+                       >
+                         📥 匯出為 Excel 試算表 (.csv)
+                       </button>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto">
+                       <table className="w-full text-left border-collapse">
+                          <thead>
+                             <tr className="border-b border-slate-100 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                <th className="pb-3 pl-2">時間區間</th>
+                                <th className="pb-3 text-right">銷售總營業額</th>
+                                <th className="pb-3 text-right">成交訂單量</th>
+                                <th className="pb-3 text-right pr-2">平均客單價 (AOV)</th>
+                             </tr>
+                          </thead>
+                          <tbody>
+                             {chartData.map((item, idx) => {
+                               const rev = item["銷售業績 (NT$)"] || item["月度業績 (NT$)"] || 0;
+                               const count = item["成交訂單數 (筆)"] || item["成交筆數"] || 0;
+                               const aov = item["客單價 (AOV)"] || 0;
+                               return (
+                                 <tr key={idx} className="border-b border-slate-50 text-[11px] font-bold text-slate-600 hover:bg-slate-50/50 transition">
+                                    <td className="py-3 pl-2 text-slate-900 font-black">{item.name}</td>
+                                    <td className="py-3 text-right font-mono text-indigo-600 font-black">NT$ {rev.toLocaleString()}</td>
+                                    <td className="py-3 text-right font-mono text-emerald-600 font-black">{count} 筆</td>
+                                    <td className="py-3 text-right font-mono text-pink-600 font-black pr-2">NT$ {aov.toLocaleString()}</td>
+                                 </tr>
+                               );
+                             })}
+                          </tbody>
+                       </table>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Operational KPI Diagnostics Panels (Operational Health / Logistics Preference) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Logistics Preferences analysis */}
+                 <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          🚚 顧客物流配送通路佔比
+                       </h4>
+                       <p className="text-[8px] font-black text-slate-400 mt-0.5">Logistics delivery channel metrics</p>
+                    </div>
+                    
+                    <div className="space-y-4 pt-2">
+                       {[
+                         { label: "📍 門市與自取據點自取", count: logisticsStats.pickup, color: "bg-emerald-500", text: "text-emerald-600" },
+                         { label: "🏪 超商取貨付款 (7-11/全家)", count: logisticsStats.cvs, color: "bg-indigo-500", text: "text-indigo-600" },
+                         { label: "🏡 黑貓低溫/常溫宅配到府", count: logisticsStats.home, color: "bg-amber-500", text: "text-amber-600" }
+                       ].map((c, idx) => {
+                         const total = logisticsStats.pickup + logisticsStats.cvs + logisticsStats.home || 1;
+                         const percentage = Math.round((c.count / total) * 100);
+                         return (
+                           <div key={idx} className="space-y-1.5">
+                              <div className="flex justify-between items-center text-[10px] font-bold">
+                                 <span className="text-slate-600">{c.label}</span>
+                                 <span className={`font-mono font-black ${c.text}`}>{c.count} 筆 ({percentage}%)</span>
+                              </div>
+                              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                 <div className={`h-full ${c.color} rounded-full transition-all duration-500`} style={{ width: percentage + "%" }} />
+                              </div>
+                           </div>
+                         );
+                       })}
+                    </div>
+                 </div>
+
+                 {/* Business Performance Diagnostics status funnel */}
+                 <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          ⚡ 訂單營運漏斗狀態診斷
+                       </h4>
+                       <p className="text-[8px] font-black text-slate-400 mt-0.5">Order fulfillment state health funnel</p>
+                    </div>
+
+                    <div className="space-y-3.5 pt-1">
+                       {[
+                         { label: "⏳ 新建待核付款 (Pending)", count: orderStatusCounts.pending, color: "bg-amber-500", text: "text-amber-500" },
+                         { label: "💳 已付款待出貨 (Paid)", count: orderStatusCounts.paid, color: "bg-blue-500", text: "text-blue-500" },
+                         { label: "🚚 已出貨運送中 (Shipped)", count: orderStatusCounts.shipped, color: "bg-indigo-500", text: "text-indigo-500" },
+                         { label: "🎉 交易完成已收貨 (Completed)", count: orderStatusCounts.completed, color: "bg-emerald-500", text: "text-emerald-500" },
+                         { label: "❌ 已取消/退款 (Cancelled)", count: orderStatusCounts.cancelled + orderStatusCounts.refunded, color: "bg-slate-400", text: "text-slate-400" }
+                       ].map((s, idx) => {
+                         const total = orderStatusCounts.pending + orderStatusCounts.paid + orderStatusCounts.shipped + orderStatusCounts.completed + orderStatusCounts.cancelled + orderStatusCounts.refunded || 1;
+                         const percentage = Math.round((s.count / total) * 100);
+                         return (
+                           <div key={idx} className="flex items-center justify-between gap-4">
+                              <span className="text-[10px] font-black text-slate-500 w-36 whitespace-nowrap">{s.label}</span>
+                              <div className="flex-1 h-2.5 bg-slate-50 rounded-md overflow-hidden relative">
+                                 <div className={`h-full ${s.color} rounded-md transition-all duration-500`} style={{ width: percentage + "%" }} />
+                              </div>
+                              <span className={`text-[10px] font-mono font-black w-14 text-right ${s.text}`}>{s.count} 筆</span>
+                           </div>
+                         );
+                       })}
+                    </div>
+                 </div>
+              </div>
+
+              {/* 自取據點熱度排行榜 (Self-pickup hotspot diagnostics) */}
+              <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-4">
+                 <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                    <div>
+                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          📍 自取據點熱度排行榜 (Pickup Hotspots)
+                       </h4>
+                       <p className="text-[8px] font-black text-slate-400 mt-0.5">Dynamic pickup point order tracking</p>
+                    </div>
+                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest leading-none">自取據點人流數據</span>
+                 </div>
+
+                 {pickupStats.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-xs font-bold">
+                       💡 目前暫無門市自取訂單
+                    </div>
+                 ) : (
+                    <div className="space-y-4 pt-1">
+                       {pickupStats.map((pt, idx) => {
+                         const maxCount = pickupStats[0]?.count || 1;
+                         const percentage = Math.round((pt.count / maxCount) * 100);
+                         return (
+                           <div key={idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm hover:bg-white transition duration-200">
+                              <div className="flex items-center gap-3 w-48 shrink-0">
+                                 <span className="text-[10px] font-black text-slate-400 font-mono">#{idx+1}</span>
+                                 <span className="text-xs font-black text-slate-800">{pt.name}</span>
+                              </div>
+                              <div className="flex-1 flex items-center gap-3">
+                                 <div className="flex-1 h-3 bg-slate-100 rounded-lg overflow-hidden relative">
+                                    <div className="h-full bg-emerald-500 rounded-lg transition-all duration-500" style={{ width: percentage + "%" }} />
+                                 </div>
+                                 <span className="text-[10px] font-mono font-black text-emerald-600 w-12 text-right">{pt.count} 筆自取</span>
+                              </div>
+                              <div className="text-right w-24 shrink-0 border-l border-slate-200/50 pl-3">
+                                 <p className="text-[10px] font-mono font-black text-slate-700">NT$ {pt.revenue.toLocaleString()}</p>
+                                 <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">成交額</p>
+                              </div>
+                           </div>
+                         );
+                       })}
+                    </div>
+                 )}
               </div>
            </div>
         </div>
 
       
-        {/* Top Performers & Best Sellers Leaderboards */}
+         {/* 🎯 品牌行銷與客群戰略決策中心 (Marketing Strategy Center) */}
+         <div className="space-y-6 my-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 bg-slate-900 text-white p-6 rounded-[2.5rem] shadow-lg shadow-slate-950/10">
+               <div>
+                  <h3 className="text-sm font-black tracking-[0.2em] text-indigo-300 uppercase flex items-center gap-2">
+                     <TrendingUp className="w-4 h-4 animate-bounce" /> 🎯 品牌行銷大數據智慧決策中心
+                  </h3>
+                  <p className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">Data-Driven Brand Marketing & AI Tactic Advisor</p>
+               </div>
+               
+               {/* 頂級行銷子分頁切換按鈕 */}
+               <div className="flex gap-1.5 bg-slate-950/60 p-1 border border-slate-800 rounded-xl shrink-0">
+                  <button
+                     onClick={() => setMarketingSubTab("persona")}
+                     className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "persona" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
+                  >
+                     📊 客群畫像與通路
+                  </button>
+                  <button
+                     onClick={() => setMarketingSubTab("pricing")}
+                     className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "pricing" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
+                  >
+                     🎯 訂價與爆款引流
+                  </button>
+               </div>
+            </div>
+
+            {/* TAB A: 客群畫像與通路 (Persona) */}
+            {marketingSubTab === "persona" && (
+              <motion.div 
+                 initial={{ opacity: 0, y: 15 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="grid grid-cols-1 lg:grid-cols-3 gap-10"
+              >
+               {/* Column 1: 下單時段分析與推播戰術 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <Clock className="w-4 h-4 text-indigo-500" /> 🕒 顧客下單黃金時段分析
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">Peak hour ordering heatmap diagnostics</p>
+                     </div>
+
+                     <div className="space-y-3 pt-2">
+                        {[
+                          { label: "🌅 晨光元氣 (06:00 - 12:00)", count: peakHoursData.morning, color: "bg-amber-400" },
+                          { label: "🍰 悠閒下午茶 (12:00 - 18:00)", count: peakHoursData.afternoon, color: "bg-indigo-500" },
+                          { label: "🌙 晚間放鬆 (18:00 - 24:00)", count: peakHoursData.evening, color: "bg-pink-500" },
+                          { label: "💤 深夜飢餓 (00:00 - 06:00)", count: peakHoursData.night, color: "bg-slate-800" }
+                        ].map((p, idx) => {
+                          const total = peakHoursData.morning + peakHoursData.afternoon + peakHoursData.evening + peakHoursData.night || 1;
+                          const percentage = Math.round((p.count / total) * 100);
+                          return (
+                            <div key={idx} className="space-y-1">
+                               <div className="flex justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500">{p.label}</span>
+                                  <span className="text-slate-900 font-mono font-black">{percentage}%</span>
+                               </div>
+                               <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden">
+                                  <div className={"h-full " + p.color + " rounded-full transition-all duration-500"} style={{ width: percentage + "%" }} />
+                                </div>
+                            </div>
+                          );
+                        })}
+                     </div>
+                  </div>
+
+                  {/* AI Timing Tactic Suggestion */}
+                  <div className="p-4 bg-indigo-50/50 border border-indigo-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 推播時程戰術：</span>
+                     <p className="text-[10px] font-black text-indigo-950 leading-relaxed">
+                        {(() => {
+                          const maxVal = Math.max(peakHoursData.morning, peakHoursData.afternoon, peakHoursData.evening, peakHoursData.night);
+                          if (maxVal === 0) return "目前暫無足夠時段數據，建議固定於中午 12:00 進行常規行銷推廣。";
+                          if (maxVal === peakHoursData.afternoon) return "「悠閒下午茶」時段佔比最高！建議於每日下午 13:00 - 15:00 發送 LINE 品牌精選快訊與限時優惠，能獲得最佳轉化率！";
+                          if (maxVal === peakHoursData.evening) return "「晚間放鬆」時段佔比最高！多為下班聚餐與家庭採購，建議於每日 19:30 推送「買二送一常規券」以刺激夜間裂變下單。";
+                          if (maxVal === peakHoursData.morning) return "「晨光元氣」時段下單踴躍！多為創業合夥人或批發大單，建議於每日 09:30 推送商用新品或配送進度快訊。";
+                          return "「深夜飢餓」時段有異常增長！多為夜貓族夜飲，建議配合夜間特殊促銷，在 23:00 推播夜貓折扣。";
+                        })()}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Column 2: 顧客忠誠度與回購率分析 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <Users className="w-4 h-4 text-emerald-500" /> 🔄 顧客回購與忠誠度診斷
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">CRM loyalty & repeat buyer analytics</p>
+                     </div>
+
+                     <div className="space-y-4 pt-2">
+                        {/* Repeat buyers rate */}
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-600">重覆消費會員比例 (回購率)</span>
+                              <span className="font-mono font-black text-emerald-600">{reorderRate}%</span>
+                           </div>
+                           <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: reorderRate + "%" }} />
+                           </div>
+                        </div>
+
+                        {/* New vs Old contribution */}
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-600">新客 vs 熟客業績佔比 (額)</span>
+                              <span className="font-mono font-black text-slate-400">
+                                 {(() => {
+                                   const total = newVsOldRevenue.newCustRev + newVsOldRevenue.oldCustRev || 1;
+                                   const oldPct = Math.round((newVsOldRevenue.oldCustRev / total) * 100);
+                                   return "新客 " + (100 - oldPct) + "% / 老客 " + oldPct + "%";
+                                 })()}
+                              </span>
+                           </div>
+                           <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden flex">
+                              {(() => {
+                                const total = newVsOldRevenue.newCustRev + newVsOldRevenue.oldCustRev || 1;
+                                const oldPct = (newVsOldRevenue.oldCustRev / total) * 100;
+                                return (
+                                  <>
+                                    <div className="h-full bg-slate-400 transition-all duration-500" style={{ width: (100 - oldPct) + "%" }} />
+                                    <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: oldPct + "%" }} />
+                                  </>
+                                );
+                              })()}
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* AI CRM loyalty suggestion */}
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider block mb-1">💡 實時 AI 客群經營戰術：</span>
+                     <p className="text-[10px] font-black text-slate-800 leading-relaxed">
+                        {reorderRate < 30 ? (
+                          "⚠️ 目前回購率為 " + reorderRate + "%（偏低）！建議舉辦「老顧客回娘家點數翻倍」或「完成首單即發送二單專屬 85 折優惠券」活動，加速培養新客忠誠與重覆下單慣性！"
+                        ) : (
+                          "🚀 目前回購率達 " + reorderRate + "%（極佳）！老客黏著度強烈。建議針對高貢獻度的熟客發送 VVIP 新品預購邀請，或推出「專屬訂閱特惠包」，鎖定顧客終身價值 (LTV)！"
+                        )}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Column 3: 散客 vs 創業合夥人通路比重 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <Users className="w-4 h-4 text-indigo-500" /> 👥 散客與合夥通路佔比
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">B2C retail vs B2B affiliate channel share</p>
+                     </div>
+
+                     <div className="space-y-4 pt-2">
+                        {/* Retail sales share */}
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-600">B2C 門市零售散客業績額</span>
+                              <span className="font-mono font-black text-slate-950">NT$ {b2bVsB2cShare.b2cRev.toLocaleString()}</span>
+                           </div>
+                           <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden">
+                              {(() => {
+                                const total = b2bVsB2cShare.b2bRev + b2bVsB2cShare.b2cRev || 1;
+                                const b2cPct = Math.round((b2bVsB2cShare.b2cRev / total) * 100);
+                                return (
+                                  <div className="h-full bg-slate-800 rounded-full transition-all duration-500" style={{ width: b2cPct + "%" }} />
+                                );
+                              })()}
+                           </div>
+                        </div>
+
+                        {/* B2B affiliate sales share */}
+                        <div className="space-y-1.5">
+                           <div className="flex justify-between items-center text-[10px] font-bold">
+                              <span className="text-slate-600">B2B 創業合夥人批發業績額</span>
+                              <span className="font-mono font-black text-indigo-600">NT$ {b2bVsB2cShare.b2bRev.toLocaleString()}</span>
+                           </div>
+                           <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden">
+                              {(() => {
+                                const total = b2bVsB2cShare.b2bRev + b2bVsB2cShare.b2cRev || 1;
+                                const b2bPct = Math.round((b2bVsB2cShare.b2bRev / total) * 100);
+                                return (
+                                  <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: b2bPct + "%" }} />
+                                );
+                              })()}
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* AI Channel tactic suggestion */}
+                  <div className="p-4 bg-indigo-50/50 border border-indigo-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 通路行銷戰術：</span>
+                     <p className="text-[10px] font-black text-slate-800 leading-relaxed">
+                        {b2bVsB2cShare.b2bRev >= b2bVsB2cShare.b2cRev ? (
+                          "📢 創業合夥人與大額批發是您的生命線！建議常態舉辦「合夥人年終分紅表彰大會」，並推出推薦新代理人的加碼分紅，建立極具凝聚力的批發分銷鐵三角！"
+                        ) : (
+                          "📢 B2C 零售散客下單極其踴躍，證明初潤在日常消費端知名度極高！建議加強 LINE 官方自動化客服引導與社群口碑行銷，推動「好友分享送回購券」以刺激粉絲裂變！"
+                        )}
+                     </p>
+                  </div>
+               </div>
+              </motion.div>
+            )}
+
+            {/* TAB B: 訂價與爆款引流 (Pricing & Product Hooks) */}
+            {marketingSubTab === "pricing" && (
+              <motion.div 
+                 initial={{ opacity: 0, y: 15 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="grid grid-cols-1 lg:grid-cols-3 gap-10"
+              >
+               {/* Column 1: 熱銷大分類銷售比重 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <Package className="w-4 h-4 text-pink-500" /> 🏷️ 熱銷大分類銷售比重
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">Tea product category ROI performance</p>
+                     </div>
+
+                     <div className="space-y-3 pt-1">
+                        {categoryShares.length === 0 ? (
+                           <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase">暫無分類銷售比重數據</div>
+                        ) : (
+                           categoryShares.map((c, idx) => {
+                             const totalRev = categoryShares.reduce((acc, curr) => acc + curr.revenue, 0) || 1;
+                             const percentage = Math.round((c.revenue / totalRev) * 100);
+                             return (
+                               <div key={idx} className="space-y-1">
+                                  <div className="flex justify-between items-center text-[10px] font-bold">
+                                     <span className="text-slate-600">【{c.name}】</span>
+                                     <span className="font-mono font-black text-pink-600">{percentage}%</span>
+                                  </div>
+                                  <div className="w-full h-2.5 bg-slate-50 rounded-full overflow-hidden">
+                                     <div className="h-full bg-pink-500 rounded-full transition-all duration-500" style={{ width: percentage + "%" }} />
+                                  </div>
+                               </div>
+                             );
+                           })
+                        )}
+                     </div>
+                  </div>
+
+                  {/* AI Category ROI marketing suggestion */}
+                  <div className="p-4 bg-pink-50/50 border border-pink-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-pink-500 uppercase tracking-wider block mb-1">💡 實時 AI 廣告投放戰術：</span>
+                     <p className="text-[10px] font-black text-pink-950 leading-relaxed">
+                        {categoryShares.length > 0 ? (
+                          "🔥 【" + (categoryShares[0]?.name || "極萃系列") + "】為當前品牌業績霸主！建議在 FB/IG 與抖音廣告投放上，以此大分類下的熱銷品作為「核心爆款主圖」，能以最低 CPA 吸引海量首單顧客點擊進站！"
+                        ) : (
+                          "目前暫無分類業績比重數據，建議以茶廠的主打品類「極萃系列」進行主要宣傳與視覺主視覺包裝。"
+                        )}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Column 2: 訂單客單價金額區間診斷 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <TrendingUp className="w-4 h-4 text-emerald-500" /> 💰 訂單金額區間佔比
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">Order ticket value size distributions</p>
+                     </div>
+
+                     <div className="space-y-3 pt-1">
+                        {[
+                          { label: "🌱 輕量嚐鮮 (NT$ 1 - 299)", count: orderTiers.tier1, color: "bg-amber-400" },
+                          { label: "🍵 日常常備 (NT$ 300 - 999)", count: orderTiers.tier2, color: "bg-emerald-500" },
+                          { label: "🎁 送禮/商用 (NT$ 1000 - 2999)", count: orderTiers.tier3, color: "bg-indigo-500" },
+                          { label: "👑 大宗採購 (NT$ 3000+)", count: orderTiers.tier4, color: "bg-slate-900" }
+                        ].map((t, idx) => {
+                          const total = orderTiers.tier1 + orderTiers.tier2 + orderTiers.tier3 + orderTiers.tier4 || 1;
+                          const percentage = Math.round((t.count / total) * 100);
+                          return (
+                            <div key={idx} className="space-y-1">
+                               <div className="flex justify-between items-center text-[10px] font-bold">
+                                  <span className="text-slate-600">{t.label}</span>
+                                  <span className="font-mono font-black text-slate-900">{t.count} 筆 ({percentage}%)</span>
+                               </div>
+                               <div className="w-full h-2.5 bg-slate-50 rounded-full overflow-hidden">
+                                  <div className={"h-full " + t.color + " rounded-full transition-all duration-500"} style={{ width: percentage + "%" }} />
+                               </div>
+                            </div>
+                          );
+                        })}
+                     </div>
+                  </div>
+
+                  {/* AI Pricing strategy suggestion */}
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider block mb-1">💡 實時 AI 訂價包裝戰術：</span>
+                     <p className="text-[10px] font-black text-slate-800 leading-relaxed">
+                        {(() => {
+                          const maxVal = Math.max(orderTiers.tier1, orderTiers.tier2, orderTiers.tier3, orderTiers.tier4);
+                          if (maxVal === 0) return "暫無足夠訂單金額數據，建議主推 NT$ 499 免運常規包裝組合。";
+                          if (maxVal === orderTiers.tier2) return "「日常常備 (NT$ 300-999)」佔比最高！高度推薦在此區間推出「5入奢華分享裝」或「茶包常備家庭組」，精準卡位客戶的核心消費慣性！";
+                          if (maxVal === orderTiers.tier1) return "「輕量嚐鮮 (NT$ 1-299)」客群最多！建議舉辦「滿 $499 享免運」或「多加 $99 獲升級高山冷泡特選」，拉高平均客單價（AOV）！";
+                          return "「送禮/商用/大宗」高單價客戶極多！高度建議針對批發與送禮重點包裝「初潤典藏高規大禮盒」或「商用免運直達」，能獲得更高的毛利與回扣分紅！";
+                        })()}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Column 3: 爆款回購王牌單品 */}
+               <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
+                  <div className="space-y-4">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <Zap className="w-4 h-4 text-pink-500 animate-pulse" /> 🚀 王牌回購黏著單品 (再行銷)
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">Top products ordered repeatedly by same buyers</p>
+                     </div>
+
+                     <div className="space-y-3 pt-1">
+                        {productRepeatScores.length === 0 ? (
+                           <div className="text-center py-8 text-[10px] font-bold text-slate-300 uppercase">暫無重覆購買單品統計</div>
+                        ) : (
+                           productRepeatScores.map((p, idx) => (
+                              <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-white transition duration-200">
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono font-black text-slate-400">#{idx+1}</span>
+                                    <span className="text-xs font-black text-slate-800">{p.name}</span>
+                                 </div>
+                                 <span className="text-[10px] font-mono font-black text-pink-600 bg-pink-50 px-2.5 py-1 rounded-lg">回購過 {p.repeatCount} 次</span>
+                              </div>
+                           ))
+                        )}
+                     </div>
+                  </div>
+
+                  {/* AI Retargeting product suggestion */}
+                  <div className="p-4 bg-pink-50/50 border border-pink-100/30 rounded-2xl">
+                     <span className="text-[8px] font-black text-pink-500 uppercase tracking-wider block mb-1">💡 實時 AI 再行銷核心戰術：</span>
+                     <p className="text-[10px] font-black text-pink-950 leading-relaxed">
+                        {productRepeatScores.length > 0 ? (
+                          "📢 單品【" + productRepeatScores[0]?.name + "】在老顧客中的重覆回購頻率最高！當您投放 FB / IG 再行銷（Retargeting）或發送 LINE 喚醒舊客快訊時，以此商品作為「主打引流品」，喚醒與購買率通常能高出常規素材 1.8 倍以上！"
+                        ) : (
+                          "目前暫無重覆購買王牌單品數據，建議常態以冷泡茶與極萃系列進行舊客LINE優惠喚醒。"
+                        )}
+                     </p>
+                  </div>
+               </div>
+              </motion.div>
+            )}
+         </div>
+
+
+         {/* Top Performers & Best Sellers Leaderboards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
            {/* Leaderboard 1: Top B2B Partners */}
            <div className="space-y-6">
@@ -897,7 +1786,7 @@ function AdminDashboardContent() {
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-2xl shadow-2xl relative z-10 max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col gap-6 border border-slate-100"
+              className="bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-3xl shadow-2xl relative z-10 max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col gap-6 border border-slate-100"
               onClick={e => e.stopPropagation()}
             >
                {/* Modal Header */}
@@ -925,7 +1814,8 @@ function AdminDashboardContent() {
                   {[
                     { id: "stats", label: "營業統計備份", sub: "Legacy Analytics" },
                     { id: "full", label: "一鍵全庫備份", sub: "Full Backup" },
-                    { id: "restore", label: "一鍵數據還原", sub: "Data Restore" }
+                    { id: "restore", label: "一鍵數據還原", sub: "Data Restore" },
+                    { id: "audit", label: "安全審計日誌", sub: "Security Audit" }
                   ].map(tab => (
                      <button
                        key={tab.id}
