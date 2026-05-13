@@ -3,7 +3,7 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { order_id, action } = await request.json(); // action: 'approve' or 'cancel'
+    const { order_id, action, auditor } = await request.json(); // action: 'approve' or 'cancel'
 
     if (!order_id || !action) {
       return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
@@ -34,7 +34,22 @@ export async function POST(request: Request) {
         }
       }
       
-      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+      const updateData: any = { status: 'cancelled' };
+      if (auditor) {
+        let fallbackJson: any = {};
+        if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+          try {
+            fallbackJson = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        fallbackJson.auditor = auditor;
+        fallbackJson.audited_at = new Date().toISOString();
+        updateData.custom_logo_url = 'FALLBACK_JSON:' + JSON.stringify(fallbackJson);
+      }
+
+      await supabase.from('orders').update(updateData).eq('id', order.id);
       return NextResponse.json({ success: true, message: '訂單已取消' });
     }
 
@@ -177,11 +192,25 @@ export async function POST(request: Request) {
       }
 
       // 4. 更新訂單狀態
-      await supabase.from('orders').update({ 
+      const updateData: any = { 
         status: 'completed',
         paid_at: new Date().toISOString(),
         completed_at: new Date().toISOString()
-      }).eq('id', order.id);
+      };
+      if (auditor) {
+        let fallbackJson: any = {};
+        if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+          try {
+            fallbackJson = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        fallbackJson.auditor = auditor;
+        fallbackJson.audited_at = new Date().toISOString();
+        updateData.custom_logo_url = 'FALLBACK_JSON:' + JSON.stringify(fallbackJson);
+      }
+      await supabase.from('orders').update(updateData).eq('id', order.id);
 
       // 5. 通知買家
       await supabase.from('notifications').insert({

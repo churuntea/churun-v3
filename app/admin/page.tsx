@@ -981,7 +981,6 @@ function AdminDashboardContent() {
                      {[
                         { label: "會員總攬與資料匯出", icon: Users, action: "/admin/members" },
                         { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
-                        { label: "獎金提醒審核中心", icon: Wallet, action: "/admin/withdrawals" },
                         { label: "獎金發放結構", icon: TrendingUp, action: "/api/cron/settlement" },
                         { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" }
                      ].map((act, i) => (
@@ -997,6 +996,36 @@ function AdminDashboardContent() {
                                  router.push(act.action);
                               }
                            }}
+                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                           </div>
+                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                        </button>
+                     ))}
+                  </div>
+               </div>
+
+               {/* Zone 3: 財務會計與出納中心 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold">💵</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">財務會計與出納中心</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Finance & Accounting</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     {[
+                        { label: "會計對帳專區 (預收儲值審核)", icon: CheckCircle2, action: "/admin/withdrawals?tab=deposit" },
+                        { label: "會計審查專區 (創業水單核對)", icon: ShieldCheck, action: "/admin/evaluation?tab=audits" },
+                        { label: "出納付款專區 (獎金提領核撥)", icon: Wallet, action: "/admin/withdrawals?tab=withdrawal" }
+                     ].map((act, i) => (
+                        <button 
+                           key={act.label}
+                           onClick={() => handleActionClick(act.label, act.action)}
                            className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
                         >
                            <div className="flex items-center gap-3">

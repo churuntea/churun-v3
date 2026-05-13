@@ -536,13 +536,27 @@ function AdminOrdersContent() {
     }
   };
 
+  const getAuditorName = () => {
+    try {
+      const adminStr = sessionStorage.getItem("churun_admin_user");
+      if (adminStr) {
+        const u = JSON.parse(adminStr);
+        return u.name || "系統核對專員";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return "系統核對專員";
+  };
+
   const updateOrderStatus = async (orderId: string, action: 'approve' | 'cancel') => {
     setIsLoading(true);
     try {
+      const adminName = getAuditorName();
       const res = await fetch("/api/orders/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: orderId, action })
+        body: JSON.stringify({ order_id: orderId, action, auditor: adminName })
       });
       const data = await res.json();
       if (data.success) {
@@ -929,6 +943,9 @@ function AdminOrdersContent() {
                                 {order.status === 'completed' ? '已付款' :
                                  order.status === 'pending' ? '待付款' : 'Cancelled'}
                              </span>
+                             {order.auditor && (
+                               <span className="text-[8px] font-bold text-slate-400 block">👤 審核: {order.auditor}</span>
+                             )}
                              {order.status === 'completed' && (
                                <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1 ${
                                  order.fulfillment_status === 'shipped' ? 'bg-blue-50 text-blue-600' :

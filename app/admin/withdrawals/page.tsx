@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseAdmin as supabase } from "@/app/supabase-admin";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -21,7 +21,9 @@ import {
   CreditCard,
   CircleDollarSign,
   Search,
-  Activity
+  Activity,
+  Copy,
+  Check
 } from "lucide-react";
 
 import { exportToCsv } from "@/utils/exportCsv";
@@ -29,6 +31,7 @@ import Toast, { ToastType } from "../../../components/Toast";
 
 function AdminWithdrawalsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sectionFilter, setSectionFilter] = useState<'withdrawal' | 'deposit'>('withdrawal');
@@ -36,6 +39,33 @@ function AdminWithdrawalsContent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, fieldKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldKey);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const getAuditorName = () => {
+    try {
+      const adminStr = sessionStorage.getItem("churun_admin_user");
+      if (adminStr) {
+        const u = JSON.parse(adminStr);
+        return u.name || "系統管理專員";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return "系統管理專員";
+  };
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "deposit" || tab === "withdrawal") {
+      setSectionFilter(tab);
+    }
+  }, [searchParams]);
 
   // Authentication states
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -111,10 +141,27 @@ function AdminWithdrawalsContent() {
       async () => {
         setIsLoading(true);
         try {
-          // 1. 更新交易狀態
+          // 1. 取得現有 metadata
+          const { data: txData } = await supabase
+            .from("wallet_transactions")
+            .select("metadata")
+            .eq("id", id)
+            .single();
+
+          const auditorName = getAuditorName();
+          const updatedMetadata = {
+            ...(txData?.metadata || {}),
+            auditor: auditorName,
+            audited_at: new Date().toISOString()
+          };
+
+          // 2. 更新交易狀態與審核人員資訊
           const { error: updateError } = await supabase
             .from("wallet_transactions")
-            .update({ status })
+            .update({ 
+              status,
+              metadata: updatedMetadata
+            })
             .eq("id", id);
 
           if (updateError) throw updateError;
@@ -190,9 +237,19 @@ function AdminWithdrawalsContent() {
             const req = requests.find(r => r.id === id);
             if (!req || req.status !== 'pending') continue;
 
+            const auditorName = getAuditorName();
+            const updatedMetadata = {
+              ...(req.metadata || {}),
+              auditor: auditorName,
+              audited_at: new Date().toISOString()
+            };
+
             const { error: updateError } = await supabase
               .from("wallet_transactions")
-              .update({ status })
+              .update({ 
+                status,
+                metadata: updatedMetadata
+              })
               .eq("id", id);
 
             if (updateError) continue;
@@ -510,7 +567,7 @@ function AdminWithdrawalsContent() {
                         {req.members?.name.slice(0, 1)}
                      </div>
                      <div>
-                        <h4 className="font-black text-slate-800">{req.members?.name}</h4>
+                        <h4 className="font-black text-slate-800">{req.members?.name}{req.members?.phone && <span className="text-[10px] text-slate-400 font-bold ml-2">({req.members.phone})</span>}</h4>
                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{req.members?.member_code}</p>
                      </div>
                   </div>
@@ -519,17 +576,56 @@ function AdminWithdrawalsContent() {
                        <>
                          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
                             <Building2 className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}</span>
+                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}
+                             {req.metadata?.bank?.account && (
+                               <button
+                                 onClick={() => handleCopy(req.metadata.bank.account, `${req.id}-bank-account`)}
+                                 className="ml-1.5 p-0.5 text-slate-300 hover:text-slate-600 transition inline-flex items-center align-middle"
+                                 title="複製銀行帳號"
+                               >
+                                 {copiedField === `${req.id}-bank-account` ? (
+                                    <Check className="w-3 h-3 text-emerald-500" />
+                                 ) : (
+                                    <Copy className="w-3 h-3" />
+                                 )}
+                               </button>
+                             )}</span>
                          </div>
                          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
                             <UserIcon className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.name}</span>
+                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.name}
+                             {req.metadata?.bank?.name && (
+                               <button
+                                 onClick={() => handleCopy(req.metadata.bank.name, `${req.id}-bank-name`)}
+                                 className="ml-1.5 p-0.5 text-slate-300 hover:text-slate-600 transition inline-flex items-center align-middle"
+                                 title="複製戶名"
+                               >
+                                 {copiedField === `${req.id}-bank-name` ? (
+                                    <Check className="w-3 h-3 text-emerald-500" />
+                                 ) : (
+                                    <Copy className="w-3 h-3" />
+                                 )}
+                               </button>
+                             )}</span>
                          </div>
                        </>
                      ) : (
                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100/50">
                           <Activity className="w-3 h-3 text-emerald-500" />
-                          <span className="text-[10px] font-black">匯款帳號末五碼: <span className="font-mono text-xs">{req.metadata?.payment_last_five || '無'}</span></span>
+                          <span className="text-[10px] font-black">匯款帳號末五碼: <span className="font-mono text-xs">{req.metadata?.payment_last_five || '無'}</span>
+                           {req.metadata?.payment_last_five && (
+                             <button
+                               onClick={() => handleCopy(req.metadata.payment_last_five, `${req.id}-last-five`)}
+                               className="ml-1.5 p-0.5 text-emerald-500 hover:text-emerald-800 transition inline-flex items-center align-middle"
+                               title="複製末五碼"
+                             >
+                               {copiedField === `${req.id}-last-five` ? (
+                                 <Check className="w-3 h-3 text-emerald-600" />
+                               ) : (
+                                 <Copy className="w-3 h-3" />
+                               )}
+                             </button>
+                           )}</span>
                        </div>
                      )}
                   </div>
@@ -561,9 +657,16 @@ function AdminWithdrawalsContent() {
                   )}
 
                   {req.status !== 'pending' && (
+                     <div className="flex flex-col items-end gap-1.5">
                     <div className={`flex items-center gap-2 px-6 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest ${req.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                        {req.status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                        {req.status === 'completed' ? (sectionFilter === 'deposit' ? '已入帳' : '已發款') : '已駁回'}
+                     </div>
+                     {req.metadata?.auditor && (
+                        <span className="text-[9px] font-black text-slate-400 bg-slate-100/50 px-2.5 py-1 rounded-lg border border-slate-200/30 uppercase tracking-wider flex items-center gap-1 mt-1 shadow-sm">
+                           👤 審核: {req.metadata.auditor}
+                        </span>
+                     )}
                     </div>
                   )}
                </div>

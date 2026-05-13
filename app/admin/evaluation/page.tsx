@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -99,6 +99,7 @@ const ZONES = [
 
 function EvaluationContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeZone, setActiveZone] = useState("members");
   const [expandedRank, setExpandedRank] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -108,10 +109,37 @@ function EvaluationContent() {
   const [rankCounts, setRankCounts] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
 
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "audits" || tab === "exits" || tab === "members") {
+      setActiveZone(tab);
+    }
+  }, [searchParams]);
+
   // Invite states
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteType, setInviteType] = useState<"partner" | "ambassador" | "invited_team">("partner");
   const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, fieldKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldKey);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const getAuditorName = () => {
+    try {
+      const adminStr = sessionStorage.getItem("churun_admin_user");
+      if (adminStr) {
+        const u = JSON.parse(adminStr);
+        return u.name || "系統核對專員";
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return "系統核對專員";
+  };
 
   // Audits states
   const [pendingAccountingList, setPendingAccountingList] = useState<Member[]>([]);
@@ -323,10 +351,35 @@ function EvaluationContent() {
     if (!confirm(approve ? "確定要「核准金額無誤」並送交業務主管進行最後審查嗎？" : "確定要「駁回」此申請案嗎？")) return;
 
     try {
+      // 取得原本的 beneficiary 以便更新 JSONB metadata
+      const { data: mData } = await supabase
+        .from("members")
+        .select("beneficiary")
+        .eq("id", memberId)
+        .single();
+
+      let updatedBeneficiary = mData?.beneficiary || "";
+      const adminName = getAuditorName();
+
+      if (updatedBeneficiary.startsWith("B2B_JSON_V1|")) {
+        try {
+          const jsonStr = updatedBeneficiary.substring("B2B_JSON_V1|".length);
+          const data = JSON.parse(jsonStr);
+          data.audited_by_accountant = adminName;
+          data.accountant_audited_at = new Date().toISOString();
+          updatedBeneficiary = "B2B_JSON_V1|" + JSON.stringify(data);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       if (approve) {
         const { error } = await supabase
           .from("members")
-          .update({ status: "pending_manager" })
+          .update({ 
+            status: "pending_manager",
+            beneficiary: updatedBeneficiary
+          })
           .eq("id", memberId);
 
         if (error) throw error;
@@ -334,7 +387,10 @@ function EvaluationContent() {
       } else {
         const { error } = await supabase
           .from("members")
-          .update({ status: "rejected" })
+          .update({ 
+            status: "rejected",
+            beneficiary: updatedBeneficiary
+          })
           .eq("id", memberId);
 
         if (error) throw error;
@@ -351,6 +407,21 @@ function EvaluationContent() {
     if (!confirm(approve ? `確定要「最終核准開通」此 B2B 帳號嗎？\n系統將自動設定職級為【${member.tier}】並儲值首筆預收款 $${Number(member.initial_deposit || 0).toLocaleString()} 元！` : "確定要「駁回」此申請案嗎？")) return;
 
     try {
+      let updatedBeneficiary = member.beneficiary || "";
+      const adminName = getAuditorName();
+
+      if (updatedBeneficiary.startsWith("B2B_JSON_V1|")) {
+        try {
+          const jsonStr = updatedBeneficiary.substring("B2B_JSON_V1|".length);
+          const data = JSON.parse(jsonStr);
+          data.audited_by_manager = adminName;
+          data.manager_audited_at = new Date().toISOString();
+          updatedBeneficiary = "B2B_JSON_V1|" + JSON.stringify(data);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       if (approve) {
         // 1. Update member record to active, set initial virtual wallet balance equal to initial deposit
         const { error: memberErr } = await supabase
@@ -358,7 +429,8 @@ function EvaluationContent() {
           .update({ 
             status: "active",
             virtual_balance: member.initial_deposit || 0,
-            initial_deposit: member.initial_deposit || 0
+            initial_deposit: member.initial_deposit || 0,
+            beneficiary: updatedBeneficiary
           })
           .eq("id", member.id);
 
@@ -371,7 +443,12 @@ function EvaluationContent() {
             member_id: member.id,
             amount: member.initial_deposit || 0,
             transaction_type: "deposit",
-            status: "completed"
+            status: "completed",
+            metadata: {
+              auditor: adminName,
+              audited_at: new Date().toISOString(),
+              note: "B2B 創始首筆預收儲值"
+            }
           });
 
         if (txErr) console.warn("Failed to create wallet transaction history record:", txErr);
@@ -407,7 +484,10 @@ function EvaluationContent() {
       } else {
         const { error } = await supabase
           .from("members")
-          .update({ status: "rejected" })
+          .update({ 
+            status: "rejected",
+            beneficiary: updatedBeneficiary
+          })
           .eq("id", member.id);
 
         if (error) throw error;
@@ -604,7 +684,23 @@ function EvaluationContent() {
                                   <Calendar className="w-3 h-3" /> {new Date(app.created_at).toLocaleDateString()}
                                 </span>
                               </h5>
-                              <p className="text-[10px] text-slate-400 font-bold mt-1">手機：{app.phone}</p>
+                              <p className="text-[10px] text-slate-400 font-bold mt-1">手機：{app.phone}
+                                {app.phone && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopy(app.phone, `${app.id}-phone`);
+                                    }}
+                                    className="p-0.5 text-slate-300 hover:text-slate-500 transition inline-flex items-center align-middle ml-1"
+                                    title="複製手機號碼"
+                                  >
+                                    {copiedField === `${app.id}-phone` ? (
+                                      <Check className="w-3 h-3 text-emerald-500" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                )}</p>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className={`px-3 py-1 rounded-full text-[8px] font-black tracking-widest uppercase ${isB2BAmbassador ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600'}`}>
@@ -632,7 +728,20 @@ function EvaluationContent() {
                                     </div>
                                     <div>
                                       <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">帳號後五碼</span>
-                                      <span className="text-xs font-black text-slate-700 tracking-wider">【 {b2bData.lastFive || app.bank_account || "無"} 】</span>
+                                      <span className="text-xs font-black text-slate-700 tracking-wider">【 {b2bData.lastFive || app.bank_account || "無"} 】
+                                       {(b2bData.lastFive || app.bank_account) && (
+                                         <button
+                                           onClick={() => handleCopy(b2bData.lastFive || app.bank_account || "", `${app.id}-last-five`)}
+                                           className="p-0.5 text-slate-400 hover:text-slate-700 transition inline-flex items-center align-middle ml-1"
+                                           title="複製後五碼"
+                                         >
+                                           {copiedField === `${app.id}-last-five` ? (
+                                             <Check className="w-3 h-3 text-emerald-500" />
+                                           ) : (
+                                             <Copy className="w-3 h-3" />
+                                           )}
+                                         </button>
+                                       )}</span>
                                     </div>
                                   </div>
 
@@ -646,7 +755,20 @@ function EvaluationContent() {
                                       <div className="grid grid-cols-2 gap-2 pt-1">
                                         <div>
                                           <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證字號</span>
-                                          <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}</span>
+                                          <span className="text-xs font-bold text-slate-700">{b2bData.idCardNumber || app.id_card_number || "未提供"}
+                                           {(b2bData.idCardNumber || app.id_card_number) && (
+                                             <button
+                                               onClick={() => handleCopy(b2bData.idCardNumber || app.id_card_number || "", `${app.id}-id-card`)}
+                                               className="p-0.5 text-slate-400 hover:text-slate-700 transition inline-flex items-center align-middle ml-1"
+                                               title="複製身分證字號"
+                                             >
+                                               {copiedField === `${app.id}-id-card` ? (
+                                                 <Check className="w-3 h-3 text-emerald-500" />
+                                               ) : (
+                                                 <Copy className="w-3 h-3" />
+                                               )}
+                                             </button>
+                                           )}</span>
                                         </div>
                                         <div>
                                           <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">身分證影像</span>
@@ -697,7 +819,20 @@ function EvaluationContent() {
 
                                       <div className="space-y-1 pt-1">
                                         <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">收退款銀行帳號</span>
-                                        <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}</span>
+                                        <span className="text-xs font-bold text-slate-700 tracking-widest block">{b2bData.bankAccount || app.bank_account || "未提供"}
+                                         {(b2bData.bankAccount || app.bank_account) && (
+                                           <button
+                                             onClick={() => handleCopy(b2bData.bankAccount || app.bank_account || "", `${app.id}-bank-account`)}
+                                             className="p-0.5 text-slate-400 hover:text-slate-700 transition inline-flex items-center align-middle ml-1"
+                                             title="複製銀行帳號"
+                                           >
+                                             {copiedField === `${app.id}-bank-account` ? (
+                                               <Check className="w-3 h-3 text-emerald-500" />
+                                             ) : (
+                                               <Copy className="w-3 h-3" />
+                                             )}
+                                           </button>
+                                         )}</span>
                                       </div>
                                     </div>
                                   )}
@@ -804,6 +939,9 @@ function EvaluationContent() {
                                       <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block">匯款狀態</span>
                                       <span className="text-xs font-black text-blue-600 flex items-center gap-1">
                                         <CheckCircle2 className="w-3.5 h-3.5" /> 會計已確認
+                                        {b2bData.audited_by_accountant && (
+                                          <span className="text-[9px] font-bold text-slate-500 block mt-0.5">（由 {b2bData.audited_by_accountant} 稽核款項）</span>
+                                        )}
                                       </span>
                                     </div>
                                   </div>

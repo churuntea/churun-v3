@@ -601,13 +601,6 @@ function AdminHRContent() {
            >
               🏆 各職級特權與獎勵設定
            </button>
-           <button 
-             type="button"
-             onClick={() => { setSelectedTierIdx(null); setActiveTab("tiers"); }}
-             className={`pb-4 px-6 text-sm font-black tracking-widest transition-all border-b-2 ${activeTab === "tiers" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-600"}`}
-           >
-              🏆 各職級特權與獎勵設定
-           </button>
            {editingId && (
              <button 
                className="pb-4 px-6 text-sm font-black tracking-widest border-b-2 border-indigo-600 text-indigo-600"
