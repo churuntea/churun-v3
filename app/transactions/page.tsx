@@ -109,7 +109,7 @@ function TransactionContent() {
   };
 
   useEffect(() => {
-    const currentVersion = "3.0.2";
+    const currentVersion = "3.0.3";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
