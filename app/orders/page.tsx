@@ -442,13 +442,25 @@ function OrdersContent() {
                                {new Date(order.created_at).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                          </div>
-                         <button 
-                           onClick={() => fetchOrderItems(order.id)}
-                           className="bg-slate-50 text-slate-900 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 hover:text-white transition flex items-center gap-2"
-                         >
-                            {loadingItems === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : expandedOrder === order.id ? "收起詳情" : "訂單詳情"} 
-                            <ChevronRight className={`w-4 h-4 transition-transform ${expandedOrder === order.id ? 'rotate-90' : ''}`} />
-                         </button>
+                         <div className="flex items-center gap-2">
+                            {order.status !== 'cancelled' && (
+                               <a 
+                                 href="https://lin.ee/oBBw4O3" 
+                                 target="_blank" 
+                                 rel="noopener noreferrer"
+                                 className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-1"
+                               >
+                                  💬 聯絡出貨
+                               </a>
+                            )}
+                            <button 
+                              onClick={() => fetchOrderItems(order.id)}
+                              className="bg-slate-50 text-slate-900 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 hover:text-white transition flex items-center gap-2"
+                            >
+                               {loadingItems === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : expandedOrder === order.id ? "收起詳情" : "訂單詳情"} 
+                               <ChevronRight className={`w-4 h-4 transition-transform ${expandedOrder === order.id ? 'rotate-90' : ''}`} />
+                            </button>
+                         </div>
                       </div>
                   </motion.div>
                 ))}

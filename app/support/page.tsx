@@ -20,12 +20,20 @@ export default function SupportPage() {
 
   const supportOptions = [
     {
-      title: "官方 LINE 客服",
-      desc: "即時解決您的席次預約與訂單問題",
+      title: "官方 LINE 總部客服",
+      desc: "加盟商務諮詢、席次預約與財務帳務核對",
+      icon: MessageCircle,
+      color: "bg-emerald-950",
+      action: "立即諮詢",
+      href: "https://lin.ee/tqsak2f"
+    },
+    {
+      title: "訂單出貨與物流客服",
+      desc: "出貨配送狀態追蹤、快遞物流一對一專屬對接",
       icon: MessageCircle,
       color: "bg-emerald-500",
-      action: "立即加入",
-      href: "https://lin.ee/tqsak2f"
+      action: "加入出貨 LINE",
+      href: "https://lin.ee/oBBw4O3"
     },
     {
       title: "電話專線服務",

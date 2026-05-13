@@ -14,7 +14,8 @@ import {
   User,
   CreditCard,
   Copy,
-  Info
+  Info,
+  MessageCircle
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/app/supabase";
@@ -302,6 +303,18 @@ function OrderSuccessContent() {
             </div>
 
          </div>
+
+         {/* Shipping LINE CTA */}
+         <motion.a 
+           href="https://lin.ee/oBBw4O3"
+           target="_blank"
+           rel="noopener noreferrer"
+           whileHover={{ scale: 1.02 }}
+           whileTap={{ scale: 0.98 }}
+           className="block w-full bg-[#06C755] hover:bg-[#05b04b] text-white py-5 rounded-[2rem] font-black text-xs tracking-[0.1em] flex items-center justify-center gap-3 shadow-lg shadow-[#06C755]/10 hover:shadow-[#06C755]/20 transition-all duration-300"
+         >
+            <MessageCircle className="w-5 h-5" /> 聯繫【初潤出貨客服】核對配送進度
+         </motion.a>
 
          {/* Navigation Buttons */}
          <div className="grid grid-cols-2 gap-4">

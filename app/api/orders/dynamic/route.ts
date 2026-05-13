@@ -288,7 +288,8 @@ export async function POST(request: Request) {
 ━━━━━━━━━━━━━━━━━━
 🍵 採購商品明細：
 ${itemsList}━━━━━━━━━━━━━━━━━━
-💡 提示：總部客服將在 1-2 個工作天內確認您的預收款並安排出貨。您可隨時在 LINE 輸入數字 「3」 來查詢最新訂單狀態喔！`;
+💡 提示：本訂單出貨將由【初潤出貨物流中心】專屬處理。請加入下方出貨客服 LINE 帳號，由專員快速為您對接安排：
+👉 https://lin.ee/oBBw4O3 (LINE ID: @285pmiuj)`;
 
       await sendLinePushNotification(buyer.line_id, pushText);
     }
