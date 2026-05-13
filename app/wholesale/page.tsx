@@ -229,28 +229,36 @@ function WholesaleContent() {
   };
 
   const handleRecipientNext = () => {
-    if (!shippingInfo.name && memberInfo) {
-      shippingInfo.name = memberInfo.name || '';
-    }
-    if (!shippingInfo.phone && memberInfo) {
-      shippingInfo.phone = memberInfo.phone || '';
-    }
+    const finalName = shippingInfo.name || memberInfo?.name || '';
+    const finalPhone = shippingInfo.phone || memberInfo?.phone || '';
+    const finalAddress = shippingInfo.address || (shippingInfo.method !== '自取' ? (memberInfo?.address || '') : '');
 
+    let computedAddress = finalAddress;
     if (shippingInfo.method === '超商取貨') {
       if (!cvsStoreName || !cvsStoreCode) {
         alert("請輸入超商門市名稱與店號");
         return;
       }
-      shippingInfo.address = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
+      computedAddress = `[超商取貨] ${cvsBrand} ${cvsStoreName} (店號: ${cvsStoreCode})`;
+    } else if (shippingInfo.method === '自取') {
+      if (!shippingInfo.address) {
+         alert("請在上方門市卡片中，點擊選擇您的自取門市");
+         return;
+      }
+      computedAddress = shippingInfo.address;
     }
-    if (shippingInfo.method === '自取' && !shippingInfo.address) {
-       alert("請在上方門市卡片中，點擊選擇您的自取門市");
+
+    if (!finalName.trim() || !finalPhone.trim() || !computedAddress.trim()) {
+       alert("請填寫完整的收件資訊 (收件人姓名、電話及地址皆為必填)");
        return;
     }
-    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
-       alert("請填寫完整的收件資訊");
-       return;
-    }
+
+    setShippingInfo(prev => ({
+      ...prev,
+      name: finalName,
+      phone: finalPhone,
+      address: computedAddress
+    }));
     setShippingSubStep('payment_review');
   };
 
@@ -1015,7 +1023,22 @@ function WholesaleContent() {
 
                      <div className="space-y-4 pt-4">
                         <button 
-                          onClick={() => setShowConfirmSenderModal(true)}
+                          onClick={() => {
+                            const sName = shippingInfo.senderName || memberInfo?.name || '';
+                            const sPhone = shippingInfo.senderPhone || memberInfo?.phone || '';
+                            const sAddress = shippingInfo.senderAddress || memberInfo?.address || '';
+                            if (!sName.trim() || !sPhone.trim() || !sAddress.trim()) {
+                               alert("請填寫完整的寄件資訊 (寄件人姓名、電話及地址皆為必填)");
+                               return;
+                            }
+                            setShippingInfo(prev => ({
+                              ...prev,
+                              senderName: sName,
+                              senderPhone: sPhone,
+                              senderAddress: sAddress
+                            }));
+                            setShowConfirmSenderModal(true);
+                          }}
                           className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                         >
                            下一步：填寫收件
@@ -1452,6 +1475,10 @@ function WholesaleContent() {
                       <div className="text-center">
                          <h3 className="text-xl font-black text-slate-900">採購扣款與訂單總確認</h3>
                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Virtual Balance Payment Confirmation</p>
+                         <div className="mt-2.5 inline-flex items-center gap-1.5 bg-slate-100 px-3.5 py-1 rounded-full text-[10px] font-black text-slate-600 tracking-wider">
+                            <span>🆔 會員編號:</span>
+                            <span className="text-emerald-800">{memberInfo?.member_code || "---"}</span>
+                         </div>
                       </div>
 
                       {/* Virtual Balance Card */}

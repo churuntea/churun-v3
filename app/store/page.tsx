@@ -224,8 +224,8 @@ function StoreContent() {
       computedAddress = shippingInfo.address;
     }
 
-    if (!finalName || !finalPhone || !computedAddress) {
-       alert("請填寫完整的收件資訊");
+    if (!finalName.trim() || !finalPhone.trim() || !computedAddress.trim()) {
+       alert("請填寫完整的收件資訊 (收件人姓名、電話及地址皆為必填)");
        return;
     }
 
@@ -445,8 +445,12 @@ function StoreContent() {
        alert("請在上方門市卡片中，點擊選擇您的自取門市");
        return;
     }
-    if (!currentShippingInfo.name || !currentShippingInfo.phone || !currentShippingInfo.address) {
-       alert("請填寫完整的收件資訊");
+    if (!currentShippingInfo.name?.trim() || !currentShippingInfo.phone?.trim() || !currentShippingInfo.address?.trim()) {
+       alert("請填寫完整的收件資訊 (收件人姓名、電話及地址皆為必填)");
+       return;
+    }
+    if (!currentShippingInfo.senderName?.trim() || !currentShippingInfo.senderPhone?.trim() || !currentShippingInfo.senderAddress?.trim()) {
+       alert("請填寫完整的寄件資訊 (寄件人姓名、電話及地址皆為必填)");
        return;
     }
 
@@ -597,12 +601,12 @@ function StoreContent() {
                  className="group"
                >
                  <div className="bg-white rounded-[3rem] overflow-hidden shadow-sm border border-slate-50 relative flex flex-col">
-                    <div className="aspect-square w-full bg-slate-50 relative overflow-hidden">
-                       <img 
-                         src={product.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80"} 
-                         alt={product.name} 
-                         className="w-full h-full object-cover group-hover:scale-110 transition duration-1000"
-                       />
+                    <div className="w-full bg-slate-50/50 relative overflow-hidden flex items-center justify-center">
+                        <img 
+                          src={product.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80"} 
+                          alt={product.name} 
+                          className="w-full h-auto max-h-[650px] object-contain group-hover:scale-102 transition duration-1000"
+                        />
                        {/* Heart Favorite Button */}
                         <motion.button 
                           whileHover={{ scale: 1.15 }}
@@ -1338,7 +1342,22 @@ function StoreContent() {
 
                      <div className="space-y-4 pt-4">
                         <button 
-                          onClick={() => setShowConfirmSenderModal(true)}
+                          onClick={() => {
+                            const sName = shippingInfo.senderName || memberInfo?.name || '';
+                            const sPhone = shippingInfo.senderPhone || memberInfo?.phone || '';
+                            const sAddress = shippingInfo.senderAddress || memberInfo?.address || '';
+                            if (!sName.trim() || !sPhone.trim() || !sAddress.trim()) {
+                               alert("請填寫完整的寄件資訊 (寄件人姓名、電話及地址皆為必填)");
+                               return;
+                            }
+                            setShippingInfo(prev => ({
+                              ...prev,
+                              senderName: sName,
+                              senderPhone: sPhone,
+                              senderAddress: sAddress
+                            }));
+                            setShowConfirmSenderModal(true);
+                          }}
                           className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                         >
                            下一步：填寫收件
@@ -1881,8 +1900,14 @@ function StoreContent() {
                    </div>
                    
                    <div className="space-y-2 text-xs">
-                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
-                         <span className="font-black text-slate-400">👤 寄件人</span>
+                       <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
+                          <span className="font-black text-slate-400">🆔 會員編號</span>
+                          <span className="col-span-2 font-black text-emerald-800 text-right">
+                             {memberInfo?.member_code || "---"}
+                          </span>
+                       </div>
+                       <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
+                          <span className="font-black text-slate-400">👤 寄件人</span>
                          <span className="col-span-2 font-bold text-slate-800 text-right">
                             {shippingInfo.senderName || memberInfo?.name} ({shippingInfo.senderPhone || memberInfo?.phone})
                          </span>
