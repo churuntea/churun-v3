@@ -144,40 +144,24 @@ function TransactionContent() {
 
   const handleExecuteRecharge = async () => {
     if (!memberInfo) return;
+    if (!rechargeTier || rechargeTier <= 0) {
+      setToast({ show: true, message: "⚠️ 請填寫大於 0 的正確儲值金額！", type: "error" });
+      return;
+    }
     setIsRecharging(true);
     try {
-      const currentBalance = Number(memberInfo.virtual_balance) || 0;
-      const targetBalance = currentBalance + rechargeTier;
-
-      // 1. 更新餘額
-      const { error: updateError } = await supabase
-        .from("members")
-        .update({ virtual_balance: targetBalance })
-        .eq("id", memberInfo.id);
-
-      if (updateError) throw updateError;
-
-      // 2. 建立儲值流水帳 (deposit)
-      const { error: txError } = await supabase
-        .from("wallet_transactions")
-        .insert({
+      const response = await fetch("/api/member/recharge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           member_id: memberInfo.id,
-          amount: rechargeTier,
-          transaction_type: "deposit",
-          status: "completed"
-        });
-
-      if (txError) throw txError;
-
-      // 3. 發送即時通知
-      await supabase.from("notifications").insert({
-        member_id: memberInfo.id,
-        title: "線上匯款儲值成功",
-        content: "您已成功存入合夥預收款資金 NT$ " + rechargeTier.toLocaleString() + " 元！帳戶餘額已即時更新。",
-        type: "system"
+          amount: rechargeTier
+        })
       });
 
-      // 4. 刷新前端狀態
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || "儲值失敗");
+
       await fetchData(memberInfo.id);
       setRechargeStep("success");
       setToast({ show: true, message: "🎉 儲值資金 NT$ " + rechargeTier.toLocaleString() + " 已即時入帳！", type: "success" });
@@ -568,6 +552,24 @@ function TransactionContent() {
                                    <span className={`text-xs font-mono font-black mt-1 ${rechargeTier === t.val ? 'text-emerald-400' : 'text-slate-800'}`}>NT$ {t.val.toLocaleString()}</span>
                                 </button>
                              ))}
+                          </div>
+                       </div>
+
+                       {/* 自訂儲值金額區 */}
+                       <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">或自訂儲值金額 (NT$)</label>
+                          <div className="relative">
+                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">NT$</span>
+                             <input 
+                                type="number"
+                                placeholder="填寫自訂金額..."
+                                value={rechargeTier || ""}
+                                onChange={e => {
+                                  const val = Number(e.target.value);
+                                  setRechargeTier(val > 0 ? val : 0);
+                                }}
+                                className="w-full bg-slate-50 border border-slate-100 p-3.5 pl-12 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition"
+                             />
                           </div>
                        </div>
 
