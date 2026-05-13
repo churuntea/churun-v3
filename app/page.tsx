@@ -621,27 +621,6 @@ function DashboardContent() {
         </section>
       
 
-        {/* Brand Insights Feed */}
-        <section className="grid grid-cols-2 gap-3 px-2">
-           {[
-             { label: "組織管理", icon: Users, href: "/organization", color: "from-amber-50 to-amber-100/40 hover:to-amber-100 text-amber-700 border-amber-100/20" },
-             { label: "品牌素材", icon: ImageIcon, href: "/materials", color: "from-cyan-50 to-cyan-100/40 hover:to-cyan-100 text-cyan-700 border-cyan-100/20" }
-           ].map((act, i) => (
-             <Link href={act.href} key={i}>
-                <motion.div 
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                  className={`bg-gradient-to-b ${act.color} border p-4.5 rounded-[2.2rem] flex flex-col items-center justify-center gap-3.5 shadow-md active:shadow-sm transition-all duration-300 aspect-square cursor-pointer`}
-                >
-                   <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-white/80 shrink-0">
-                      <act.icon className="w-5 h-5" />
-                   </div>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 leading-none">{act.label}</span>
-                </motion.div>
-             </Link>
-           ))}
-        </section>
-
         {/* Announcements */}
         <section id="brand-news" className="space-y-6">
            <div className="flex justify-between items-center px-2">
@@ -724,7 +703,7 @@ function DashboardContent() {
                   navigator.clipboard.writeText(link);
                   setCopiedLink(true);
                   setTimeout(() => setCopiedLink(false), 2000);
-                }} className="bg-emerald-900 text-white rounded-[2rem] p-5 flex flex-col items-center gap-3 shadow-xl shadow-emerald-900/20">
+                }} className="col-span-2 bg-emerald-900 text-white rounded-[2rem] p-5 flex flex-col items-center gap-3 shadow-xl shadow-emerald-900/20">
                   <UserPlus className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">{copiedLink ? '已複製！' : '推薦註冊連結'}</span>
                 </motion.button>
@@ -745,6 +724,11 @@ function DashboardContent() {
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/materials?tool=poster'); }} className="bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
                   <Sparkles className="w-6 h-6" />
                   <span className="text-[9px] font-black uppercase tracking-widest">產生海報</span>
+                </motion.button>
+
+                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setShowShareHub(false); router.push('/materials'); }} className="bg-cyan-50 text-cyan-700 border border-cyan-100 rounded-[2rem] p-5 flex flex-col items-center gap-3">
+                  <ImageIcon className="w-6 h-6" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">品牌素材</span>
                 </motion.button>
               </div>
 
