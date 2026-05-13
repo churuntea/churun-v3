@@ -3,8 +3,8 @@ import { supabaseAdmin } from "@/app/supabase-admin";
 import * as crypto from "crypto";
 
 // 取得環境變數（支援本機設定與 Vercel 後台，附帶萬用測試用備用金鑰）
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZaVHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rkyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "62fe3ed0c41fc24d2959dc2977c11db6";
+const LINE_CHANNEL_ACCESS_TOKEN: string = "aCzFsCQsb44oHNM7dYyjwOUSnCgqp8bT2tj+AxDzXFMCG0ilJLtOQHxFjUYcYeoN4MPS8ZBUyJPzXv77Z8ZaVHcZFhJqhguUR74ZfEMQIoMEQI0VNw6ul40rkyu4bG0U3KshQUIOYpU/IRrEek37RwdB04t89/10/w1cDnyilFU=";
+const LINE_CHANNEL_SECRET: string = "62fe3ed0c41fc24d2959dc2977c11db6";
 
 const LINKED_QUICK_REPLIES = [
   { type: "action", action: { type: "message", label: "👤 帳號資訊", text: "1" } },
