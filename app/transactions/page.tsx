@@ -34,8 +34,9 @@ function TransactionContent() {
   const [activeTab, setActiveTab] = useState<"wallet" | "points">("wallet");
   const [showHistory, setShowHistory] = useState(false);
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
-  const [rechargeStep, setRechargeStep] = useState<"tier" | "success">("tier");
+  const [rechargeStep, setRechargeStep] = useState<"tier" | "remit" | "success">("tier");
   const [rechargeTier, setRechargeTier] = useState<number>(10000);
+  const [paymentLastFive, setPaymentLastFive] = useState("");
   const [isRecharging, setIsRecharging] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" as "success" | "error" | "info" });
   const [isRedeeming, setIsRedeeming] = useState(false);
@@ -109,7 +110,7 @@ function TransactionContent() {
   };
 
   useEffect(() => {
-    const currentVersion = "3.0.3";
+    const currentVersion = "3.0.4";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -148,6 +149,10 @@ function TransactionContent() {
       setToast({ show: true, message: "⚠️ 請填寫大於 0 的正確儲值金額！", type: "error" });
       return;
     }
+    if (!paymentLastFive || paymentLastFive.trim().length === 0) {
+      setToast({ show: true, message: "⚠️ 請填寫匯款末五碼以便會計審核對帳！", type: "error" });
+      return;
+    }
     setIsRecharging(true);
     try {
       const response = await fetch("/api/member/recharge", {
@@ -155,18 +160,19 @@ function TransactionContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           member_id: memberInfo.id,
-          amount: rechargeTier
+          amount: rechargeTier,
+          payment_last_five: paymentLastFive
         })
       });
 
       const resData = await response.json();
-      if (!response.ok) throw new Error(resData.error || "儲值失敗");
+      if (!response.ok) throw new Error(resData.error || "儲值申請失敗");
 
       await fetchData(memberInfo.id);
       setRechargeStep("success");
-      setToast({ show: true, message: "🎉 儲值資金 NT$ " + rechargeTier.toLocaleString() + " 已即時入帳！", type: "success" });
+      setToast({ show: true, message: "🎉 儲值申請已送出，等待會計審核！", type: "success" });
     } catch (err: any) {
-      setToast({ show: true, message: "儲值失敗: " + err.message, type: "error" });
+      setToast({ show: true, message: "儲值申請失敗: " + err.message, type: "error" });
     } finally {
       setIsRecharging(false);
     }
@@ -283,7 +289,7 @@ function TransactionContent() {
                }}
                className="flex-1 py-4.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-emerald-600/10 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
             >
-               <CreditCard className="w-4 h-4" /> 💳 線上儲值
+               <CreditCard className="w-4 h-4" /> 💳 申請儲值
             </button>
             <button
                onClick={() => router.push("/withdraw")}
@@ -498,136 +504,215 @@ function TransactionContent() {
         </section>
       </main>
 
-      {/* 🔮 數位儲值大師面板 (Frosted-Glass Light/Dark Premium Modal) */}
+            {/* 🔮 數位儲值大師面板 (Frosted-Glass Light/Dark Premium Modal) */}
       <AnimatePresence>
          {isRechargeOpen && (
-           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div
-                 initial={{ opacity: 0 }}
-                 animate={{ opacity: 1 }}
-                 exit={{ opacity: 0 }}
-                 onClick={() => { if (!isRecharging) setIsRechargeOpen(false); }}
-                 className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
-              />
-              <motion.div
-                 initial={{ scale: 0.95, y: 15 }}
-                 animate={{ scale: 1, y: 0 }}
-                 exit={{ scale: 0.95, y: 15 }}
-                 className="bg-white rounded-[2.5rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col gap-6"
-                 onClick={e => e.stopPropagation()}
-              >
-                 {rechargeStep === "tier" ? (
-                    <>
-                       {/* Header */}
-                       <div className="flex justify-between items-center pb-2">
-                          <div>
-                             <h3 className="text-base font-black text-slate-900 tracking-tight">數位預收款線上儲值</h3>
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Wire-Transfer Balance Refill</p>
-                          </div>
-                          <button 
-                            disabled={isRecharging}
-                            onClick={() => setIsRechargeOpen(false)} 
-                            className="text-xs font-bold w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center"
-                          >
-                            ✕
-                          </button>
-                       </div>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+               <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => { if (!isRecharging) setIsRechargeOpen(false); }}
+                  className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
+               />
+               <motion.div
+                  initial={{ scale: 0.95, y: 15 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.95, y: 15 }}
+                  className="bg-white rounded-[2.5rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col gap-6"
+                  onClick={e => e.stopPropagation()}
+               >
+                  {rechargeStep === "tier" ? (
+                     <>
+                        {/* Header */}
+                        <div className="flex justify-between items-center pb-2">
+                           <div>
+                              <h3 className="text-base font-black text-slate-900 tracking-tight">數位預收款儲值申請</h3>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Wire-Transfer Balance Refill</p>
+                           </div>
+                           <button 
+                             disabled={isRecharging}
+                             onClick={() => setIsRechargeOpen(false)} 
+                             className="text-xs font-bold w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center"
+                           >
+                             ✕
+                           </button>
+                        </div>
 
-                       {/* Selection Tiers */}
-                       <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">選擇儲值額度</label>
-                          <div className="grid grid-cols-2 gap-2">
-                             {[
-                               { label: "🌱 體驗試用", val: 5000 },
-                               { label: "🍵 標準進貨", val: 10000 },
-                               { label: "🎁 尊榮囤貨", val: 30000 },
-                               { label: "👑 戰略合夥", val: 50000 }
-                             ].map(t => (
-                                <button
-                                   key={t.val}
-                                   onClick={() => setRechargeTier(t.val)}
-                                   className={`p-3.5 rounded-xl border text-left flex flex-col gap-1 transition ${rechargeTier === t.val ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100/50'}`}
-                                >
-                                   <span className="text-[10px] font-black leading-none">{t.label}</span>
-                                   <span className={`text-xs font-mono font-black mt-1 ${rechargeTier === t.val ? 'text-emerald-400' : 'text-slate-800'}`}>NT$ {t.val.toLocaleString()}</span>
-                                </button>
-                             ))}
-                          </div>
-                       </div>
+                        {/* Selection Tiers */}
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">選擇儲值額度</label>
+                           <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { label: "🌱 體驗試用", val: 5000 },
+                                { label: "🍵 標準進貨", val: 10000 },
+                                { label: "🎁 尊榮囤貨", val: 30000 },
+                                { label: "👑 戰略合夥", val: 50000 }
+                              ].map(t => (
+                                 <button
+                                    key={t.val}
+                                    onClick={() => setRechargeTier(t.val)}
+                                    className={`p-3.5 rounded-xl border text-left flex flex-col gap-1 transition ${rechargeTier === t.val ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100/50'}`}
+                                 >
+                                    <span className="text-[10px] font-black leading-none">{t.label}</span>
+                                    <span className={`text-xs font-mono font-black mt-1 ${rechargeTier === t.val ? 'text-emerald-400' : 'text-slate-800'}`}>NT$ {t.val.toLocaleString()}</span>
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
 
-                       {/* 自訂儲值金額區 */}
-                       <div className="space-y-2">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">或自訂儲值金額 (NT$)</label>
-                          <div className="relative">
-                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">NT$</span>
-                             <input 
-                                type="number"
-                                placeholder="填寫自訂金額..."
-                                value={rechargeTier || ""}
-                                onChange={e => {
-                                  const val = Number(e.target.value);
-                                  setRechargeTier(val > 0 ? val : 0);
-                                }}
-                                className="w-full bg-slate-50 border border-slate-100 p-3.5 pl-12 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition"
-                             />
-                          </div>
-                       </div>
+                        {/* 自訂儲值金額區 */}
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">或自訂儲值金額 (NT$)</label>
+                           <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">NT$</span>
+                              <input 
+                                 type="number"
+                                 placeholder="填寫自訂金額..."
+                                 value={rechargeTier || ""}
+                                 onChange={e => {
+                                   const val = Number(e.target.value);
+                                   setRechargeTier(val > 0 ? val : 0);
+                                 }}
+                                 className="w-full bg-slate-50 border border-slate-100 p-3.5 pl-12 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition"
+                              />
+                           </div>
+                        </div>
 
-                       {/* Bank Wire Details */}
-                       <div className="p-4 bg-slate-50 border border-slate-100/80 rounded-2xl space-y-2.5 text-xs font-bold text-slate-700">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">官方信託專用解款帳戶</p>
-                          <div className="flex justify-between items-center">
-                             <span className="text-slate-400">解款銀行</span>
-                             <span>013 國泰世華銀行 (信託部)</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                             <span className="text-slate-400">專屬匯款帳號</span>
-                             <span className="font-mono tracking-wider text-slate-900">9080-1283-{memberInfo?.phone ? memberInfo.phone.slice(-4) : "8869"}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                             <span className="text-slate-400">收款戶名</span>
-                             <span>初潤製茶所股份有限公司</span>
-                          </div>
-                       </div>
+                        {/* Confirm Button */}
+                        <button
+                           onClick={() => {
+                              if (!rechargeTier || rechargeTier <= 0) {
+                                 setToast({ show: true, message: "⚠️ 請填寫正確的儲值金額！", type: "error" });
+                                 return;
+                              }
+                              setRechargeStep("remit");
+                           }}
+                           className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10"
+                        >
+                           確認儲值金額，進行下一步 ➜
+                        </button>
+                     </>
+                  ) : rechargeStep === "remit" ? (
+                     <>
+                        {/* Header */}
+                        <div className="flex justify-between items-center pb-2">
+                           <div>
+                              <h3 className="text-base font-black text-slate-900 tracking-tight">請進行線下匯款對帳</h3>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Wire Transfer Remittance</p>
+                           </div>
+                           <button 
+                             disabled={isRecharging}
+                             onClick={() => setIsRechargeOpen(false)} 
+                             className="text-xs font-bold w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center"
+                           >
+                             ✕
+                           </button>
+                        </div>
 
-                       {/* Confirm Button */}
-                       <button
-                          onClick={handleExecuteRecharge}
-                          disabled={isRecharging}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-600/10 transition flex items-center justify-center gap-2"
-                       >
-                          {isRecharging ? (
-                             <>
-                                <Loader2 className="w-4 h-4 animate-spin text-white" /> 正在聯網解款中...
-                             </>
-                          ) : (
-                             <>
-                                ⚡ 模擬完成轉帳、即時入帳
-                             </>
-                          )}
-                       </button>
-                    </>
-                 ) : (
-                    <div className="text-center py-6 space-y-6 flex flex-col items-center">
-                       <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/20 text-white text-3xl font-bold">
-                          ✓
-                       </div>
-                       <div className="space-y-2">
-                          <h4 className="text-base font-black text-slate-800">🎉 資金入帳完成</h4>
-                          <p className="text-xs text-slate-400 font-medium leading-relaxed max-w-[200px] mx-auto">
-                             您已透過網銀轉帳成功匯入 <span className="font-bold text-slate-900">NT$ {rechargeTier.toLocaleString()} 元</span>！預收帳戶已即時增值。
-                          </p>
-                       </div>
-                       <button
-                          onClick={() => setIsRechargeOpen(false)}
-                          className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition"
-                       >
-                          回到數位帳本
-                       </button>
-                    </div>
-                 )}
-              </motion.div>
-           </div>
+                        {/* Remittance Info Card */}
+                        <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-3 shadow-xl">
+                           <div className="pb-2 border-b border-white/10 flex justify-between items-end">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">申請儲值金額</span>
+                              <span className="text-xl font-mono font-black text-emerald-400">NT$ {rechargeTier.toLocaleString()}</span>
+                           </div>
+                           <div className="space-y-2 text-[11px] font-bold">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">初潤官方信託專用解款帳戶</p>
+                              <div className="flex justify-between">
+                                 <span className="text-slate-400">解款銀行</span>
+                                 <span>013 國泰世華銀行 (信託部)</span>
+                              </div>
+                              <div className="flex justify-between">
+                                 <span className="text-slate-400">專屬匯款帳號</span>
+                                 <span className="font-mono tracking-wider text-emerald-300">9080-1283-${memberInfo?.phone ? memberInfo.phone.slice(-4) : "8869"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                 <span className="text-slate-400">收款戶名</span>
+                                 <span>初潤製茶所股份有限公司</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Last 5 digits input */}
+                        <div className="space-y-2">
+                           <div className="flex justify-between items-center">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">請輸入您的「匯款末五碼」</label>
+                              <span className="text-[9px] font-bold text-rose-500">必填 *</span>
+                           </div>
+                           <input 
+                              type="text"
+                              maxLength={5}
+                              placeholder="請輸入匯款卡片/帳號末 5 碼數字..."
+                              value={paymentLastFive}
+                              onChange={e => setPaymentLastFive(e.target.value.replace(/\D/g, ''))}
+                              className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-center text-sm font-black font-mono tracking-[0.3em] text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition"
+                           />
+                        </div>
+
+                        {/* Remit actions */}
+                        <div className="flex flex-col gap-2">
+                           <button
+                              onClick={handleExecuteRecharge}
+                              disabled={isRecharging}
+                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-600/10 transition flex items-center justify-center gap-2"
+                           >
+                              {isRecharging ? (
+                                 <>
+                                    <Loader2 className="w-4 h-4 animate-spin text-white" /> 正在送出審核中...
+                                 </>
+                              ) : (
+                                 <>
+                                    ⚡ 送出匯款審核申請
+                                 </>
+                              )}
+                           </button>
+                           <button
+                              disabled={isRecharging}
+                              onClick={() => setRechargeStep("tier")}
+                              className="w-full bg-slate-50 hover:bg-slate-100 text-slate-500 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition"
+                           >
+                              返回修改儲值金額
+                           </button>
+                        </div>
+                     </>
+                  ) : (
+                     <div className="text-center py-6 space-y-6 flex flex-col items-center">
+                        <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/20 text-white text-3xl font-bold">
+                           ✓
+                        </div>
+                        <div className="space-y-2">
+                           <h4 className="text-base font-black text-slate-800">🎉 儲值申請已送出</h4>
+                           <p className="text-xs text-slate-400 font-medium leading-relaxed max-w-[240px] mx-auto">
+                              您已成功提交 <span className="font-bold text-slate-900">NT$ {rechargeTier.toLocaleString()} 元</span> 的儲值申請！會計核對匯款末五碼 <span className="font-mono font-bold text-slate-900">【{paymentLastFive}】</span> 無誤後，系統將立即為您核發金額到帳。
+                           </p>
+                        </div>
+                        <div className="w-full flex flex-col gap-2">
+                           <button
+                              onClick={() => {
+                                 const accountantLineId = process.env.NEXT_PUBLIC_ACCOUNTANT_LINE_ID || "@churun_admin";
+                                 const text = `【預收儲值審核申報】\n━━━━━━━━━━━━━━━━━━\n● 會員帳號：${memberInfo?.member_code || memberInfo?.name || "無"}\n● 連絡電話：${memberInfo?.phone || "無"}\n● 儲值金額：NT$ ${rechargeTier.toLocaleString()} 元\n● 匯款末五碼：${paymentLastFive || "無"}\n● 審核人員：會計部審核專員`;
+                                 const lineUrl = `https://line.me/R/oaMessage/${accountantLineId}/?text=${encodeURIComponent(text)}`;
+                                 window.open(lineUrl, "_blank");
+                              }}
+                              className="w-full bg-[#06C755] hover:bg-[#05b04b] text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10"
+                           >
+                              💬 連結官方 LINE 會計審核對帳
+                           </button>
+                           <button
+                              onClick={() => {
+                                 setIsRechargeOpen(false);
+                                 setRechargeStep("tier");
+                                 setPaymentLastFive("");
+                              }}
+                              className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition"
+                           >
+                              回到數位帳本
+                           </button>
+                        </div>
+                     </div>
+                  )}
+               </motion.div>
+            </div>
          )}
       </AnimatePresence>
 

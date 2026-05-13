@@ -3,16 +3,20 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { member_id, amount } = await request.json();
+    const { member_id, amount, payment_last_five } = await request.json();
 
     if (!member_id || !amount || amount <= 0) {
       return NextResponse.json({ error: '儲值金額必須大於 0' }, { status: 400 });
     }
 
+    if (!payment_last_five || payment_last_five.trim().length === 0) {
+      return NextResponse.json({ error: '請填寫匯款帳號末五碼' }, { status: 400 });
+    }
+
     // 1. 抓取會員
     const { data: member, error: memberError } = await supabase
       .from('members')
-      .select('virtual_balance')
+      .select('name')
       .eq('id', member_id)
       .single();
 
@@ -20,36 +24,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '找不到會員資料' }, { status: 404 });
     }
 
-    const currentBalance = Number(member.virtual_balance) || 0;
-    const targetBalance = currentBalance + Number(amount);
-
-    // 2. 更新會員預收資金餘額
-    const { error: updateError } = await supabase
-      .from('members')
-      .update({ virtual_balance: targetBalance })
-      .eq('id', member_id);
-
-    if (updateError) throw updateError;
-
-    // 3. 建立儲值交易流水紀錄 (deposit)
+    // 2. 建立儲值交易申請流水紀錄 (deposit 且狀態為 pending 待審核)
     const { error: txError } = await supabase
       .from('wallet_transactions')
       .insert({
         member_id,
         amount: Number(amount),
         transaction_type: 'deposit',
-        status: 'completed'
+        status: 'pending',
+        metadata: {
+          payment_last_five: payment_last_five.trim()
+        }
       });
 
     if (txError) throw txError;
 
-    // 4. 新增即時通知
+    // 3. 新增即時通知
     const { error: notifyError } = await supabase
       .from('notifications')
       .insert({
         member_id,
-        title: '線上匯款儲值成功',
-        content: `您已成功存入合夥預收款資金 NT$ ${Number(amount).toLocaleString()} 元！帳戶餘額已即時更新。`,
+        title: '預收儲值申請已受理 ⏳',
+        content: `您的預收儲值申請 NT$ ${Number(amount).toLocaleString()} 元已成功送出！會計核對匯款末五碼【${payment_last_five.trim()}】無誤後，系統將立即為您核發金額到帳。`,
         type: 'system'
       });
 
@@ -57,7 +53,7 @@ export async function POST(request: Request) {
       console.error("發送通知失敗但繼續:", notifyError);
     }
 
-    return NextResponse.json({ success: true, new_balance: targetBalance });
+    return NextResponse.json({ success: true, message: "儲值申請已成功送出，靜待會計審核核發！" });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

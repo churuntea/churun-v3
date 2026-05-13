@@ -44,9 +44,34 @@ function WithdrawContent() {
     setIsLoading(false);
   };
 
+  const getWithdrawalFee = (tier: string) => {
+    const t = tier || "初潤寶寶";
+    switch (t) {
+      case "初潤寶寶":
+        return 15;
+      case "初潤青少年":
+      case "初潤好朋友":
+      case "初潤中產階級":
+        return 10;
+      case "初潤社會支柱":
+        return 5;
+      case "初潤中流砥柱":
+      case "初潤意見領袖":
+      case "初潤靈魂伴侶":
+        return 0;
+      default:
+        return 15;
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!amount || Number(amount) <= 0) {
       setToast({ show: true, message: "請輸入正確金額", type: "error" });
+      return;
+    }
+    const fee = getWithdrawalFee(memberInfo.tier);
+    if (Number(amount) <= fee) {
+      setToast({ show: true, message: `提領金額必須大於等級手續費 $${fee} 元`, type: "error" });
       return;
     }
     if (Number(amount) > Number(memberInfo.virtual_balance)) {
@@ -190,37 +215,65 @@ function WithdrawContent() {
                    className="w-full bg-white border border-slate-100 p-8 pl-16 rounded-[2.5rem] text-3xl font-black tracking-tighter text-slate-800 focus:ring-4 focus:ring-emerald-500/5 transition shadow-sm outline-none"
                  />
               </div>
-           </div>
+            </div>
 
-           {/* Bank Info Mini-Card */}
-           <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm flex items-center gap-6">
-              <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center">
-                 <CreditCard className="w-6 h-6 text-indigo-500" />
-              </div>
-              <div className="flex-1 space-y-1">
-                 <h4 className="text-sm font-black text-slate-800">
-                    {memberInfo.bank_account ? `綁定帳號 (${memberInfo.bank_code})` : '尚未綁定帳號'}
-                 </h4>
-                 <p className="text-[10px] font-bold text-slate-300 tracking-widest uppercase">
-                    {memberInfo.bank_account ? memberInfo.bank_account.replace(/(.{4})/g, '$1 ') : '請先前往個人中心設定'}
-                 </p>
-              </div>
-              {!memberInfo.bank_account && (
-                <Link href="/profile/security/bank" className="text-emerald-600">
-                   <ArrowRight className="w-5 h-5" />
-                </Link>
-              )}
-           </div>
-        </div>
+            {/* 實時提領手續費與到帳金額試算 */}
+            {amount && Number(amount) > 0 && (
+               <motion.div 
+                 initial={{ opacity: 0, y: -10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="bg-emerald-50/40 border border-emerald-100 p-6 rounded-[2rem] space-y-3.5 text-xs text-left"
+               >
+                  <div className="flex justify-between items-center text-slate-500 font-bold">
+                     <span>申請提領金額</span>
+                     <span className="font-mono">${Number(amount).toLocaleString()} 元</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500 font-bold">
+                     <span className="flex items-center gap-1">
+                        👑 會員職級 ({memberInfo.tier || '初潤寶寶'}) 手續費
+                     </span>
+                     <span className="font-mono text-rose-500">
+                        {getWithdrawalFee(memberInfo.tier) > 0 ? `-$${getWithdrawalFee(memberInfo.tier)} 元` : "免手續費 ($0)"}
+                     </span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-emerald-100 pt-3 text-slate-800 font-black">
+                     <span className="text-emerald-950">預計實際撥款到帳金額</span>
+                     <span className="text-base text-emerald-800 font-mono font-black">
+                        ${Math.max(0, Number(amount) - getWithdrawalFee(memberInfo.tier)).toLocaleString()} 元
+                     </span>
+                  </div>
+               </motion.div>
+            )}
 
-        {/* Info Box */}
-        <div className="bg-amber-50 rounded-[2rem] p-6 flex items-start gap-4 border border-amber-100">
-           <Info className="w-5 h-5 text-amber-500 shrink-0 mt-1" />
-           <p className="text-[10px] font-medium text-amber-700 leading-relaxed">
-              * 提領手續費為 15 元，將從提領金額中扣除。<br/>
-              * 每月 10 日及 25 日為統一撥款日，請耐心等候。
-           </p>
-        </div>
+            {/* Bank Info Mini-Card */}
+            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm flex items-center gap-6">
+               <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-indigo-500" />
+               </div>
+               <div className="flex-1 space-y-1">
+                  <h4 className="text-sm font-black text-slate-800">
+                     {memberInfo.bank_account ? `綁定帳號 (${memberInfo.bank_code})` : '尚未綁定帳號'}
+                  </h4>
+                  <p className="text-[10px] font-bold text-slate-300 tracking-widest uppercase">
+                     {memberInfo.bank_account ? memberInfo.bank_account.replace(/(.{4})/g, '$1 ') : '請先前往個人中心設定'}
+                  </p>
+               </div>
+               {!memberInfo.bank_account && (
+                 <Link href="/profile/security/bank" className="text-emerald-600">
+                    <ArrowRight className="w-5 h-5" />
+                 </Link>
+               )}
+            </div>
+         </div>
+
+         {/* Info Box */}
+         <div className="bg-amber-50 rounded-[2rem] p-6 flex items-start gap-4 border border-amber-100">
+            <Info className="w-5 h-5 text-amber-500 shrink-0 mt-1" />
+            <p className="text-[10px] font-medium text-amber-700 leading-relaxed">
+               * 您的會員職級為「{memberInfo.tier || "初潤寶寶"}」，提領手續費為 {getWithdrawalFee(memberInfo.tier)} 元，將從撥款金額中扣除。<br/>
+               * 每月 10 日及 25 日為統一撥款日，請耐心等候。
+            </p>
+         </div>
 
         {/* Action Button */}
         <motion.button 

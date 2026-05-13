@@ -1919,6 +1919,38 @@ function StoreContent() {
                             ${(finalPrice + (shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元
                          </span>
                       </div>
+
+                      {/* 此次訂購的點數回饋 */}
+                      {(() => {
+                         const pointsRateMapping: Record<string, number> = {
+                            '初潤寶寶': 100,
+                            '初潤幼兒園': 90,
+                            '初潤小朋友': 80,
+                            '初潤青少年': 70,
+                            '初潤好朋友': 60,
+                            '初潤閨蜜': 50,
+                            '初潤知己': 40,
+                            '初潤靈魂伴侶': 30,
+                         };
+                         const rate = pointsRateMapping[memberInfo?.tier || '初潤寶寶'] || 100;
+                         const earnedPoints = Math.floor(finalPrice / rate);
+
+                         if (memberInfo?.is_b2b) {
+                            return (
+                               <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 bg-slate-100/50 rounded-2xl px-4 py-2.5 mt-2 border border-slate-100/80">
+                                  <span>💡 本次訂單點數回饋</span>
+                                  <span className="font-extrabold text-slate-500">B2B 批發帳號不計點數回饋</span>
+                               </div>
+                            );
+                         }
+
+                         return (
+                            <div className="flex justify-between items-center text-xs font-black text-emerald-700 bg-emerald-50/50 rounded-2xl px-4 py-2.5 mt-2 border border-emerald-100/40">
+                               <span className="flex items-center gap-1.5">🎁 本次預計點數回饋</span>
+                               <span className="font-mono font-black text-emerald-600">+{earnedPoints} 點 ({memberInfo?.tier || '會員'})</span>
+                            </div>
+                         );
+                      })()}
                    </div>
                 </div>
 

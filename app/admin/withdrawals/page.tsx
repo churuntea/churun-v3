@@ -17,7 +17,11 @@ import {
   ShieldCheck,
   Lock,
   ArrowRight,
-  User as UserIcon
+  User as UserIcon,
+  CreditCard,
+  CircleDollarSign,
+  Search,
+  Activity
 } from "lucide-react";
 
 import { exportToCsv } from "@/utils/exportCsv";
@@ -27,9 +31,11 @@ function AdminWithdrawalsContent() {
   const router = useRouter();
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sectionFilter, setSectionFilter] = useState<'withdrawal' | 'deposit'>('withdrawal');
   const [filter, setFilter] = useState('pending');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Authentication states
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -87,7 +93,7 @@ function AdminWithdrawalsContent() {
         *,
         members (name, phone, member_code)
       `)
-      .eq("transaction_type", "withdrawal_request")
+      .in("transaction_type", ["withdrawal_request", "withdrawal", "deposit"])
       .order("created_at", { ascending: false });
     
     if (error) console.error(error);
@@ -95,41 +101,88 @@ function AdminWithdrawalsContent() {
     setIsLoading(false);
   };
 
-  const handleAction = (id: string, status: string, memberId: string, amount: number) => {
-    const actionName = status === 'completed' ? '已核准' : '已駁回';
+  const handleAction = (id: string, status: string, memberId: string, amount: number, type: string) => {
+    const isDeposit = type === 'deposit';
+    const actionName = status === 'completed' ? (isDeposit ? '核准到帳' : '核准提領') : '已駁回';
+    
     triggerConfirm(
-      `確定將此提領標記為 ${actionName}？`,
-      `您即將將此筆 NT$ ${Math.abs(amount).toLocaleString()} 的提領申請變更為【${actionName}】。確認後系統將自動異動該會員之提款帳戶餘額。`,
+      `確定執行 ${actionName}？`,
+      `您即將將此筆 NT$ ${Math.abs(amount).toLocaleString()} 的${isDeposit ? '儲值' : '提領'}申請標記為【${actionName}】。確認後系統將自動異動該會員之預收帳戶餘額。`,
       async () => {
         setIsLoading(true);
-        // 1. 更新交易狀態
-        const { error: updateError } = await supabase
-          .from("wallet_transactions")
-          .update({ status })
-          .eq("id", id);
+        try {
+          // 1. 更新交易狀態
+          const { error: updateError } = await supabase
+            .from("wallet_transactions")
+            .update({ status })
+            .eq("id", id);
 
-        // 2. 如果是核准，則正式從會員餘額扣除
-        if (status === 'completed' && !updateError) {
-          const { data: member } = await supabase.from("members").select("virtual_balance").eq("id", memberId).single();
-          const currentBalance = Number(member?.virtual_balance || 0);
-          
-          await supabase.from("members").update({
-            virtual_balance: currentBalance + amount // amount 這裡已經是負數
-          }).eq("id", memberId);
+          if (updateError) throw updateError;
+
+          // 2. 如果是核准，則異動會員預收款餘額
+          if (status === 'completed') {
+            const { data: member, error: mErr } = await supabase.from("members").select("virtual_balance").eq("id", memberId).single();
+            if (mErr) throw mErr;
+
+            const currentBalance = Number(member?.virtual_balance || 0);
+            
+            // 提領 amount 為負數，儲值 amount 為正數。直接相加即為 100% 正確扣款或加值！
+            const { error: balError } = await supabase.from("members").update({
+              virtual_balance: currentBalance + amount
+            }).eq("id", memberId);
+
+            if (balError) throw balError;
+          }
+
+          // 3. 發送系統通知
+          let notifyTitle = "";
+          let notifyContent = "";
+
+          if (isDeposit) {
+            if (status === 'completed') {
+              notifyTitle = "預收儲值核發成功！ 🎉";
+              notifyContent = `您申請的預收儲值 NT$ ${Number(amount).toLocaleString()} 元已成功核對並到帳，感謝您的進貨與支持！`;
+            } else {
+              notifyTitle = "儲值審核未通過 ❌";
+              notifyContent = `您申請的預收儲值 NT$ ${Number(amount).toLocaleString()} 元因帳款對帳不符已被駁回，請確認匯款金額與帳號末五碼並重新提交。`;
+            }
+          } else {
+            if (status === 'completed') {
+              notifyTitle = "提領審核通過並已發款 💸";
+              notifyContent = `您申請提領的 NT$ ${Math.abs(amount).toLocaleString()} 元已通過審核並成功發放至您的指定銀行帳戶。`;
+            } else {
+              notifyTitle = "提領審核未通過 ❌";
+              notifyContent = `您申請提領的 NT$ ${Math.abs(amount).toLocaleString()} 元因審核資格未符已被駁回，資金已全數退回。`;
+            }
+          }
+
+          await supabase.from('notifications').insert({
+            member_id: memberId,
+            title: notifyTitle,
+            content: notifyContent,
+            type: 'system'
+          });
+
+          triggerToast(`🎉 申請已成功標記為【${actionName}】！`);
+          fetchRequests();
+        } catch (err: any) {
+          console.error(err);
+          triggerToast(`操作失敗: ${err.message}`, "error");
+        } finally {
+          setIsLoading(false);
         }
-
-        triggerToast(`🎉 提領申請已成功標記為【${actionName}】！`);
-        fetchRequests();
       }
     );
   };
 
   const handleBatchAction = (status: 'completed' | 'failed') => {
     if (selectedIds.length === 0) return;
-    const actionName = status === 'completed' ? '已核准' : '已駁回';
+    const isDeposit = sectionFilter === 'deposit';
+    const actionName = status === 'completed' ? (isDeposit ? '核准到帳' : '核准提領') : '已駁回';
+    
     triggerConfirm(
       `確定批次標記為 ${actionName}？`,
-      `您即將將選取的 ${selectedIds.length} 筆提領申請批次變更為【${actionName}】。此操作影響多筆資金交易，請確認核對。`,
+      `您即將將選取的 ${selectedIds.length} 筆${isDeposit ? '儲值' : '提領'}申請批次變更為【${actionName}】。此操作將影響多筆資金餘額，請確認核對無誤。`,
       async () => {
         setIsProcessingBatch(true);
         try {
@@ -142,7 +195,9 @@ function AdminWithdrawalsContent() {
               .update({ status })
               .eq("id", id);
 
-            if (status === 'completed' && !updateError) {
+            if (updateError) continue;
+
+            if (status === 'completed') {
               const { data: member } = await supabase.from("members").select("virtual_balance").eq("id", req.member_id).single();
               const currentBalance = Number(member?.virtual_balance || 0);
               
@@ -150,9 +205,37 @@ function AdminWithdrawalsContent() {
                 virtual_balance: currentBalance + req.amount
               }).eq("id", req.member_id);
             }
+
+            // 發送通知
+            let notifyTitle = "";
+            let notifyContent = "";
+            if (isDeposit) {
+              if (status === 'completed') {
+                notifyTitle = "預收儲值核發成功！ 🎉";
+                notifyContent = `您申請的預收儲值 NT$ ${Number(req.amount).toLocaleString()} 元已成功核對並到帳！`;
+              } else {
+                notifyTitle = "儲值審核未通過 ❌";
+                notifyContent = `您申請的預收儲值 NT$ ${Number(req.amount).toLocaleString()} 元已被駁回。`;
+              }
+            } else {
+              if (status === 'completed') {
+                notifyTitle = "提領審核通過並已發款 💸";
+                notifyContent = `您申請提領的 NT$ ${Math.abs(req.amount).toLocaleString()} 元已通過審核並成功發放！`;
+              } else {
+                notifyTitle = "提領審核未通過 ❌";
+                notifyContent = `您申請提領的 NT$ ${Math.abs(req.amount).toLocaleString()} 元已被駁回。`;
+              }
+            }
+
+            await supabase.from('notifications').insert({
+              member_id: req.member_id,
+              title: notifyTitle,
+              content: notifyContent,
+              type: 'system'
+            });
           }
           
-          triggerToast(`🎉 ${selectedIds.length} 筆提領已成功批次變更為【${actionName}】！`);
+          triggerToast(`🎉 ${selectedIds.length} 筆申請已成功批次變更為【${actionName}】！`);
           setSelectedIds([]);
           await fetchRequests();
         } catch (err) {
@@ -166,37 +249,83 @@ function AdminWithdrawalsContent() {
   };
 
   const handleExport = () => {
-    if (filteredRequests.length === 0) return;
+    if (finalFilteredRequests.length === 0) return;
     
-    const exportData = filteredRequests.map(req => ({
-      '申請單號': req.id,
-      '會員姓名': req.members?.name,
-      '會員代碼': req.members?.member_code,
-      '銀行代碼': req.metadata?.bank?.bankCode || '',
-      '銀行帳號': req.metadata?.bank?.account || '',
-      '戶名': req.metadata?.bank?.name || '',
-      '提款金額': Math.abs(req.amount),
-      '狀態': req.status === 'pending' ? '待處理' : req.status === 'completed' ? '已核准' : '已駁回',
-      '申請時間': new Date(req.created_at).toLocaleString()
-    }));
+    const isDeposit = sectionFilter === 'deposit';
+    const exportData = finalFilteredRequests.map(req => {
+      if (isDeposit) {
+        return {
+          '申請單號': req.id,
+          '會員姓名': req.members?.name,
+          '會員代碼': req.members?.member_code,
+          '儲值金額': req.amount,
+          '對帳末五碼': req.metadata?.payment_last_five || '無',
+          '狀態': req.status === 'pending' ? '待對帳' : req.status === 'completed' ? '已入帳' : '已駁回',
+          '申請時間': new Date(req.created_at).toLocaleString()
+        };
+      } else {
+        return {
+          '申請單號': req.id,
+          '會員姓名': req.members?.name,
+          '會員代碼': req.members?.member_code,
+          '銀行代碼': req.metadata?.bank?.bankCode || '',
+          '銀行帳號': req.metadata?.bank?.account || '',
+          '戶名': req.metadata?.bank?.name || '',
+          '提領金額': Math.abs(req.amount),
+          '狀態': req.status === 'pending' ? '待處理' : req.status === 'completed' ? '已發款' : '已駁回',
+          '申請時間': new Date(req.created_at).toLocaleString()
+        };
+      }
+    });
 
-    exportToCsv(`初潤_提領申請報表_${new Date().toISOString().split('T')[0]}.csv`, exportData);
+    const filename = isDeposit 
+      ? `初潤_預收儲值審核報表_${new Date().toISOString().split('T')[0]}.csv`
+      : `初潤_提領申請報表_${new Date().toISOString().split('T')[0]}.csv`;
+
+    exportToCsv(filename, exportData);
     triggerToast("🎉 報表匯出成功！");
   };
 
-  const filteredRequests = requests.filter(r => filter === 'all' ? true : r.status === filter);
+  // Step 1: Filter by section (withdrawal or deposit)
+  const sectionRequests = requests.filter(r => {
+    if (sectionFilter === 'withdrawal') {
+      return r.transaction_type === 'withdrawal_request' || r.transaction_type === 'withdrawal';
+    } else {
+      return r.transaction_type === 'deposit';
+    }
+  });
+
+  // Step 2: Filter by status tab
+  const statusFilteredRequests = sectionRequests.filter(r => filter === 'all' ? true : r.status === filter);
+
+  // Step 3: Filter by search keyword
+  const finalFilteredRequests = statusFilteredRequests.filter(r => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const nameMatch = r.members?.name?.toLowerCase().includes(term);
+    const codeMatch = r.members?.member_code?.toLowerCase().includes(term);
+    const phoneMatch = r.members?.phone?.includes(term);
+    const fiveMatch = r.metadata?.payment_last_five?.includes(term);
+    return nameMatch || codeMatch || phoneMatch || fiveMatch;
+  });
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   const toggleAll = () => {
-    const pendingIds = filteredRequests.filter(r => r.status === 'pending').map(r => r.id);
+    const pendingIds = finalFilteredRequests.filter(r => r.status === 'pending').map(r => r.id);
     if (selectedIds.length === pendingIds.length) {
       setSelectedIds([]);
     } else {
       setSelectedIds(pendingIds);
     }
+  };
+
+  // Change sections and clear selected
+  const handleSectionChange = (section: 'withdrawal' | 'deposit') => {
+    setSectionFilter(section);
+    setSelectedIds([]);
   };
 
   return (
@@ -208,176 +337,239 @@ function AdminWithdrawalsContent() {
             <Link href="/admin" className="p-2 -ml-2 text-white/40 hover:text-white transition">
                <ArrowLeft className="w-5 h-5" />
             </Link>
-            <h1 className="text-sm font-black tracking-[0.3em] uppercase">獎金提領審核中心</h1>
+            <div>
+              <h1 className="text-sm font-black tracking-[0.3em] uppercase">預收資金與提領審核指揮中心</h1>
+              <p className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">Funds & Withdrawals Operations Hub</p>
+            </div>
          </div>
          <div className="flex gap-2">
             <button onClick={handleExport} className="flex items-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition text-sm font-bold text-white shadow-sm">
-               <Download className="w-4 h-4 text-white/60" /> 匯出報表 (CSV)
+               <Download className="w-4 h-4 text-white/60" /> 匯出 {sectionFilter === 'deposit' ? '儲值' : '提領'} CSV
             </button>
          </div>
       </nav>
 
       <main className="max-w-4xl mx-auto p-8 space-y-8">
         
+        {/* Section Segment Picker */}
+        <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-3xl border border-slate-200">
+           <button
+             onClick={() => handleSectionChange('withdrawal')}
+             className={`flex items-center justify-center gap-2.5 py-4 rounded-2xl text-xs font-black tracking-widest transition-all ${sectionFilter === 'withdrawal' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-400 hover:text-slate-700'}`}
+           >
+              <CircleDollarSign className="w-4 h-4" />
+              💸 預付款提領審核
+           </button>
+           <button
+             onClick={() => handleSectionChange('deposit')}
+             className={`flex items-center justify-center gap-2.5 py-4 rounded-2xl text-xs font-black tracking-widest transition-all ${sectionFilter === 'deposit' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-400 hover:text-slate-700'}`}
+           >
+              <CreditCard className="w-4 h-4" />
+              💳 預收款儲值對帳
+           </button>
+        </div>
+
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            {[
-             { label: "待處理申請", val: requests.filter(r => r.status === 'pending').length, color: "text-amber-500", icon: Clock },
-             { label: "本月已核准", val: `$${Math.abs(requests.filter(r => r.status === 'completed').reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString()}`, color: "text-emerald-500", icon: CheckCircle2 },
-             { label: "總申請件數", val: requests.length, color: "text-slate-400", icon: Filter }
+             { 
+               label: sectionFilter === 'deposit' ? "待審核儲值" : "待處理提領", 
+               val: sectionRequests.filter(r => r.status === 'pending').length, 
+               color: "text-amber-500", 
+               icon: Clock 
+             },
+             { 
+               label: sectionFilter === 'deposit' ? "本月已儲值總額" : "本月已提領總額", 
+               val: `NT$ ${Math.abs(sectionRequests.filter(r => r.status === 'completed').reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString()}`, 
+               color: "text-emerald-500", 
+               icon: CheckCircle2 
+             },
+             { 
+               label: "申請總件數", 
+               val: sectionRequests.length, 
+               color: "text-slate-400", 
+               icon: Filter 
+             }
            ].map((stat, i) => (
-             <div key={i} className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm space-y-2">
+             <div key={i} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{stat.label}</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
                 </div>
                 <h4 className={`text-2xl font-black ${stat.color}`}>{stat.val}</h4>
              </div>
            ))}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 p-1.5 bg-slate-100/50 backdrop-blur-sm rounded-2xl w-fit border border-slate-100">
-           {['pending', 'completed', 'failed', 'all'].map((t) => (
-             <button 
-               key={t}
-               onClick={() => setFilter(t)}
-               className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${filter === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-             >
-                {t === 'pending' ? '待處理' : t === 'completed' ? '已核准' : t === 'failed' ? '已駁回' : '全部'}
-             </button>
-           ))}
+        {/* Controls block */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          {/* Status Tabs */}
+          <div className="flex gap-2 p-1.5 bg-slate-100/50 backdrop-blur-sm rounded-2xl w-fit border border-slate-100">
+             {['pending', 'completed', 'failed', 'all'].map((t) => (
+               <button 
+                 key={t}
+                 onClick={() => setFilter(t)}
+                 className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${filter === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                  {t === 'pending' ? (sectionFilter === 'deposit' ? '待對帳' : '待處理') : t === 'completed' ? '已核准' : t === 'failed' ? '已駁回' : '全部'}
+               </button>
+             ))}
+          </div>
+
+          {/* Search bar */}
+          <div className="relative w-full sm:w-72">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <input
+               type="text"
+               placeholder="搜尋姓名、代碼、末五碼..."
+               value={searchTerm}
+               onChange={e => setSearchTerm(e.target.value)}
+               className="w-full bg-white border border-slate-100 pl-11 pr-4 py-3.5 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 shadow-sm"
+             />
+          </div>
         </div>
 
         {/* Request List */}
         <div className="space-y-4">
-         {/* Batch Actions Bar */}
-         <AnimatePresence>
-            {selectedIds.length > 0 && filter === 'pending' && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-xl shadow-slate-900/20 sticky top-24 z-40 mb-4"
-              >
-                 <div className="flex items-center gap-4 px-4">
-                    <span className="text-sm font-black">已選取 {selectedIds.length} 筆申請</span>
-                    <button onClick={() => setSelectedIds([])} className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest underline animate-pulse">取消選取</button>
-                 </div>
-                 <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => handleBatchAction('completed')}
-                      disabled={isProcessingBatch}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50"
-                    >
-                       {isProcessingBatch && <Loader2 className="w-3 h-3 animate-spin" />}
-                       批次核准發款
-                    </button>
-                    <button 
-                      onClick={() => handleBatchAction('failed')}
-                      disabled={isProcessingBatch}
-                      className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition disabled:opacity-50 text-rose-400"
-                    >
-                       批次駁回
-                    </button>
-                 </div>
-              </motion.div>
-            )}
-         </AnimatePresence>
+          {/* Batch Actions Bar */}
+          <AnimatePresence>
+             {selectedIds.length > 0 && filter === 'pending' && (
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 exit={{ opacity: 0, y: 20 }}
+                 className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-xl shadow-slate-900/20 sticky top-24 z-40 mb-4"
+               >
+                  <div className="flex items-center gap-4 px-4">
+                     <span className="text-sm font-black">已選取 {selectedIds.length} 筆申請</span>
+                     <button onClick={() => setSelectedIds([])} className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest underline animate-pulse">取消選取</button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <button 
+                       onClick={() => handleBatchAction('completed')}
+                       disabled={isProcessingBatch}
+                       className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50"
+                     >
+                        {isProcessingBatch && <Loader2 className="w-3 h-3 animate-spin" />}
+                        批次確認到帳
+                     </button>
+                     <button 
+                       onClick={() => handleBatchAction('failed')}
+                       disabled={isProcessingBatch}
+                       className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition disabled:opacity-50 text-rose-400"
+                     >
+                        批次駁回
+                     </button>
+                  </div>
+               </motion.div>
+             )}
+          </AnimatePresence>
 
-            {filter === 'pending' && filteredRequests.length > 0 && (
-               <div className="flex items-center gap-3 px-8 py-2">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedIds.length > 0 && selectedIds.length === filteredRequests.filter(r => r.status === 'pending').length}
-                    onChange={toggleAll}
-                    className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                  />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer" onClick={toggleAll}>全選待處理</span>
-               </div>
-            )}
-            {isLoading ? (
-               <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-slate-200" />
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在載入提領申請...</p>
-               </div>
-            ) : filteredRequests.length === 0 ? (
-               <div className="text-center py-20 bg-white rounded-[2.5rem] border border-slate-50 shadow-sm flex flex-col items-center justify-center space-y-4">
-                  <Filter className="w-12 h-12 text-slate-100 animate-pulse" />
-                  <p className="text-xs font-bold text-slate-300">目前尚無符合的提領申請</p>
-               </div>
-            ) : filteredRequests.map((req, i) => (
-              <motion.div 
-                key={req.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`bg-white rounded-[2.5rem] p-8 border shadow-sm flex flex-col md:flex-row md:items-center gap-8 group transition ${selectedIds.includes(req.id) ? 'border-slate-800 shadow-slate-900/5' : 'border-slate-50'}`}
-              >
-                 {req.status === 'pending' && (
-                   <div className="flex items-center">
-                     <input 
-                       type="checkbox" 
-                       checked={selectedIds.includes(req.id)}
-                       onChange={() => toggleSelection(req.id)}
-                       className="w-6 h-6 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                     />
-                   </div>
-                 )}
-                 <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">
-                          {req.members?.name.slice(0, 1)}
-                       </div>
-                       <div>
-                          <h4 className="font-black text-slate-800">{req.members?.name}</h4>
-                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{req.members?.member_code}</p>
-                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-4 pt-2">
-                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl">
-                          <Building2 className="w-3 h-3 text-slate-400" />
-                          <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}</span>
-                       </div>
-                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl">
-                          <UserIcon className="w-3 h-3 text-slate-400" />
-                          <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.name}</span>
-                       </div>
-                    </div>
-                 </div>
+          {filter === 'pending' && finalFilteredRequests.length > 0 && (
+             <div className="flex items-center gap-3 px-8 py-2">
+                <input 
+                  type="checkbox" 
+                  checked={selectedIds.length > 0 && selectedIds.length === finalFilteredRequests.filter(r => r.status === 'pending').length}
+                  onChange={toggleAll}
+                  className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer" onClick={toggleAll}>全選待對帳申請</span>
+             </div>
+          )}
 
-                 <div className="flex flex-col items-end gap-4 min-w-[200px]">
-                    <div className="text-right">
-                       <p className="text-2xl font-black text-slate-900 tracking-tighter">NT$ {Math.abs(req.amount).toLocaleString()}</p>
-                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">申請日期: {new Date(req.created_at).toLocaleDateString()}</p>
-                    </div>
-                    
-                    {req.status === 'pending' && (
-                      <div className="flex gap-2">
-                         <button 
-                           onClick={() => handleAction(req.id, 'completed', req.member_id, req.amount)}
-                           className="px-6 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20"
-                         >
-                            核准發款
-                         </button>
-                         <button 
-                           onClick={() => handleAction(req.id, 'failed', req.member_id, req.amount)}
-                           className="px-6 py-3 bg-white text-rose-500 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition"
-                         >
-                            駁回
-                         </button>
-                      </div>
-                    )}
-
-                    {req.status !== 'pending' && (
-                      <div className={`flex items-center gap-2 px-6 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest ${req.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                         {req.status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                         {req.status === 'completed' ? '已發款' : '已駁回'}
-                      </div>
-                    )}
+          {isLoading ? (
+             <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <Loader2 className="w-10 h-10 animate-spin text-slate-200" />
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在載入申請數據...</p>
+             </div>
+          ) : finalFilteredRequests.length === 0 ? (
+             <div className="text-center py-20 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-4">
+                <Filter className="w-12 h-12 text-slate-200 animate-pulse" />
+                <p className="text-xs font-bold text-slate-300">目前尚無符合的對帳與審核項目</p>
+             </div>
+          ) : finalFilteredRequests.map((req, i) => (
+            <motion.div 
+              key={req.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`bg-white rounded-[2.5rem] p-8 border shadow-sm flex flex-col md:flex-row md:items-center gap-8 group transition ${selectedIds.includes(req.id) ? 'border-slate-800 shadow-slate-900/5' : 'border-slate-100'}`}
+            >
+               {req.status === 'pending' && (
+                 <div className="flex items-center">
+                   <input 
+                     type="checkbox" 
+                     checked={selectedIds.includes(req.id)}
+                     onChange={() => toggleSelection(req.id)}
+                     className="w-6 h-6 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                   />
                  </div>
-              </motion.div>
-            ))}
-         </div>
+               )}
+               <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">
+                        {req.members?.name.slice(0, 1)}
+                     </div>
+                     <div>
+                        <h4 className="font-black text-slate-800">{req.members?.name}</h4>
+                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{req.members?.member_code}</p>
+                     </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4 pt-2">
+                     {sectionFilter === 'withdrawal' ? (
+                       <>
+                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                            <Building2 className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}</span>
+                         </div>
+                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                            <UserIcon className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.name}</span>
+                         </div>
+                       </>
+                     ) : (
+                       <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100/50">
+                          <Activity className="w-3 h-3 text-emerald-500" />
+                          <span className="text-[10px] font-black">匯款帳號末五碼: <span className="font-mono text-xs">{req.metadata?.payment_last_five || '無'}</span></span>
+                       </div>
+                     )}
+                  </div>
+               </div>
+
+               <div className="flex flex-col items-end gap-4 min-w-[200px]">
+                  <div className="text-right">
+                     <p className={`text-2xl font-black tracking-tighter ${sectionFilter === 'deposit' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                       {sectionFilter === 'deposit' ? '+' : '-'} NT$ {Math.abs(req.amount).toLocaleString()}
+                     </p>
+                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">申請日期: {new Date(req.created_at).toLocaleDateString()}</p>
+                  </div>
+                  
+                  {req.status === 'pending' && (
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={() => handleAction(req.id, 'completed', req.member_id, req.amount, req.transaction_type)}
+                         className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/15"
+                       >
+                          {sectionFilter === 'deposit' ? '確認到帳核發' : '核准發款'}
+                       </button>
+                       <button 
+                         onClick={() => handleAction(req.id, 'failed', req.member_id, req.amount, req.transaction_type)}
+                         className="px-6 py-3 bg-white text-rose-500 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition"
+                       >
+                          駁回
+                       </button>
+                    </div>
+                  )}
+
+                  {req.status !== 'pending' && (
+                    <div className={`flex items-center gap-2 px-6 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest ${req.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                       {req.status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                       {req.status === 'completed' ? (sectionFilter === 'deposit' ? '已入帳' : '已發款') : '已駁回'}
+                    </div>
+                  )}
+               </div>
+            </motion.div>
+          ))}
+       </div>
 
       </main>
 
