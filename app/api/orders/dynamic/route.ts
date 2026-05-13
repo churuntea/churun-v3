@@ -1,16 +1,46 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
-const LINE_CHANNEL_ACCESS_TOKEN: string = "CiRlqfOcTMzqJiMP4sDhyLXRcnumu3xBCjCgEXhCvAW1PwF7x5gRquHYibBGwbEb4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoNHFA9hLLN4NzcLRxhsTi6ixe6SdatJ5VX7swRxbIpgRAdB04t89/10/w1cDnyilFU=";
+import * as fs from 'fs';
+import * as path from 'path';
+
+function getLineAccessToken(): string {
+  if (process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    return process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  }
+  try {
+    const possiblePaths = [
+      path.join(process.cwd(), '.env.local'),
+      'd:/0_事業體/初潤製茶所_Gemini/churun-frontend/.env.local',
+      path.resolve(process.cwd(), '../.env.local')
+    ];
+    for (const envPath of possiblePaths) {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        const lines = content.split(/\r?\n/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('LINE_CHANNEL_ACCESS_TOKEN=')) {
+            return trimmed.replace('LINE_CHANNEL_ACCESS_TOKEN=', '').trim();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('讀取 .env.local 失敗:', err);
+  }
+  return "zZ2xNjSpxGORDJ4RtQLwxm70PmN4SXmyT+tAknCS279x42aZAKnaYh3+cGxiw7ek4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoPxULNME0+xV4dz+Hzu1CA8FKgsXE3iYjmdA9RrrWtVwQdB04t89/1O/w1cDnyilFU=";
+}
 
 async function sendLinePushNotification(toUserId: string, text: string) {
-  if (!toUserId || LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") return;
+  const token = getLineAccessToken();
+  if (!toUserId || token === "DEFAULT_ACCESS_TOKEN") return;
   try {
     const res = await fetch("https://api.line.me/v2/bot/message/push", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         to: toUserId,
@@ -292,6 +322,37 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 👉 https://line.me/R/ti/p/@947vpgjp (LINE ID: @947vpgjp)`;
 
       await sendLinePushNotification(buyer.line_id, pushText);
+    }
+
+    // ⚡ 同步推播給 947 官方帳號管理團隊 (洪召安、王守芳或設定的 ADMIN_LINE_IDS)
+    let itemsListAdmin = "";
+    items.forEach((item) => {
+      const product = products.find(p => p.id === item.id);
+      if (product) {
+        itemsListAdmin += `• ${product.name} x ${item.quantity} ($${(product.price * item.quantity).toLocaleString()} 元)\n`;
+      }
+    });
+
+    const adminPushText = `📢 【947 出貨指揮站】新訂單進件通知 📦
+━━━━━━━━━━━━━━━━━━
+報告管理員，收到一筆全新精品茶葉採購單！
+● 訂單編號：${orderNumber}
+● 下單會員：${buyer.name} (${buyer.phone || '無電話'})
+● 會員階級：${buyer.tier}
+● 採購總額：$${orderTotalAmount.toLocaleString()} 元
+● 物流方式：${shippingInfo?.method || '宅配到府'}
+● 配送收件人：${shippingInfo?.name || buyer.name}
+● 配送地址：${shippingInfo?.address || '自取/無'}
+━━━━━━━━━━━━━━━━━━
+🍵 訂購商品明細：
+${itemsListAdmin}━━━━━━━━━━━━━━━━━━
+⚡ 系統提示：請登入出貨管理後台進行訂單核對與物流單號派發！`;
+
+    const adminIds = process.env.ADMIN_LINE_IDS ? process.env.ADMIN_LINE_IDS.split(',') : ["U8881a77ac132ebe336d41182ddd370ae", "Uc3cd7b2d60c48866bc20bb5077c66b35"];
+    for (const adminId of adminIds) {
+      if (adminId && adminId.trim()) {
+        await sendLinePushNotification(adminId.trim(), adminPushText);
+      }
     }
 
     return NextResponse.json({ success: true, message, orderId: order.id, orderNumber: order.order_number });

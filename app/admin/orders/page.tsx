@@ -343,16 +343,20 @@ function AdminOrdersContent() {
     if (!confirm(`確定要把這 ${selectedOrderIds.length} 筆訂單標記為已出貨嗎？`)) return;
     setIsLoading(true);
     try {
-      const { error } = await supabaseAdmin
-        .from("orders")
-        .update({ fulfillment_status: 'shipped' })
-        .in("id", selectedOrderIds);
-      if (error) throw error;
+      const payload = selectedOrderIds.map(id => ({ orderId: id, status: 'shipped' }));
+      const res = await fetch('/api/orders/ship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: payload })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '批量出貨失敗');
       setSelectedOrderIds([]);
       fetchOrders();
-    } catch (err) {
+      alert(data.message || "批量出貨成功！");
+    } catch (err: any) {
       console.error(err);
-      alert("批量出貨失敗");
+      alert(err.message || "批量出貨失敗");
     } finally {
       setIsLoading(false);
     }
@@ -513,24 +517,25 @@ function AdminOrdersContent() {
   const handleSubmitBulkShip = async () => {
     setIsLoading(true);
     try {
-      for (const [orderId, data] of Object.entries(bulkShipData)) {
+      const payload = Object.entries(bulkShipData).map(([orderId, data]) => {
         const finalTracking = data.trackingNum ? `${data.carrier}: ${data.trackingNum}` : "";
-        const { error } = await supabaseAdmin
-          .from("orders")
-          .update({ 
-            fulfillment_status: 'shipped',
-            tracking_number: finalTracking
-          })
-          .eq("id", orderId);
-        if (error) throw error;
-      }
+        return { orderId, status: 'shipped', trackingNumber: finalTracking };
+      });
+      const res = await fetch('/api/orders/ship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: payload })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '批量出貨失敗');
+      
       setShowBulkShipModal(false);
       setSelectedOrderIds([]);
       fetchOrders();
-      alert("批量出貨及單號綁定成功！");
-    } catch (err) {
+      alert(data.message || "批量出貨及單號綁定成功！");
+    } catch (err: any) {
       console.error(err);
-      alert("部分訂單更新失敗");
+      alert(err.message || "部分訂單更新失敗");
     } finally {
       setIsLoading(false);
     }
@@ -575,21 +580,19 @@ function AdminOrdersContent() {
   const updateFulfillment = async (orderId: string, status: string, trackingNum?: string) => {
     setIsLoading(true);
     try {
-      const updates: any = { fulfillment_status: status };
-      if (trackingNum !== undefined) {
-        updates.tracking_number = trackingNum;
-      }
-      
-      const { error } = await supabaseAdmin
-        .from("orders")
-        .update(updates)
-        .eq("id", orderId);
-        
-      if (error) throw error;
+      const payload = [{ orderId, status, trackingNumber: trackingNum }];
+      const res = await fetch('/api/orders/ship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: payload })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '更新出貨狀態失敗');
       fetchOrders();
-    } catch (err) {
+      alert(data.message || "出貨狀態更新成功！");
+    } catch (err: any) {
       console.error(err);
-      alert("更新出貨狀態失敗");
+      alert(err.message || "更新出貨狀態失敗");
     } finally {
       setIsLoading(false);
     }
