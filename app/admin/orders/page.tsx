@@ -79,6 +79,8 @@ function AdminOrdersContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
@@ -617,6 +619,20 @@ function AdminOrdersContent() {
       matchesStatus = order.status === "cancelled";
     }
 
+    let matchesDate = true;
+    if (startDate) {
+      const sDate = new Date(startDate);
+      sDate.setHours(0, 0, 0, 0);
+      const oDate = new Date(order.created_at);
+      if (oDate < sDate) matchesDate = false;
+    }
+    if (endDate) {
+      const eDate = new Date(endDate);
+      eDate.setHours(23, 59, 59, 999);
+      const oDate = new Date(order.created_at);
+      if (oDate > eDate) matchesDate = false;
+    }
+
     const matchesSearch = 
       order.members?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.members?.phone?.includes(searchTerm) ||
@@ -628,7 +644,7 @@ function AdminOrdersContent() {
       order.shipping_info?.phone?.includes(searchTerm) ||
       order.shipping_info?.address?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   // ─── KPI METRICS COMPUTATIONS ───
@@ -762,9 +778,42 @@ function AdminOrdersContent() {
                 </button>
               ))}
            </div>
-        </div>
+         </div>
 
-        {/* Orders Table */}
+         {/* 📅 日期查詢與篩選面板 */}
+         <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-sm flex flex-col sm:flex-row items-center gap-4 text-xs font-bold text-slate-700">
+            <div className="flex items-center gap-2.5 shrink-0">
+               <Calendar className="w-4 h-4 text-emerald-600" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">訂單日期區間查詢</span>
+            </div>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+               <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="bg-slate-50 border border-slate-100/80 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500/10 transition text-slate-700 font-bold focus:outline-none w-full sm:w-44"
+               />
+               <span className="text-slate-300 font-bold shrink-0">至</span>
+               <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="bg-slate-50 border border-slate-100/80 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500/10 transition text-slate-700 font-bold focus:outline-none w-full sm:w-44"
+               />
+            </div>
+
+            {(startDate || endDate) && (
+               <button
+                  onClick={() => { setStartDate(""); setEndDate(""); }}
+                  className="sm:ml-auto px-5 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100/50 rounded-xl transition text-[9px] font-black uppercase tracking-widest"
+               >
+                  ✕ 清除日期篩選
+               </button>
+            )}
+         </div>
+
+         {/* Orders Table */}
         <div className="bg-white rounded-[3rem] border border-slate-50 shadow-sm overflow-hidden">
            <table className="w-full text-left border-collapse">
               <thead>
