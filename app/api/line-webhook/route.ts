@@ -4,8 +4,37 @@ import * as crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
 
-// 取得環境變數（支援本機設定與 Vercel 後台，附帶萬用測試用備用金鑰）
-const LINE_CHANNEL_ACCESS_TOKEN: string = "CiRlqfOcTMzqJiMP4sDhyLXRcnumu3xBCjCgEXhCvAW1PwF7x5gRquHYibBGwbEb4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoNHFA9hLLN4NzcLRxhsTi6ixe6SdatJ5VX7swRxbIpgRAdB04t89/10/w1cDnyilFU=";
+import * as fs from 'fs';
+import * as path from 'path';
+
+function getLineAccessToken(): string {
+  if (process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    return process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  }
+  try {
+    const possiblePaths = [
+      path.join(process.cwd(), '.env.local'),
+      'd:/0_事業體/初潤製茶所_Gemini/churun-frontend/.env.local',
+      path.resolve(process.cwd(), '../.env.local')
+    ];
+    for (const envPath of possiblePaths) {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        const lines = content.split(/\r?\n/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('LINE_CHANNEL_ACCESS_TOKEN=')) {
+            return trimmed.replace('LINE_CHANNEL_ACCESS_TOKEN=', '').trim();
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('讀取 .env.local 失敗:', err);
+  }
+  return "zZ2xNjSpxGORDJ4RtQLwxm70PmN4SXmyT+tAknCS279x42aZAKnaYh3+cGxiw7ek4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoPxULNME0+xV4dz+Hzu1CA8FKgsXE3iYjmdA9RrrWtVwQdB04t89/1O/w1cDnyilFU=";
+}
+
 const LINE_CHANNEL_SECRET: string = "62fe3ed0c41fc24d2959dc2977c11db6";
 
 const LINKED_QUICK_REPLIES = [
@@ -836,7 +865,8 @@ async function sendLineReply(replyToken: string, text: string, quickReplies?: an
     return;
   }
 
-  if (LINE_CHANNEL_ACCESS_TOKEN === "DEFAULT_ACCESS_TOKEN") {
+  const token = getLineAccessToken();
+  if (token === "DEFAULT_ACCESS_TOKEN") {
     console.log(`[LINE Webhook Mock Reply] replyToken: ${replyToken}, Message:\n${text}`);
     return;
   }
@@ -857,7 +887,7 @@ async function sendLineReply(replyToken: string, text: string, quickReplies?: an
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         replyToken: replyToken,
