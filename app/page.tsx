@@ -622,13 +622,9 @@ function DashboardContent() {
       
 
         {/* Brand Insights Feed */}
-        <section className="grid grid-cols-3 gap-3 px-2">
+        <section className="grid grid-cols-2 gap-3 px-2">
            {[
-             { label: "特選精品", icon: ShoppingBag, href: "/wholesale", color: "from-indigo-50 to-indigo-100/40 hover:to-indigo-100 text-indigo-700 border-indigo-100/20" },
-             { label: "點數商城", icon: Gift, href: "/store", color: "from-emerald-50 to-emerald-100/40 hover:to-emerald-100 text-emerald-700 border-emerald-100/20" },
              { label: "組織管理", icon: Users, href: "/organization", color: "from-amber-50 to-amber-100/40 hover:to-amber-100 text-amber-700 border-amber-100/20" },
-             { label: "帳本明細", icon: Wallet, href: "/transactions", color: "from-slate-100/50 to-slate-200/40 hover:to-slate-200 text-slate-700 border-slate-200/20" },
-             { label: "品牌脈動", icon: Megaphone, href: "#brand-news", color: "from-rose-50 to-rose-100/40 hover:to-rose-100 text-rose-700 border-rose-100/20" },
              { label: "品牌素材", icon: ImageIcon, href: "/materials", color: "from-cyan-50 to-cyan-100/40 hover:to-cyan-100 text-cyan-700 border-cyan-100/20" }
            ].map((act, i) => (
              <Link href={act.href} key={i}>
