@@ -59,7 +59,7 @@ function ProfileContent() {
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
-    const currentVersion = "3.0.8";
+    const currentVersion = "3.0.9";
     const savedVersion = localStorage.getItem("churun_profile_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_profile_version", currentVersion);
