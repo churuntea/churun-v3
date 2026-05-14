@@ -23,7 +23,8 @@ import {
   Gift,
   ShieldCheck,
   Activity,
-  Award
+  Award,
+  ArrowLeft
 } from "lucide-react";
 
 function TransactionContent() {
@@ -110,7 +111,7 @@ function TransactionContent() {
   };
 
   useEffect(() => {
-    const currentVersion = "3.0.6";
+    const currentVersion = "3.0.7";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -224,9 +225,12 @@ function TransactionContent() {
     <div className="bg-[#FDFBF7] min-h-screen">
       
       {/* Header */}
-      <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
+      <nav className="bg-white/90 backdrop-blur-3xl sticky top-0 z-50 border-b border-slate-100 px-6 py-6 flex justify-between items-center max-w-lg mx-auto">
+        <button onClick={() => router.back()} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500 transition shadow-sm border border-slate-100">
+           <ArrowLeft className="w-4 h-4" />
+        </button>
         <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
-           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V3.0.2</span>
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V3.0.7</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
@@ -300,85 +304,65 @@ function TransactionContent() {
          </div>
 
          {/* 📊 雙模動態價值分析與兌換模組 (Dual-Mode Wallet Booster) */}
-         {memberInfo && (
+         {memberInfo && memberInfo.is_b2b ? (
             <div className="space-y-6">
-               {memberInfo.is_b2b ? (
-                  // B2B 專屬模組：財務收支與退傭分析
-                  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-5 shadow-sm">
-                     <div className="flex justify-between items-center">
-                        <div>
-                           <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                              <History className="w-4 h-4 text-emerald-600" /> 💼 B2B 季度財務收支與退傭 analysis
-                           </h4>
-                           <p className="text-[8px] font-black text-slate-400 mt-0.5">B2B partner profit & cost analyzer</p>
-                        </div>
-                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-100 uppercase tracking-widest">模擬智庫</span>
+               <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-5 shadow-sm">
+                  <div className="flex justify-between items-center">
+                     <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                           <History className="w-4 h-4 text-emerald-600" /> 💼 B2B 季度財務收支與退傭 analysis
+                        </h4>
+                        <p className="text-[8px] font-black text-slate-400 mt-0.5">B2B partner profit & cost analyzer</p>
                      </div>
+                     <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-100 uppercase tracking-widest">模擬智庫</span>
+                  </div>
 
-                     <div className="grid grid-cols-3 gap-2.5 pt-1">
-                        <div className="p-3 bg-slate-50 border border-slate-100/50 rounded-xl">
-                           <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-0.5">累計投入進貨</span>
-                           <span className="text-[11px] font-mono font-black text-slate-800">
-                              NT$ {(() => {
-                                 const purchases = transactions
-                                    .filter(t => t.transaction_type === "order_deduction" || t.transaction_type === "purchase")
-                                    .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
-                                 return (purchases || 12800).toLocaleString();
-                              })()}
-                           </span>
-                        </div>
-                        <div className="p-3 bg-emerald-50/50 border border-emerald-100/10 rounded-xl">
-                           <span className="text-[8px] font-black text-emerald-600 block uppercase tracking-wider mb-0.5">累計合夥分紅</span>
-                           <span className="text-[11px] font-mono font-black text-emerald-700">
-                              NT$ {(() => {
-                                 const comms = transactions
-                                    .filter(t => t.transaction_type === "commission_refund")
-                                    .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
-                                 return (comms || 3200).toLocaleString();
-                              })()}
-                           </span>
-                        </div>
-                        <div className="p-3 bg-slate-50 border border-slate-100/50 rounded-xl">
-                           <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-0.5">累計提領資金</span>
-                           <span className="text-[11px] font-mono font-black text-slate-800">
-                              NT$ {(() => {
-                                 const withdrawals = transactions
-                                    .filter(t => t.transaction_type === "withdrawal")
-                                    .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
-                                 return (withdrawals || 1500).toLocaleString();
-                              })()}
-                           </span>
-                        </div>
+                  <div className="grid grid-cols-3 gap-2.5 pt-1">
+                     <div className="p-3 bg-slate-50 border border-slate-100/50 rounded-xl">
+                        <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-0.5">累計投入進貨</span>
+                        <span className="text-[11px] font-mono font-black text-slate-800">
+                           NT$ {(() => {
+                              const purchases = transactions
+                                 .filter(t => t.transaction_type === "order_deduction" || t.transaction_type === "purchase")
+                                 .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
+                              return (purchases || 12800).toLocaleString();
+                           })()}
+                        </span>
                      </div>
-
-                     {/* AI Advisor Card */}
-                     <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                        <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 創業合夥財務建議：</span>
-                        <p className="text-[9px] font-black text-slate-700 leading-relaxed">
-                           📊 數據顯示，您的組織二級分紅比例極其健康（佔總投入的 25%）。高度建議保留當期佣金，直接用於下個月【初潤冷泡翠玉系列】之批量團購，預估能獲得高達 1.8 倍的資本複利轉化效應！
-                        </p>
+                     <div className="p-3 bg-emerald-50/50 border border-emerald-100/10 rounded-xl">
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase tracking-wider mb-0.5">累計合夥分紅</span>
+                        <span className="text-[11px] font-mono font-black text-emerald-700">
+                           NT$ {(() => {
+                              const comms = transactions
+                                 .filter(t => t.transaction_type === "commission_refund")
+                                 .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
+                              return (comms || 3200).toLocaleString();
+                           })()}
+                        </span>
+                     </div>
+                     <div className="p-3 bg-slate-50 border border-slate-100/50 rounded-xl">
+                        <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-0.5">累計提領資金</span>
+                        <span className="text-[11px] font-mono font-black text-slate-800">
+                           NT$ {(() => {
+                              const withdrawals = transactions
+                                 .filter(t => t.transaction_type === "withdrawal")
+                                 .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
+                              return (withdrawals || 1500).toLocaleString();
+                           })()}
+                        </span>
                      </div>
                   </div>
-               ) : (
-                  // B2C 專屬模組：紅利點數熱門商品兌換已移至商城
-                  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-5 shadow-sm text-center">
-                     <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto text-amber-500">
-                        <Gift className="w-8 h-8 animate-bounce" />
-                     </div>
-                     <div className="space-y-1">
-                        <h4 className="text-sm font-black text-slate-800 tracking-tight">紅利點數兌換已全面升級</h4>
-                        <p className="text-xs text-slate-400 font-medium">為提供更流暢的購物體驗，熱門紅利點數兌換已移設至商城專區。</p>
-                     </div>
-                     <button
-                        onClick={() => router.push("/store")}
-                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition shadow-lg shadow-amber-500/20"
-                     >
-                        前往商城兌換商品 ➜
-                     </button>
+
+                  {/* AI Advisor Card */}
+                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                     <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 創業合夥財務建議：</span>
+                     <p className="text-[9px] font-black text-slate-700 leading-relaxed">
+                        📊 數據顯示，您的組織二級分紅比例極其健康（佔總投入的 25%）。高度建議保留當期佣金，直接用於下個月【初潤冷泡翠玉系列】之批量團購，預估能獲得高達 1.8 倍的資本複利轉化效應！
+                     </p>
                   </div>
-               )}
+               </div>
             </div>
-         )}
+         ) : null}
 
          {/* 🌟 會員階級專屬財務回饋特權 (Tier Privilege Dashboard) */}
          {memberInfo && (
