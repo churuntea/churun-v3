@@ -62,30 +62,38 @@ export async function POST(request: Request) {
     // Update members table (using both individual columns and combined beneficiary for compatibility)
     let dbError = null;
 
-    const { error: firstError } = await supabase
-      .from('members')
-      .update({
-        bank_code,
-        bank_account,
-        bank_account_name: bank_account_name || '',
-        bank_branch: bank_branch || '',
-        beneficiary: combinedBeneficiary
-      })
-      .eq('id', memberId);
-
-    if (firstError && (firstError.message?.includes('bank_account_name') || firstError.message?.includes('column') || firstError.code === '42703')) {
-      console.warn('DB schema missing bank_account_name column, falling back to legacy beneficiary update');
-      const { error: fallbackError } = await supabase
+    try {
+      const { error: firstError } = await supabase
         .from('members')
         .update({
           bank_code,
           bank_account,
+          bank_account_name: bank_account_name || '',
+          bank_branch: bank_branch || '',
           beneficiary: combinedBeneficiary
         })
         .eq('id', memberId);
-      dbError = fallbackError;
-    } else {
-      dbError = firstError;
+
+      if (firstError) {
+        throw firstError;
+      }
+    } catch (firstErr: any) {
+      console.warn('DB schema exception caught, falling back to legacy beneficiary update:', firstErr?.message || firstErr);
+      try {
+        const { error: fallbackError } = await supabase
+          .from('members')
+          .update({
+            bank_code,
+            bank_account,
+            beneficiary: combinedBeneficiary
+          })
+          .eq('id', memberId);
+        if (fallbackError) {
+          dbError = fallbackError;
+        }
+      } catch (fallbackErr: any) {
+        dbError = fallbackErr;
+      }
     }
 
     if (dbError) {
