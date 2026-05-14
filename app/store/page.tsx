@@ -87,6 +87,8 @@ function StoreContent() {
   };
   const [categories, setCategories] = useState<string[]>(["全部商品", "極萃系列", "精品茶具", "典藏禮盒"]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showOrderListModal, setShowOrderListModal] = useState(false);
+  const [userOrders, setUserOrders] = useState<any[]>([]);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -382,6 +384,40 @@ function StoreContent() {
         });
       }
 
+      // 拉取該會員最近的歷史訂單明細
+      try {
+        const { data: oData } = await supabase
+          .from("orders")
+          .select("id, total_amount, status, created_at, custom_logo_url")
+          .eq("member_id", userId)
+          .order("created_at", { ascending: false });
+
+        if (oData && oData.length > 0) {
+          const orderIds = oData.map((o: any) => o.id);
+          const { data: allItems } = await supabase
+            .from("order_items")
+            .select("order_id, name, quantity")
+            .in("order_id", orderIds);
+
+          const mappedOrders = oData.map((o: any) => {
+            let orderObj = { ...o };
+            if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+              try {
+                const fallback = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
+                orderObj = { ...o, ...fallback };
+              } catch (e) {}
+            }
+            const items = allItems ? allItems.filter((it: any) => it.order_id === o.id) : [];
+            return { ...orderObj, items };
+          });
+          setUserOrders(mappedOrders);
+        } else {
+          setUserOrders([]);
+        }
+      } catch (oErr) {
+        console.error("載入歷史訂單失敗:", oErr);
+      }
+
       // 載入動態分類大項
       try {
         const { data: catData } = await supabase
@@ -557,6 +593,10 @@ function StoreContent() {
            精品點數商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
         </h1>
         <div className="flex items-center gap-3">
+          <div onClick={() => setShowOrderListModal(true)} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer hover:bg-slate-100 transition relative group">
+             <Package className="w-4 h-4 text-emerald-700" />
+             <span className="absolute -top-8 bg-slate-900 text-white text-[9px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">訂購清單</span>
+          </div>
           <div onClick={() => setIsCartOpen(true)} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer relative hover:bg-slate-100 transition">
              <ShoppingCart className="w-4 h-4" />
              {totalItems > 0 && (
@@ -2457,6 +2497,137 @@ function StoreContent() {
                 <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
                   正在為您向茶葉精品庫存庫確認，並建立專屬採購訂單，請稍候...
                 </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 訂購清單 Modal (Order History Modal) */}
+      <AnimatePresence>
+        {showOrderListModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowOrderListModal(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-50 flex flex-col max-h-[85vh]"
+            >
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                     📋 我的訂購清單 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">已購紀錄</span>
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                     ORDER HISTORY & LOGISTICS
+                  </p>
+                </div>
+                <button onClick={() => setShowOrderListModal(false)} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {userOrders.length === 0 ? (
+                  <div className="py-16 text-center space-y-4">
+                    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto">
+                      <Package className="w-8 h-8 text-slate-200" />
+                    </div>
+                    <h4 className="text-base font-black text-slate-800">目前尚無訂購紀錄</h4>
+                    <p className="text-xs text-slate-400">當您完成第一筆精品採購後，明細與物流進度將在此呈現。</p>
+                  </div>
+                ) : (
+                  userOrders.map((order, index) => {
+                    const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+                    const statusMap: { [key: string]: { label: string, color: string, step: number } } = {
+                      pending: { label: "⏳ 處理中 (待核對)", color: "bg-amber-50 text-amber-700 border-amber-200", step: 1 },
+                      paid: { label: "💳 已付款 (備貨中)", color: "bg-blue-50 text-blue-700 border-blue-200", step: 2 },
+                      shipping: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                      completed: { label: "✅ 已完成 (已交付)", color: "bg-slate-100 text-slate-700 border-slate-200", step: 4 },
+                      cancelled: { label: "✕ 已取消", color: "bg-rose-50 text-rose-700 border-rose-200", step: 0 },
+                    };
+                    const statusObj = statusMap[order.status] || { label: order.status, color: "bg-slate-50 text-slate-700 border-slate-200", step: 1 };
+                    
+                    const orderNum = order.order_number || `P260514A${order.id.slice(0, 4).toUpperCase()}`;
+                    const shipping = order.shipping_info || {};
+
+                    return (
+                      <div key={order.id} className="bg-slate-50/70 rounded-[2rem] p-6 border border-slate-100/80 space-y-4 hover:shadow-md transition duration-300">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black font-mono text-slate-800">#{orderNum}</span>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusObj.color}`}>
+                                {statusObj.label}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
+                          </div>
+                          <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                        </div>
+
+                        {/* 購買品項清單 */}
+                        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-1.5">
+                          <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">訂購明細</span>
+                          {order.items && order.items.length > 0 ? (
+                            order.items.map((it: any, i: number) => (
+                              <div key={i} className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-700">{it.name}</span>
+                                <span className="font-mono font-medium text-slate-500">x{it.quantity}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">精選茶款組合</span>
+                          )}
+                        </div>
+
+                        {/* 物流狀況與動態軌跡 */}
+                        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-0.5">物流狀況</span>
+                              <span className="text-xs font-bold text-slate-800">{shipping.method || '宅配到府 🚚'}</span>
+                            </div>
+                            {shipping.name && (
+                              <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                                收件人：{shipping.name}
+                              </span>
+                            )}
+                          </div>
+                          {shipping.address && (
+                            <p className="text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100/50 break-words">
+                              📍 {shipping.address}
+                            </p>
+                          )}
+
+                          {/* 視覺化物流進度條 */}
+                          {statusObj.step > 0 && (
+                            <div className="pt-2">
+                              <div className="flex justify-between text-[9px] font-black text-slate-400 px-1 mb-1.5">
+                                <span className={statusObj.step >= 1 ? "text-emerald-600" : ""}>處理中</span>
+                                <span className={statusObj.step >= 2 ? "text-emerald-600" : ""}>備貨中</span>
+                                <span className={statusObj.step >= 3 ? "text-emerald-600" : ""}>配送中</span>
+                                <span className={statusObj.step >= 4 ? "text-emerald-600" : ""}>已完成</span>
+                              </div>
+                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                <div className={`h-full bg-emerald-500 transition-all duration-500 rounded-full ${
+                                  statusObj.step === 1 ? 'w-1/4' : statusObj.step === 2 ? 'w-2/4' : statusObj.step === 3 ? 'w-3/4' : 'w-full'
+                                }`} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </motion.div>
           </motion.div>
