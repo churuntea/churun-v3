@@ -120,12 +120,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // B2C 點數回饋改為依據「會員階級匯率」計算
-    const tierRate = TIER_RATES[buyer.tier] || 100;
-    totalB2CPoints = Math.floor(totalAmount / tierRate);
-
-    // 3. 建立訂單 (狀態改為 pending，待管理者確認)
+    // 3. 計算扣除折抵後的商品實付淨額
     const finalAmount = Math.max(0, totalAmount - discountAmount - pointsRedeemed);
+
+    // B2C 點數回饋改為依據「扣除折抵後的商品實付淨額」計算（運費絕對不計入回饋點數）
+    const tierRate = TIER_RATES[buyer.tier] || 100;
+    totalB2CPoints = Math.floor(finalAmount / tierRate);
     
     // 計算運費邏輯：自取為 $0，超商取貨或宅配到府若金額 999 內收 $70，1000 以上免運
     let shippingFee = 0;
