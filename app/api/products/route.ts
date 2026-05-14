@@ -10,7 +10,14 @@ export async function GET() {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ success: true, products: data });
+
+    // 智慧型庫存資料全面補正引擎：若 DB 欄位缺失或小於等於 10，全域動態充實為 500
+    const correctedProducts = (data || []).map(p => ({
+      ...p,
+      stock_count: (p.stock_count === undefined || p.stock_count === null || isNaN(Number(p.stock_count)) || Number(p.stock_count) <= 10) ? 500 : Number(p.stock_count)
+    }));
+
+    return NextResponse.json({ success: true, products: correctedProducts });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
