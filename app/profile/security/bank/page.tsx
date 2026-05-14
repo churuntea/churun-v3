@@ -328,14 +328,22 @@ export default function BankSettingsPage() {
                  <p className="text-xs text-slate-400 font-bold leading-relaxed">一旦確認，系統將會將此帳戶設為預設撥款通道。</p>
               </div>
 
-              <div className="bg-slate-50 rounded-[2rem] p-6 space-y-3">
-                 <div className="flex justify-between">
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">戶名</span>
+              <div className="bg-slate-50 rounded-[2rem] p-6 space-y-3.5">
+                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銀行名稱</span>
+                    <span className="text-sm font-black text-emerald-900">{BANK_MAP[bankCode] || `代碼 (${bankCode})`}</span>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">分行</span>
+                    <span className="text-sm font-black text-slate-800">{bankBranch || "未填寫"}</span>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">戶名</span>
                     <span className="text-sm font-black text-slate-800">{bankAccountName}</span>
                  </div>
-                 <div className="flex justify-between">
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">帳號</span>
-                    <span className="text-sm font-black text-slate-800">{bankAccount}</span>
+                 <div className="flex justify-between items-center pb-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銀行帳號</span>
+                    <span className="text-sm font-mono font-black text-slate-900">{bankAccount}</span>
                  </div>
                  {bankCardPhotoBase64 || bankCardPhotoUrl ? (
                    <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
