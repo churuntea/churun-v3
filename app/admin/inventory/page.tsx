@@ -108,19 +108,25 @@ function InventoryDashboard() {
       }));
       setInboundRecords(mockInbound);
 
-      // 3. 獲取銷售出貨紀錄
-      const { data: items } = await supabase.from("order_items").select("name, quantity, price, order_id").limit(30);
-      const mockSales = (items || []).map((it: any, idx: number) => ({
-        id: `SAL-${2000 + idx}`,
-        product_name: it.name,
-        quantity: it.quantity,
-        price: it.price,
-        total: it.quantity * it.price,
-        order_id: it.order_id,
-        created_at: new Date(Date.now() - idx * 3600000 * 5).toISOString().slice(0, 16).replace("T", " "),
-        status: "已出貨"
-      }));
-      setSalesRecords(mockSales);
+      // 3. 獲取銷售出貨紀錄 (從 order_items 撈取並按品項統計)
+      const { data: items } = await supabase.from("order_items").select("name, quantity, price");
+      const salesStatsMap: Record<string, any> = {};
+      (items || []).forEach((it: any) => {
+        if (!salesStatsMap[it.name]) {
+           salesStatsMap[it.name] = {
+             id: `STAT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+             product_name: it.name,
+             quantity: 0,
+             price: it.price || 0,
+             total: 0,
+             status: "熱銷中"
+           };
+        }
+        salesStatsMap[it.name].quantity += it.quantity || 0;
+        salesStatsMap[it.name].total += (it.quantity || 0) * (it.price || 0);
+      });
+      const aggregatedSales = Object.values(salesStatsMap).sort((a: any, b: any) => b.quantity - a.quantity);
+      setSalesRecords(aggregatedSales);
 
     } catch (err) {
       console.error("Fetch inventory data error:", err);
@@ -194,8 +200,8 @@ function InventoryDashboard() {
       headers = ["單據編號", "進貨商品", "分類", "進貨數量", "單位成本(NT$)", "供應商", "入庫日期"];
       rows = inboundRecords.map(r => [r.id, r.product_name, r.category, r.quantity, r.unit_cost, r.supplier, r.created_at]);
     } else if (activeTab === "sales") {
-      headers = ["出貨編號", "銷售商品", "出貨數量", "單價(NT$)", "總計(NT$)", "關聯訂單", "出貨時間"];
-      rows = salesRecords.map(r => [r.id, r.product_name, r.quantity, r.price, r.total, r.order_id, r.created_at]);
+      headers = ["品項統計編號", "銷售商品", "總銷量(件)", "單價(NT$)", "總銷售額(NT$)", "熱度狀態"];
+      rows = salesRecords.map(r => [r.id, r.product_name, r.quantity, r.price, r.total, r.status]);
     } else {
       headers = ["商品名稱", "所屬分類", "現有庫存(件)", "安全水位(件)", "單價(NT$)", "庫存狀態"];
       rows = products.map(p => [
@@ -229,8 +235,7 @@ function InventoryDashboard() {
   );
 
   const filteredSales = salesRecords.filter(r => 
-    (r.product_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (r.order_id || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (r.product_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -335,7 +340,7 @@ function InventoryDashboard() {
                   <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input 
                      type="text" 
-                     placeholder={`搜尋${activeTab === "inbound" ? "進貨單據或供應商" : activeTab === "sales" ? "銷售品項或單號" : "商品名稱或分類"}...`} 
+                     placeholder={`搜尋${activeTab === "inbound" ? "進貨單據或供應商" : activeTab === "sales" ? "銷售品項" : "商品名稱或分類"}...`} 
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
@@ -415,13 +420,12 @@ function InventoryDashboard() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="pb-4 pl-2">出貨單號</th>
+                              <th className="pb-4 pl-2">品項統計編號</th>
                               <th className="pb-4">銷售商品</th>
-                              <th className="pb-4">關聯訂單</th>
-                              <th className="pb-4 text-right">出貨數量</th>
+                              <th className="pb-4 text-right">總銷量</th>
                               <th className="pb-4 text-right">單價</th>
-                              <th className="pb-4 text-right">總金額</th>
-                              <th className="pb-4 text-center pr-2">狀態</th>
+                              <th className="pb-4 text-right">總銷售額</th>
+                              <th className="pb-4 text-center pr-2">熱度狀態</th>
                            </tr>
                         </thead>
                         <tbody>
@@ -429,20 +433,12 @@ function InventoryDashboard() {
                               <tr key={idx} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
                                  <td className="py-4 pl-2 font-mono font-black text-indigo-600">{row.id}</td>
                                  <td className="py-4 text-slate-900 font-black">{row.product_name}</td>
-                                 <td className="py-4 font-mono text-[11px]">
-                                    <button 
-                                      onClick={() => handleViewOrder(row.order_id, row)}
-                                      className="text-indigo-600 hover:text-indigo-800 underline font-black flex items-center gap-1"
-                                    >
-                                      🔗 {row.order_id || "直接銷售單"}
-                                    </button>
-                                 </td>
                                  <td className="py-4 text-right font-mono text-indigo-600 font-black">{row.quantity} 件</td>
                                  <td className="py-4 text-right font-mono text-slate-600">NT$ {(row.price || 0).toLocaleString()}</td>
                                  <td className="py-4 text-right font-mono text-slate-900 font-black">NT$ {(row.total || 0).toLocaleString()}</td>
                                  <td className="py-4 text-center pr-2">
-                                    <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full border border-blue-100">
-                                       {row.status}
+                                    <span className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-black rounded-full border border-rose-100">
+                                       🔥 {row.status}
                                     </span>
                                  </td>
                               </tr>
