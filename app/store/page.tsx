@@ -710,9 +710,14 @@ function StoreContent() {
             <div className="space-y-4">
                <div 
                  onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
-                 className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit border border-white/10 cursor-pointer hover:bg-white/20 transition"
+                 className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit border border-white/10 cursor-pointer hover:bg-white/20 transition pointer-events-auto"
                >
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">可用紅利點數</span>
+                  <span 
+                    onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+                    className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70 cursor-pointer pointer-events-auto"
+                  >
+                    可用紅利點數
+                  </span>
                </div>
                <div 
                  onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
