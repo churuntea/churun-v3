@@ -155,11 +155,11 @@ function RegisterContent() {
         
         // 1. 自動發放 WELCOME100 迎新折價券到其庫存
         try {
-          // 查詢所有以 NEW_ 開頭的優惠券，以及舊有的 WELCOME100
+          // 查詢所有以 NEW_、WELCOME 開頭的優惠券，或簡介包含迎新、新會員的活躍券碼
           const { data: welcomeCoupons } = await supabase
             .from("coupons")
-            .select("id, name")
-            .or("code.ilike.NEW_%,code.eq.WELCOME100");
+            .select("id, name, description")
+            .or("code.ilike.NEW_%,code.ilike.WELCOME%,description.ilike.%迎新%,description.ilike.%新會員%");
 
           if (welcomeCoupons && welcomeCoupons.length > 0) {
             const insertRows = welcomeCoupons.map(c => ({

@@ -641,6 +641,13 @@ export default function CouponsAdminPage() {
                     />
                   </div>
 
+                  <div className="bg-amber-50/60 border border-amber-200/60 p-4 rounded-2xl flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+                    <p className="text-[11px] font-bold text-amber-800 leading-relaxed">
+                      <span className="font-black text-amber-900">💡 自動迎新禮包引擎提示：</span> 只要您的代碼以 <code className="bg-white px-1.5 py-0.5 rounded font-mono font-black text-slate-800">NEW_</code> 或 <code className="bg-white px-1.5 py-0.5 rounded font-mono font-black text-slate-800">WELCOME</code> 開頭，或描述包含「迎新/新會員」，新客完成註冊時系統將全自動派發給他！
+                    </p>
+                  </div>
+
                   <button 
                     type="submit" 
                     disabled={isSubmittingCoupon}
