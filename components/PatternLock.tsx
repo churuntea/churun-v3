@@ -22,16 +22,16 @@ export default function PatternLock({ onComplete, size = 300, error }: PatternLo
   const [isDrawing, setIsDrawing] = useState(false);
   const [mousePos, setMousePos] = useState<{ x: number, y: number } | null>(null);
 
-  // Initialize dots in a 3x3 grid
+  // Initialize dots in a 3x3 grid matching exact DOM cell centers
   const dots = useMemo(() => {
     const temp = [];
-    const step = size / 4;
+    const cellSize = size / 3;
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) {
         temp.push({
           id: row * 3 + col,
-          x: (col + 1) * step,
-          y: (row + 1) * step
+          x: (col + 0.5) * cellSize,
+          y: (row + 0.5) * cellSize
         });
       }
     }

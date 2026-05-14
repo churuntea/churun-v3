@@ -200,7 +200,7 @@ export default function PhoneVerificationPage() {
                  </div>
 
                  <div className="bg-white rounded-[3rem] p-10 shadow-xl shadow-slate-900/5 border border-slate-50 space-y-8">
-                    <div className="flex justify-between gap-2">
+                    <div className="flex justify-center gap-2 sm:gap-3">
                        {otp.map((digit, i) => (
                          <input 
                            key={i}
@@ -208,7 +208,7 @@ export default function PhoneVerificationPage() {
                            type="tel"
                            value={digit}
                            onChange={(e) => handleOtpChange(i, e.target.value)}
-                           className="w-12 h-16 bg-slate-50 border-2 border-transparent rounded-2xl text-center text-xl font-black focus:outline-none focus:bg-white focus:border-emerald-500/20 transition-all"
+                           className="w-11 h-14 sm:w-12 sm:h-16 bg-slate-50 border-2 border-transparent rounded-2xl text-center text-xl font-black focus:outline-none focus:bg-white focus:border-emerald-500/20 transition-all shadow-sm"
                          />
                        ))}
                     </div>
