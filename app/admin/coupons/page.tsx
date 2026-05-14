@@ -587,9 +587,9 @@ export default function CouponsAdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {[
                     { type: "new_members", label: "新進會員", desc: "迎新專屬禮券派發", icon: Users },
-                    { type: "all_tiers", label: "各職級會員", desc: "一般/VIP/VVIP 客群", icon: Award },
-                    { type: "all_b2b", label: "合夥人專屬", desc: "B2B 創業合夥人專享", icon: UserCheck },
-                    { type: "ambassadors", label: "品牌大使", desc: "合夥人知己職級及以上", icon: Sparkles },
+                    { type: "all_tiers", label: "會員職級", desc: "一般/VIP/VVIP 客群", icon: Award },
+                    { type: "all_b2b", label: "初潤合夥人", desc: "B2B 創業合夥人專享", icon: UserCheck },
+                    { type: "ambassadors", label: "初潤品牌大使", desc: "合夥人知己職級及以上", icon: Sparkles },
                     { type: "employees", label: "內部員工專屬", desc: "HR 員工專屬優惠券", icon: Briefcase }
                   ].map(item => {
                     const isSelected = targetType === item.type;
