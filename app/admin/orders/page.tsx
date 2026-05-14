@@ -932,8 +932,8 @@ function AdminOrdersContent() {
                         <td className="p-8 text-right">
                            <div className="space-y-1">
                               {order.reward_points > 0 && <p className="text-sm font-black text-emerald-600">{order.reward_points} pts</p>}
-                              {order.b2b_commission > 0 && <p className="text-sm font-black text-indigo-600">${Number(order.b2b_commission).toLocaleString()} 退傭</p>}
-                              {(!order.reward_points && !order.b2b_commission) && <p className="text-sm text-slate-300">-</p>}
+                              {order.b2b_commission > 0 && order.members?.is_b2b && <p className="text-sm font-black text-indigo-600">${Number(order.b2b_commission).toLocaleString()} 退傭</p>}
+                              {(!order.reward_points && (!order.b2b_commission || !order.members?.is_b2b)) && <p className="text-sm text-slate-300">-</p>}
                            </div>
                         </td>
                         <td className="p-8 text-center">

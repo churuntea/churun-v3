@@ -114,8 +114,10 @@ export async function POST(request: Request) {
       const itemSubtotal = product.price * item.quantity;
       totalAmount += itemSubtotal;
       
-      // B2B 退傭仍依照商品設定 (不變)
-      totalB2BCommission += Math.floor(itemSubtotal * (product.b2b_commission_percent / 100));
+      // 只有當買家具備 B2B 創業合夥人身分時，才計算 B2B 專屬退傭
+      if (buyer.is_b2b) {
+        totalB2BCommission += Math.floor(itemSubtotal * (product.b2b_commission_percent / 100));
+      }
     }
 
     // B2C 點數回饋改為依據「會員階級匯率」計算
