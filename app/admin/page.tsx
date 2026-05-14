@@ -1048,6 +1048,36 @@ function AdminDashboardContent() {
                   </div>
                </div>
 
+               {/* Zone 1-2: 進銷存管理中心 (ERP Inventory System) */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                     <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center font-bold">📦</div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800">進銷存管理中心</h4>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">ERP Inventory & Sales</p>
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     {[
+                        { label: "進貨管理 (採購入庫)", icon: Package, action: "/admin/inventory?tab=inbound" },
+                        { label: "銷售管理 (銷貨出貨)", icon: TrendingUp, action: "/admin/inventory?tab=sales" },
+                        { label: "庫存管理 (盤點與預警)", icon: Database, action: "/admin/inventory?tab=stock" }
+                     ].map((act, i) => (
+                        <button 
+                           key={act.label}
+                           onClick={() => router.push(act.action)}
+                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                           </div>
+                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                        </button>
+                     ))}
+                  </div>
+               </div>
+
                {/* Zone 2: 會員管理區 */}
                <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
                   <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
