@@ -359,6 +359,76 @@ function TransactionContent() {
             </button>
          </div>
 
+        {/* 📋 近五筆儲值與異動狀況 (對帳核心直顯區塊) */}
+        <section className="space-y-4">
+           <div className="px-4 flex justify-between items-center">
+              <h3 className="text-xs font-black tracking-[0.2em] text-slate-800 uppercase flex items-center gap-2">
+                 <History className="w-4 h-4 text-emerald-600 animate-spin-slow" />
+                 {activeTab === "wallet" ? "近五筆儲值與異動狀況" : "近五筆紅利點數使用狀況"}
+              </h3>
+              <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                 {activeTab === "wallet" ? "預收餘額" : "紅利明細"}
+              </span>
+           </div>
+           <div className="space-y-3">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>
+              ) : transactions.length === 0 ? (
+                <div className="bg-white rounded-[2.5rem] p-12 text-center border border-slate-50 shadow-sm">
+                   <p className="text-xs text-slate-400 font-bold">目前尚無異動紀錄</p>
+                </div>
+              ) : (
+                 <>
+                   {transactions.slice(0, 5).map((tx) => {
+                      const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
+                      const isPositive = Number(tx.amount) > 0;
+                      return (
+                         <div key={tx.id} className="bg-white rounded-[2rem] p-5 border border-slate-50 flex items-center justify-between shadow-xs hover:scale-[1.01] transition duration-200">
+                            <div className="flex items-center gap-3.5 min-w-0">
+                               <div className={`w-11 h-11 rounded-[1.2rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
+                                  {isPositive ? '+' : '-'}
+                               </div>
+                               <div className="text-left min-w-0">
+                                  <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
+                                  <p className="text-[9px] font-bold text-slate-300 mt-0.5 uppercase tracking-tight truncate">{info.desc}</p>
+                               </div>
+                            </div>
+                            <div className="text-right shrink-0 ml-3">
+                               <p className={`text-sm font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                  {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                               </p>
+                               <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
+                            </div>
+                         </div>
+                      );
+                   })}
+
+                   {/* 超過 5 筆顯示進階查詢選項 */}
+                   {transactions.length >= 5 && (
+                     <motion.button 
+                       whileHover={{ scale: 1.01 }}
+                       whileTap={{ scale: 0.99 }}
+                       onClick={() => {
+                         const now = new Date();
+                         const monthAgo = new Date();
+                         monthAgo.setMonth(now.getMonth() - 1);
+                         const startStr = monthAgo.toISOString().split('T')[0];
+                         const endStr = now.toISOString().split('T')[0];
+                         setQueryStartDate(startStr);
+                         setQueryEndDate(endStr);
+                         setIsAdvancedQueryOpen(true);
+                         handleExecuteQuery(startStr, endStr);
+                       }}
+                       className="w-full bg-slate-900 hover:bg-slate-800 text-white p-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10 transition duration-300 mt-2"
+                     >
+                        📅 查看更多歷史紀錄 (時間區間查詢，最多至兩年)
+                     </motion.button>
+                   )}
+                 </>
+              )}
+           </div>
+        </section>
+
          {/* 📊 雙模動態價值分析與兌換模組 (Dual-Mode Wallet Booster) */}
          {memberInfo && memberInfo.is_b2b ? (
             <div className="space-y-6">
@@ -483,73 +553,6 @@ function TransactionContent() {
                Anti-Fraud Dynamic Watermark Verified | SSL 256-Bit Financial Guard
             </p>
          </div>
-
-
-        <section className="space-y-6">
-           <div className="px-4 flex justify-between items-center">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">
-                 {activeTab === "wallet" ? "近五筆儲值與異動狀況" : "近五筆紅利點數使用狀況"}
-              </h3>
-              <History className="w-4 h-4 text-slate-200" />
-           </div>
-           <div className="space-y-3">
-              {isLoading ? (
-                <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-200" /></div>
-              ) : transactions.length === 0 ? (
-                <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-50">
-                   <p className="text-xs text-slate-300 font-bold">目前尚無異動紀錄</p>
-                </div>
-              ) : (
-                 <>
-                   {transactions.slice(0, 5).map((tx) => {
-                      const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
-                      const isPositive = Number(tx.amount) > 0;
-                      return (
-                         <div key={tx.id} className="bg-white rounded-[2.5rem] p-6 border border-slate-50 flex items-center justify-between shadow-sm hover:scale-[1.01] transition duration-200">
-                            <div className="flex items-center gap-4 min-w-0">
-                               <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
-                                  {isPositive ? '+' : '-'}
-                               </div>
-                               <div className="text-left min-w-0">
-                                  <h4 className="font-black text-slate-800 text-sm truncate">{info.label}</h4>
-                                  <p className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tight truncate">{info.desc}</p>
-                               </div>
-                            </div>
-                            <div className="text-right shrink-0 ml-4">
-                               <p className={`text-base font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                  {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
-                               </p>
-                               <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
-                            </div>
-                         </div>
-                      );
-                   })}
-
-                   {/* 超過 5 筆顯示進階查詢選項 */}
-                   {transactions.length >= 5 && (
-                     <motion.button 
-                       whileHover={{ scale: 1.01 }}
-                       whileTap={{ scale: 0.99 }}
-                       onClick={() => {
-                         const now = new Date();
-                         const monthAgo = new Date();
-                         monthAgo.setMonth(now.getMonth() - 1);
-                         const startStr = monthAgo.toISOString().split('T')[0];
-                         const endStr = now.toISOString().split('T')[0];
-                         setQueryStartDate(startStr);
-                         setQueryEndDate(endStr);
-                         setIsAdvancedQueryOpen(true);
-                         handleExecuteQuery(startStr, endStr);
-                       }}
-                       className="w-full bg-slate-900 hover:bg-slate-800 text-white p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-900/20 transition duration-300 mt-4"
-                     >
-                        📅 查看更多歷史紀錄 (支援時間區間查詢，最多至兩年)
-                     </motion.button>
-                   )}
-                 </>
-              )}
-           </div>
-        </section>
       </main>
 
       {/* 🔮 進階時間區間查詢面板 (Advanced Query Modal) */}
