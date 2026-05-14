@@ -13,6 +13,8 @@ import {
   Settings, 
   LogOut, 
   ChevronRight, 
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Zap,
   ShieldCheck,
@@ -89,6 +91,21 @@ function AdminDashboardContent() {
   const [marketingSubTab, setMarketingSubTab] = useState<"persona" | "pricing">("persona");
   const [isGeneratingBackup, setIsGeneratingBackup] = useState(false);
   const [backupData, setBackupData] = useState<any>(null);
+
+  // 各大項收闔狀態管理
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    marketing: false,
+    inventory: false,
+    members: false,
+    finance: false,
+    hr: false,
+    backup: false,
+    marketing_ai: false
+  });
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // 新增：大師級備份與還原擴充狀態
   const [backupTab, setBackupTab] = useState<"stats" | "full" | "restore" | "audit">("stats");
@@ -1017,190 +1034,298 @@ function AdminDashboardContent() {
                </div>
 
                {/* Zone 1: 行銷管理區 */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-pink-50 text-pink-500 rounded-xl flex items-center justify-center font-bold">📢</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">行銷管理區</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Marketing & Materials</p>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('marketing')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-pink-50 text-pink-500 rounded-xl flex items-center justify-center font-bold">📢</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">行銷管理區</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Marketing & Materials</p>
+                        </div>
                      </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.marketing ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
                   </div>
-                  <div className="space-y-2">
-                     {[
-                        { label: "商品管理", icon: Settings, action: "/admin/products" },
-                        { label: "優惠卷與派發管理", icon: Ticket, action: "/admin/coupons" },
-                        { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
-                        { label: "品牌素材與文宣管理", icon: ImageIcon, action: "/admin/materials" },
-                        { label: "初潤 brand 脈動與快訊公告", icon: FileText, action: "/admin/news" }
-                     ].map((act, i) => (
-                        <button 
-                           key={act.label}
-                           onClick={() => router.push(act.action)}
-                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+
+                  <AnimatePresence>
+                     {!collapsedSections.marketing && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
                         >
-                           <div className="flex items-center gap-3">
-                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label === "初潤 brand 脈動與快訊公告" ? "初潤品牌脈動與快訊公告" : act.label}</span>
-                           </div>
-                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
-                        </button>
-                     ))}
-                  </div>
+                           {[
+                              { label: "商品管理", icon: Settings, action: "/admin/products" },
+                              { label: "優惠卷與派發管理", icon: Ticket, action: "/admin/coupons" },
+                              { label: "公版行銷海報管理", icon: ImageIcon, action: "/admin/posters" },
+                              { label: "品牌素材與文宣管理", icon: ImageIcon, action: "/admin/materials" },
+                              { label: "初潤 brand 脈動與快訊公告", icon: FileText, action: "/admin/news" }
+                           ].map((act, i) => (
+                              <button 
+                                 key={act.label}
+                                 onClick={() => router.push(act.action)}
+                                 className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label === "初潤 brand 脈動與快訊公告" ? "初潤品牌脈動與快訊公告" : act.label}</span>
+                                 </div>
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                           ))}
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
                {/* Zone 1-2: 進銷存管理中心 (ERP Inventory System) */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center font-bold">📦</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">進銷存管理中心</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">ERP Inventory & Sales</p>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('inventory')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center font-bold">📦</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">進銷存管理中心</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">ERP Inventory & Sales</p>
+                        </div>
                      </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.inventory ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
                   </div>
-                  <div className="space-y-2">
-                     {[
-                        { label: "進貨管理 (採購入庫)", icon: Package, action: "/admin/inventory?tab=inbound" },
-                        { label: "銷售管理 (銷貨出貨)", icon: TrendingUp, action: "/admin/inventory?tab=sales" },
-                        { label: "庫存管理 (盤點與預警)", icon: Database, action: "/admin/inventory?tab=stock" }
-                     ].map((act, i) => (
-                        <button 
-                           key={act.label}
-                           onClick={() => router.push(act.action)}
-                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+
+                  <AnimatePresence>
+                     {!collapsedSections.inventory && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
                         >
-                           <div className="flex items-center gap-3">
-                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
-                           </div>
-                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
-                        </button>
-                     ))}
-                  </div>
+                           {[
+                              { label: "進貨管理 (採購入庫)", icon: Package, action: "/admin/inventory?tab=inbound" },
+                              { label: "銷售管理 (銷貨出貨)", icon: TrendingUp, action: "/admin/inventory?tab=sales" },
+                              { label: "庫存管理 (盤點與預警)", icon: Database, action: "/admin/inventory?tab=stock" }
+                           ].map((act, i) => (
+                              <button 
+                                 key={act.label}
+                                 onClick={() => router.push(act.action)}
+                                 className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                                 </div>
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                           ))}
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
                {/* Zone 2: 會員管理區 */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center font-bold">👥</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">會員管理區</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Members & Bonuses</p>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('members')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center font-bold">👥</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">會員管理區</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Members & Bonuses</p>
+                        </div>
                      </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.members ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
                   </div>
-                  <div className="space-y-2">
-                     {[
-                        { label: "會員總攬與資料匯出", icon: Users, action: "/admin/members" },
-                        { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
-                        { label: "獎金發放結構", icon: TrendingUp, action: "/api/cron/settlement" },
-                        { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" }
-                     ].map((act, i) => (
-                        <button 
-                           key={act.label}
-                           onClick={async () => {
-                              if (act.action.includes('/api/')) {
-                                 if (!confirm("確定要執行全體獎金發放與業績結算嗎？此動作將發放分紅並扣除相關帳戶餘額！")) return;
-                                 const res = await fetch(act.action, { method: 'POST' });
-                                 const d = await res.json();
-                                 alert(d.message || d.error);
-                              } else {
-                                 router.push(act.action);
-                              }
-                           }}
-                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+
+                  <AnimatePresence>
+                     {!collapsedSections.members && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
                         >
-                           <div className="flex items-center gap-3">
-                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
-                           </div>
-                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
-                        </button>
-                     ))}
-                  </div>
+                           {[
+                              { label: "會員總攬與資料匯出", icon: Users, action: "/admin/members" },
+                              { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
+                              { label: "獎金發放結構", icon: TrendingUp, action: "/api/cron/settlement" },
+                              { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" }
+                           ].map((act, i) => (
+                              <button 
+                                 key={act.label}
+                                 onClick={async () => {
+                                    if (act.action.includes('/api/')) {
+                                       if (!confirm("確定要執行全體獎金發放與業績結算嗎？此動作將發放分紅並扣除相關帳戶餘額！")) return;
+                                       const res = await fetch(act.action, { method: 'POST' });
+                                       const d = await res.json();
+                                       alert(d.message || d.error);
+                                    } else {
+                                       router.push(act.action);
+                                    }
+                                 }}
+                                 className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                                 </div>
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                           ))}
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
                {/* Zone 3: 財務會計與出納中心 */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold">💵</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">財務會計與出納中心</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Finance & Accounting</p>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('finance')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold">💵</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">財務會計與出納中心</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Finance & Accounting</p>
+                        </div>
                      </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.finance ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
                   </div>
-                  <div className="space-y-2">
-                     {[
-                        { label: "會計及財務稽核驗證系統", icon: ShieldCheck, action: "/admin/finance" },
-                        { label: "會計對帳專區 (預收儲值審核)", icon: CheckCircle2, action: "/admin/withdrawals?tab=deposit" },
-                        { label: "會計審查專區 (創業水單核對)", icon: ShieldCheck, action: "/admin/evaluation?tab=audits" },
-                        { label: "出納付款專區 (獎金提領核撥)", icon: Wallet, action: "/admin/withdrawals?tab=withdrawal" }
-                     ].map((act, i) => (
-                        <button 
-                           key={act.label}
-                           onClick={() => handleActionClick(act.label, act.action)}
-                           className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+
+                  <AnimatePresence>
+                     {!collapsedSections.finance && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
                         >
-                           <div className="flex items-center gap-3">
-                              <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                              <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
-                           </div>
-                           <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
-                        </button>
-                     ))}
-                  </div>
+                           {[
+                              { label: "會計及財務稽核驗證系統", icon: ShieldCheck, action: "/admin/finance" },
+                              { label: "會計對帳專區 (預收儲值審核)", icon: CheckCircle2, action: "/admin/withdrawals?tab=deposit" },
+                              { label: "會計審查專區 (創業水單核對)", icon: ShieldCheck, action: "/admin/evaluation?tab=audits" },
+                              { label: "出納付款專區 (獎金提領核撥)", icon: Wallet, action: "/admin/withdrawals?tab=withdrawal" }
+                           ].map((act, i) => (
+                              <button 
+                                 key={act.label}
+                                 onClick={() => handleActionClick(act.label, act.action)}
+                                 className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
+                                 </div>
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                           ))}
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
                {/* Zone 3: 人事與權限管理 */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-bold">🔑</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">人事與權限管理</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">HR & Permissions</p>
-                     </div>
-                  </div>
-                  <div className="space-y-2">
-                     <button 
-                        onClick={() => handleActionClick("人事與權限管理", "/admin/hr")}
-                        className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
-                     >
-                        <div className="flex items-center gap-3">
-                           <ShieldCheck className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                           <span className="text-xs font-bold text-slate-700 group-hover:text-white">人事與權限管理</span>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('hr')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-bold">🔑</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">人事與權限管理</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">HR & Permissions</p>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                     </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.hr ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                      </button>
                   </div>
+
+                  <AnimatePresence>
+                     {!collapsedSections.hr && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
+                        >
+                           <button 
+                              onClick={() => handleActionClick("人事與權限管理", "/admin/hr")}
+                              className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                           >
+                              <div className="flex items-center gap-3">
+                                 <ShieldCheck className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                 <span className="text-xs font-bold text-slate-700 group-hover:text-white">人事與權限管理</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                           </button>
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
                {/* Zone 4: 數據庫備份 */}
-               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                     <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center font-bold">📊</div>
-                     <div>
-                        <h4 className="text-sm font-black text-slate-800">數據庫備份</h4>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Database Backup</p>
-                     </div>
-                  </div>
-                  <div className="space-y-2">
-                     <button 
-                        onClick={() => {
-                           if (adminUser && !adminUser.permissions?.backup) {
-                              alert("🔒 權限不足！您目前的職務並未獲授權「數據庫備份」模組。");
-                              return;
-                           }
-                           logFeatureAccess("數據庫備份");
-                           setShowBackupModal(true);
-                           handleGenerateBackup(backupTimeframe);
-                        }}
-                        className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
-                     >
-                        <div className="flex items-center gap-3">
-                           <Database className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                           <span className="text-xs font-bold text-slate-700 group-hover:text-white">數據庫備份</span>
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('backup')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center font-bold">📊</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">數據庫備份</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Database Backup</p>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                     </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.backup ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                      </button>
                   </div>
+
+                  <AnimatePresence>
+                     {!collapsedSections.backup && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
+                        >
+                           <button 
+                              onClick={() => {
+                                 if (adminUser && !adminUser.permissions?.backup) {
+                                    alert("🔒 權限不足！您目前的職務並未獲授權「數據庫備份」模組。");
+                                    return;
+                                 }
+                                 logFeatureAccess("數據庫備份");
+                                 setShowBackupModal(true);
+                                 handleGenerateBackup(backupTimeframe);
+                              }}
+                              className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                           >
+                              <div className="flex items-center gap-3">
+                                 <Database className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                 <span className="text-xs font-bold text-slate-700 group-hover:text-white">數據庫備份</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                           </button>
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
             </div>
             
@@ -1484,39 +1609,57 @@ function AdminDashboardContent() {
 
       
          {/* 🎯 品牌行銷與客群戰略決策中心 (Marketing Strategy Center) */}
-         <div className="space-y-6 my-10">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 bg-slate-900 text-white p-6 rounded-[2.5rem] shadow-lg shadow-slate-950/10">
-               <div>
-                  <h3 className="text-sm font-black tracking-[0.2em] text-indigo-300 uppercase flex items-center gap-2">
-                     <TrendingUp className="w-4 h-4 animate-bounce" /> 🎯 品牌行銷大數據智慧決策中心
-                  </h3>
-                  <p className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">Data-Driven Brand Marketing & AI Tactic Advisor</p>
+         <div className="space-y-6 my-10 transition-all">
+            <div 
+               onClick={() => toggleSection('marketing_ai')}
+               className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 bg-slate-900 text-white p-6 rounded-[2.5rem] shadow-lg shadow-slate-950/10 cursor-pointer select-none group"
+            >
+               <div className="flex items-center gap-3">
+                  <div>
+                     <h3 className="text-sm font-black tracking-[0.2em] text-indigo-300 uppercase flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 animate-bounce" /> 🎯 品牌行銷大數據智慧決策中心
+                     </h3>
+                     <p className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">Data-Driven Brand Marketing & AI Tactic Advisor</p>
+                  </div>
                </div>
                
-               {/* 頂級行銷子分頁切換按鈕 */}
-               <div className="flex gap-1.5 bg-slate-950/60 p-1 border border-slate-800 rounded-xl shrink-0">
-                  <button
-                     onClick={() => setMarketingSubTab("persona")}
-                     className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "persona" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
-                  >
-                     📊 客群畫像與通路
-                  </button>
-                  <button
-                     onClick={() => setMarketingSubTab("pricing")}
-                     className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "pricing" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
-                  >
-                     🎯 訂價與爆款引流
+               <div className="flex items-center gap-4 shrink-0">
+                  {/* 頂級行銷子分頁切換按鈕 */}
+                  <div className="flex gap-1.5 bg-slate-950/60 p-1 border border-slate-800 rounded-xl" onClick={e => e.stopPropagation()}>
+                     <button
+                        onClick={() => setMarketingSubTab("persona")}
+                        className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "persona" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
+                     >
+                        📊 客群畫像與通路
+                     </button>
+                     <button
+                        onClick={() => setMarketingSubTab("pricing")}
+                        className={`text-[9px] font-black px-3.5 py-2 rounded-lg uppercase tracking-wider transition ${marketingSubTab === "pricing" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-slate-400 hover:text-slate-200"}`}
+                     >
+                        🎯 訂價與爆款引流
+                     </button>
+                  </div>
+                  <button className="text-slate-400 group-hover:text-white transition">
+                     {collapsedSections.marketing_ai ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
                   </button>
                </div>
             </div>
 
-            {/* TAB A: 客群畫像與通路 (Persona) */}
-            {marketingSubTab === "persona" && (
-              <motion.div 
-                 initial={{ opacity: 0, y: 15 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 className="grid grid-cols-1 lg:grid-cols-3 gap-10"
-              >
+            <AnimatePresence>
+               {!collapsedSections.marketing_ai && (
+                  <motion.div 
+                     initial={{ opacity: 0, height: 0 }}
+                     animate={{ opacity: 1, height: 'auto' }}
+                     exit={{ opacity: 0, height: 0 }}
+                     className="overflow-hidden"
+                  >
+                     {/* TAB A: 客群畫像與通路 (Persona) */}
+                     {marketingSubTab === "persona" && (
+                       <motion.div 
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-2"
+                       >
                {/* Column 1: 下單時段分析與推播戰術 */}
                <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm space-y-5 flex flex-col justify-between">
                   <div className="space-y-4">
@@ -1835,6 +1978,9 @@ function AdminDashboardContent() {
                </div>
               </motion.div>
             )}
+                  </motion.div>
+               )}
+            </AnimatePresence>
          </div>
 
 
