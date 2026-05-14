@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/supabase";
 import { motion } from "framer-motion";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { 
   ArrowLeft, 
   Package, 
@@ -28,6 +29,11 @@ function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // 排序與分頁狀態
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // 狀態資料
   const [products, setProducts] = useState<any[]>([]);
@@ -224,19 +230,78 @@ function InventoryDashboard() {
     document.body.removeChild(link);
   };
 
+  // 處理排序與分頁重置
+  useEffect(() => {
+    setCurrentPage(1);
+    setSortConfig(null);
+  }, [activeTab, searchQuery]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedData = (data: any[]) => {
+    if (!sortConfig) return data;
+    return [...data].sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   const filteredProducts = products.filter(p => 
     (p.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.category || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const sortedProducts = getSortedData(filteredProducts);
+  const paginatedProducts = sortedProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const filteredInbound = inboundRecords.filter(r => 
     (r.product_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (r.supplier || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const sortedInbound = getSortedData(filteredInbound);
+  const paginatedInbound = sortedInbound.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const filteredSales = salesRecords.filter(r => 
     (r.product_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const sortedSales = getSortedData(filteredSales);
+  const paginatedSales = sortedSales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const getCurrentTotalPages = () => {
+    if (activeTab === 'inbound') return Math.ceil(filteredInbound.length / itemsPerPage) || 1;
+    if (activeTab === 'sales') return Math.ceil(filteredSales.length / itemsPerPage) || 1;
+    return Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  };
+
+  const COLORS = ['#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#3b82f6'];
+  
+  const pieChartData = useMemo(() => {
+    return sortedSales.slice(0, 5).map(s => ({ name: s.product_name, value: s.quantity }));
+  }, [sortedSales]);
+
+  const barChartData = useMemo(() => {
+    return sortedProducts.slice(0, 7).map(p => ({
+      name: p.name.substring(0, 6) + (p.name.length > 6 ? '...' : ''),
+      stock: p.stock || 0,
+      min_stock: p.min_stock || 10
+    }));
+  }, [sortedProducts]);
+
+  const SortIcon = ({ sortKey }: { sortKey: string }) => {
+    if (sortConfig?.key !== sortKey) return <span className="text-slate-300 ml-1 inline-block">↕</span>;
+    return <span className="text-indigo-600 ml-1 inline-block">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-slate-800 pb-24">
@@ -309,6 +374,55 @@ function InventoryDashboard() {
                      {products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} 項需補貨
                   </h3>
                </div>
+            </div>
+         </div>
+
+         {/* 數據視覺化圖表中心 */}
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center">
+               <h3 className="text-xs font-black text-slate-800 tracking-widest uppercase mb-4 w-full text-left pl-2 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-pink-500" /> 熱銷茶品佔比 (Top 5)
+               </h3>
+               {pieChartData.length > 0 ? (
+                 <div className="w-full h-64">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <PieChart>
+                       <Pie data={pieChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                         {pieChartData.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                         ))}
+                       </Pie>
+                       <RechartsTooltip formatter={(value) => [`${value} 件`, '銷量']} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                       <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                     </PieChart>
+                   </ResponsiveContainer>
+                 </div>
+               ) : (
+                 <div className="w-full h-64 flex items-center justify-center text-slate-400 text-xs font-bold">尚無銷售數據</div>
+               )}
+            </div>
+
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center">
+               <h3 className="text-xs font-black text-slate-800 tracking-widest uppercase mb-4 w-full text-left pl-2 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-500" /> 庫存水位預警看板
+               </h3>
+               {barChartData.length > 0 ? (
+                 <div className="w-full h-64">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                       <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                       <YAxis tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                       <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                       <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                       <Bar dataKey="stock" name="現有庫存" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                       <Bar dataKey="min_stock" name="安全預警線" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={20} />
+                     </BarChart>
+                   </ResponsiveContainer>
+                 </div>
+               ) : (
+                 <div className="w-full h-64 flex items-center justify-center text-slate-400 text-xs font-bold">尚無庫存數據</div>
+               )}
             </div>
          </div>
 
@@ -385,17 +499,17 @@ function InventoryDashboard() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="pb-4 pl-2">單據編號</th>
-                              <th className="pb-4">進貨商品</th>
-                              <th className="pb-4">供應廠商</th>
-                              <th className="pb-4 text-right">進貨數量</th>
-                              <th className="pb-4 text-right">進貨成本 (件)</th>
-                              <th className="pb-4 text-center">入庫日期</th>
+                              <th className="pb-4 pl-2 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>單據編號<SortIcon sortKey="id" /></th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('product_name')}>進貨商品<SortIcon sortKey="product_name" /></th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('supplier')}>供應廠商<SortIcon sortKey="supplier" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('quantity')}>進貨數量<SortIcon sortKey="quantity" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('unit_cost')}>進貨成本 (件)<SortIcon sortKey="unit_cost" /></th>
+                              <th className="pb-4 text-center cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('created_at')}>入庫日期<SortIcon sortKey="created_at" /></th>
                               <th className="pb-4 text-center pr-2">狀態</th>
                            </tr>
                         </thead>
                         <tbody>
-                           {filteredInbound.map((row, idx) => (
+                           {paginatedInbound.map((row, idx) => (
                               <tr key={idx} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
                                  <td className="py-4 pl-2 font-mono font-black text-blue-600">{row.id}</td>
                                  <td className="py-4 text-slate-900 font-black">{row.product_name}</td>
@@ -420,16 +534,16 @@ function InventoryDashboard() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="pb-4 pl-2">品項統計編號</th>
-                              <th className="pb-4">銷售商品</th>
-                              <th className="pb-4 text-right">總銷量</th>
-                              <th className="pb-4 text-right">單價</th>
-                              <th className="pb-4 text-right">總銷售額</th>
+                              <th className="pb-4 pl-2 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>品項統計編號<SortIcon sortKey="id" /></th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('product_name')}>銷售商品<SortIcon sortKey="product_name" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('quantity')}>總銷量<SortIcon sortKey="quantity" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('price')}>單價<SortIcon sortKey="price" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('total')}>總銷售額<SortIcon sortKey="total" /></th>
                               <th className="pb-4 text-center pr-2">熱度狀態</th>
                            </tr>
                         </thead>
                         <tbody>
-                           {filteredSales.map((row, idx) => (
+                           {paginatedSales.map((row, idx) => (
                               <tr key={idx} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
                                  <td className="py-4 pl-2 font-mono font-black text-indigo-600">{row.id}</td>
                                  <td className="py-4 text-slate-900 font-black">{row.product_name}</td>
@@ -453,17 +567,17 @@ function InventoryDashboard() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="pb-4 pl-2">商品編號</th>
-                              <th className="pb-4">商品名稱</th>
-                              <th className="pb-4">所屬分類</th>
-                              <th className="pb-4 text-right">現有庫存量</th>
-                              <th className="pb-4 text-right">安全預警水位</th>
-                              <th className="pb-4 text-right">零售售價</th>
+                              <th className="pb-4 pl-2 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>商品編號<SortIcon sortKey="id" /></th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('name')}>商品名稱<SortIcon sortKey="name" /></th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('category')}>所屬分類<SortIcon sortKey="category" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('stock')}>現有庫存量<SortIcon sortKey="stock" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('min_stock')}>安全預警水位<SortIcon sortKey="min_stock" /></th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('price')}>零售售價<SortIcon sortKey="price" /></th>
                               <th className="pb-4 text-center pr-2">庫存狀態</th>
                            </tr>
                         </thead>
                         <tbody>
-                           {filteredProducts.map((p, idx) => {
+                           {paginatedProducts.map((p, idx) => {
                               const stock = Number(p.stock || 0);
                               const minStock = Number(p.min_stock || 10);
                               const isLow = stock < minStock;
@@ -493,6 +607,29 @@ function InventoryDashboard() {
                      </table>
                   </div>
                )}
+
+               {/* 分頁控制 */}
+               <div className="flex justify-between items-center mt-6 pt-6 border-t border-slate-100">
+                  <div className="text-xs font-bold text-slate-500">
+                     目前顯示第 {currentPage} 頁，共 {getCurrentTotalPages()} 頁
+                  </div>
+                  <div className="flex gap-2">
+                     <button 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                     >
+                        上一頁
+                     </button>
+                     <button 
+                        onClick={() => setCurrentPage(prev => Math.min(getCurrentTotalPages(), prev + 1))}
+                        disabled={currentPage === getCurrentTotalPages()}
+                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                     >
+                        下一頁
+                     </button>
+                  </div>
+               </div>
             </div>
          )}
       </main>
