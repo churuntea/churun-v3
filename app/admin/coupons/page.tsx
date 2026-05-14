@@ -53,8 +53,8 @@ export default function CouponsAdminPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   
-  // 管理模式切換器 (Tab Navigation / Mode Switcher)
-  const [activeMode, setActiveMode] = useState<'create' | 'list' | 'analytics'>('create');
+  // 管理模式切換器 (Four Independent Switcher Tabs)
+  const [activeMode, setActiveMode] = useState<'create' | 'dispatch' | 'list' | 'analytics'>('create');
 
   // Create Coupon Form State
   const [newCoupon, setNewCoupon] = useState({
@@ -435,10 +435,11 @@ export default function CouponsAdminPage() {
           </div>
         </div>
 
-        {/* 🚀 頂級管理模式切換器 (Mode Switcher Tabs) */}
-        <div className="flex bg-slate-200/60 p-2 rounded-3xl max-w-2xl mx-auto shadow-inner">
+        {/* 🚀 四大獨立管理模式切換器 (Mode Switcher Tabs) */}
+        <div className="flex bg-slate-200/60 p-2 rounded-3xl max-w-4xl mx-auto shadow-inner gap-2">
           {[
-            { id: 'create', label: '➕ 新增與派發優惠券', icon: Plus },
+            { id: 'create', label: '➕ 新增優惠券', icon: Plus },
+            { id: 'dispatch', label: '🚀 發送優惠券', icon: Send },
             { id: 'list', label: '🎫 現有優惠券一覽表', icon: Layers },
             { id: 'analytics', label: '📈 各優惠券使用及業績統計', icon: PieChart }
           ].map(tab => {
@@ -447,27 +448,26 @@ export default function CouponsAdminPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveMode(tab.id as any)}
-                className={`flex-1 py-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 select-none ${
+                className={`flex-1 py-4 px-3 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 select-none ${
                   isActive ? 'bg-white text-slate-900 shadow-md scale-102' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
               >
-                <tab.icon className={`w-4 h-4 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
+                <tab.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span className="whitespace-nowrap">{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* 模式一：新增與派發優惠券 */}
+        {/* 模式一：新增優惠券 */}
         <AnimatePresence mode="wait">
           {activeMode === 'create' && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-10"
+              className="max-w-3xl mx-auto"
             >
-              {/* 輸入新優惠券參數 */}
               <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
@@ -581,8 +581,19 @@ export default function CouponsAdminPage() {
                   </button>
                 </form>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              {/* 選擇發送目標並送出 */}
+        {/* 模式二：發送優惠券 */}
+        <AnimatePresence mode="wait">
+          {activeMode === 'dispatch' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-3xl mx-auto"
+            >
               <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -651,7 +662,7 @@ export default function CouponsAdminPage() {
           )}
         </AnimatePresence>
 
-        {/* 模式二：目前現有優惠券一覽表 */}
+        {/* 模式三：目前現有優惠券一覽表 */}
         <AnimatePresence mode="wait">
           {activeMode === 'list' && (
             <motion.div 
@@ -790,7 +801,7 @@ export default function CouponsAdminPage() {
           )}
         </AnimatePresence>
 
-        {/* 模式三：各優惠券使用及業績統計 */}
+        {/* 模式四：各優惠券使用及業績統計 */}
         <AnimatePresence mode="wait">
           {activeMode === 'analytics' && (
             <motion.div 
