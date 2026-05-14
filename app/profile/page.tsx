@@ -59,7 +59,7 @@ function ProfileContent() {
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
-    const currentVersion = "3.0.9";
+    const currentVersion = "3.0.10";
     const savedVersion = localStorage.getItem("churun_profile_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_profile_version", currentVersion);
@@ -187,7 +187,7 @@ function ProfileContent() {
 
       <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
          {/* Interactive VIP Card */}
-         <div className="relative min-h-[22rem] w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+         <div className="relative w-full perspective-1000 group cursor-pointer" style={{ height: '350px' }} onClick={() => setIsFlipped(!isFlipped)}>
             <motion.div 
               animate={{ rotateY: isFlipped ? 180 : 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
