@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { sendSecurityNotification } from '@/app/api/notify-helper';
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +64,13 @@ export async function POST(request: Request) {
         console.error('DB Update Error:', dbError);
         return NextResponse.json({ success: false, error: `資料庫更新失敗: ${dbError.message}` }, { status: 500 });
       }
+
+      // 發送個人檔案異動通知
+      await sendSecurityNotification({
+        memberId,
+        actionName: "個人檔案與通訊地址變更",
+        details: `您已更新個人檔案資訊。` + (address ? `\n新通訊聯絡地址：${address}` : ""),
+      });
     }
 
     return NextResponse.json({ 

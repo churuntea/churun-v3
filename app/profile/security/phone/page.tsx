@@ -111,6 +111,19 @@ export default function PhoneVerificationPage() {
         throw updateError;
       }
 
+      // 觸發安全通知
+      if (currentUserId) {
+        fetch("/api/notifications/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberId: currentUserId,
+            actionName: "手機號碼安全驗證綁定",
+            details: `您的手機號碼 ${memberInfo?.phone} 已成功通過系統安全驗證綁定。`
+          })
+        }).catch(err => console.error("Trigger notification error:", err));
+      }
+
       setStep('success');
     } catch (err: any) {
       setError(err.message || "驗證失敗");

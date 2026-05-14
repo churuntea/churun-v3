@@ -79,6 +79,19 @@ export default function ChangePasswordPage() {
 
       if (updateError) throw updateError;
 
+      // 觸發安全通知
+      if (currentUserId) {
+        fetch("/api/notifications/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberId: currentUserId,
+            actionName: "登入密碼變更",
+            details: "您的登入密碼已成功完成變更。若非本人操作，請立刻聯繫總部客服！"
+          })
+        }).catch(err => console.error("Trigger notification error:", err));
+      }
+
       setMessage({ type: 'success', text: '密碼修改成功！' });
       setTimeout(() => {
         router.back();

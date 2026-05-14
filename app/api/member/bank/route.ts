@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { sendSecurityNotification } from '@/app/api/notify-helper';
 
 export async function POST(request: Request) {
   try {
@@ -74,6 +75,13 @@ export async function POST(request: Request) {
       console.error('DB Update Error:', dbError);
       return NextResponse.json({ success: false, error: `資料庫更新失敗: ${dbError.message}` }, { status: 500 });
     }
+
+    // 發送帳號安全異動通知 (LINE 推播 + Email)
+    await sendSecurityNotification({
+      memberId,
+      actionName: "銀行帳戶設定變更",
+      details: `您已將提領收款帳戶更新為：${bank_code} - ${bank_account} (${bank_account_name || '未填寫戶名'})`,
+    });
 
     return NextResponse.json({ 
       success: true, 
