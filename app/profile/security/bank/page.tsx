@@ -65,6 +65,7 @@ export default function BankSettingsPage() {
   const [bankBranch, setBankBranch] = useState("");
   const [bankCode, setBankCode] = useState("013");
   const [bankAccount, setBankAccount] = useState("");
+  const [bankRemark, setBankRemark] = useState("");
   const [bankCardPhotoUrl, setBankCardPhotoUrl] = useState("");
   const [bankCardPhotoBase64, setBankCardPhotoBase64] = useState("");
 
@@ -86,12 +87,14 @@ export default function BankSettingsPage() {
       let accountName = data.bank_account_name || "";
       let branchName = data.bank_branch || "";
       let photoUrl = "";
+      let remark = "";
 
       if (data.beneficiary && data.beneficiary.includes("|")) {
         const parts = data.beneficiary.split("|");
         if (!accountName) accountName = parts[0] || "";
         if (!branchName) branchName = parts[1] || "";
         photoUrl = parts[2] || "";
+        remark = parts[3] || "";
       } else if (data.beneficiary && !data.beneficiary.includes("|")) {
         if (!accountName) accountName = data.beneficiary;
       }
@@ -99,6 +102,7 @@ export default function BankSettingsPage() {
       setBankAccountName(accountName);
       setBankBranch(branchName);
       setBankCardPhotoUrl(photoUrl);
+      setBankRemark(remark);
     }
     setIsLoading(false);
   };
@@ -144,6 +148,7 @@ export default function BankSettingsPage() {
           bank_branch: bankBranch,
           bank_code: bankCode,
           bank_account: bankAccount,
+          bank_remark: bankRemark,
           bank_card_photo_base64: bankCardPhotoBase64 || undefined,
           bank_card_photo_url: bankCardPhotoUrl || undefined
         })
@@ -199,6 +204,27 @@ export default function BankSettingsPage() {
 
         {/* Bank Form */}
         <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-6">
+           <div className="space-y-2">
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼與名稱 (例: 國泰 013)</label>
+              <div className="flex gap-4">
+                 <input 
+                    type="text" value={bankCode} onChange={e => setBankCode(e.target.value)} maxLength={3}
+                    className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 text-center focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="013"
+                 />
+                 <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-xs font-black text-emerald-900 flex items-center">{BANK_MAP[bankCode] || "自定義/未驗證銀行"}</div>
+              </div>
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">分行名稱</label>
+              <input 
+                 type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)}
+                 className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
+                 placeholder="例: 新莊新泰分行"
+              />
+           </div>
+
            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                  <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">帳戶姓名 (戶名)</label>
@@ -209,33 +235,21 @@ export default function BankSettingsPage() {
                  />
               </div>
               <div className="space-y-2">
-                 <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">分行名稱</label>
+                 <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號 (10-14 碼)</label>
                  <input 
-                    type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)}
-                    className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
-                    placeholder="例: 信義分行"
+                    type="tel" value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-mono font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="請輸入帳號"
                  />
-              </div>
-           </div>
-           
-           <div className="space-y-2">
-              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼 (國泰 013)</label>
-              <div className="flex gap-4">
-                 <input 
-                    type="text" value={bankCode} onChange={e => setBankCode(e.target.value)} maxLength={3}
-                    className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 text-center"
-                    placeholder="013"
-                 />
-                 <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-[10px] font-black text-slate-400 flex items-center">{BANK_MAP[bankCode] || "自定義/未驗證銀行"}</div>
               </div>
            </div>
 
            <div className="space-y-2">
-              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行帳號 (10-14 碼)</label>
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">備註</label>
               <input 
-                 type="tel" value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, ''))}
-                 className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800"
-                 placeholder="請輸入匯款帳號"
+                 type="text" value={bankRemark} onChange={e => setBankRemark(e.target.value)}
+                 className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 focus:ring-2 focus:ring-emerald-500/20"
+                 placeholder="例: 薪轉戶 / 常用收款帳戶"
               />
            </div>
 
@@ -331,23 +345,27 @@ export default function BankSettingsPage() {
               <div className="bg-slate-50 rounded-[2rem] p-6 space-y-3.5">
                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銀行名稱</span>
-                    <span className="text-sm font-black text-emerald-900">{BANK_MAP[bankCode] || `代碼 (${bankCode})`}</span>
+                    <span className="text-sm font-black text-emerald-900">{bankCode} {BANK_MAP[bankCode] || `代碼 (${bankCode})`}</span>
                  </div>
                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">分行</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">分行名稱</span>
                     <span className="text-sm font-black text-slate-800">{bankBranch || "未填寫"}</span>
                  </div>
                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">戶名</span>
                     <span className="text-sm font-black text-slate-800">{bankAccountName}</span>
                  </div>
-                 <div className="flex justify-between items-center pb-1">
+                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銀行帳號</span>
                     <span className="text-sm font-mono font-black text-slate-900">{bankAccount}</span>
                  </div>
+                 <div className="flex justify-between items-center pb-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">備註</span>
+                    <span className="text-sm font-black text-slate-600">{bankRemark || "無"}</span>
+                 </div>
                  {bankCardPhotoBase64 || bankCardPhotoUrl ? (
                    <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
-                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">隨附存摺照片</span>
+                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">隨附銀行照片</span>
                      <span className="text-[10px] font-black text-emerald-600 flex items-center gap-1">
                        <CheckCircle2 className="w-3 h-3" /> 有
                      </span>

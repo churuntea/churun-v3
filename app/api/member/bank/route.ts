@@ -12,7 +12,8 @@ export async function POST(request: Request) {
       bank_code, 
       bank_account, 
       bank_card_photo_base64,
-      bank_card_photo_url 
+      bank_card_photo_url,
+      bank_remark 
     } = body;
 
     if (!memberId) {
@@ -52,11 +53,12 @@ export async function POST(request: Request) {
     }
 
     // Combine values into beneficiary column to be backwards compatible and avoid missing columns
-    // Format: bank_account_name|bank_branch|bank_card_photo_url
+    // Format: bank_account_name|bank_branch|bank_card_photo_url|bank_remark
     const combinedBeneficiary = [
       bank_account_name || '', 
       bank_branch || '', 
-      bankCardPhotoUrl || ''
+      bankCardPhotoUrl || '',
+      bank_remark || ''
     ].join('|');
 
     // Update members table (using both individual columns and combined beneficiary for compatibility)
