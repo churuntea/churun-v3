@@ -34,6 +34,7 @@ function InventoryDashboard() {
   // 排序與分頁狀態
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const itemsPerPage = 10;
 
   // 狀態資料
@@ -272,6 +273,40 @@ function InventoryDashboard() {
     setIsLoading(false);
   };
 
+  const handleBatchDelete = async () => {
+    if (!confirm(`確定要刪除選中的 ${selectedRowIds.size} 項商品嗎？這將無法復原！`)) return;
+    setIsLoading(true);
+    try {
+      const ids = Array.from(selectedRowIds);
+      await supabase.from('products').delete().in('id', ids);
+      alert(`已成功刪除 ${ids.length} 項商品。`);
+      setSelectedRowIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      alert("刪除失敗：" + err.message);
+    }
+    setIsLoading(false);
+  };
+
+  const handleBatchPO = () => {
+    const selectedProds = products.filter(p => selectedRowIds.has(p.id));
+    let csvContent = "商品編號,商品名稱,現有庫存,建議採購量\n";
+    selectedProds.forEach(p => {
+       const suggestion = Math.max(0, (p.min_stock || 10) * 2 - (p.stock || 0));
+       csvContent += `${p.id},${p.name},${p.stock},${suggestion}\n`;
+    });
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `採購單_PO_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    alert("正式採購單 (CSV) 已成功匯出！");
+    setSelectedRowIds(new Set());
+  };
+
   const downloadCsv = () => {
     let headers: string[] = [];
     let rows: any[] = [];
@@ -377,6 +412,9 @@ function InventoryDashboard() {
     return <span className="text-indigo-600 ml-1 inline-block">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
   };
 
+  const totalRevenue = sortedSales.reduce((acc, curr) => acc + curr.total, 0);
+  const estProfit = totalRevenue * 0.4; // 預估毛利率 40%
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-slate-800 pb-24">
       {/* 頂部導覽列 */}
@@ -408,46 +446,61 @@ function InventoryDashboard() {
 
       <main className="max-w-7xl mx-auto px-8 pt-10 space-y-8">
          {/* 智慧統計儀表板 */}
-         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-4">
-               <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-[1.5rem] flex items-center justify-center shrink-0 font-bold text-xl">📦</div>
-               <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">總列管商品數</p>
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">{products.length} 項</h3>
+         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center shrink-0 font-bold text-sm">📦</div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">總列管商品</p>
                </div>
+               <h3 className="text-xl font-black text-slate-800 tracking-tight">{products.length} <span className="text-xs font-bold text-slate-400">項</span></h3>
             </div>
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-4">
-               <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-[1.5rem] flex items-center justify-center shrink-0">
-                  <Package className="w-6 h-6" />
+            
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                     <Package className="w-4 h-4" />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">本月進貨</p>
                </div>
-               <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">本月進貨總量</p>
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">
-                     {inboundRecords.reduce((acc, curr) => acc + curr.quantity, 0).toLocaleString()} 件
-                  </h3>
-               </div>
+               <h3 className="text-xl font-black text-slate-800 tracking-tight">{inboundRecords.reduce((acc, curr) => acc + curr.quantity, 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">件</span></h3>
             </div>
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-4">
-               <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-[1.5rem] flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-6 h-6" />
+            
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center shrink-0">
+                     <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銷售流轉</p>
                </div>
-               <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">銷售出貨流轉</p>
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">
-                     {salesRecords.reduce((acc, curr) => acc + curr.quantity, 0).toLocaleString()} 件
-                  </h3>
-               </div>
+               <h3 className="text-xl font-black text-slate-800 tracking-tight">{salesRecords.reduce((acc, curr) => acc + curr.quantity, 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">件</span></h3>
             </div>
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-4">
-               <div className="w-14 h-14 bg-amber-50 text-amber-500 rounded-[1.5rem] flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-6 h-6" />
-               </div>
-               <div>
+            
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center shrink-0">
+                     <AlertTriangle className="w-4 h-4" />
+                  </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">安全庫存預警</p>
-                  <h3 className="text-2xl font-black text-rose-600 tracking-tight mt-0.5">
-                     {products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} 項需補貨
-                  </h3>
                </div>
+               <h3 className="text-xl font-black text-rose-600 tracking-tight">{products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} <span className="text-xs font-bold text-rose-400">項需補貨</span></h3>
+            </div>
+
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl shadow-slate-900/10">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-white/10 text-white rounded-full flex items-center justify-center shrink-0 font-bold text-sm">💰</div>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">區間總營收</p>
+               </div>
+               <h3 className="text-xl font-black tracking-tight">NT$ {totalRevenue.toLocaleString()}</h3>
+            </div>
+
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-0 group-hover:opacity-10 transition duration-500"></div>
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center shrink-0 font-bold text-sm">✨</div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">預估總毛利</p>
+               </div>
+               <h3 className="text-xl font-black text-slate-800 tracking-tight relative z-10">NT$ {Math.round(estProfit).toLocaleString()}</h3>
+               <p className="text-[9px] font-bold text-emerald-500 mt-1">▲ Avg. Margin 40%</p>
             </div>
          </div>
 
@@ -539,10 +592,23 @@ function InventoryDashboard() {
                   <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input 
                      type="text" 
-                     placeholder={`搜尋${activeTab === "inbound" ? "進貨單據或供應商" : activeTab === "sales" ? "銷售品項" : "商品名稱或分類"}...`} 
+                     placeholder={`⚡ 條碼掃描 / 搜尋${activeTab === "inbound" ? "進貨單據" : activeTab === "sales" ? "銷售品項" : "商品名稱或分類"}...`} 
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
-                     className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                     onKeyDown={(e) => {
+                       if (e.key === 'Enter' && searchQuery && activeTab !== "sales") {
+                         const match = products.find(p => p.id === searchQuery || p.name.includes(searchQuery));
+                         if (match) {
+                           setSelectedProductId(match.id);
+                           setModalType(activeTab === "inbound" ? "inbound" : "stock");
+                           setShowAddModal(true);
+                           setSearchQuery("");
+                         } else {
+                           alert("找不到對應的商品條碼或名稱！");
+                         }
+                       }
+                     }}
+                     className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition placeholder-slate-400"
                   />
                </div>
                {activeTab === "inbound" && (
@@ -652,7 +718,21 @@ function InventoryDashboard() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                              <th className="pb-4 pl-2 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>商品編號<SortIcon sortKey="id" /></th>
+                              <th className="pb-4 pl-4 w-10">
+                                 <input 
+                                    type="checkbox" 
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                    checked={paginatedProducts.length > 0 && selectedRowIds.size === paginatedProducts.length}
+                                    onChange={(e) => {
+                                       if (e.target.checked) {
+                                          setSelectedRowIds(new Set(paginatedProducts.map(p => p.id)));
+                                       } else {
+                                          setSelectedRowIds(new Set());
+                                       }
+                                    }}
+                                 />
+                              </th>
+                              <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>商品編號<SortIcon sortKey="id" /></th>
                               <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('name')}>商品名稱<SortIcon sortKey="name" /></th>
                               <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('category')}>所屬分類<SortIcon sortKey="category" /></th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('stock')}>現有庫存量<SortIcon sortKey="stock" /></th>
@@ -668,6 +748,18 @@ function InventoryDashboard() {
                               const isLow = stock < minStock;
                               return (
                                  <tr key={idx} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
+                                    <td className="py-4 pl-4 w-10">
+                                       <input 
+                                          type="checkbox" 
+                                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                          checked={selectedRowIds.has(p.id)}
+                                          onChange={() => {
+                                             const next = new Set(selectedRowIds);
+                                             if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                                             setSelectedRowIds(next);
+                                          }}
+                                       />
+                                    </td>
                                     <td className="py-4 pl-2 font-mono font-black text-slate-400 text-[10px]">{p.id?.substring(0,8)}</td>
                                     <td className="py-4 text-slate-900 font-black">{p.name}</td>
                                     <td className="py-4 text-slate-500">{p.category || "極萃系列"}</td>
@@ -690,6 +782,27 @@ function InventoryDashboard() {
                            })}
                         </tbody>
                      </table>
+                  </div>
+               )}
+
+               {/* 批次作業工具列 */}
+               {activeTab === "stock" && selectedRowIds.size > 0 && (
+                  <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-[2rem] shadow-2xl flex items-center gap-6 z-50 border border-slate-700">
+                     <span className="text-xs font-bold bg-white/10 px-3 py-1.5 rounded-xl">已選擇 {selectedRowIds.size} 項</span>
+                     <div className="flex items-center gap-2">
+                        <button 
+                           onClick={handleBatchPO}
+                           className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg shadow-indigo-500/20"
+                        >
+                           📄 匯出正式採購單 (PO)
+                        </button>
+                        <button 
+                           onClick={handleBatchDelete}
+                           className="px-4 py-2 bg-rose-500 hover:bg-rose-400 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg shadow-rose-500/20"
+                        >
+                           🗑️ 批次刪除
+                        </button>
+                     </div>
                   </div>
                )}
 
