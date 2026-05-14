@@ -54,13 +54,12 @@ function ProfileContent() {
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [showTierBenefits, setShowTierBenefits] = useState(false);
-  const [showPerksInCard, setShowPerksInCard] = useState(false);
+  // 特權全數整合於卡片內直觀呈現，無需彈出與切換狀態
   const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
-    const currentVersion = "3.0.7";
+    const currentVersion = "3.0.8";
     const savedVersion = localStorage.getItem("churun_profile_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_profile_version", currentVersion);
@@ -188,109 +187,73 @@ function ProfileContent() {
 
       <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
          {/* Interactive VIP Card */}
-         <div className="relative h-80 w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+         <div className="relative min-h-[22rem] w-full perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
             <motion.div 
               animate={{ rotateY: isFlipped ? 180 : 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
               className="relative w-full h-full preserve-3d shadow-2xl shadow-emerald-900/10 rounded-[3.5rem]"
             >
                {/* Card Front */}
-               <div className="absolute inset-0 backface-hidden bg-mesh-emerald rounded-[3.5rem] p-10 text-white flex flex-col justify-between overflow-hidden">
+               <div className="absolute inset-0 backface-hidden bg-mesh-emerald rounded-[3.5rem] p-8 sm:p-10 text-white flex flex-col justify-between overflow-hidden">
                   <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
-                  {showPerksInCard ? (
-                     <div className="relative z-10 flex flex-col justify-between h-full text-left">
-                        <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                           <div>
-                              <span className="text-[9px] font-black text-emerald-300 bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
-                                 {getTierPerks(memberInfo.tier).badge}
-                              </span>
-                              <h3 className="text-lg font-black text-white mt-1 tracking-tight">{memberInfo.tier} 特權面板</h3>
-                           </div>
-                           <button 
-                             onClick={(e) => { e.stopPropagation(); setShowPerksInCard(false); }} 
-                             className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white transition active:scale-95"
-                           >
-                             ✕ 返回帳戶
-                           </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 my-auto py-2">
-                           <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center">
-                              <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-1">進貨/返點分紅</span>
-                              <span className="text-xl font-mono font-black text-amber-300">{getTierPerks(memberInfo.tier).percent}</span>
-                           </div>
-                           <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center">
-                              <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-1">提現手續費</span>
-                              <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
-                           </div>
-                        </div>
-
-                        <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-1">
-                           <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 保級與專屬權益：</span>
-                           <p className="text-[10px] font-bold text-white/90 leading-tight line-clamp-2">
-                              {getTierBenefits(memberInfo.tier).join(" / ")}
-                           </p>
+                  
+                  {/* 頂部：頭像與名稱 */}
+                  <div className="relative z-10 flex justify-between items-start">
+                     <div className="flex items-center gap-4">
+                         {(() => {
+                             const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
+                             const resolvedSrc = hasCustomAvatar 
+                                ? memberInfo.avatar_url 
+                                : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
+                             const isVid = isVideoUrl(resolvedSrc);
+                             return (
+                                <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100 relative" style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}>
+                                   {isVid ? (
+                                      <video src={resolvedSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ objectFit: 'cover', ...(memberInfo.avatar_settings ? { transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` } : {}) }} />
+                                   ) : (
+                                      <img src={resolvedSrc} className="w-full h-full object-cover" style={memberInfo.avatar_settings ? { transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` } : undefined} alt="Avatar" />
+                                   )}
+                                </div>
+                             );
+                          })()}
+                        <div>
+                           <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-0.5">Member Account</p>
+                           <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
                         </div>
                      </div>
-                  ) : (
-                     <>
-                        <div className="relative z-10 flex justify-between items-start">
-                           <div className="flex items-center gap-4">
-                               {(() => {
-                                   const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
-                                   const resolvedSrc = hasCustomAvatar 
-                                      ? memberInfo.avatar_url 
-                                      : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
-                                   const isVid = isVideoUrl(resolvedSrc);
-                                   return (
-                                      <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100 relative" style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}>
-                                         {isVid ? (
-                                            <video 
-                                               src={resolvedSrc} 
-                                               autoPlay 
-                                               loop 
-                                               muted 
-                                               playsInline 
-                                               className="w-full h-full object-cover" 
-                                               style={{
-                                                  objectFit: 'cover',
-                                                  ...(memberInfo.avatar_settings ? { 
-                                                     transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                                  } : {})
-                                               }}
-                                            />
-                                         ) : (
-                                            <img 
-                                               src={resolvedSrc} 
-                                               className="w-full h-full object-cover" 
-                                               style={memberInfo.avatar_settings ? { 
-                                                  transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                               } : undefined}
-                                               alt="Avatar" 
-                                            />
-                                         )}
-                                      </div>
-                                   );
-                                })()}
-                              <div>
-                                 <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
-                                 <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
-                              </div>
-                           </div>
-                           <div onClick={(e) => { e.stopPropagation(); setShowPerksInCard(true); }} className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/20 transition active:scale-95">
-                              <Sparkles className="w-3 h-3 text-amber-300" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
-                           </div>
+                     <span className="text-[9px] font-black text-emerald-300 bg-white/10 px-3 py-1.5 rounded-full uppercase tracking-widest font-mono border border-white/10 backdrop-blur-md">
+                        {getTierPerks(memberInfo.tier).badge}
+                     </span>
+                  </div>
+
+                  {/* 中間：直觀特權指標與權益說明 */}
+                  <div className="relative z-10 space-y-2 my-auto py-2">
+                     <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center text-left">
+                           <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">進貨/返點分紅</span>
+                           <span className="text-xl font-mono font-black text-amber-300">{getTierPerks(memberInfo.tier).percent}</span>
                         </div>
-                        <div className="flex justify-between items-end relative z-10">
-                           <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
-                              <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
-                           </div>
-                           <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
+                        <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center text-left">
+                           <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">提現手續費</span>
+                           <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
                         </div>
-                     </>
-                  )}
+                     </div>
+                     <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-0.5">
+                        <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 保級與專屬權益：</span>
+                        <p className="text-[10px] font-bold text-white/90 leading-snug line-clamp-2">
+                           {getTierBenefits(memberInfo.tier).join(" / ")}
+                        </p>
+                     </div>
+                  </div>
+
+                  {/* 底部：等級與提示 */}
+                  <div className="flex justify-between items-end relative z-10">
+                     <div className="space-y-1 text-left">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
+                        <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
+                     </div>
+                     <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
+                  </div>
                </div>
 
                {/* Card Back */}
