@@ -369,6 +369,41 @@ function StoreContent() {
     }
   }, [selectedCategory, products, favorites]);
 
+  const fetchUserOrders = async (userId: string) => {
+    try {
+      const { data: oData } = await supabase
+        .from("orders")
+        .select("id, total_amount, status, created_at, custom_logo_url, order_number, shipping_info")
+        .eq("member_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (oData && oData.length > 0) {
+        const orderIds = oData.map((o: any) => o.id);
+        const { data: allItems } = await supabase
+          .from("order_items")
+          .select("order_id, name, quantity")
+          .in("order_id", orderIds);
+
+        const mappedOrders = oData.map((o: any) => {
+          let orderObj = { ...o };
+          if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+            try {
+              const fallback = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
+              orderObj = { ...o, ...fallback };
+            } catch (e) {}
+          }
+          const items = allItems ? allItems.filter((it: any) => it.order_id === o.id) : [];
+          return { ...orderObj, items };
+        });
+        setUserOrders(mappedOrders);
+      } else {
+        setUserOrders([]);
+      }
+    } catch (oErr) {
+      console.error("載入歷史訂單失敗:", oErr);
+    }
+  };
+
   const fetchData = async (userId: string) => {
     setIsLoading(true);
     try {
@@ -389,38 +424,7 @@ function StoreContent() {
       }
 
       // 拉取該會員最近的歷史訂單明細
-      try {
-        const { data: oData } = await supabase
-          .from("orders")
-          .select("id, total_amount, status, created_at, custom_logo_url")
-          .eq("member_id", userId)
-          .order("created_at", { ascending: false });
-
-        if (oData && oData.length > 0) {
-          const orderIds = oData.map((o: any) => o.id);
-          const { data: allItems } = await supabase
-            .from("order_items")
-            .select("order_id, name, quantity")
-            .in("order_id", orderIds);
-
-          const mappedOrders = oData.map((o: any) => {
-            let orderObj = { ...o };
-            if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
-              try {
-                const fallback = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
-                orderObj = { ...o, ...fallback };
-              } catch (e) {}
-            }
-            const items = allItems ? allItems.filter((it: any) => it.order_id === o.id) : [];
-            return { ...orderObj, items };
-          });
-          setUserOrders(mappedOrders);
-        } else {
-          setUserOrders([]);
-        }
-      } catch (oErr) {
-        console.error("載入歷史訂單失敗:", oErr);
-      }
+      await fetchUserOrders(userId);
 
       // 載入動態分類大項
       try {
@@ -599,7 +603,7 @@ function StoreContent() {
            精品點數商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
         </h1>
         <div className="flex items-center gap-3">
-          <div onClick={() => setShowOrderListModal(true)} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer hover:bg-slate-100 transition relative group">
+          <div onClick={() => { setShowOrderListModal(true); if (memberInfo?.id) fetchUserOrders(memberInfo.id); }} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer hover:bg-slate-100 transition relative group">
              <Package className="w-4 h-4 text-emerald-700" />
              <span className="absolute -top-8 bg-slate-900 text-white text-[9px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">訂購清單</span>
           </div>
@@ -2612,6 +2616,7 @@ function StoreContent() {
                       pending: { label: "⏳ 處理中 (待核對)", color: "bg-amber-50 text-amber-700 border-amber-200", step: 1 },
                       paid: { label: "💳 已付款 (備貨中)", color: "bg-blue-50 text-blue-700 border-blue-200", step: 2 },
                       shipping: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                      shipped: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
                       completed: { label: "✅ 已完成 (已交付)", color: "bg-slate-100 text-slate-700 border-slate-200", step: 4 },
                       cancelled: { label: "✕ 已取消", color: "bg-rose-50 text-rose-700 border-rose-200", step: 0 },
                     };
