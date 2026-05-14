@@ -59,6 +59,14 @@ function ProfileContent() {
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
+    const currentVersion = "3.0.6";
+    const savedVersion = localStorage.getItem("churun_profile_version");
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem("churun_profile_version", currentVersion);
+      window.location.reload();
+      return;
+    }
+
     const savedId = localStorage.getItem("churun_member_id");
     if (!savedId) { router.replace("/login"); return; }
     fetchData(savedId);
