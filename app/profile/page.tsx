@@ -238,10 +238,18 @@ function ProfileContent() {
                            <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
                         </div>
                      </div>
-                     <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-0.5">
-                        <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 保級與專屬權益：</span>
-                        <p className="text-[10px] font-bold text-white/90 leading-snug line-clamp-2">
-                           {getTierBenefits(memberInfo.tier).join(" / ")}
+                     <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-1">
+                        <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 尊榮特權與權益：</span>
+                        <div className="space-y-0.5">
+                           <p className="text-[11px] font-black text-white flex items-center gap-1.5">
+                              <span className="text-amber-400">★</span> 新品上市嚐鮮價點數加倍送
+                           </p>
+                           <p className="text-[11px] font-black text-white flex items-center gap-1.5">
+                              <span className="text-amber-400">★</span> 每年生日禮券買一送一
+                           </p>
+                        </div>
+                        <p className="text-[9px] font-bold text-white/60 leading-snug pt-1 border-t border-white/10 mt-1.5 line-clamp-1">
+                           保級標準：{getTierBenefits(memberInfo.tier).join(" / ")}
                         </p>
                      </div>
                   </div>
