@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     }
 
     // 2. 建立儲值交易申請流水紀錄 (deposit 且狀態為 pending 待審核)
-    const { error: txError } = await supabase
+    // 植入智慧容錯機制：若資料庫缺少 metadata JSONB 欄位 (PGRST204)，自動降級不含 metadata 寫入
+    let txInsertResult = await supabase
       .from('wallet_transactions')
       .insert({
         member_id,
@@ -37,7 +38,19 @@ export async function POST(request: Request) {
         }
       });
 
-    if (txError) throw txError;
+    if (txInsertResult.error && (txInsertResult.error.code === 'PGRST204' || txInsertResult.error.message.includes('metadata'))) {
+      console.warn("⚠️ 偵測到 wallet_transactions 缺少 metadata 欄位，自動降級容錯寫入...");
+      txInsertResult = await supabase
+        .from('wallet_transactions')
+        .insert({
+          member_id,
+          amount: Number(amount),
+          transaction_type: 'deposit',
+          status: 'pending'
+        });
+    }
+
+    if (txInsertResult.error) throw txInsertResult.error;
 
     // 3. 新增即時通知
     const { error: notifyError } = await supabase
