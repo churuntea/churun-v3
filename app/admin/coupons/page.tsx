@@ -50,6 +50,7 @@ export default function CouponsAdminPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [filterTab, setFilterTab] = useState<'all' | 'welcome' | 'regular'>('all');
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [viewingCouponDetail, setViewingCouponDetail] = useState<Coupon | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   
@@ -1014,13 +1015,45 @@ export default function CouponsAdminPage() {
                     </p>
                     <div className="space-y-2 pt-2">
                       {coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員")).map(c => (
-                        <div key={c.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">{c.name}</span>
-                          <span className="font-mono font-black text-indigo-600">{c.code}</span>
+                        <div 
+                          key={c.id} 
+                          onClick={() => setViewingCouponDetail(c)}
+                          className="bg-slate-50 hover:bg-indigo-50/60 p-3.5 rounded-xl border border-slate-100 hover:border-indigo-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-indigo-950 truncate max-w-[120px]">{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-indigo-600 bg-white px-1.5 py-0.5 rounded border border-indigo-100">{c.code}</span>
+                            <span className="text-[10px] text-indigo-400 group-hover:text-indigo-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       ))}
                       {coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員")).length === 0 && (
-                        <p className="text-xs text-slate-400 font-bold italic py-2 text-center">目前無迎新專屬券</p>
+                        <div 
+                          onClick={() => setViewingCouponDetail({
+                            id: "welcome-100",
+                            code: "WELCOME100",
+                            name: "新會員迎新折價券",
+                            discount_type: "fixed",
+                            value: 100,
+                            min_spend: 500,
+                            description: "[EXP:2026-12-31] 慶祝新客人完成註冊專屬折抵面額 100 元",
+                            created_at: "2026-01-01",
+                            valid_until: "2026-12-31"
+                          })}
+                          className="bg-slate-50 hover:bg-indigo-50/60 p-3.5 rounded-xl border border-slate-100 hover:border-indigo-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-indigo-950 truncate max-w-[120px]">新會員迎新折價券</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-indigo-600 bg-white px-1.5 py-0.5 rounded border border-indigo-100">WELCOME100</span>
+                            <span className="text-[10px] text-indigo-400 group-hover:text-indigo-600 flex items-center font-bold">➔</span>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1046,9 +1079,19 @@ export default function CouponsAdminPage() {
                     </p>
                     <div className="space-y-2 pt-2">
                       {coupons.filter(c => !(c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員") || c.description?.includes("員工") || c.description?.includes("大使") || c.description?.includes("合夥人"))).map(c => (
-                        <div key={c.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">{c.name}</span>
-                          <span className="font-mono font-black text-emerald-600">{c.code}</span>
+                        <div 
+                          key={c.id} 
+                          onClick={() => setViewingCouponDetail(c)}
+                          className="bg-slate-50 hover:bg-emerald-50/60 p-3.5 rounded-xl border border-slate-100 hover:border-emerald-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-emerald-950 truncate max-w-[120px]">{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-emerald-600 bg-white px-1.5 py-0.5 rounded border border-emerald-100">{c.code}</span>
+                            <span className="text-[10px] text-emerald-400 group-hover:text-emerald-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1075,15 +1118,44 @@ export default function CouponsAdminPage() {
                     </p>
                     <div className="space-y-2 pt-2">
                       {coupons.filter(c => c.name.includes("合夥人") || c.description?.includes("合夥人") || c.name.includes("創業") || c.code.includes("B2B")).map(c => (
-                        <div key={c.id} className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">{c.name}</span>
-                          <span className="font-mono font-black text-amber-600">{c.code}</span>
+                        <div 
+                          key={c.id} 
+                          onClick={() => setViewingCouponDetail(c)}
+                          className="bg-amber-50/50 hover:bg-amber-100/60 p-3.5 rounded-xl border border-amber-100 hover:border-amber-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-amber-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-amber-950 truncate max-w-[120px]">{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-amber-600 bg-white px-1.5 py-0.5 rounded border border-amber-100">{c.code}</span>
+                            <span className="text-[10px] text-amber-400 group-hover:text-amber-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       ))}
                       {coupons.filter(c => c.name.includes("合夥人") || c.description?.includes("合夥人") || c.name.includes("創業") || c.code.includes("B2B")).length === 0 && (
-                        <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">初潤創業 88 折</span>
-                          <span className="font-mono font-black text-amber-600">CHURUN88</span>
+                        <div 
+                          onClick={() => setViewingCouponDetail({
+                            id: "mock-b2b",
+                            code: "CHURUN88",
+                            name: "初潤創業 88 折",
+                            discount_type: "percent",
+                            value: 12,
+                            min_spend: 1000,
+                            description: "[EXP:2026-12-31] 初潤合夥人專享進貨與加盟折抵券",
+                            created_at: "2026-01-01",
+                            valid_until: "2026-12-31"
+                          })}
+                          className="bg-amber-50/50 hover:bg-amber-100/60 p-3.5 rounded-xl border border-amber-100 hover:border-amber-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-amber-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-amber-950 truncate max-w-[120px]">初潤創業 88 折</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-amber-600 bg-white px-1.5 py-0.5 rounded border border-amber-100">CHURUN88</span>
+                            <span className="text-[10px] text-amber-400 group-hover:text-amber-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1110,15 +1182,44 @@ export default function CouponsAdminPage() {
                     </p>
                     <div className="space-y-2 pt-2">
                       {coupons.filter(c => c.name.includes("大使") || c.description?.includes("大使") || c.name.includes("知己") || c.name.includes("靈魂伴侶")).map(c => (
-                        <div key={c.id} className="bg-rose-50/50 p-3 rounded-xl border border-rose-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">{c.name}</span>
-                          <span className="font-mono font-black text-rose-600">{c.code}</span>
+                        <div 
+                          key={c.id} 
+                          onClick={() => setViewingCouponDetail(c)}
+                          className="bg-rose-50/50 hover:bg-rose-100/60 p-3.5 rounded-xl border border-rose-100 hover:border-rose-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-rose-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-rose-950 truncate max-w-[120px]">{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-rose-600 bg-white px-1.5 py-0.5 rounded border border-rose-100">{c.code}</span>
+                            <span className="text-[10px] text-rose-400 group-hover:text-rose-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       ))}
                       {coupons.filter(c => c.name.includes("大使") || c.description?.includes("大使") || c.name.includes("知己") || c.name.includes("靈魂伴侶")).length === 0 && (
-                        <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">品牌大使進階禮包</span>
-                          <span className="font-mono font-black text-rose-600">AMBASSADOR100</span>
+                        <div 
+                          onClick={() => setViewingCouponDetail({
+                            id: "mock-ambassador",
+                            code: "AMBASSADOR100",
+                            name: "品牌大使進階禮包",
+                            discount_type: "fixed",
+                            value: 100,
+                            min_spend: 300,
+                            description: "[EXP:2026-12-31] 初潤品牌大使專屬推薦進階分潤禮包",
+                            created_at: "2026-01-01",
+                            valid_until: "2026-12-31"
+                          })}
+                          className="bg-rose-50/50 hover:bg-rose-100/60 p-3.5 rounded-xl border border-rose-100 hover:border-rose-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-rose-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-rose-950 truncate max-w-[120px]">品牌大使進階禮包</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-rose-600 bg-white px-1.5 py-0.5 rounded border border-rose-100">AMBASSADOR100</span>
+                            <span className="text-[10px] text-rose-400 group-hover:text-rose-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1145,15 +1246,44 @@ export default function CouponsAdminPage() {
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       {coupons.filter(c => c.name.includes("員工") || c.description?.includes("員工") || c.name.includes("主管") || c.code.includes("STAFF")).map(c => (
-                        <div key={c.id} className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-100 flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800">{c.name}</span>
-                          <span className="font-mono font-black text-cyan-600">{c.code}</span>
+                        <div 
+                          key={c.id} 
+                          onClick={() => setViewingCouponDetail(c)}
+                          className="bg-cyan-50/50 hover:bg-cyan-100/60 p-3.5 rounded-xl border border-cyan-100 hover:border-cyan-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-cyan-950 truncate max-w-[120px]">{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-cyan-600 bg-white px-1.5 py-0.5 rounded border border-cyan-100">{c.code}</span>
+                            <span className="text-[10px] text-cyan-400 group-hover:text-cyan-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       ))}
                       {coupons.filter(c => c.name.includes("員工") || c.description?.includes("員工") || c.name.includes("主管") || c.code.includes("STAFF")).length === 0 && (
-                        <div className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-100 flex justify-between items-center text-xs sm:col-span-2">
-                          <span className="font-bold text-slate-800">內部員工每月品茶券</span>
-                          <span className="font-mono font-black text-cyan-600">STAFFTEA50</span>
+                        <div 
+                          onClick={() => setViewingCouponDetail({
+                            id: "mock-staff",
+                            code: "STAFFTEA50",
+                            name: "內部員工每月品茶券",
+                            discount_type: "fixed",
+                            value: 50,
+                            min_spend: 0,
+                            description: "[EXP:2026-12-31] 初潤總部員工每月專屬福利試飲與試飲品領取",
+                            created_at: "2026-01-01",
+                            valid_until: "2026-12-31"
+                          })}
+                          className="bg-cyan-50/50 hover:bg-cyan-100/60 p-3.5 rounded-xl border border-cyan-100 hover:border-cyan-200 flex justify-between items-center text-xs cursor-pointer transition group shadow-sm sm:col-span-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Ticket className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition shrink-0" />
+                            <span className="font-bold text-slate-800 group-hover:text-cyan-950 truncate max-w-[120px]">內部員工每月品茶券</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono font-black text-cyan-600 bg-white px-1.5 py-0.5 rounded border border-cyan-100">STAFFTEA50</span>
+                            <span className="text-[10px] text-cyan-400 group-hover:text-cyan-600 flex items-center font-bold">➔</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1293,6 +1423,106 @@ export default function CouponsAdminPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Viewing Coupon Detail Modal (Glassmorphism Intelligence Modal) */}
+      <AnimatePresence>
+        {viewingCouponDetail && (
+          <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-white rounded-[3rem] p-10 w-full max-w-2xl shadow-2xl relative border border-slate-100 overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-emerald-500 via-indigo-500 to-amber-500" />
+              
+              <div className="flex justify-between items-start mb-8 pt-2">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+                    <Ticket className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono font-black text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        {viewingCouponDetail.code}
+                      </span>
+                      <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase">
+                        {viewingCouponDetail.discount_type === 'fixed' ? '固定金額抵扣' : '成數折扣'}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-black tracking-wider text-slate-800">{viewingCouponDetail.name}</h3>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setViewingCouponDetail(null)}
+                  className="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 text-sm font-black transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* 核心參數卡片 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">優惠面額</span>
+                    <span className="text-2xl font-black text-slate-800">
+                      {viewingCouponDetail.discount_type === 'fixed' ? `$${viewingCouponDetail.value}` : `${viewingCouponDetail.value}% OFF`}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">最低消費門檻</span>
+                    <span className="text-2xl font-black text-slate-800">
+                      ${viewingCouponDetail.min_spend || 0}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">有效截止期限</span>
+                    <span className="text-sm font-mono font-black text-slate-800 block mt-2">
+                      {viewingCouponDetail.valid_until || '無期限'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 詳細情報內容 */}
+                <div className="bg-gradient-to-br from-indigo-50/50 via-slate-50 to-emerald-50/50 p-6 rounded-2xl border border-indigo-100/50 space-y-4">
+                  <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                    優惠券內容與使用條款 (Coupon Rules & Specifications)
+                  </h4>
+                  <p className="text-xs font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    {viewingCouponDetail.description || '本優惠券未設置詳細條款說明，將依據初潤製茶所總部標準活動規範進行自動折抵計算。適用於符合門檻之線上訂購或合夥人專屬進貨。'}
+                  </p>
+                </div>
+
+                {/* 智能成效模擬面板 */}
+                <div className="border-t border-slate-100 pt-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-slate-800 block">全自動智能追蹤模組</span>
+                      <span className="text-[9px] font-bold text-slate-400 block">可切換至上方「成效分析」檢視完整轉化率與總創造業績</span>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setActiveMode('analytics');
+                      setViewingCouponDetail(null);
+                    }}
+                    className="bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black px-5 py-3 rounded-xl uppercase tracking-wider transition shadow-md"
+                  >
+                    查看使用統計 ➔
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
