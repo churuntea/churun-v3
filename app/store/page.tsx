@@ -473,21 +473,11 @@ function StoreContent() {
               expiryDate: (earliestExpDate as any).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
             });
           } else {
-            // 為了向老闆展示 VIP 尊榮體驗，當資料庫尚無剛好符合 10 個月門檻的舊資料時，提供智慧模擬預警
-            setExpiringPointsInfo({
-              amount: 150,
-              expiryDate: "2026/07/10"
-            });
+            setExpiringPointsInfo(null);
           }
         } else {
-          setPointsTransactions([
-            { id: 'sim-1', amount: 300, transaction_type: 'reward', created_at: new Date(Date.now() - 30 * 86400000).toISOString() },
-            { id: 'sim-2', amount: 150, transaction_type: 'reward', created_at: new Date(Date.now() - 310 * 86400000).toISOString() } // 將近到期
-          ]);
-          setExpiringPointsInfo({
-            amount: 150,
-            expiryDate: "2026/07/10"
-          });
+          setPointsTransactions([]);
+          setExpiringPointsInfo(null);
         }
       } catch (pErr) {
         console.error("載入紅利明細失敗:", pErr);
