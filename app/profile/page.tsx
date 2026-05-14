@@ -55,11 +55,12 @@ function ProfileContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showTierBenefits, setShowTierBenefits] = useState(false);
+  const [showPerksInCard, setShowPerksInCard] = useState(false);
   const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
-    const currentVersion = "3.0.6";
+    const currentVersion = "3.0.7";
     const savedVersion = localStorage.getItem("churun_profile_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_profile_version", currentVersion);
@@ -196,61 +197,100 @@ function ProfileContent() {
                {/* Card Front */}
                <div className="absolute inset-0 backface-hidden bg-mesh-emerald rounded-[3.5rem] p-10 text-white flex flex-col justify-between overflow-hidden">
                   <div className="absolute top-0 right-0 -mr-10 -mt-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
-                  <div className="relative z-10 flex justify-between items-start">
-                     <div className="flex items-center gap-4">
-                         {(() => {
-                             const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
-                             const resolvedSrc = hasCustomAvatar 
-                                ? memberInfo.avatar_url 
-                                : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
-                             const isVid = isVideoUrl(resolvedSrc);
-                             return (
-                                <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100 relative" style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}>
-                                   {isVid ? (
-                                      <video 
-                                         src={resolvedSrc} 
-                                         autoPlay 
-                                         loop 
-                                         muted 
-                                         playsInline 
-                                         className="w-full h-full object-cover" 
-                                         style={{
-                                            objectFit: 'cover',
-                                            ...(memberInfo.avatar_settings ? { 
-                                               transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                            } : {})
-                                         }}
-                                      />
-                                   ) : (
-                                      <img 
-                                         src={resolvedSrc} 
-                                         className="w-full h-full object-cover" 
-                                         style={memberInfo.avatar_settings ? { 
-                                            transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
-                                         } : undefined}
-                                         alt="Avatar" 
-                                      />
-                                   )}
-                                </div>
-                             );
-                          })()}
-                        <div>
-                           <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
-                           <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
+                  {showPerksInCard ? (
+                     <div className="relative z-10 flex flex-col justify-between h-full text-left">
+                        <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                           <div>
+                              <span className="text-[9px] font-black text-emerald-300 bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                                 {getTierPerks(memberInfo.tier).badge}
+                              </span>
+                              <h3 className="text-lg font-black text-white mt-1 tracking-tight">{memberInfo.tier} 特權面板</h3>
+                           </div>
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); setShowPerksInCard(false); }} 
+                             className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white transition active:scale-95"
+                           >
+                             ✕ 返回帳戶
+                           </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 my-auto py-2">
+                           <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center">
+                              <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-1">進貨/返點分紅</span>
+                              <span className="text-xl font-mono font-black text-amber-300">{getTierPerks(memberInfo.tier).percent}</span>
+                           </div>
+                           <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center">
+                              <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-1">提現手續費</span>
+                              <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
+                           </div>
+                        </div>
+
+                        <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-1">
+                           <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 保級與專屬權益：</span>
+                           <p className="text-[10px] font-bold text-white/90 leading-tight line-clamp-2">
+                              {getTierBenefits(memberInfo.tier).join(" / ")}
+                           </p>
                         </div>
                      </div>
-                     <div onClick={(e) => { e.stopPropagation(); setShowTierBenefits(true); }} className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/20 transition">
-                        <Sparkles className="w-3 h-3 text-amber-300" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
-                     </div>
-                  </div>
-                  <div className="flex justify-between items-end relative z-10">
-                     <div className="space-y-1">
-                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
-                        <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
-                     </div>
-                     <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
-                  </div>
+                  ) : (
+                     <>
+                        <div className="relative z-10 flex justify-between items-start">
+                           <div className="flex items-center gap-4">
+                               {(() => {
+                                   const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
+                                   const resolvedSrc = hasCustomAvatar 
+                                      ? memberInfo.avatar_url 
+                                      : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
+                                   const isVid = isVideoUrl(resolvedSrc);
+                                   return (
+                                      <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg flex-shrink-0 bg-slate-100 relative" style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}>
+                                         {isVid ? (
+                                            <video 
+                                               src={resolvedSrc} 
+                                               autoPlay 
+                                               loop 
+                                               muted 
+                                               playsInline 
+                                               className="w-full h-full object-cover" 
+                                               style={{
+                                                  objectFit: 'cover',
+                                                  ...(memberInfo.avatar_settings ? { 
+                                                     transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                                  } : {})
+                                               }}
+                                            />
+                                         ) : (
+                                            <img 
+                                               src={resolvedSrc} 
+                                               className="w-full h-full object-cover" 
+                                               style={memberInfo.avatar_settings ? { 
+                                                  transform: `scale(${memberInfo.avatar_settings.zoom || 1}) translateY(${memberInfo.avatar_settings.offset || 0}px)` 
+                                               } : undefined}
+                                               alt="Avatar" 
+                                            />
+                                         )}
+                                      </div>
+                                   );
+                                })()}
+                              <div>
+                                 <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-1">Member Account</p>
+                                 <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
+                              </div>
+                           </div>
+                           <div onClick={(e) => { e.stopPropagation(); setShowPerksInCard(true); }} className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/20 transition active:scale-95">
+                              <Sparkles className="w-3 h-3 text-amber-300" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">查看特權</span>
+                           </div>
+                        </div>
+                        <div className="flex justify-between items-end relative z-10">
+                           <div className="space-y-1">
+                              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
+                              <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
+                           </div>
+                           <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
+                        </div>
+                     </>
+                  )}
                </div>
 
                {/* Card Back */}
@@ -313,61 +353,7 @@ function ProfileContent() {
            </div>
          </div>
 
-        {/* Benefits Modal */}
-        <AnimatePresence>
-           {showTierBenefits && (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTierBenefits(false)} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center p-4">
-                <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={e => e.stopPropagation()} className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-md p-8 sm:p-10 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto no-scrollbar border border-slate-100">
-                   <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                      <div>
-                         <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest border border-emerald-100 font-mono">
-                            {getTierPerks(memberInfo.tier).badge}
-                         </span>
-                         <h3 className="text-2xl font-black text-slate-900 mt-2">{memberInfo.tier} 專屬特權</h3>
-                      </div>
-                      <button onClick={() => setShowTierBenefits(false)} className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 text-xs font-bold">✕</button>
-                   </div>
-
-                   {/* 核心財務指標 */}
-                   <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex flex-col justify-between">
-                         <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">加碼進貨/返點分紅</span>
-                         <span className="text-2xl font-mono font-black text-emerald-700">{getTierPerks(memberInfo.tier).percent}</span>
-                      </div>
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex flex-col justify-between">
-                         <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">提款提現手續費</span>
-                         <span className="text-xl font-mono font-black text-emerald-700">{getTierPerks(memberInfo.tier).fee}</span>
-                      </div>
-                   </div>
-
-                   {/* 權益說明 */}
-                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-1 text-left">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">📢 專屬權益明細：</span>
-                      <p className="text-xs font-bold text-slate-700 leading-relaxed">
-                         {getTierPerks(memberInfo.tier).desc}。
-                      </p>
-                   </div>
-
-                   {/* 晉升與保級條件 */}
-                   <div className="space-y-3 text-left pt-2">
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">晉升條件與服務項目</h4>
-                      <div className="space-y-2.5">
-                         {getTierBenefits(memberInfo.tier).map((benefit, i) => (
-                           <div key={i} className="flex items-center gap-3.5 p-4 bg-slate-50/80 rounded-2xl border border-slate-100/50">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                              <span className="text-xs font-bold text-slate-700 leading-snug">{benefit}</span>
-                           </div>
-                         ))}
-                      </div>
-                   </div>
-
-                   <button onClick={() => setShowTierBenefits(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/10 transition">
-                      我知道了
-                   </button>
-                </motion.div>
-             </motion.div>
-           )}
-        </AnimatePresence>
+         {/* 舊版彈出視窗已移除，全數整合於上方綠色VIP卡片內部 */}
 
         {/* Action Menu */}
         <div className="grid grid-cols-1 gap-4">
