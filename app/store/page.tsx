@@ -699,24 +699,41 @@ function StoreContent() {
         <motion.div 
           whileHover={{ y: -5 }}
           onClick={() => setShowPointsHistoryModal(true)}
-          className="bg-mesh-emerald rounded-[3.5rem] p-10 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden group mb-4 cursor-pointer"
+          className="bg-mesh-emerald rounded-[3.5rem] p-10 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden group mb-4 cursor-pointer select-none active:scale-[0.98] transition-all duration-200"
         >
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl opacity-50 group-hover:scale-110 transition duration-700 pointer-events-none"></div>
           
-          <div className="relative z-10 flex justify-between items-center">
+          <div 
+            onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+            className="relative z-10 flex justify-between items-center cursor-pointer pointer-events-auto w-full"
+          >
             <div className="space-y-4">
-               <div className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit border border-white/10">
+               <div 
+                 onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+                 className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full w-fit border border-white/10 cursor-pointer hover:bg-white/20 transition"
+               >
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">可用紅利點數</span>
                </div>
-               <div className="flex items-baseline gap-2">
+               <div 
+                 onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+                 className="flex items-baseline gap-2 cursor-pointer"
+               >
                   <h2 className="text-6xl font-black tracking-tighter">{memberInfo?.points_balance?.toLocaleString() || 0}</h2>
                   <span className="text-xl font-medium text-white/60 italic">pts</span>
+               </div>
+               <div 
+                 onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-[10px] font-black text-white border border-white/20 shadow-sm transition active:scale-95 cursor-pointer w-fit"
+               >
+                 <Search className="w-3 h-3" />
+                 <span>點擊查詢履歷</span>
                </div>
             </div>
             <motion.div 
               animate={{ rotate: [0, 10, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
-              className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-inner"
+              onClick={(e) => { e.stopPropagation(); setShowPointsHistoryModal(true); }}
+              className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-inner cursor-pointer shrink-0 hover:scale-105 transition"
             >
                <Star className="w-10 h-10 text-amber-300 fill-amber-300" />
             </motion.div>
