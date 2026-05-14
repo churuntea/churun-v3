@@ -24,7 +24,9 @@ import {
   ShieldCheck,
   Activity,
   Award,
-  ArrowLeft
+  ArrowLeft,
+  Calendar,
+  Search
 } from "lucide-react";
 
 function TransactionContent() {
@@ -43,6 +45,13 @@ function TransactionContent() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [secureOtp, setSecureOtp] = useState("");
   const [otpProgress, setOtpProgress] = useState(100);
+
+  // 進階查詢狀態
+  const [isAdvancedQueryOpen, setIsAdvancedQueryOpen] = useState(false);
+  const [queryStartDate, setQueryStartDate] = useState("");
+  const [queryEndDate, setQueryEndDate] = useState("");
+  const [queryResults, setQueryResults] = useState<any[]>([]);
+  const [isQuerying, setIsQuerying] = useState(false);
 
   const getTransactionLabel = (type: string, isWallet: boolean) => {
     if (isWallet) {
@@ -111,7 +120,7 @@ function TransactionContent() {
   };
 
   useEffect(() => {
-    const currentVersion = "3.0.7";
+    const currentVersion = "3.0.8";
     const savedVersion = localStorage.getItem("churun_trans_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_trans_version", currentVersion);
@@ -135,13 +144,60 @@ function TransactionContent() {
     }
 
     if (activeTab === "wallet") {
-      const { data } = await supabase.from("wallet_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
+      const { data } = await supabase.from("wallet_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(30);
       setTransactions(data || []);
     } else {
-      const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(20);
+      const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(30);
       setTransactions(data || []);
     }
     setIsLoading(false);
+  };
+
+  const handleExecuteQuery = async (startString: string, endString: string, quickType?: string) => {
+    if (!memberInfo) return;
+    setIsQuerying(true);
+    try {
+      let start = startString;
+      let end = endString;
+      const now = new Date();
+      if (quickType) {
+        let past = new Date();
+        if (quickType === "3m") past.setMonth(now.getMonth() - 3);
+        else if (quickType === "6m") past.setMonth(now.getMonth() - 6);
+        else if (quickType === "1y") past.setFullYear(now.getFullYear() - 1);
+        else if (quickType === "2y") past.setFullYear(now.getFullYear() - 2);
+        start = past.toISOString().split('T')[0];
+        end = now.toISOString().split('T')[0];
+        setQueryStartDate(start);
+        setQueryEndDate(end);
+      }
+
+      // 限制最多查詢至兩年
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(now.getFullYear() - 2);
+      const queryStartObj = new Date(start);
+      if (queryStartObj < twoYearsAgo) {
+         setToast({ show: true, message: "⚠️ 依據系統規範，最多支援查詢至過去兩年內的歷史紀錄。", type: "info" });
+         start = twoYearsAgo.toISOString().split('T')[0];
+         setQueryStartDate(start);
+      }
+
+      const tableName = activeTab === "wallet" ? "wallet_transactions" : "point_transactions";
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .eq("member_id", memberInfo.id)
+        .gte("created_at", start + "T00:00:00.000Z")
+        .lte("created_at", end + "T23:59:59.999Z")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setQueryResults(data || []);
+    } catch (err: any) {
+      setToast({ show: true, message: "查詢失敗: " + err.message, type: "error" });
+    } finally {
+      setIsQuerying(false);
+    }
   };
 
   const handleExecuteRecharge = async () => {
@@ -230,7 +286,7 @@ function TransactionContent() {
            <ArrowLeft className="w-4 h-4" />
         </button>
         <h1 className="text-sm font-black tracking-[0.3em] text-emerald-600 uppercase flex items-center gap-2">
-           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V3.0.7</span>
+           精品數位帳本 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V3.0.8</span>
         </h1>
         <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
            <Filter className="w-4 h-4" />
@@ -243,7 +299,7 @@ function TransactionContent() {
          <div className="grid grid-cols-2 gap-4">
             <motion.div 
               whileTap={{ scale: 0.95 }}
-              onClick={() => { setActiveTab("wallet"); setShowHistory(!showHistory); }}
+              onClick={() => { setActiveTab("wallet"); setShowHistory(true); }}
               className={`p-6 sm:p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer w-full ${activeTab === 'wallet' ? 'bg-slate-900 text-white shadow-2xl shadow-slate-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
             >
                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
@@ -264,7 +320,7 @@ function TransactionContent() {
 
             <motion.div 
               whileTap={{ scale: 0.95 }}
-              onClick={() => { setActiveTab("points"); setShowHistory(!showHistory); }}
+              onClick={() => { setActiveTab("points"); setShowHistory(true); }}
               className={`p-6 sm:p-8 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden cursor-pointer w-full ${activeTab === 'points' ? 'bg-emerald-900 text-white shadow-2xl shadow-emerald-900/40' : 'bg-white text-slate-400 border border-slate-100'}`}
             >
                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
@@ -429,9 +485,11 @@ function TransactionContent() {
          </div>
 
 
-<section className="space-y-6">
+        <section className="space-y-6">
            <div className="px-4 flex justify-between items-center">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">帳務異動動態</h3>
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-400 uppercase">
+                 {activeTab === "wallet" ? "近五筆儲值與異動狀況" : "近五筆紅利點數使用狀況"}
+              </h3>
               <History className="w-4 h-4 text-slate-200" />
            </div>
            <div className="space-y-3">
@@ -442,35 +500,187 @@ function TransactionContent() {
                    <p className="text-xs text-slate-300 font-bold">目前尚無異動紀錄</p>
                 </div>
               ) : (
-                 transactions.slice(0, 20).map((tx) => {
-                    const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
-                    const isPositive = Number(tx.amount) > 0;
-                    return (
-                       <div key={tx.id} className="bg-white rounded-[2.5rem] p-6 border border-slate-50 flex items-center justify-between shadow-sm hover:scale-[1.01] transition duration-200">
-                          <div className="flex items-center gap-4 min-w-0">
-                             <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
-                                {isPositive ? '+' : '-'}
-                             </div>
-                             <div className="text-left min-w-0">
-                                <h4 className="font-black text-slate-800 text-sm truncate">{info.label}</h4>
-                                <p className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tight truncate">{info.desc}</p>
-                             </div>
-                          </div>
-                          <div className="text-right shrink-0 ml-4">
-                             <p className={`text-base font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
-                             </p>
-                             <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
-                          </div>
-                       </div>
-                    );
-                 })
+                 <>
+                   {transactions.slice(0, 5).map((tx) => {
+                      const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
+                      const isPositive = Number(tx.amount) > 0;
+                      return (
+                         <div key={tx.id} className="bg-white rounded-[2.5rem] p-6 border border-slate-50 flex items-center justify-between shadow-sm hover:scale-[1.01] transition duration-200">
+                            <div className="flex items-center gap-4 min-w-0">
+                               <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
+                                  {isPositive ? '+' : '-'}
+                               </div>
+                               <div className="text-left min-w-0">
+                                  <h4 className="font-black text-slate-800 text-sm truncate">{info.label}</h4>
+                                  <p className="text-[9px] font-bold text-slate-300 mt-1 uppercase tracking-tight truncate">{info.desc}</p>
+                               </div>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                               <p className={`text-base font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                  {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                               </p>
+                               <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5 tracking-wider">{new Date(tx.created_at).toLocaleDateString()}</p>
+                            </div>
+                         </div>
+                      );
+                   })}
+
+                   {/* 超過 5 筆顯示進階查詢選項 */}
+                   {transactions.length >= 5 && (
+                     <motion.button 
+                       whileHover={{ scale: 1.01 }}
+                       whileTap={{ scale: 0.99 }}
+                       onClick={() => {
+                         const now = new Date();
+                         const monthAgo = new Date();
+                         monthAgo.setMonth(now.getMonth() - 1);
+                         const startStr = monthAgo.toISOString().split('T')[0];
+                         const endStr = now.toISOString().split('T')[0];
+                         setQueryStartDate(startStr);
+                         setQueryEndDate(endStr);
+                         setIsAdvancedQueryOpen(true);
+                         handleExecuteQuery(startStr, endStr);
+                       }}
+                       className="w-full bg-slate-900 hover:bg-slate-800 text-white p-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-900/20 transition duration-300 mt-4"
+                     >
+                        📅 查看更多歷史紀錄 (支援時間區間查詢，最多至兩年)
+                     </motion.button>
+                   )}
+                 </>
               )}
            </div>
         </section>
       </main>
 
-            {/* 🔮 數位儲值大師面板 (Frosted-Glass Light/Dark Premium Modal) */}
+      {/* 🔮 進階時間區間查詢面板 (Advanced Query Modal) */}
+      <AnimatePresence>
+         {isAdvancedQueryOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+               <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsAdvancedQueryOpen(false)}
+                  className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
+               />
+               <motion.div
+                  initial={{ scale: 0.95, y: 15 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.95, y: 15 }}
+                  className="bg-white rounded-[2.5rem] p-6 sm:p-8 w-full max-w-md shadow-2xl relative z-10 overflow-hidden border border-slate-100 flex flex-col gap-6 max-h-[85vh]"
+                  onClick={e => e.stopPropagation()}
+               >
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                     <div>
+                        <h3 className="text-base font-black text-slate-900 tracking-tight">
+                           {activeTab === "wallet" ? "過往儲值與資金異動查詢" : "過往紅利點數紀錄查詢"}
+                        </h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Advanced History Query (Max 2 Years)</p>
+                     </div>
+                     <button 
+                       onClick={() => setIsAdvancedQueryOpen(false)} 
+                       className="text-xs font-bold w-7 h-7 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center"
+                     >
+                       ✕
+                     </button>
+                  </div>
+
+                  {/* 快捷篩選區間 */}
+                  <div className="space-y-2">
+                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">快捷時間區間篩選</label>
+                     <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { label: "近3個月", val: "3m" },
+                          { label: "近半年", val: "6m" },
+                          { label: "近1年", val: "1y" },
+                          { label: "近2年", val: "2y" }
+                        ].map(q => (
+                           <button
+                              key={q.val}
+                              onClick={() => handleExecuteQuery("", "", q.val)}
+                              className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 text-[10px] font-black text-slate-600 transition"
+                           >
+                              {q.label}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+
+                  {/* 自訂開始與結束日期 */}
+                  <div className="grid grid-cols-2 gap-3">
+                     <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">開始日期</label>
+                        <input 
+                           type="date"
+                           value={queryStartDate}
+                           onChange={e => {
+                              setQueryStartDate(e.target.value);
+                              if (queryEndDate) handleExecuteQuery(e.target.value, queryEndDate);
+                           }}
+                           className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">結束日期</label>
+                        <input 
+                           type="date"
+                           value={queryEndDate}
+                           onChange={e => {
+                              setQueryEndDate(e.target.value);
+                              if (queryStartDate) handleExecuteQuery(queryStartDate, e.target.value);
+                           }}
+                           className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                        />
+                     </div>
+                  </div>
+
+                  {/* 查詢結果列表 */}
+                  <div className="space-y-2 overflow-y-auto max-h-[300px] pr-1">
+                     {isQuerying ? (
+                        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
+                     ) : queryResults.length === 0 ? (
+                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                           <p className="text-xs text-slate-400 font-bold">此時間區間尚無異動紀錄</p>
+                        </div>
+                     ) : (
+                        queryResults.map(tx => {
+                           const info = getTransactionLabel(tx.transaction_type, activeTab === "wallet");
+                           const isPositive = Number(tx.amount) > 0;
+                           return (
+                              <div key={tx.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100/50 flex items-center justify-between shadow-xs">
+                                 <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${info.color}`}>
+                                       {isPositive ? '+' : '-'}
+                                    </div>
+                                    <div className="text-left min-w-0">
+                                       <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
+                                       <p className="text-[8px] font-bold text-slate-400 mt-0.5 truncate">{info.desc}</p>
+                                    </div>
+                                 </div>
+                                 <div className="text-right shrink-0 ml-3">
+                                    <p className={`text-xs font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                       {isPositive ? '+' : '-'}{Math.abs(Number(tx.amount)).toLocaleString()}
+                                    </p>
+                                    <p className="text-[8px] font-mono font-bold text-slate-300 mt-0.5">{new Date(tx.created_at).toLocaleDateString()}</p>
+                                 </div>
+                              </div>
+                           );
+                        })
+                     )}
+                  </div>
+
+                  <button
+                     onClick={() => setIsAdvancedQueryOpen(false)}
+                     className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition"
+                  >
+                     確認完成返回 ➜
+                  </button>
+               </motion.div>
+            </div>
+         )}
+      </AnimatePresence>
+
+      {/* 🔮 數位儲值大師面板 (Frosted-Glass Light/Dark Premium Modal) */}
       <AnimatePresence>
          {isRechargeOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
