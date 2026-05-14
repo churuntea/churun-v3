@@ -70,7 +70,7 @@ export default function CouponsAdminPage() {
 
   // Delivery Form State
   const [selectedCouponId, setSelectedCouponId] = useState("");
-  const [targetType, setTargetType] = useState<"new_members" | "all_tiers" | "all_b2b" | "ambassadors" | "employees">("new_members");
+  const [selectedTargets, setSelectedTargets] = useState<string[]>(["初潤寶寶"]);
   const [specificMemberId, setSpecificMemberId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmittingCoupon, setIsSubmittingCoupon] = useState(false);
@@ -201,30 +201,38 @@ export default function CouponsAdminPage() {
       return;
     }
 
+    if (selectedTargets.length === 0) {
+      showFeedback("error", "請至少勾選一個發送目標位階！");
+      return;
+    }
+
     setIsSubmittingDelivery(true);
     try {
       const couponObj = coupons.find(c => c.id === selectedCouponId);
       if (!couponObj) throw new Error("找不到對應的優惠券");
 
-      let targetMembers: any[] = [];
+      let targetMembers = members.filter(m => {
+        const mTier = m.tier || "";
+        // 檢查一般 tier 匹配
+        const matchTier = selectedTargets.includes(mTier);
+        
+        // 針對初潤寶寶
+        const matchBaby = selectedTargets.includes("初潤寶寶") && mTier === "初潤寶寶";
 
-      if (targetType === "new_members") {
-        targetMembers = members.filter(m => !m.is_b2b);
-      } else if (targetType === "all_tiers") {
-        targetMembers = members.filter(m => !m.is_b2b);
-      } else if (targetType === "all_b2b") {
-        targetMembers = members.filter(m => m.is_b2b);
-      } else if (targetType === "ambassadors") {
-        targetMembers = members.filter(m => m.is_b2b && (m.tier === "初潤靈魂伴侶" || m.tier === "初潤知己" || m.tier === "靈魂伴侶" || m.tier === "知己"));
-      } else if (targetType === "employees") {
-        targetMembers = members.filter(m => m.name?.includes("員工") || m.name?.includes("總經理") || m.name?.includes("主管"));
-        if (targetMembers.length === 0) {
-          targetMembers = members.slice(0, 5);
-        }
-      }
+        // 針對合夥人
+        const matchB2B = selectedTargets.includes("初潤合夥人") && m.is_b2b;
+
+        // 針對品牌大使
+        const matchAmbassador = selectedTargets.includes("品牌大使") && (mTier.includes("大使") || mTier === "初潤知己" || mTier === "初潤靈魂伴侶");
+
+        // 針對內部員工專屬
+        const matchEmployee = selectedTargets.includes("內部員工專屬") && (m.name?.includes("員工") || m.name?.includes("主管") || m.name?.includes("總經理"));
+
+        return matchTier || matchBaby || matchB2B || matchAmbassador || matchEmployee;
+      });
 
       if (targetMembers.length === 0) {
-        showFeedback("error", "篩選結果沒有符合的目標群體！");
+        showFeedback("error", "勾選的位階群體中目前無符合的會員名單！");
         setIsSubmittingDelivery(false);
         return;
       }
@@ -698,24 +706,42 @@ export default function CouponsAdminPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇派發適用對象</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇派發適用對象 (可多選/複選)</label>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">已勾選 {selectedTargets.length} 個位階</span>
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[
-                        { type: "new_members", label: "新進會員", desc: "迎新專屬禮券派發", icon: Users },
-                        { type: "all_tiers", label: "會員職級", desc: "一般/VIP/VVIP 客群", icon: Award },
-                        { type: "all_b2b", label: "初潤合夥人", desc: "B2B 創業合夥人專享", icon: UserCheck },
-                        { type: "ambassadors", label: "初潤品牌大使", desc: "合夥人知己職級及以上", icon: Sparkles },
-                        { type: "employees", label: "內部員工專屬", desc: "HR 員工專屬優惠券", icon: Briefcase }
+                        { id: "初潤寶寶", label: "👶 初潤寶寶 (新進會員)", desc: "剛加入尚未晉升的基礎會員" },
+                        { id: "初潤好朋友", label: "😊 初潤好朋友", desc: "穩定回購的優質會員" },
+                        { id: "初潤知音", label: "🎵 初潤知音", desc: "喜愛茶飲文化的熱誠會員" },
+                        { id: "初潤知己", label: "💖 初潤知己", desc: "高黏著度品牌核心知己" },
+                        { id: "初潤靈魂伴侶", label: "💍 初潤靈魂伴侶", desc: "頂級忠誠度 VVIP 會員" },
+                        { id: "品牌大使", label: "✨ 品牌大使", desc: "具備推廣與引薦影響力之大使" },
+                        { id: "初潤合夥人", label: "🤝 初潤合夥人 (B2B)", desc: "B2B 創業與進貨合夥人" },
+                        { id: "內部員工專屬", label: "💼 內部員工專屬", desc: "總部 HR 與內部同仁專屬" }
                       ].map(item => {
-                        const isSelected = targetType === item.type;
+                        const isSelected = selectedTargets.includes(item.id);
                         return (
                           <div 
-                            key={item.type}
-                            onClick={() => setTargetType(item.type as any)}
-                            className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3 select-none active:scale-98 ${isSelected ? "border-indigo-600 bg-indigo-50/20 shadow-sm" : "border-slate-100 bg-slate-50/50 hover:border-slate-200"}`}
+                            key={item.id}
+                            onClick={() => {
+                              if (selectedTargets.includes(item.id)) {
+                                setSelectedTargets(selectedTargets.filter(t => t !== item.id));
+                              } else {
+                                setSelectedTargets([...selectedTargets, item.id]);
+                              }
+                            }}
+                            className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3 select-none active:scale-98 ${
+                              isSelected ? "border-indigo-600 bg-indigo-50/20 shadow-sm" : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                            }`}
                           >
-                            <item.icon className={`w-4 h-4 shrink-0 mt-0.5 ${isSelected ? "text-indigo-600 animate-pulse" : "text-slate-400"}`} />
+                            <div className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border transition-colors ${
+                              isSelected ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
+                            }`}>
+                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            </div>
                             <div>
                               <h4 className="text-xs font-black text-slate-800">{item.label}</h4>
                               <p className="text-[9px] font-medium text-slate-400 mt-0.5">{item.desc}</p>
