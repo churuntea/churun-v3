@@ -1044,6 +1044,9 @@ function StoreContent() {
                          ✨ 已套用 {pointsDiscount.toLocaleString()} 點，為您省下 ${pointsDiscount.toLocaleString()} 元！
                        </p>
                      )}
+                     <p className="text-[9px] font-bold text-slate-400 bg-slate-100/80 p-2 rounded-lg border border-slate-200/50 mt-1">
+                       ⏳ 溫馨提醒：紅利點數自核發日起算【一年內有效】，逾期系統自動歸零結算。
+                     </p>
                    </div>
                  )}
               </div>

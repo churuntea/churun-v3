@@ -1019,6 +1019,7 @@ function AdminDashboardContent() {
                   </div>
                   <div className="space-y-2">
                      {[
+                        { label: "會計及財務稽核驗證系統", icon: ShieldCheck, action: "/admin/finance" },
                         { label: "會計對帳專區 (預收儲值審核)", icon: CheckCircle2, action: "/admin/withdrawals?tab=deposit" },
                         { label: "會計審查專區 (創業水單核對)", icon: ShieldCheck, action: "/admin/evaluation?tab=audits" },
                         { label: "出納付款專區 (獎金提領核撥)", icon: Wallet, action: "/admin/withdrawals?tab=withdrawal" }
