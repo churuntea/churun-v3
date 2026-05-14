@@ -187,7 +187,7 @@ function ProfileContent() {
 
       <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
          {/* Interactive VIP Card */}
-         <div className="relative w-full perspective-1000 group cursor-pointer" style={{ height: '350px' }} onClick={() => setIsFlipped(!isFlipped)}>
+         <div className="relative w-full perspective-1000 group cursor-pointer" style={{ minHeight: '380px' }} onClick={() => setIsFlipped(!isFlipped)}>
             <motion.div 
               animate={{ rotateY: isFlipped ? 180 : 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
@@ -227,7 +227,7 @@ function ProfileContent() {
                   </div>
 
                   {/* 中間：直觀特權指標與權益說明 */}
-                  <div className="relative z-10 space-y-2 my-auto py-2">
+                  <div className="relative z-10 space-y-2 my-auto py-3">
                      <div className="grid grid-cols-2 gap-3">
                         <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center text-left">
                            <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">進貨/返點分紅</span>
@@ -238,19 +238,35 @@ function ProfileContent() {
                            <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
                         </div>
                      </div>
-                     <div className="bg-white/5 p-3 rounded-2xl border border-white/10 text-left space-y-1">
-                        <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider">🎯 尊榮特權與權益：</span>
-                        <div className="space-y-0.5">
-                           <p className="text-[11px] font-black text-white flex items-center gap-1.5">
-                              <span className="text-amber-400">★</span> 新品上市嚐鮮價點數加倍送
-                           </p>
-                           <p className="text-[11px] font-black text-white flex items-center gap-1.5">
-                              <span className="text-amber-400">★</span> 每年生日禮券買一送一
+
+                     {/* 權益說明區塊 (專屬匯率上行、保級標準下行且完整呈現) */}
+                     <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10 text-left space-y-2.5">
+                        {/* 特權直顯 */}
+                        <div>
+                           <span className="text-[8px] font-black text-amber-300 block uppercase tracking-wider mb-1">🎯 尊榮特權與權益：</span>
+                           <div className="space-y-0.5">
+                              <p className="text-[11px] font-black text-white flex items-center gap-1.5">
+                                 <span className="text-amber-400">★</span> 新品上市嚐鮮價點數加倍送
+                              </p>
+                              <p className="text-[11px] font-black text-white flex items-center gap-1.5">
+                                 <span className="text-amber-400">★</span> 每年生日禮券買一送一
+                              </p>
+                           </div>
+                        </div>
+
+                        {/* 專屬匯率上行 */}
+                        <div className="pt-2 border-t border-white/10 flex justify-between items-center">
+                           <span className="text-[9px] font-black text-amber-300">💎 專屬點數匯率</span>
+                           <span className="text-[10px] font-mono font-black text-white">{getTierBenefits(memberInfo.tier)[0]}</span>
+                        </div>
+
+                        {/* 保級標準下行，且完整展開說明 */}
+                        <div className="pt-1.5 border-t border-white/5 space-y-0.5">
+                           <span className="text-[9px] font-black text-emerald-300 block">🛡️ 保級與晉升標準：</span>
+                           <p className="text-[9px] font-bold text-white/80 leading-relaxed whitespace-normal break-words">
+                              {getTierBenefits(memberInfo.tier).slice(1).join(" / ")}
                            </p>
                         </div>
-                        <p className="text-[9px] font-bold text-white/60 leading-snug pt-1 border-t border-white/10 mt-1.5 line-clamp-1">
-                           保級標準：{getTierBenefits(memberInfo.tier).join(" / ")}
-                        </p>
                      </div>
                   </div>
 
