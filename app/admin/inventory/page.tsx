@@ -29,6 +29,7 @@ function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState("all");
 
   // 排序與分頁狀態
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
@@ -91,33 +92,64 @@ function InventoryDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, dateRange]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // 日期區間計算
+      const now = new Date();
+      let startDateStr = "";
+      if (dateRange === "7days") {
+        startDateStr = new Date(now.setDate(now.getDate() - 7)).toISOString();
+      } else if (dateRange === "30days") {
+        startDateStr = new Date(now.setDate(now.getDate() - 30)).toISOString();
+      }
+
       // 1. 獲取商品列表及即時庫存
       const { data: prods } = await supabase.from("products").select("*").order("created_at", { ascending: false });
       const safeProds = prods || [];
       setProducts(safeProds);
 
-      // 2. 獲取進貨紀錄
-      const mockInbound = safeProds.map((p, idx) => ({
-        id: `INB-${1000 + idx}`,
-        product_name: p.name,
-        category: p.category || "極萃系列",
-        quantity: Math.floor(Math.random() * 50) + 10,
-        unit_cost: Number(p.price || 500) * 0.4, // 進貨成本抓4折
-        supplier: idx % 2 === 0 ? "初潤南投茶園總廠" : "極萃生技研發中心",
-        created_at: new Date(Date.now() - idx * 86400000 * 3).toISOString().slice(0, 10),
-        status: "已入庫"
-      }));
-      setInboundRecords(mockInbound);
+      // 2. 獲取真實進貨與盤點紀錄 (inventory_logs)
+      let inboundQuery = supabase.from("inventory_logs").select("*").order("created_at", { ascending: false });
+      if (startDateStr) inboundQuery = inboundQuery.gte("created_at", startDateStr);
+      
+      const { data: realLogs, error: logError } = await inboundQuery;
+      
+      if (logError && logError.code === "42P01") {
+         // Fallback to mock data if table doesn't exist yet
+         let mockInbound = safeProds.map((p, idx) => ({
+           id: `INB-${1000 + idx}`,
+           product_name: p.name,
+           category: p.category || "極萃系列",
+           quantity: Math.floor(Math.random() * 50) + 10,
+           unit_cost: Number(p.price || 500) * 0.4,
+           supplier: idx % 2 === 0 ? "初潤南投茶園總廠" : "極萃生技研發中心",
+           created_at: new Date(Date.now() - idx * 86400000 * 3).toISOString().slice(0, 10),
+           status: "已入庫"
+         }));
+         if (startDateStr) {
+           mockInbound = mockInbound.filter(m => new Date(m.created_at) >= new Date(startDateStr));
+         }
+         setInboundRecords(mockInbound);
+      } else {
+         setInboundRecords(realLogs || []);
+      }
 
-      // 3. 獲取銷售出貨紀錄 (從 order_items 撈取並按品項統計)
-      const { data: items } = await supabase.from("order_items").select("name, quantity, price");
+      // 3. 獲取銷售出貨紀錄
+      let orderQuery = supabase.from("order_items").select("name, quantity, price, order_id");
+      const { data: items } = await orderQuery;
+      
+      let filteredItems = items || [];
+      if (startDateStr) {
+         const { data: orders } = await supabase.from("orders").select("id, created_at").gte("created_at", startDateStr);
+         const validOrderIds = new Set((orders || []).map(o => o.id));
+         filteredItems = filteredItems.filter((it: any) => validOrderIds.has(it.order_id));
+      }
+
       const salesStatsMap: Record<string, any> = {};
-      (items || []).forEach((it: any) => {
+      filteredItems.forEach((it: any) => {
         if (!salesStatsMap[it.name]) {
            salesStatsMap[it.name] = {
              id: `STAT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
@@ -157,6 +189,11 @@ function InventoryDashboard() {
     setIsLoading(true);
     try {
       const qty = Number(quantity);
+      let targetProdName = "";
+      let targetProdCategory = "極萃系列";
+      let logType = "inbound";
+      let finalStock = 0;
+      let minStock = 10;
 
       if (modalType === "new_product") {
         // 1. 建立新品建檔
@@ -169,19 +206,56 @@ function InventoryDashboard() {
         }).select().single();
 
         if (insErr) throw insErr;
+        targetProdName = newProductName;
+        targetProdCategory = newProductCategory || "極萃系列";
+        finalStock = qty;
         alert(`🎉 成功建檔新品「${newProductName}」並完成首批進貨 ${qty} 件！`);
       } else if (modalType === "inbound") {
         // 更新庫存
         const targetProd = products.find(p => p.id === selectedProductId);
+        targetProdName = targetProd?.name;
+        targetProdCategory = targetProd?.category || "極萃系列";
+        minStock = targetProd?.min_stock || 10;
         const currentStock = Number(targetProd?.stock || 0);
-        const newStock = currentStock + qty;
-        await supabase.from("products").update({ stock: newStock }).eq("id", selectedProductId);
-        alert(`🎉 成功進貨入庫！商品「${targetProd?.name}」現有庫存更新為 ${newStock} 件。`);
+        finalStock = currentStock + qty;
+        await supabase.from("products").update({ stock: finalStock }).eq("id", selectedProductId);
+        alert(`🎉 成功進貨入庫！商品「${targetProd?.name}」現有庫存更新為 ${finalStock} 件。`);
       } else {
         // 庫存盤點覆寫
         const targetProd = products.find(p => p.id === selectedProductId);
-        await supabase.from("products").update({ stock: qty }).eq("id", selectedProductId);
-        alert(`🎯 庫存盤點完成！商品「${targetProd?.name}」庫存校正為 ${qty} 件。`);
+        targetProdName = targetProd?.name;
+        targetProdCategory = targetProd?.category || "極萃系列";
+        minStock = targetProd?.min_stock || 10;
+        finalStock = qty;
+        logType = "stock_check";
+        await supabase.from("products").update({ stock: finalStock }).eq("id", selectedProductId);
+        alert(`🎯 庫存盤點完成！商品「${targetProd?.name}」庫存校正為 ${finalStock} 件。`);
+      }
+
+      // 嘗試寫入真實日誌
+      try {
+        await supabase.from("inventory_logs").insert({
+          product_name: targetProdName,
+          category: targetProdCategory,
+          quantity: modalType === "stock" ? finalStock : qty,
+          unit_cost: Number(unitCost || 0),
+          supplier: supplier || "未指定",
+          type: logType,
+          notes: notes
+        });
+      } catch (logErr) {
+        console.warn("未能寫入 inventory_logs", logErr);
+      }
+
+      // 低庫存自動警報
+      if (finalStock < minStock) {
+        try {
+          await fetch('/api/admin/inventory/low-stock-alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productName: targetProdName, stock: finalStock, minStock })
+          });
+        } catch (e) { console.error("發送警報失敗", e); }
       }
 
       setShowAddModal(false);
@@ -450,6 +524,17 @@ function InventoryDashboard() {
 
             {/* 搜尋與新增單據按鈕 */}
             <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto">
+               <div className="relative flex-1 md:w-40 shrink-0">
+                  <select 
+                     value={dateRange}
+                     onChange={(e) => setDateRange(e.target.value)}
+                     className="w-full pl-4 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition appearance-none cursor-pointer"
+                  >
+                     <option value="all">🗓️ 全部時間</option>
+                     <option value="7days">🗓️ 近 7 天</option>
+                     <option value="30days">🗓️ 近 30 天</option>
+                  </select>
+               </div>
                <div className="relative flex-1 md:w-60 shrink-0">
                   <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input 
