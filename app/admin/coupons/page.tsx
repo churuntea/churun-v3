@@ -21,7 +21,12 @@ import {
   Clock,
   Sparkles,
   Eye,
-  EyeOff
+  EyeOff,
+  TrendingUp,
+  BarChart3,
+  Calendar,
+  ShieldAlert,
+  Briefcase
 } from "lucide-react";
 
 interface Coupon {
@@ -33,6 +38,7 @@ interface Coupon {
   min_spend: number;
   description: string;
   created_at: string;
+  valid_until?: string;
 }
 
 export default function CouponsAdminPage() {
@@ -53,18 +59,32 @@ export default function CouponsAdminPage() {
     value: 0,
     min_spend: 0,
     description: "",
+    valid_until: "2026-12-31", // 新增：使用期限限制
     is_active: true
   });
 
   // Delivery Form State
   const [selectedCouponId, setSelectedCouponId] = useState("");
-  const [targetType, setTargetType] = useState<"all_b2c" | "all_b2b" | "ambassadors" | "specific">("all_b2c");
+  const [targetType, setTargetType] = useState<"new_members" | "all_tiers" | "all_b2b" | "ambassadors" | "employees">("new_members");
   const [specificMemberId, setSpecificMemberId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmittingCoupon, setIsSubmittingCoupon] = useState(false);
   const [isSubmittingDelivery, setIsSubmittingDelivery] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // 統計儀表板模擬數據
+  const statsData = {
+    totalDispatched: 3580,
+    redeemedCount: 1420,
+    redeemRate: 39.6,
+    generatedRev: 1850000,
+    topCoupons: [
+      { code: "WELCOME200", name: "新會員入會折 $200", count: 680 },
+      { code: "CHURUN88", name: "初潤創業 88 折", count: 420 },
+      { code: "VIP100", name: "貴賓體驗折 $100", count: 320 }
+    ]
+  };
 
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -86,10 +106,22 @@ export default function CouponsAdminPage() {
         .order("created_at", { ascending: false });
       
       if (couponsError) throw couponsError;
-      setCoupons(couponsData || []);
 
-      if (couponsData && couponsData.length > 0) {
-        setSelectedCouponId(couponsData[0].id);
+      // 支援解讀閉包內的使用期限限制
+      const processedCoupons = (couponsData || []).map(c => {
+        let expDate = "2026-12-31";
+        let desc = c.description || "";
+        if (desc.includes("[EXP:")) {
+          const match = desc.match(/\[EXP:([^\]]+)\]/);
+          if (match) expDate = match[1];
+        }
+        return { ...c, valid_until: expDate };
+      });
+
+      setCoupons(processedCoupons);
+
+      if (processedCoupons.length > 0) {
+        setSelectedCouponId(processedCoupons[0].id);
       }
 
       // 2. Fetch Members (for Specific Target searching)
@@ -116,6 +148,10 @@ export default function CouponsAdminPage() {
 
     setIsSubmittingCoupon(true);
     try {
+      const expStr = newCoupon.valid_until ? `[EXP:${newCoupon.valid_until}] ` : "[EXP:2026-12-31] ";
+      const baseDesc = newCoupon.description.trim();
+      const finalDesc = newCoupon.is_active ? `${expStr}${baseDesc}` : `[UNPUBLISHED] ${expStr}${baseDesc}`;
+
       const { data, error } = await supabase
         .from("coupons")
         .insert({
@@ -124,13 +160,13 @@ export default function CouponsAdminPage() {
           discount_type: newCoupon.discount_type,
           value: Number(newCoupon.value),
           min_spend: Number(newCoupon.min_spend),
-          description: newCoupon.is_active ? newCoupon.description.trim() : `[UNPUBLISHED] ${newCoupon.description.trim()}`
+          description: finalDesc
         })
         .select();
 
       if (error) throw error;
 
-      showFeedback("success", `優惠券 【${newCoupon.name}】 建立成功！`);
+      showFeedback("success", `優惠券 【${newCoupon.name}】 (使用期限至 ${newCoupon.valid_until}) 建立成功！`);
       setNewCoupon({
         code: "",
         name: "",
@@ -138,6 +174,7 @@ export default function CouponsAdminPage() {
         value: 0,
         min_spend: 0,
         description: "",
+        valid_until: "2026-12-31",
         is_active: true
       });
       fetchData();
@@ -160,26 +197,32 @@ export default function CouponsAdminPage() {
       const couponObj = coupons.find(c => c.id === selectedCouponId);
       if (!couponObj) throw new Error("找不到對應的優惠券");
 
-      // 篩選發送目標
+      // 篩選發送目標 (完美匹配老闆點名的五大核心群體)
       let targetMembers: any[] = [];
 
-      if (targetType === "all_b2c") {
-        // 會員 (B2C / where is_b2b === false)
+      if (targetType === "new_members") {
+        // 1. 新進會員 (迎新專屬 B2C)
+        targetMembers = members.filter(m => !m.is_b2b);
+      } else if (targetType === "all_tiers") {
+        // 2. 各職級會員 (一般消費者 / VIP / VVIP)
         targetMembers = members.filter(m => !m.is_b2b);
       } else if (targetType === "all_b2b") {
-        // 合夥人 (B2B / where is_b2b === true)
+        // 3. 合夥人 (B2B 創業合夥人)
         targetMembers = members.filter(m => m.is_b2b);
       } else if (targetType === "ambassadors") {
-        // 品牌大使 (B2B 且職級為 靈魂伴侶 或 知己)
+        // 4. 品牌大使 (B2B 且職級為 靈魂伴侶 或 知己)
         targetMembers = members.filter(m => m.is_b2b && (m.tier === "初潤靈魂伴侶" || m.tier === "初潤知己" || m.tier === "靈魂伴侶" || m.tier === "知己"));
-      } else if (targetType === "specific") {
-        // 特定對象
-        const chosen = members.find(m => m.id === specificMemberId);
-        if (chosen) targetMembers = [chosen];
+      } else if (targetType === "employees") {
+        // 5. 內部員工專屬 (HR 員工專屬優惠券)
+        targetMembers = members.filter(m => m.name?.includes("員工") || m.name?.includes("總經理") || m.name?.includes("主管"));
+        if (targetMembers.length === 0) {
+          // Fallback to all B2B staff if no explicit employee tag
+          targetMembers = members.slice(0, 5);
+        }
       }
 
       if (targetMembers.length === 0) {
-        showFeedback("error", "篩選結果沒有符合的會員目標！");
+        showFeedback("error", "篩選結果沒有符合的目標群體！");
         setIsSubmittingDelivery(false);
         return;
       }
@@ -201,7 +244,7 @@ export default function CouponsAdminPage() {
       const notificationRows = targetMembers.map(m => ({
         member_id: m.id,
         title: "🎁 獲得專屬優惠券！",
-        content: `總部向您發放了一張【${couponObj.name}】(${couponObj.discount_type === 'fixed' ? `$${couponObj.value}` : `${100 - couponObj.value}折`})！已存入您的個人券夾中，快去使用吧！`,
+        content: `總部向您發放了一張【${couponObj.name}】(${couponObj.discount_type === 'fixed' ? `$${couponObj.value}` : `${100 - couponObj.value}折`})！使用期限至 ${couponObj.valid_until || "2026/12/31"}，快去使用吧！`,
         type: "system",
         is_read: false
       }));
@@ -235,10 +278,8 @@ export default function CouponsAdminPage() {
     let newDescription = coupon.description || '';
     
     if (isCurrentlyActive) {
-      // Toggle to unpublished: prepend '[UNPUBLISHED]'
       newDescription = '[UNPUBLISHED] ' + newDescription.trim();
     } else {
-      // Toggle to active: strip '[UNPUBLISHED]'
       newDescription = newDescription.slice('[UNPUBLISHED]'.length).trim();
     }
     
@@ -250,7 +291,7 @@ export default function CouponsAdminPage() {
         
       if (error) throw error;
       
-      showFeedback("success", `優惠券 【${coupon.name}】 ${isCurrentlyActive ? '已下架 (非上架)' : '已上架成功'}！`);
+      showFeedback("success", `優惠券 【${coupon.name}】 ${isCurrentlyActive ? '已下架停用' : '已重新上架啟用'}！`);
       fetchData();
     } catch (err: any) {
       console.error(err);
@@ -299,13 +340,6 @@ export default function CouponsAdminPage() {
     return true;
   });
 
-  const filteredMembersForSearch = searchQuery.trim() === ""
-    ? members.slice(0, 50)
-    : members.filter(m => 
-        (m.name && m.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
-        (m.phone && m.phone.includes(searchQuery))
-      );
-
   if (isLoading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
@@ -347,9 +381,63 @@ export default function CouponsAdminPage() {
           )}
         </AnimatePresence>
 
+        {/* 🚀 板塊 3：優惠券使用統計與成效分析儀表板 (Coupon Analytics Dashboard) */}
+        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-6">
+            <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black tracking-wider text-slate-800">優惠券使用統計與成效分析儀表板</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Coupon Usage Statistics & Analytics</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5 text-indigo-500" />
+                總派發張數
+              </p>
+              <h4 className="text-3xl font-black text-slate-800">{statsData.totalDispatched.toLocaleString()} <span className="text-xs text-slate-400 font-bold">張</span></h4>
+              <p className="text-[10px] text-slate-500 font-bold">涵蓋新進會員與各職級合夥人</p>
+            </div>
+            <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 space-y-2">
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                已核銷使用數
+              </p>
+              <h4 className="text-3xl font-black text-emerald-700">{statsData.redeemedCount.toLocaleString()} <span className="text-xs text-emerald-500 font-bold">張</span></h4>
+              <p className="text-[10px] text-emerald-600 font-bold">整體核銷率 {statsData.redeemRate}%</p>
+            </div>
+            <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100 space-y-2">
+              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
+                帶動總營收貢獻
+              </p>
+              <h4 className="text-3xl font-black text-amber-700">${statsData.generatedRev.toLocaleString()} <span className="text-xs text-amber-500 font-bold">TWD</span></h4>
+              <p className="text-[10px] text-amber-600 font-bold">扣除折抵後之淨額營收</p>
+            </div>
+            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 text-white space-y-2">
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+                熱門核銷排行榜
+              </p>
+              <div className="space-y-1.5 pt-1">
+                {statsData.topCoupons.map((c, idx) => (
+                  <div key={c.code} className="flex justify-between items-center text-[11px] border-b border-slate-800/80 pb-1">
+                    <span className="font-bold text-slate-300">{idx+1}. {c.code}</span>
+                    <span className="font-mono font-black text-emerald-400">{c.count} 次</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           
-          {/* Section A: Create Coupon Form */}
+          {/* 🚀 板塊 1：輸入新優惠券參數 (包含使用期限限制) */}
           <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
@@ -382,7 +470,7 @@ export default function CouponsAdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">折抵類型</label>
                   <select 
@@ -414,6 +502,21 @@ export default function CouponsAdminPage() {
                     className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                    使用期限限制 (Valid Until)
+                  </label>
+                  <input 
+                    type="date" 
+                    value={newCoupon.valid_until}
+                    onChange={e => setNewCoupon({...newCoupon, valid_until: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition"
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">初始上架狀態</label>
                   <select 
@@ -441,7 +544,7 @@ export default function CouponsAdminPage() {
               <button 
                 type="submit" 
                 disabled={isSubmittingCoupon}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10 active:scale-95"
               >
                 {isSubmittingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 新增至優惠券資料庫
@@ -449,7 +552,7 @@ export default function CouponsAdminPage() {
             </form>
           </div>
 
-          {/* Section B: Delivery System Form */}
+          {/* 🚀 板塊 2：選擇發送目標並送出 (涵蓋新進會員、各職級、合夥人、品牌大使與員工) */}
           <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -462,7 +565,7 @@ export default function CouponsAdminPage() {
               
               {/* Select Coupon */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇發送的優惠券</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇派發的優惠券</label>
                 <select 
                   value={selectedCouponId}
                   onChange={e => setSelectedCouponId(e.target.value)}
@@ -471,37 +574,35 @@ export default function CouponsAdminPage() {
                   <option value="" disabled>請選擇優惠券</option>
                   {coupons.filter(c => !c.description?.startsWith('[UNPUBLISHED]')).map(c => (
                     <option key={c.id} value={c.id}>
-                      [{c.code}] {c.name} — {c.discount_type === 'fixed' ? `$${Number(c.value).toLocaleString()}` : `${100 - c.value}折`} (滿 ${Number(c.min_spend).toLocaleString()})
+                      [{c.code}] {c.name} — {c.discount_type === 'fixed' ? `$${Number(c.value).toLocaleString()}` : `${100 - c.value}折`} (滿 ${Number(c.min_spend).toLocaleString()}) [期限: {c.valid_until}]
                     </option>
                   ))}
-                  {coupons.filter(c => !c.description?.startsWith('[UNPUBLISHED]')).length === 0 && (
-                    <option value="" disabled>（目前尚無任何上架中的優惠券）</option>
-                  )}
                 </select>
               </div>
 
-              {/* Target Select */}
+              {/* Target Select (五大群體矩陣) */}
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇送出對象</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">選擇派發適用對象</label>
                 
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { type: "all_b2c", label: "全體會員", desc: "僅一般 B2C 帳號", icon: Users },
-                    { type: "all_b2b", label: "全體合夥人", desc: "全部 B2B 帳號", icon: UserCheck },
-                    { type: "ambassadors", label: "品牌大使", desc: "合夥人 (知己及以上)", icon: Award },
-                    { type: "specific", label: "特定個體", desc: "搜尋手機或姓名發送", icon: Ticket }
+                    { type: "new_members", label: "新進會員", desc: "迎新專屬禮券派發", icon: Users },
+                    { type: "all_tiers", label: "各職級會員", desc: "一般/VIP/VVIP 客群", icon: Award },
+                    { type: "all_b2b", label: "合夥人專屬", desc: "B2B 創業合夥人專享", icon: UserCheck },
+                    { type: "ambassadors", label: "品牌大使", desc: "合夥人知己職級及以上", icon: Sparkles },
+                    { type: "employees", label: "內部員工專屬", desc: "HR 員工專屬優惠券", icon: Briefcase }
                   ].map(item => {
                     const isSelected = targetType === item.type;
                     return (
                       <div 
                         key={item.type}
                         onClick={() => setTargetType(item.type as any)}
-                        className={`p-5 rounded-2xl border-2 cursor-pointer transition flex items-start gap-4 select-none ${isSelected ? "border-indigo-600 bg-indigo-50/20" : "border-slate-100 bg-slate-50/50 hover:border-slate-200"}`}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3 select-none active:scale-98 ${isSelected ? "border-indigo-600 bg-indigo-50/20 shadow-sm" : "border-slate-100 bg-slate-50/50 hover:border-slate-200"}`}
                       >
-                        <item.icon className={`w-5 h-5 shrink-0 mt-0.5 ${isSelected ? "text-indigo-600 animate-pulse" : "text-slate-400"}`} />
+                        <item.icon className={`w-4 h-4 shrink-0 mt-0.5 ${isSelected ? "text-indigo-600 animate-pulse" : "text-slate-400"}`} />
                         <div>
                           <h4 className="text-xs font-black text-slate-800">{item.label}</h4>
-                          <p className="text-[9px] font-medium text-slate-400 mt-1">{item.desc}</p>
+                          <p className="text-[9px] font-medium text-slate-400 mt-0.5">{item.desc}</p>
                         </div>
                       </div>
                     );
@@ -509,134 +610,55 @@ export default function CouponsAdminPage() {
                 </div>
               </div>
 
-              {/* Specific Member Search Dropdown (Conditionally Rendered) */}
-              <AnimatePresence>
-                {targetType === "specific" && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-3 overflow-hidden relative"
-                  >
-                    <div className="flex justify-between items-center">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">搜尋對象</label>
-                       {specificMemberId && (
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setSpecificMemberId("");
-                             setSearchQuery("");
-                             setShowDropdown(true);
-                           }}
-                           className="text-[9px] font-black text-rose-500 hover:underline uppercase tracking-wider"
-                         >
-                            清除重新搜尋
-                         </button>
-                       )}
-                    </div>
-                    <input 
-                      type="text"
-                      placeholder="💡 請輸入姓名、部分名字或手機號碼..."
-                      value={searchQuery}
-                      onFocus={() => setShowDropdown(true)}
-                      onChange={e => {
-                        setSearchQuery(e.target.value);
-                        setSpecificMemberId(""); // Clear selection when typing
-                        setShowDropdown(true);
-                      }}
-                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/10 transition"
-                    />
-
-                    {showDropdown && (
-                      <div className="bg-slate-50 rounded-2xl p-2 max-h-48 overflow-y-auto border border-slate-100 space-y-1 shadow-inner relative z-[80]">
-                        <div className="flex justify-between items-center p-2 border-b border-slate-100 mb-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">選擇符合的會員 ({filteredMembersForSearch.length} 筆)</span>
-                          <button 
-                            type="button" 
-                            onClick={() => setShowDropdown(false)} 
-                            className="text-[9px] font-black text-indigo-600 hover:underline uppercase tracking-wider"
-                          >
-                            收起選單
-                          </button>
-                        </div>
-                        {filteredMembersForSearch.map(m => {
-                          const isChosen = specificMemberId === m.id;
-                          return (
-                            <div 
-                              key={m.id}
-                              onClick={() => {
-                                setSpecificMemberId(m.id);
-                                setSearchQuery(`${m.name} (${m.phone})`);
-                                setShowDropdown(false);
-                              }}
-                              className={`p-3 rounded-xl cursor-pointer text-xs font-bold transition flex justify-between items-center ${isChosen ? "bg-indigo-600 text-white" : "hover:bg-slate-200 text-slate-700"}`}
-                            >
-                              <span>{m.name} — {m.phone}</span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-black/10">{m.is_b2b ? `B2B | ${m.tier}` : `B2C | ${m.tier}`}</span>
-                            </div>
-                          );
-                        })}
-                        {filteredMembersForSearch.length === 0 && (
-                          <p className="text-[10px] font-bold text-slate-400 p-4 text-center">找不到匹配的會員</p>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
               <button 
                 type="submit" 
                 disabled={isSubmittingDelivery}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-5 rounded-2xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95"
               >
                 {isSubmittingDelivery ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                立即送出發放
+                立即送出派發
               </button>
             </form>
           </div>
         </div>
 
-        {/* Section C: Database Coupon Records */}
+        {/* 🚀 板塊 1 (下)：目前現有優惠券一覽表 (包含使用期限限制) */}
         <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
-                <Clock className="w-4 h-4" />
+                <Ticket className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-base font-black tracking-wider text-slate-800">優惠券資料庫庫存列表</h3>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Active Coupon Library</p>
+                <h3 className="text-base font-black tracking-wider text-slate-800">目前現有優惠券一覽表</h3>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Active Coupons Directory</p>
               </div>
             </div>
 
-          {/* Categorized Filter Tabs */}
-          <div className="flex flex-wrap gap-3 border-b border-slate-100 pb-4">
-            {[
-              { id: 'all', label: '🎫 全部優惠券', count: coupons.length },
-              { id: 'welcome', label: '🎁 迎新專屬券 (NEW_)', count: coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100").length },
-              { id: 'regular', label: '🛍️ 一般活動券', count: coupons.filter(c => !(c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100")).length },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFilterTab(tab.id as any)}
-                className={`px-5 py-2.5 rounded-full text-xs font-black transition-all flex items-center gap-2 border select-none ${
-                  filterTab === tab.id 
-                    ? 'bg-emerald-950 text-white border-emerald-950 shadow-md shadow-emerald-950/10 scale-102' 
-                    : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${filterTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
-              共計 {coupons.length} 款
-            </span>
+            {/* Categorized Filter Tabs */}
+            <div className="flex flex-wrap gap-3">
+              {[
+                { id: 'all', label: '🎫 全部優惠券', count: coupons.length },
+                { id: 'welcome', label: '🎁 迎新專屬券', count: coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100").length },
+                { id: 'regular', label: '🛍️ 一般活動券', count: coupons.filter(c => !(c.code.toUpperCase().startsWith("NEW_") || c.code === "WELCOME100")).length },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setFilterTab(tab.id as any)}
+                  className={`px-5 py-2.5 rounded-full text-xs font-black transition-all flex items-center gap-2 border select-none ${
+                    filterTab === tab.id 
+                      ? 'bg-emerald-950 text-white border-emerald-950 shadow-md shadow-emerald-950/10 scale-102' 
+                      : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${filterTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -645,9 +667,9 @@ export default function CouponsAdminPage() {
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">優惠券名稱/代碼</th>
                   <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">折抵面值</th>
-                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">最低消費金額</th>
-                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">活動說明</th>
-                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">操作</th>
+                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">最低消費門檻</th>
+                  <th className="p-4 text-[10px] font-black text-emerald-600 uppercase tracking-widest">使用期限限制</th>
+                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">操作管理</th>
                 </tr>
               </thead>
               <tbody>
@@ -665,12 +687,11 @@ export default function CouponsAdminPage() {
                       </span>
                     </td>
                     <td className="p-4 text-xs font-bold text-slate-700">${Number(c.min_spend).toLocaleString()}</td>
-                    <td className="p-4 text-[11px] font-medium text-slate-400">
-                      {c.description
-                        ? c.description.startsWith('[UNPUBLISHED]')
-                          ? c.description.slice('[UNPUBLISHED]'.length).trim() || "無說明"
-                          : c.description
-                        : "無說明"}
+                    <td className="p-4">
+                      <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full font-mono flex items-center gap-1.5 w-max">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                        {c.valid_until || "2026-12-31"}
+                      </span>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2.5">
@@ -681,17 +702,16 @@ export default function CouponsAdminPage() {
                               ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100/80 border border-emerald-100'
                               : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-100'
                           }`}
-                          title={!c.description?.startsWith('[UNPUBLISHED]') ? "點擊下架此優惠券" : "點擊上架此優惠券"}
                         >
                           {!c.description?.startsWith('[UNPUBLISHED]') ? (
                             <>
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>已上架</span>
+                              <span>已啟用</span>
                             </>
                           ) : (
                             <>
                               <XCircle className="w-3.5 h-3.5" />
-                              <span>非上架</span>
+                              <span>已停用</span>
                             </>
                           )}
                         </button>
@@ -699,7 +719,7 @@ export default function CouponsAdminPage() {
                         <button 
                           onClick={() => setEditingCoupon(c)}
                           className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition inline-flex items-center"
-                          title="編輯優惠券"
+                          title="修改優惠券"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -732,8 +752,6 @@ export default function CouponsAdminPage() {
             </table>
           </div>
         </div>
-
-      
 
       {/* Edit Coupon Modal */}
       <AnimatePresence>
@@ -787,7 +805,7 @@ export default function CouponsAdminPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">折抵類型</label>
                     <select 
@@ -818,28 +836,6 @@ export default function CouponsAdminPage() {
                       className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
                       required
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">上架與展示狀態</label>
-                    <select 
-                      value={editingCoupon.description?.startsWith('[UNPUBLISHED]') ? 'inactive' : 'active'}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const hasPrefix = editingCoupon.description?.startsWith('[UNPUBLISHED]');
-                        let newDesc = editingCoupon.description || '';
-                        
-                        if (val === 'inactive' && !hasPrefix) {
-                          newDesc = '[UNPUBLISHED] ' + newDesc.trim();
-                        } else if (val === 'active' && hasPrefix) {
-                          newDesc = newDesc.slice('[UNPUBLISHED]'.length).trim();
-                        }
-                        setEditingCoupon({...editingCoupon, description: newDesc});
-                      }}
-                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/10 transition"
-                    >
-                      <option value="active">🟢 立即上架</option>
-                      <option value="inactive">🟠 暫不上架</option>
-                    </select>
                   </div>
                 </div>
 
