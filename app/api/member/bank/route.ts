@@ -60,7 +60,9 @@ export async function POST(request: Request) {
     ].join('|');
 
     // Update members table (using both individual columns and combined beneficiary for compatibility)
-    const { error: dbError } = await supabase
+    let dbError = null;
+
+    const { error: firstError } = await supabase
       .from('members')
       .update({
         bank_code,
@@ -70,6 +72,21 @@ export async function POST(request: Request) {
         beneficiary: combinedBeneficiary
       })
       .eq('id', memberId);
+
+    if (firstError && (firstError.message?.includes('bank_account_name') || firstError.message?.includes('column') || firstError.code === '42703')) {
+      console.warn('DB schema missing bank_account_name column, falling back to legacy beneficiary update');
+      const { error: fallbackError } = await supabase
+        .from('members')
+        .update({
+          bank_code,
+          bank_account,
+          beneficiary: combinedBeneficiary
+        })
+        .eq('id', memberId);
+      dbError = fallbackError;
+    } else {
+      dbError = firstError;
+    }
 
     if (dbError) {
       console.error('DB Update Error:', dbError);
