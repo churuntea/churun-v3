@@ -70,6 +70,8 @@ function StoreContent() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
@@ -364,14 +366,22 @@ function StoreContent() {
   }, [router]);
 
   useEffect(() => {
-    if (selectedCategory === "全部商品") {
-      setFilteredProducts(products);
-    } else if (selectedCategory === "❤️ 我的最愛") {
-      setFilteredProducts(products.filter(p => favorites.includes(p.id)));
-    } else {
-      setFilteredProducts(products.filter(p => (p.category || "極萃系列") === selectedCategory));
+    let base = products;
+    if (selectedCategory !== "全部商品") {
+      if (selectedCategory === "❤️ 我的最愛") {
+        base = products.filter(p => favorites.includes(p.id));
+      } else {
+        base = products.filter(p => (p.category || "極萃系列") === selectedCategory);
+      }
     }
-  }, [selectedCategory, products, favorites]);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      base = base.filter(p => p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
+    }
+
+    setFilteredProducts(base);
+  }, [selectedCategory, products, favorites, searchQuery]);
 
   const fetchUserOrders = async (userId: string) => {
     try {
@@ -660,7 +670,7 @@ function StoreContent() {
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
       <nav className="bg-white/80 backdrop-blur-2xl sticky top-0 z-50 border-b border-slate-50 px-8 py-6 flex justify-between items-center max-w-lg mx-auto">
         <h1 className="text-sm font-black tracking-[0.3em] text-slate-800 uppercase flex items-center gap-2">
-           精品點數商城 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V2.0.0</span>
+           精品嚴選 <span className="text-[7px] bg-emerald-50 px-2 py-1 rounded-full text-emerald-600 border border-emerald-100 font-bold">V3.0.0</span>
         </h1>
         <div className="flex items-center gap-3">
           <div onClick={() => { setShowOrderListModal(true); if (memberInfo?.id) fetchUserOrders(memberInfo.id); }} className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-800 cursor-pointer hover:bg-slate-100 transition relative group">
@@ -675,7 +685,7 @@ function StoreContent() {
                </span>
              )}
           </div>
-          <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+          <div onClick={() => setShowSearchModal(true)} className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-800 cursor-pointer hover:bg-emerald-100 transition shadow-sm active:scale-95">
              <Search className="w-4 h-4" />
           </div>
         </div>
@@ -2861,6 +2871,75 @@ function StoreContent() {
                   </table>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 智慧型商品搜尋彈窗 Modal (Search Bar Modal) */}
+      <AnimatePresence>
+        {showSearchModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSearchModal(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-start justify-center p-4 pt-20"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: -20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: -20, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-50 p-6 space-y-6"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                     🔍 嚴選商品智慧搜尋 <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">即時篩選</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">輸入茶品關鍵字，下方清單即刻為您動態過濾</p>
+                </div>
+                <button onClick={() => setShowSearchModal(false)} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-800 transition">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="請輸入商品名稱或關鍵字 (例如: 烏龍、禮盒、極萃、高山)..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-4 pl-12 rounded-2xl text-slate-800 font-bold text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none transition"
+                />
+                <Search className="absolute left-4 top-4 w-5 h-5 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="absolute right-4 top-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-200/50 px-2.5 py-1 rounded-lg transition">
+                    清除
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">🔥 熱門推薦搜尋</p>
+                <div className="flex flex-wrap gap-2">
+                  {["高山烏龍", "極萃系列", "典藏禮盒", "茶包", "紅茶", "初潤"].map(tag => (
+                    <button 
+                      key={tag}
+                      onClick={() => setSearchQuery(tag)}
+                      className="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-2 rounded-xl transition active:scale-95"
+                    >
+                      🏷️ {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={() => setShowSearchModal(false)} className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition shadow-lg shadow-emerald-700/20 active:scale-95">
+                 查看篩選結果 ({filteredProducts.length} 筆符合)
+              </button>
             </motion.div>
           </motion.div>
         )}
