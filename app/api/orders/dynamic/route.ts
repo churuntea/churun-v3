@@ -314,10 +314,28 @@ export async function POST(request: Request) {
       type: 'order'
     });
 
-    // ⚡ 發送 LINE 推播通知給買家 (若買家已綁定 LINE)
-    if (buyer.line_id) {
+    // ⚡ 發送 LINE 推播通知給買家 (跨帳號手機號碼智慧搜尋：比對 buyer.line_id 或是手機號碼相同之綁定帳戶)
+    let targetLineId = buyer.line_id;
+    const orderPhone = shippingInfo?.phone || buyer.phone;
+    
+    if (!targetLineId && orderPhone) {
+      const { data: matchedMember } = await supabase
+        .from('members')
+        .select('line_id')
+        .eq('phone', orderPhone)
+        .not('line_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (matchedMember && matchedMember.line_id) {
+        targetLineId = matchedMember.line_id;
+        console.log(`[LINE Push Match] Found line_id via phone ${orderPhone}`);
+      }
+    }
+
+    if (targetLineId) {
       let itemsList = "";
-      items.forEach((item, idx) => {
+      items.forEach((item) => {
         const product = products.find(p => p.id === item.id);
         if (product) {
           itemsList += `• ${product.name} x ${item.quantity} ($${(product.price * item.quantity).toLocaleString()} 元)\n`;
@@ -326,7 +344,7 @@ export async function POST(request: Request) {
 
       const pushText = `📦 【初潤製茶所】下單成功通知 📦
 ━━━━━━━━━━━━━━━━━━
-親愛的茶友 ${buyer.name} 您好：
+親愛的茶友 ${shippingInfo?.name || buyer.name} 您好：
 
 您的特選精品採購訂單已成功建立！
 ● 訂單編號：${orderNumber}
@@ -340,11 +358,12 @@ export async function POST(request: Request) {
 ━━━━━━━━━━━━━━━━━━
 🍵 採購商品明細：
 ${itemsList}━━━━━━━━━━━━━━━━━━
-💡 提示：本訂單出貨將由【初潤出貨物流中心】專屬處理。請加入下方出貨客服 LINE 帳號，由專員快速為您對接安排：
+💡 提示：本訂單出貨將由【初潤出貨物流中心】專屬處理。請隨時在官方 LINE 點擊快捷鍵查詢配送進度：
 👉 https://line.me/R/ti/p/@947vpgjp (LINE ID: @947vpgjp)`;
 
-      await sendLinePushNotification(buyer.line_id, pushText);
+      await sendLinePushNotification(targetLineId, pushText);
     }
+
 
     // ⚡ 同步推播給 947 官方帳號管理團隊 (洪召安、王守芳或設定的 ADMIN_LINE_IDS)
     let itemsListAdmin = "";
