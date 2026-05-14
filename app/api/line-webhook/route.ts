@@ -306,11 +306,11 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
     }
 
     case "3": {
-      // 獲取最近 3 筆採購訂單狀態 (多表聯查購入品項與數量)
+      // 獲取最近 3 筆採購訂單狀態 (智慧跨帳號聯查：比對 member_id 或是收件人手機號碼)
       const { data: orders } = await supabaseAdmin
         .from("orders")
         .select("*")
-        .eq("member_id", member.id)
+        .or(`member_id.eq.${member.id},shipping_info->>phone.eq.${member.phone || 'NO_PHONE'}`)
         .order("created_at", { ascending: false })
         .limit(3);
 
@@ -384,7 +384,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 您目前在「初潤」尚無 any 採購訂單紀錄。
 歡迎您至精品商城挑選喜愛的精品好茶！
 
-🔗 商城入口：https://churun-tea.vercel.app/wholesale`;
+🔗 商城入口：https://churun-v3.vercel.app/store`;
       }
       break;
     }
@@ -470,7 +470,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 2. 好友首筆消費完成，您與好友將「雙向各獲得 100 點」消費點數！
 3. 點數可於結帳全額抵扣，1 點折 1 元！
 
-🔗 立即分享，好友註冊：https://churun-tea.vercel.app/register?ref=${member.referral_code}`;
+🔗 立即分享，好友註冊：https://churun-v3.vercel.app/register?ref=${member.referral_code}`;
       }
       break;
     }
@@ -592,7 +592,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 初潤製茶所經典茶款口碑力薦：
 
 ${prodStr}━━━━━━━━━━━━━━━━━━
-🛒 立即線上秒速搶購：https://churun-tea.vercel.app/wholesale`;
+🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
       break;
     }
 
@@ -773,7 +773,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
 ━━━━━━━━━━━━━━━━━━
 初潤製茶所經典茶款口碑力薦：
 ${prodStr}
-🔗 點擊立刻線上註冊與採購：https://churun-tea.vercel.app/
+🔗 點擊立刻線上註冊與採購：https://churun-v3.vercel.app/store
 ━━━━━━━━━━━━━━━━━━
 💡 提示：回覆您的「手機號碼」即可秒速綁定您的會員中心！`,
       UNLINKED_QUICK_REPLIES,
