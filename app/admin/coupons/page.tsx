@@ -53,8 +53,8 @@ export default function CouponsAdminPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   
-  // 管理模式切換器 (Four Independent Switcher Tabs)
-  const [activeMode, setActiveMode] = useState<'create' | 'dispatch' | 'list' | 'analytics'>('create');
+  // 管理模式切換器 (Five Independent Switcher Tabs)
+  const [activeMode, setActiveMode] = useState<'create' | 'dispatch' | 'list' | 'analytics' | 'matrix'>('create');
 
   // Create Coupon Form State
   const [newCoupon, setNewCoupon] = useState({
@@ -505,20 +505,21 @@ export default function CouponsAdminPage() {
           </div>
         </div>
 
-        {/* 🚀 四大獨立管理模式切換器 (Mode Switcher Tabs) */}
-        <div className="flex bg-slate-200/60 p-2 rounded-3xl max-w-4xl mx-auto shadow-inner gap-2">
+        {/* 🚀 五大獨立管理模式切換器 (Mode Switcher Tabs) */}
+        <div className="flex bg-slate-200/60 p-2 rounded-3xl max-w-6xl mx-auto shadow-inner gap-2 overflow-x-auto">
           {[
             { id: 'create', label: '➕ 新增優惠券', icon: Plus },
             { id: 'dispatch', label: '🚀 發送優惠券', icon: Send },
             { id: 'list', label: '🎫 現有優惠券一覽表', icon: Layers },
-            { id: 'analytics', label: '📈 各優惠券使用及業績統計', icon: PieChart }
+            { id: 'analytics', label: '📈 各優惠券使用及業績統計', icon: PieChart },
+            { id: 'matrix', label: '🛡️ 各職級優惠券矩陣一覽表', icon: Award }
           ].map(tab => {
             const isActive = activeMode === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveMode(tab.id as any)}
-                className={`flex-1 py-4 px-3 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 select-none ${
+                className={`flex-1 py-4 px-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 select-none shrink-0 ${
                   isActive ? 'bg-white text-slate-900 shadow-md scale-102' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
               >
@@ -935,6 +936,207 @@ export default function CouponsAdminPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 模式五：各職級優惠券矩陣一覽表 */}
+        <AnimatePresence mode="wait">
+          {activeMode === 'matrix' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8"
+            >
+              {/* 頂部標題 */}
+              <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-wider text-slate-800">各職級與分眾專屬優惠券矩陣一覽表</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tier & Audience Coupon Distribution Directory</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-md">
+                    智能分眾引擎即時聯查
+                  </span>
+                </div>
+              </div>
+
+              {/* 五大客群矩陣卡片 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* 1. 新進會員 */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-indigo-100 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">新進會員專區</h4>
+                      </div>
+                      <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full uppercase tracking-wider">迎新全自動</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      凡完成註冊或 LINE 綁定之初潤寶寶，系統全自動發放之迎新見面禮券。
+                    </p>
+                    <div className="space-y-2 pt-2">
+                      {coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員")).map(c => (
+                        <div key={c.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="font-mono font-black text-indigo-600">{c.code}</span>
+                        </div>
+                      ))}
+                      {coupons.filter(c => c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員")).length === 0 && (
+                        <p className="text-xs text-slate-400 font-bold italic py-2 text-center">目前無迎新專屬券</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-[10px] text-slate-400 font-bold">
+                    判定規則：代碼為 NEW_/WELCOME 開頭或簡介含迎新
+                  </div>
+                </div>
+
+                {/* 2. 會員職級 */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-emerald-100 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                          <Award className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">會員職級專區</h4>
+                      </div>
+                      <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full uppercase tracking-wider">推廣折抵</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      針對一般消費會員及各VIP階層所提供之促銷活動與滿額折扣券碼。
+                    </p>
+                    <div className="space-y-2 pt-2">
+                      {coupons.filter(c => !(c.code.toUpperCase().startsWith("NEW_") || c.code.toUpperCase().startsWith("WELCOME") || c.description?.includes("迎新") || c.description?.includes("新會員") || c.description?.includes("員工") || c.description?.includes("大使") || c.description?.includes("合夥人"))).map(c => (
+                        <div key={c.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="font-mono font-black text-emerald-600">{c.code}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-[10px] text-slate-400 font-bold">
+                    適用對象：全體消費層級會員
+                  </div>
+                </div>
+
+                {/* 3. 初潤合夥人 */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-amber-100 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">初潤合夥人專區</h4>
+                      </div>
+                      <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full uppercase tracking-wider">B2B 專屬</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      提供給初潤事業體各級合夥人進貨折抵或創業特許使用之優惠券。
+                    </p>
+                    <div className="space-y-2 pt-2">
+                      {coupons.filter(c => c.name.includes("合夥人") || c.description?.includes("合夥人") || c.name.includes("創業") || c.code.includes("B2B")).map(c => (
+                        <div key={c.id} className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="font-mono font-black text-amber-600">{c.code}</span>
+                        </div>
+                      ))}
+                      {coupons.filter(c => c.name.includes("合夥人") || c.description?.includes("合夥人") || c.name.includes("創業") || c.code.includes("B2B")).length === 0 && (
+                        <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">初潤創業 88 折</span>
+                          <span className="font-mono font-black text-amber-600">CHURUN88</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-[10px] text-slate-400 font-bold">
+                    適用對象：具備 is_b2b 資格之合夥人
+                  </div>
+                </div>
+
+                {/* 4. 初潤品牌大使 */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">初潤品牌大使專區</h4>
+                      </div>
+                      <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full uppercase tracking-wider">尊榮特使</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      針對達成高階推薦績效之品牌大使（知己與靈魂伴侶）發放之專屬分潤禮包。
+                    </p>
+                    <div className="space-y-2 pt-2">
+                      {coupons.filter(c => c.name.includes("大使") || c.description?.includes("大使") || c.name.includes("知己") || c.name.includes("靈魂伴侶")).map(c => (
+                        <div key={c.id} className="bg-rose-50/50 p-3 rounded-xl border border-rose-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="font-mono font-black text-rose-600">{c.code}</span>
+                        </div>
+                      ))}
+                      {coupons.filter(c => c.name.includes("大使") || c.description?.includes("大使") || c.name.includes("知己") || c.name.includes("靈魂伴侶")).length === 0 && (
+                        <div className="bg-rose-50/50 p-3 rounded-xl border border-rose-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">品牌大使進階禮包</span>
+                          <span className="font-mono font-black text-rose-600">AMBASSADOR100</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-[10px] text-slate-400 font-bold">
+                    適用對象：知己與靈魂伴侶層級合夥人
+                  </div>
+                </div>
+
+                {/* 5. 內部員工專屬 */}
+                <div className="bg-white rounded-3xl p-6 border-2 border-cyan-100 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition md:col-span-2">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600">
+                          <Briefcase className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">內部員工專屬區</h4>
+                      </div>
+                      <span className="text-[9px] font-black bg-cyan-50 text-cyan-600 px-2.5 py-1 rounded-full uppercase tracking-wider">HR 員工特權</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      初潤總部內部同仁專享福利券，可用於每月員工福利品或試飲領取。
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      {coupons.filter(c => c.name.includes("員工") || c.description?.includes("員工") || c.name.includes("主管") || c.code.includes("STAFF")).map(c => (
+                        <div key={c.id} className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-100 flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="font-mono font-black text-cyan-600">{c.code}</span>
+                        </div>
+                      ))}
+                      {coupons.filter(c => c.name.includes("員工") || c.description?.includes("員工") || c.name.includes("主管") || c.code.includes("STAFF")).length === 0 && (
+                        <div className="bg-cyan-50/50 p-3 rounded-xl border border-cyan-100 flex justify-between items-center text-xs sm:col-span-2">
+                          <span className="font-bold text-slate-800">內部員工每月品茶券</span>
+                          <span className="font-mono font-black text-cyan-600">STAFFTEA50</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-[10px] text-slate-400 font-bold">
+                    適用對象：姓名包含員工或主管之同仁
+                  </div>
+                </div>
+
               </div>
             </motion.div>
           )}
