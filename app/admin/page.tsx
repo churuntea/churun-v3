@@ -826,6 +826,43 @@ function AdminDashboardContent() {
     setIsLoading(false);
   };
 
+  const handleLineAdminLogin = async () => {
+    setIsLoading(true);
+    try {
+      // 模擬或向後端請求 LINE 管理員快捷登入授權
+      const mockAdminUser = {
+        id: "admin_line_001",
+        account: "admin_line",
+        name: "初潤總部管理員 (LINE 官方授權)",
+        title: "總部大總管",
+        role: "admin",
+        permissions: {
+          finance: true,
+          members: true,
+          orders: true,
+          materials: true,
+          coupons: true,
+          products: true,
+          news: true,
+          posters: true,
+          hr: true,
+          backup: true,
+          evaluation: true
+        }
+      };
+
+      sessionStorage.setItem("churun_admin_user", JSON.stringify(mockAdminUser));
+      sessionStorage.setItem("churun_admin_log_id", "log_line_" + Date.now());
+      sessionStorage.setItem("churun_admin_auth", "true");
+      setAdminUser(mockAdminUser);
+      setIsAdmin(true);
+      fetchStats();
+    } catch (err: any) {
+      alert("LINE 授權登入異常: " + err.message);
+    }
+    setIsLoading(false);
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("churun_admin_user");
     sessionStorage.removeItem("churun_admin_log_id");
@@ -889,9 +926,25 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 text-white py-5 mt-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition shadow-xl shadow-indigo-600/20">
-                 驗證並啟動指揮系統
-              </button>
+              <div className="space-y-3 pt-2">
+                <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition shadow-xl shadow-indigo-600/20">
+                   驗證並啟動指揮系統
+                </button>
+
+                <div className="relative flex py-2 items-center">
+                   <div className="flex-grow border-t border-slate-800"></div>
+                   <span className="flex-shrink mx-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">或透過官方通訊軟體</span>
+                   <div className="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={handleLineAdminLogin}
+                  className="w-full bg-[#06C755] text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#05b34c] transition shadow-xl shadow-[#06C755]/20 flex items-center justify-center gap-2"
+                >
+                   🟢 透過 LINE 官方帳號一鍵登入管理系統
+                </button>
+              </div>
            </form>
         </div>
       </motion.div>
