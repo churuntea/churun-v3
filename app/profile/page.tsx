@@ -138,6 +138,30 @@ function ProfileContent() {
     return matched || defaultBenefits;
   };
 
+  const getTierPerks = (tier: string) => {
+    const t = tier || "初潤寶寶";
+    switch (t) {
+      case "初潤寶寶":
+        return { percent: "0%", desc: "一般購物返點及代理佣金基礎版", fee: "15 元", badge: "基礎級" };
+      case "初潤青少年":
+        return { percent: "1.0%", desc: "享提領手續費減免與零售額外回饋", fee: "10 元", badge: "新星級" };
+      case "初潤好朋友":
+        return { percent: "1.2%", desc: "享二級經銷合夥 1.2% 加碼分紅", fee: "10 元", badge: "好朋友級" };
+      case "初潤中產階級":
+        return { percent: "1.5%", desc: "享有下線組織儲值 1.5% 額外分紅", fee: "10 元", badge: "中堅級" };
+      case "初潤社會支柱":
+        return { percent: "2.0%", desc: "享有下線組織儲值 2.0% 額外分紅", fee: "5 元", badge: "支柱級" };
+      case "初潤中流砥柱":
+        return { percent: "2.5%", desc: "享下線儲值 2.5% 分紅，尊榮提領免手續費", fee: "免手續費 (0元)", badge: "中流砥柱" };
+      case "初潤意見領袖":
+        return { percent: "3.0%", desc: "享下線儲值 3.0% 額外佣金，提領免手續費", fee: "免手續費 (0元)", badge: "意見領袖" };
+      case "初潤靈魂伴侶":
+        return { percent: "5.0%", desc: "終身最頂級 5.0% 佣金加成，提領免手續費", fee: "免手續費 (0元)", badge: "靈魂伴侶 (終身)" };
+      default:
+        return { percent: "0%", desc: "基礎會員特權", fee: "15 元", badge: "一般會員" };
+    }
+  };
+
   if (isLoading || !memberInfo) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
 
   return (
@@ -284,18 +308,54 @@ function ProfileContent() {
         {/* Benefits Modal */}
         <AnimatePresence>
            {showTierBenefits && (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTierBenefits(false)} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center">
-                <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={e => e.stopPropagation()} className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-sm p-10 pb-20 shadow-2xl space-y-6">
-                   <h3 className="text-2xl font-black text-slate-900">{memberInfo.tier} 特權</h3>
-                   <div className="space-y-4">
-                      {getTierBenefits(memberInfo.tier).map((benefit, i) => (
-                        <div key={i} className="flex items-center gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-50">
-                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                           <span className="text-xs font-black text-slate-700">{benefit}</span>
-                        </div>
-                      ))}
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTierBenefits(false)} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-2xl flex items-end sm:items-center justify-center p-4">
+                <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} onClick={e => e.stopPropagation()} className="bg-white rounded-t-[3.5rem] sm:rounded-[3.5rem] w-full max-w-md p-8 sm:p-10 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto no-scrollbar border border-slate-100">
+                   <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                      <div>
+                         <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-widest border border-emerald-100 font-mono">
+                            {getTierPerks(memberInfo.tier).badge}
+                         </span>
+                         <h3 className="text-2xl font-black text-slate-900 mt-2">{memberInfo.tier} 專屬特權</h3>
+                      </div>
+                      <button onClick={() => setShowTierBenefits(false)} className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 text-xs font-bold">✕</button>
                    </div>
-                   <button onClick={() => setShowTierBenefits(false)} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-widest">我知道了</button>
+
+                   {/* 核心財務指標 */}
+                   <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex flex-col justify-between">
+                         <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">加碼進貨/返點分紅</span>
+                         <span className="text-2xl font-mono font-black text-emerald-700">{getTierPerks(memberInfo.tier).percent}</span>
+                      </div>
+                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex flex-col justify-between">
+                         <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mb-1">提款提現手續費</span>
+                         <span className="text-xl font-mono font-black text-emerald-700">{getTierPerks(memberInfo.tier).fee}</span>
+                      </div>
+                   </div>
+
+                   {/* 權益說明 */}
+                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-1 text-left">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">📢 專屬權益明細：</span>
+                      <p className="text-xs font-bold text-slate-700 leading-relaxed">
+                         {getTierPerks(memberInfo.tier).desc}。
+                      </p>
+                   </div>
+
+                   {/* 晉升與保級條件 */}
+                   <div className="space-y-3 text-left pt-2">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">晉升條件與服務項目</h4>
+                      <div className="space-y-2.5">
+                         {getTierBenefits(memberInfo.tier).map((benefit, i) => (
+                           <div key={i} className="flex items-center gap-3.5 p-4 bg-slate-50/80 rounded-2xl border border-slate-100/50">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span className="text-xs font-bold text-slate-700 leading-snug">{benefit}</span>
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+
+                   <button onClick={() => setShowTierBenefits(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/10 transition">
+                      我知道了
+                   </button>
                 </motion.div>
              </motion.div>
            )}

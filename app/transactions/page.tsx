@@ -360,39 +360,21 @@ function TransactionContent() {
                      </div>
                   </div>
                ) : (
-                  // B2C 專屬模組：紅利點數熱門商品一鍵直接兌換
-                  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-5 shadow-sm">
-                     <div>
-                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                           <Gift className="w-4 h-4 text-amber-500 animate-bounce" /> 🎁 熱門紅利點數一鍵直接兌換
-                        </h4>
-                        <p className="text-[8px] font-black text-slate-400 mt-0.5">One-click point rewards directly from digital ledger</p>
+                  // B2C 專屬模組：紅利點數熱門商品兌換已移至商城
+                  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-5 shadow-sm text-center">
+                     <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto text-amber-500">
+                        <Gift className="w-8 h-8 animate-bounce" />
                      </div>
-
-                     <div className="space-y-2.5 pt-1">
-                        {[
-                          { name: "🍵 招牌四季春冷泡茶", pts: 30, desc: "初潤門市熱銷冷泡好茶一罐" },
-                          { name: "👜 初潤奢華環保保溫提袋", pts: 80, desc: "雙層加厚保溫，門市必備質感提袋" },
-                          { name: "👑 初潤經典隨行保溫瓶", pts: 150, desc: "漸層高質感，極佳保溫效果" }
-                        ].map((reward, idx) => {
-                           const canAfford = Number(memberInfo.points_balance) >= reward.pts;
-                           return (
-                              <div key={idx} className="flex justify-between items-center p-3.5 bg-slate-50 border border-slate-100/60 rounded-2xl hover:bg-white transition duration-200">
-                                 <div className="text-left space-y-0.5">
-                                    <h5 className="text-xs font-black text-slate-800">{reward.name}</h5>
-                                    <p className="text-[8px] font-bold text-slate-400">{reward.desc}</p>
-                                 </div>
-                                 <button
-                                    onClick={() => handleExecuteRedeem(reward.name, reward.pts)}
-                                    disabled={isRedeeming}
-                                    className={`text-[9px] font-black px-3 py-2 rounded-xl transition ${canAfford ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/10 hover:bg-amber-600' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-                                 >
-                                    {reward.pts} pts 兌換
-                                 </button>
-                              </div>
-                           );
-                        })}
+                     <div className="space-y-1">
+                        <h4 className="text-sm font-black text-slate-800 tracking-tight">紅利點數兌換已全面升級</h4>
+                        <p className="text-xs text-slate-400 font-medium">為提供更流暢的購物體驗，熱門紅利點數兌換已移設至商城專區。</p>
                      </div>
+                     <button
+                        onClick={() => router.push("/store")}
+                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition shadow-lg shadow-amber-500/20"
+                     >
+                        前往商城兌換商品 ➜
+                     </button>
                   </div>
                )}
             </div>

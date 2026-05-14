@@ -82,18 +82,18 @@ export default function BankSettingsPage() {
       setBankCode(data.bank_code || "013");
       setBankAccount(data.bank_account || "");
 
-      // Safe deserialization from beneficiary column to bypass database columns cache issue
-      let accountName = "";
-      let branchName = "";
+      // 支援雙向相容取值，優先使用獨立欄位，次之使用 beneficiary 欄位
+      let accountName = data.bank_account_name || "";
+      let branchName = data.bank_branch || "";
       let photoUrl = "";
 
       if (data.beneficiary && data.beneficiary.includes("|")) {
         const parts = data.beneficiary.split("|");
-        accountName = parts[0] || "";
-        branchName = parts[1] || "";
+        if (!accountName) accountName = parts[0] || "";
+        if (!branchName) branchName = parts[1] || "";
         photoUrl = parts[2] || "";
       } else if (data.beneficiary && !data.beneficiary.includes("|")) {
-        accountName = data.beneficiary;
+        if (!accountName) accountName = data.beneficiary;
       }
 
       setBankAccountName(accountName);

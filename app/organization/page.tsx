@@ -344,7 +344,7 @@ function OrganizationContent() {
                 </div>
                 <div className="space-y-1">
                    <p className="text-xl font-black text-slate-800 tracking-tighter">
-                      ${downlines.reduce((acc, curr) => acc + (Number(curr.lifetime_spend) || 0), 0).toLocaleString()}
+                      ${downlines.filter(curr => curr.id !== memberInfo?.id).reduce((acc, curr) => acc + (Number(curr.lifetime_spend) || 0), 0).toLocaleString()}
                    </p>
                    <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-emerald-500" /> +12.5% 本月增長
@@ -411,8 +411,8 @@ function OrganizationContent() {
                  <TrendingUp className="w-6 h-6" />
               </div>
               <div>
-                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">下線總業績</p>
-                 <h4 className="text-2xl font-black text-slate-800"><span className="text-sm font-medium text-slate-400">$</span>{downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0).toLocaleString()}</h4>
+                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">團隊總業績</p>
+                 <h4 className="text-2xl font-black text-slate-800"><span className="text-sm font-medium text-slate-400">$</span>{downlines.filter(d => d.id !== memberInfo?.id).reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0).toLocaleString()}</h4>
               </div>
               <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
                  <Sparkles className="w-2 h-2 text-amber-400" /> Lifetime Performance

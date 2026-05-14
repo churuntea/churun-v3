@@ -64,6 +64,8 @@ CREATE POLICY "Allow public all access on materials" ON public.materials FOR ALL
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS reward_points INTEGER DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS b2b_commission NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS bank_last_five TEXT; -- 匯款帳號末五碼（選填）
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS remitter_name TEXT; -- 匯款人姓名
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS remitter_bank TEXT; -- 匯款銀行
 -- 10. 會員大頭貼與個人化設定功能
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS avatar_settings JSONB DEFAULT '{"zoom": 1, "offset": 0}'::jsonb;

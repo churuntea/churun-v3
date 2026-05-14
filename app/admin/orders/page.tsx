@@ -286,6 +286,8 @@ function AdminOrdersContent() {
               <div class="info-title">訂單資訊</div>
               <div class="info-value">訂單日期: ${new Date(order.created_at).toLocaleString()}</div>
               <div class="info-value">結帳金額: ${order.total_amount}</div>
+              <div class="info-value">匯款姓名: ${order.remitter_name || '無'}</div>
+              <div class="info-value">匯款銀行: ${order.remitter_bank || '無'}</div>
               <div class="info-value">付款末五碼: ${order.payment_last_five || '無'}</div>
             </div>
           </div>
@@ -613,6 +615,8 @@ function AdminOrdersContent() {
         '購買明細': itemsString,
         '結帳金額': order.total_amount,
         '預計回饋點數': order.reward_points || 0,
+        '匯款姓名': order.remitter_name || '',
+        '匯款銀行': order.remitter_bank || '',
         '匯款末五碼': order.payment_last_five || '',
         '訂單狀態': order.status === 'completed' ? '已完成' : order.status === 'cancelled' ? '已取消' : '待確認',
         '出貨狀態': order.fulfillment_status === 'shipped' ? '已出貨' : '未出貨',
@@ -851,7 +855,7 @@ function AdminOrdersContent() {
                      </th>
                     <th className="p-8">訂單日期 / 編號</th>
                     <th className="p-8">會員資訊</th>
-                    <th className="p-8">匯款末五碼</th>
+                    <th className="p-8">匯款對帳資訊</th>
                     <th className="p-8 text-right">結帳金額</th>
                     <th className="p-8 text-right">預計回饋</th>
                     <th className="p-8 text-center">目前狀態</th>
@@ -918,7 +922,11 @@ function AdminOrdersContent() {
                         </td>
                         <td className="p-8">
                            {order.payment_last_five ? (
-                             <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-black">{order.payment_last_five}</span>
+                             <div className="space-y-0.5 text-xs">
+                               <p className="font-bold text-slate-700">{order.remitter_name || "未填寫姓名"}</p>
+                               <p className="text-[10px] text-slate-500">{order.remitter_bank || "未填寫銀行"}</p>
+                               <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-black font-mono inline-block mt-1">末碼: {order.payment_last_five}</span>
+                             </div>
                            ) : (
                              <span className="text-[10px] font-black text-slate-200">未回報</span>
                            )}

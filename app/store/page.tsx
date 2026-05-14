@@ -25,7 +25,8 @@ import {
   Heart,
   MapPin,
   Package,
-  Clock
+  Clock,
+  Gift
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
@@ -654,6 +655,50 @@ function StoreContent() {
     setIsCheckingOut(false);
   };
 
+  const [isRedeeming, setIsRedeeming] = useState(false);
+
+  const handleExecuteRedeem = async (itemName: string, points: number) => {
+    if (!memberInfo) return;
+    if (memberInfo.is_b2b) {
+      alert("⚠️ 創業合夥人專享 30% 退傭分紅！點數商城僅限一般零售會員兌換。");
+      return;
+    }
+    if (Number(memberInfo.points_balance) < points) {
+      alert("⚠️ 紅利點數不足，再下一單就能兌換囉！");
+      return;
+    }
+
+    setIsRedeeming(true);
+    try {
+      const response = await fetch("/api/store/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          member_id: memberInfo.id,
+          points,
+          item_name: itemName
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || "兌換失敗");
+
+      await supabase.from("notifications").insert({
+        member_id: memberInfo.id,
+        title: "紅利商品兌換成功",
+        content: "您已成功兌換【" + itemName + "】！電子領取券已發送至您的 LINE，請向門市同仁出示兌換。",
+        type: "system"
+      });
+
+      await fetchData(memberInfo.id);
+      alert("🎉 兌換成功！【" + itemName + "】電子兌換券已發送至您的 LINE 帳戶！");
+    } catch (err: any) {
+      alert("兌換失敗: " + err.message);
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
+
   // categories is now loaded dynamically from DB state
 
   return (
@@ -752,6 +797,43 @@ function StoreContent() {
             </div>
           )}
         </motion.div>
+
+        {/* B2C 專屬模組：紅利點數熱門商品一鍵直接兌換 */}
+        {memberInfo && !memberInfo.is_b2b && (
+          <div className="bg-white border border-slate-100 rounded-[3.5rem] p-8 sm:p-10 space-y-6 shadow-sm mb-8">
+             <div>
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                   <Gift className="w-5 h-5 text-amber-500 animate-bounce" /> 🎁 熱門紅利點數一鍵直接兌換
+                </h4>
+                <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-wider">One-click point rewards directly from digital ledger</p>
+             </div>
+
+             <div className="space-y-3 pt-1">
+                {[
+                  { name: "🍵 招牌四季春冷泡茶", pts: 30, desc: "初潤門市熱銷冷泡好茶一罐" },
+                  { name: "👜 初潤奢華環保保溫提袋", pts: 80, desc: "雙層加厚保溫，門市必備質感提袋" },
+                  { name: "👑 初潤經典隨行保溫瓶", pts: 150, desc: "漸層高質感，極佳保溫效果" }
+                ].map((reward, idx) => {
+                   const canAfford = Number(memberInfo.points_balance) >= reward.pts;
+                   return (
+                      <div key={idx} className="flex justify-between items-center p-5 bg-slate-50 border border-slate-100/60 rounded-3xl hover:bg-white transition duration-200 group shadow-sm">
+                         <div className="text-left space-y-1">
+                            <h5 className="text-sm font-black text-slate-800 group-hover:text-emerald-950 transition">{reward.name}</h5>
+                            <p className="text-[10px] font-bold text-slate-400">{reward.desc}</p>
+                         </div>
+                         <button
+                            onClick={() => handleExecuteRedeem(reward.name, reward.pts)}
+                            disabled={isRedeeming}
+                            className={`text-xs font-black px-5 py-3 rounded-2xl transition tracking-widest ${canAfford ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                         >
+                            {reward.pts} pts 兌換
+                         </button>
+                      </div>
+                   );
+                })}
+             </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-8">
            {isLoading ? (
@@ -2456,7 +2538,7 @@ function StoreContent() {
                 <div className="space-y-4">
                   <p className="text-[10px] font-medium text-slate-400 mb-8 leading-relaxed">
                      ※ 請先完成匯款後再點擊下方確認按鈕。<br/>
-                     下單後請至個人中心回報帳號末五碼。
+                     下單後請至個人中心回報匯款人姓名、銀行及帳號末五碼。
                   </p>
                   <button 
                     onClick={handleCheckout}
@@ -2493,7 +2575,7 @@ function StoreContent() {
                             <MapPin className="w-3.5 h-3.5 text-emerald-700" /> 🏪 門市自取說明
                          </p>
                          <p className="text-[10px] font-bold text-emerald-750 leading-relaxed">
-                            請於完成匯款後，前往個人中心回報帳號末五碼，管理員將第一時間安排您至【{shippingInfo.address.split('(')[0]}】取貨！
+                            請於完成匯款後，前往個人中心回報匯款人姓名、銀行及帳號末五碼，管理員將第一時間安排您至【{shippingInfo.address.split('(')[0]}】取貨！
                          </p>
                       </div>
                    ) : shippingInfo.method === '超商取貨' ? (

@@ -58,12 +58,14 @@ export async function POST(request: Request) {
       bankCardPhotoUrl || ''
     ].join('|');
 
-    // Update members table (only using columns that exist on ALL installations)
+    // Update members table (using both individual columns and combined beneficiary for compatibility)
     const { error: dbError } = await supabase
       .from('members')
       .update({
         bank_code,
         bank_account,
+        bank_account_name: bank_account_name || '',
+        bank_branch: bank_branch || '',
         beneficiary: combinedBeneficiary
       })
       .eq('id', memberId);

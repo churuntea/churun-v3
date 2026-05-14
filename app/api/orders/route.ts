@@ -171,33 +171,28 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { orderId, lastFive } = await request.json();
+    const { orderId, lastFive, remitterName, remitterBank } = await request.json();
 
-    if (!orderId || !lastFive || lastFive.length !== 5) {
-      return NextResponse.json({ success: false, error: '缺少必要參數或末五碼長度不正確' }, { status: 400 });
+    if (!orderId || !lastFive || lastFive.length !== 5 || !remitterName || !remitterBank) {
+      return NextResponse.json({ success: false, error: '請完整填寫匯款人姓名、銀行與 5 碼帳號末碼' }, { status: 400 });
     }
 
-    console.log(`[API PUT Orders] Received request to update remittance last five to ${lastFive} for Order ${orderId}`);
+    console.log(`[API PUT Orders] Received request to update remittance info: ${remitterName}, ${remitterBank}, ${lastFive} for Order ${orderId}`);
 
-    // 1. 嘗試直接使用 admin 權限物理更新 payment_last_five 欄位
+    // 1. 嘗試直接使用 admin 權限物理更新 payment_last_five 及新欄位
     let { error } = await supabase
       .from('orders')
-      .update({ payment_last_five: lastFive })
+      .update({ 
+        payment_last_five: lastFive,
+        bank_last_five: lastFive,
+        remitter_name: remitterName,
+        remitter_bank: remitterBank
+      })
       .eq('id', orderId);
 
-    // 2. 若不支援，嘗試物理更新 bank_last_five 欄位
+    // 2. 若均失敗或未建欄位，啟動備份寫入機制（將欄位包裝寫入 custom_logo_url）
     if (error) {
-      console.warn(`[API PUT Orders] Direct payment_last_five update failed (likely missing column). Trying bank_last_five...`);
-      const res = await supabase
-        .from('orders')
-        .update({ bank_last_five: lastFive })
-        .eq('id', orderId);
-      error = res.error;
-    }
-
-    // 3. 若均失敗，啟動備份寫入機制（將欄位包裝寫入 custom_logo_url）
-    if (error) {
-      console.warn(`[API PUT Orders] Physical columns failed. Saving to custom_logo_url as FALLBACK_JSON.`);
+      console.warn(`[API PUT Orders] Physical columns update failed. Saving to custom_logo_url as FALLBACK_JSON.`);
       
       const { data: currentOrder, error: fetchErr } = await supabase
         .from('orders')
@@ -221,6 +216,8 @@ export async function PUT(request: Request) {
 
         existingJSON.payment_last_five = lastFive;
         existingJSON.bank_last_five = lastFive;
+        existingJSON.remitter_name = remitterName;
+        existingJSON.remitter_bank = remitterBank;
 
         const fallbackStr = 'FALLBACK_JSON:' + JSON.stringify(existingJSON);
 
@@ -240,7 +237,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, message: '匯款末五碼回報成功' });
+    return NextResponse.json({ success: true, message: '匯款資訊回報成功' });
 
   } catch (error: any) {
     console.error('[API PUT Orders] Server Exception:', error);
