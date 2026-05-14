@@ -24,7 +24,8 @@ import {
   Plus,
   Heart,
   MapPin,
-  Package
+  Package,
+  Clock
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
@@ -459,7 +460,7 @@ function StoreContent() {
           if (expAmt > 0 && earliestExpDate) {
             setExpiringPointsInfo({
               amount: expAmt,
-              expiryDate: earliestExpDate.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              expiryDate: (earliestExpDate as any).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
             });
           } else {
             // 為了向老闆展示 VIP 尊榮體驗，當資料庫尚無剛好符合 10 個月門檻的舊資料時，提供智慧模擬預警
