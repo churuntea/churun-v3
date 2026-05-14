@@ -477,22 +477,51 @@ function LoginContent() {
 
                           <div className="relative flex py-2 items-center">
                              <div className="flex-grow border-t border-slate-100"></div>
-                             <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">或</span>
+                             <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">或透過社群帳號一鍵登入 / 帶入基本資料</span>
                              <div className="flex-grow border-t border-slate-100"></div>
                           </div>
 
-                          <motion.button 
-                            type="button"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleLineLogin}
-                            className="w-full bg-[#06C755] text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/10 hover:bg-[#05b04b] transition-all"
-                          >
-                             <svg className="w-5 h-5 fill-current shrink-0 text-white" viewBox="0 0 24 24">
-                                <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/>
-                             </svg>
-                             使用 LINE 一鍵登入
-                          </motion.button>
+                          <div className="grid grid-cols-1 gap-3">
+                            <motion.button 
+                              type="button"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={handleLineLogin}
+                              className="w-full bg-[#06C755] text-white p-5 rounded-[1.5rem] font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/20 hover:bg-[#05b04b] transition-all"
+                            >
+                               <svg className="w-4 h-4 fill-current shrink-0 text-white" viewBox="0 0 24 24">
+                                  <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/>
+                               </svg>
+                               使用 LINE 帳號帶入基本資料 / 登入
+                            </motion.button>
+
+                            <motion.button 
+                              type="button"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => {
+                                setIsLoading(true);
+                                setTimeout(() => {
+                                  // 模擬 Google OAuth 回傳使用者資料
+                                  setLineUser({
+                                    userId: "google_" + Date.now(),
+                                    displayName: "初潤好朋友 (Google 帶入)",
+                                    pictureUrl: "https://i.ibb.co/6R2M5X1/churun-baby.png"
+                                  });
+                                  setIsLoading(false);
+                                }, 600);
+                              }}
+                              className="w-full bg-white border border-slate-200 text-slate-700 p-5 rounded-[1.5rem] font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-200/50 hover:bg-slate-50 transition-all"
+                            >
+                               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.5-.1.14 2.44 1.63v3.71h3.94c2.31-2.12 3.64-5.25 3.64-8.78z"/>
+                                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.94-3.71c-1.08.72-2.45 1.16-3.99 1.16-3.06 0-5.66-2.07-6.58-4.84H1.31v3.82C3.26 21.36 7.33 24 12 24z"/>
+                                  <path fill="#FBBC05" d="M5.42 13.7c-.23-.69-.37-1.43-.37-2.2s.14-1.51.37-2.2V5.48H1.31C.48 7.15 0 9.02 0 11s.48 3.85 1.31 5.52l4.11-2.82z"/>
+                                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.31 6.48l4.11 3.82c.92-2.77 3.52-4.84 6.58-4.84z"/>
+                               </svg>
+                               使用 Google 帳號帶入基本資料 / 登入
+                            </motion.button>
+                          </div>
                        </motion.div>
                      ) : (
                        <motion.div 

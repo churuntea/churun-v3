@@ -225,7 +225,7 @@ function RegisterContent() {
       >
         <div className="bg-white/80 backdrop-blur-3xl rounded-[4rem] p-12 lg:p-16 shadow-[0_32px_64px_-16px_rgba(6,78,59,0.08)] border border-white">
            
-           <div className="flex justify-between items-start mb-16">
+           <div className="flex justify-between items-start mb-8">
               <div className="space-y-4">
                  <div className="w-16 h-16 bg-emerald-900 rounded-[2rem] flex items-center justify-center shadow-xl shadow-emerald-900/20">
                     <UserPlus className="w-8 h-8 text-white" />
@@ -233,6 +233,39 @@ function RegisterContent() {
                  <h1 className="text-4xl font-black text-slate-900 tracking-tight">建立帳號</h1>
                  <p className="text-sm text-slate-400 font-medium">填寫資料，開始您的初潤之旅</p>
               </div>
+           </div>
+
+           {/* 社群帳號快速帶入引擎 */}
+           <div className="bg-slate-50/80 rounded-[2.5rem] p-6 mb-10 border border-slate-100">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">⚡ 想要省去填寫時間？選擇社群帳號一鍵帶入基本資料</p>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+               <motion.button 
+                 type="button" 
+                 whileHover={{ scale: 1.02 }} 
+                 whileTap={{ scale: 0.98 }}
+                 onClick={() => {
+                   setFormData(prev => ({ ...prev, name: "初潤好朋友 (LINE 帶入)", email: "friend_line@churun.com" }));
+                   alert("✅ 成功從 LINE 授權帶入基本資料 (姓名、信箱)！請確認或補全手機號碼即可完成註冊。");
+                 }}
+                 className="w-full bg-[#06C755] text-white p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/20 hover:bg-[#05b04b] transition"
+               >
+                 <svg className="w-4 h-4 fill-current shrink-0 text-white" viewBox="0 0 24 24"><path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/></svg>
+                 LINE 帶入基本資料
+               </motion.button>
+               <motion.button 
+                 type="button" 
+                 whileHover={{ scale: 1.02 }} 
+                 whileTap={{ scale: 0.98 }}
+                 onClick={() => {
+                   setFormData(prev => ({ ...prev, name: "初潤好朋友 (Google 帶入)", email: "friend_google@gmail.com" }));
+                   alert("✅ 成功從 Google 帳戶帶入基本資料 (姓名、信箱)！請確認或補全手機號碼即可完成註冊。");
+                 }}
+                 className="w-full bg-white border border-slate-200 text-slate-700 p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-200/50 hover:bg-slate-50 transition"
+               >
+                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.5-.1.14 2.44 1.63v3.71h3.94c2.31-2.12 3.64-5.25 3.64-8.78z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.94-3.71c-1.08.72-2.45 1.16-3.99 1.16-3.06 0-5.66-2.07-6.58-4.84H1.31v3.82C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.42 13.7c-.23-.69-.37-1.43-.37-2.2s.14-1.51.37-2.2V5.48H1.31C.48 7.15 0 9.02 0 11s.48 3.85 1.31 5.52l4.11-2.82z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.31 6.48l4.11 3.82c.92-2.77 3.52-4.84 6.58-4.84z"/></svg>
+                 Google 帶入基本資料
+               </motion.button>
+             </div>
            </div>
 
            <form onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-8">
