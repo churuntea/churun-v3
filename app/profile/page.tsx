@@ -59,7 +59,7 @@ function ProfileContent() {
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
 
   useEffect(() => {
-    const currentVersion = "3.0.10";
+    const currentVersion = "3.0.11";
     const savedVersion = localStorage.getItem("churun_profile_version");
     if (savedVersion !== currentVersion) {
       localStorage.setItem("churun_profile_version", currentVersion);
@@ -222,7 +222,7 @@ function ProfileContent() {
                         </div>
                      </div>
                      <span className="text-[9px] font-black text-emerald-300 bg-white/10 px-3 py-1.5 rounded-full uppercase tracking-widest font-mono border border-white/10 backdrop-blur-md">
-                        {getTierPerks(memberInfo.tier).badge}
+                        {memberInfo.tier}
                      </span>
                   </div>
 
