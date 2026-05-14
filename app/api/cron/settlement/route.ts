@@ -79,7 +79,7 @@ async function performSettlement() {
     
     return { 
       success: true, 
-      message: `Settlement completed. ${tierResult.message}` 
+      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌營運規章，本期所有消費獲贈之紅利點數將於【隔月 10 號統一發送】。` 
     };
 
   } catch (error: any) {

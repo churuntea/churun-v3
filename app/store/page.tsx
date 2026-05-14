@@ -2518,7 +2518,7 @@ function StoreContent() {
                          </div>
                       </div>
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-[9px] text-emerald-300 leading-relaxed font-bold">
-                         💡 請匯入正確金額 <span className="underline">${lastOrderAmount.toLocaleString()}</span> 元。完成後至個人中心點選【回報匯款】，管理員核對完成後系統將發放紅利點數。
+                         💡 系統已受理您的訂單！請匯款正確金額。依據初潤製茶所營運規章，本筆消費獲贈之紅利點數將於【隔月 10 號統一發送】至您的帳戶。
                       </div>
                    </div>
 
