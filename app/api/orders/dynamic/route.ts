@@ -65,7 +65,7 @@ async function sendLinePushNotification(toUserId: string, text: string) {
 
 export async function POST(request: Request) {
   try {
-    const { buyer_id, memberId, items, discountAmount = 0, shippingInfo } = await request.json();
+    const { buyer_id, memberId, items, discountAmount = 0, pointsRedeemed = 0, shippingInfo } = await request.json();
     const effectiveBuyerId = buyer_id || memberId;
 
     if (!effectiveBuyerId || !items || !Array.isArray(items) || items.length === 0) {
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     totalB2CPoints = Math.floor(totalAmount / tierRate);
 
     // 3. 建立訂單 (狀態改為 pending，待管理者確認)
-    const finalAmount = Math.max(0, totalAmount - discountAmount);
+    const finalAmount = Math.max(0, totalAmount - discountAmount - pointsRedeemed);
     
     // 計算運費邏輯：自取為 $0，超商取貨或宅配到府若金額 999 內收 $70，1000 以上免運
     let shippingFee = 0;
@@ -169,7 +169,8 @@ export async function POST(request: Request) {
       status: 'pending',
       reward_points: totalB2CPoints,
       b2b_commission: totalB2BCommission,
-      order_number: orderNumber
+      order_number: orderNumber,
+      notes: pointsRedeemed > 0 ? `紅利點數折抵 ${pointsRedeemed} 點 ($${pointsRedeemed} 元)` : ''
     };
 
     if (shippingInfo) {
@@ -283,6 +284,23 @@ export async function POST(request: Request) {
       }
     }
 
+    // 3.7 扣減買家紅利點數與建立點數明細
+    if (pointsRedeemed > 0) {
+      await supabase
+        .from('members')
+        .update({ points_balance: Math.max(0, (buyer.points_balance || 0) - pointsRedeemed) })
+        .eq('id', buyer.id);
+
+      await supabase
+        .from('point_transactions')
+        .insert({
+          member_id: buyer.id,
+          order_id: order.id,
+          amount: -pointsRedeemed,
+          transaction_type: 'redeemed'
+        });
+    }
+
     let message = `訂單建立成功！待管理員確認匯款後，系統將發放點數。`;
 
     // 4. 處理不同身份的結算邏輯 (此處暫停，移至管理員審核階段)
@@ -310,7 +328,9 @@ export async function POST(request: Request) {
 
 您的特選精品採購訂單已成功建立！
 ● 訂單編號：${orderNumber}
-● 商品小計：$${finalAmount.toLocaleString()} 元
+● 商品小計：$${totalAmount.toLocaleString()} 元
+● 優惠折抵：-$${discountAmount.toLocaleString()} 元
+● 紅利折抵：-$${pointsRedeemed.toLocaleString()} 點 ($${pointsRedeemed.toLocaleString()} 元)
 ● 運費金額：$${shippingFee.toLocaleString()} 元
 ● 採購總額：$${orderTotalAmount.toLocaleString()} 元
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
@@ -339,6 +359,9 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 ● 訂單編號：${orderNumber}
 ● 下單會員：${buyer.name} (${buyer.phone || '無電話'})
 ● 會員階級：${buyer.tier}
+● 商品小計：$${totalAmount.toLocaleString()} 元
+● 優惠折抵：-$${discountAmount.toLocaleString()} 元
+● 紅利折抵：-$${pointsRedeemed.toLocaleString()} 點 ($${pointsRedeemed.toLocaleString()} 元)
 ● 採購總額：$${orderTotalAmount.toLocaleString()} 元
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
 ● 配送收件人：${shippingInfo?.name || buyer.name}

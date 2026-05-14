@@ -89,6 +89,8 @@ function StoreContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showOrderListModal, setShowOrderListModal] = useState(false);
   const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const [pointsInput, setPointsInput] = useState<string>("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -328,7 +330,9 @@ function StoreContent() {
   };
 
   const discountAmount = getDiscountAmount();
-  const finalPrice = Math.max(0, totalPrice - discountAmount);
+  const maxRedeemable = Math.max(0, totalPrice - discountAmount);
+  const pointsDiscount = Math.min(pointsToRedeem, maxRedeemable, memberInfo?.points_balance || 0);
+  const finalPrice = Math.max(0, totalPrice - discountAmount - pointsDiscount);
 
   const getProductQty = (id: string) => productQuantities[id] || 1;
   const updateProductQty = (id: string, delta: number) => {
@@ -487,6 +491,7 @@ function StoreContent() {
           buyer_id: memberInfo.id,
           items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
           discountAmount: discountAmount,
+          pointsRedeemed: pointsDiscount,
           couponCode: activeCoupon ? activeCoupon.code : null,
           shippingInfo: shippingInfo
         })
@@ -559,6 +564,7 @@ function StoreContent() {
           buyer_id: memberInfo.id,
           items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
           discountAmount: discountAmount,
+          pointsRedeemed: pointsDiscount,
           couponCode: activeCoupon ? activeCoupon.code : null,
           shippingInfo: currentShippingInfo
         })
@@ -993,6 +999,53 @@ function StoreContent() {
                       </div>
                    </div>
                  )}
+
+                 {/* 🌟 紅利點數折抵區塊 */}
+                 {cart.length > 0 && memberInfo && (
+                   <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+                     <div className="flex justify-between items-center">
+                       <div>
+                         <h4 className="font-black text-xs text-slate-800 uppercase tracking-wider">🌟 紅利點數折抵</h4>
+                         <p className="text-[9px] font-bold text-slate-400 mt-0.5">1 點折抵 $1 元 · 無上限</p>
+                       </div>
+                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                         可用餘額: {memberInfo.points_balance?.toLocaleString() || 0} pts
+                       </span>
+                     </div>
+                     <div className="flex gap-2">
+                       <input 
+                         type="number"
+                         min="0"
+                         max={memberInfo.points_balance || 0}
+                         value={pointsInput}
+                         onChange={(e) => {
+                           const maxAllowed = Math.min(memberInfo?.points_balance || 0, Math.max(0, totalPrice - discountAmount));
+                           const val = Math.max(0, Math.min(Number(e.target.value) || 0, maxAllowed));
+                           setPointsInput(e.target.value);
+                           setPointsToRedeem(val);
+                         }}
+                         placeholder="輸入折抵點數" 
+                         className="flex-1 bg-slate-50 border-none p-3 rounded-xl text-xs font-bold font-mono"
+                       />
+                       <button 
+                         type="button"
+                         onClick={() => {
+                           const maxPossible = Math.min(memberInfo.points_balance || 0, Math.max(0, totalPrice - discountAmount));
+                           setPointsInput(maxPossible.toString());
+                           setPointsToRedeem(maxPossible);
+                         }}
+                         className="px-4 bg-emerald-900 text-white rounded-xl text-xs font-black transition hover:bg-emerald-800 active:scale-95"
+                       >
+                         全額折抵
+                       </button>
+                     </div>
+                     {pointsDiscount > 0 && (
+                       <p className="text-[10px] font-bold text-emerald-600">
+                         ✨ 已套用 {pointsDiscount.toLocaleString()} 點，為您省下 ${pointsDiscount.toLocaleString()} 元！
+                       </p>
+                     )}
+                   </div>
+                 )}
               </div>
 
               <div className="p-8 bg-slate-50 space-y-6">
@@ -1005,6 +1058,12 @@ function StoreContent() {
                     <div className="flex justify-between items-center text-xs font-bold text-rose-500 uppercase tracking-widest">
                       <span>優惠折抵 ({activeCoupon.name})</span>
                       <span>-${discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {pointsDiscount > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-emerald-600 uppercase tracking-widest">
+                      <span>紅利點數折抵</span>
+                      <span>-${pointsDiscount.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
