@@ -94,13 +94,13 @@ function AdminDashboardContent() {
 
   // 各大項收闔狀態管理
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    marketing: false,
-    inventory: false,
-    members: false,
-    finance: false,
-    hr: false,
-    backup: false,
-    marketing_ai: false
+    marketing: true,
+    inventory: true,
+    members: true,
+    finance: true,
+    hr: true,
+    backup: true,
+    marketing_ai: true
   });
 
   const toggleSection = (key: string) => {

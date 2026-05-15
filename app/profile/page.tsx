@@ -187,7 +187,7 @@ function ProfileContent() {
 
       <main className="max-w-lg mx-auto px-6 pt-24 space-y-8">
          {/* Interactive VIP Card */}
-         <div className="relative w-full perspective-1000 group cursor-pointer" style={{ minHeight: '380px' }} onClick={() => setIsFlipped(!isFlipped)}>
+         <div className="relative w-full perspective-1000 group cursor-pointer h-[420px]" onClick={() => setIsFlipped(!isFlipped)}>
             <motion.div 
               animate={{ rotateY: isFlipped ? 180 : 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
