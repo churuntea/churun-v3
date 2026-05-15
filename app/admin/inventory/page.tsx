@@ -18,7 +18,11 @@ import {
   AlertTriangle, 
   Loader2, 
   RefreshCcw, 
-  FileText 
+  FileText,
+  Zap,
+  ShoppingCart,
+  Minus,
+  X
 } from "lucide-react";
 
 function InventoryDashboard() {
@@ -60,6 +64,11 @@ function InventoryDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
 
+  // 一鍵訂貨系統
+  const [showSmartOrderModal, setShowSmartOrderModal] = useState(false);
+  const [smartOrderItems, setSmartOrderItems] = useState<any[]>([]);
+  const [isSmartOrdering, setIsSmartOrdering] = useState(false);
+
   const handleViewOrder = async (orderId: string, rowData: any) => {
     setIsLoading(true);
     try {
@@ -94,6 +103,81 @@ function InventoryDashboard() {
   useEffect(() => {
     fetchData();
   }, [activeTab, dateRange]);
+
+  const handleSmartOrderClick = () => {
+    const lowStockProds = products.filter(p => Number(p.stock || 0) < Number(p.min_stock || 10));
+    if (lowStockProds.length === 0) {
+       alert("🎉 目前沒有任何庫存低於安全水位的商品，無需補貨！");
+       return;
+    }
+    const items = lowStockProds.map(p => ({
+       id: p.id,
+       name: p.name,
+       category: p.category,
+       stock: Number(p.stock || 0),
+       min_stock: Number(p.min_stock || 10),
+       suggested_qty: Math.max(10, (Number(p.min_stock || 10) * 2) - Number(p.stock || 0)),
+       cost_price: Number(p.price || 0) * 0.4,
+       supplier: "初潤南投茶園總廠"
+    }));
+    setSmartOrderItems(items);
+    setShowSmartOrderModal(true);
+  };
+
+  const handleSmartOrderQtyChange = (id: string, delta: number) => {
+    setSmartOrderItems(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, suggested_qty: Math.max(1, item.suggested_qty + delta) };
+      }
+      return item;
+    }));
+  };
+
+  const removeSmartOrderItem = (id: string) => {
+    setSmartOrderItems(prev => prev.filter(item => item.id !== id));
+    if (smartOrderItems.length <= 1) {
+       setShowSmartOrderModal(false);
+    }
+  };
+
+  const confirmSmartOrder = async () => {
+    if (smartOrderItems.length === 0) return;
+    setIsSmartOrdering(true);
+    try {
+      // 1. 下載 CSV
+      let csvContent = "商品編號,商品名稱,現有庫存,安全水位,建議採購量,預估單位成本,供應商\n";
+      smartOrderItems.forEach(item => {
+         csvContent += `${item.id},${item.name},${item.stock},${item.min_stock},${item.suggested_qty},${item.cost_price},${item.supplier}\n`;
+      });
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `智慧採購單_PO_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // 2. 呼叫 API 建立草稿與推播
+      const res = await fetch("/api/admin/inventory/smart-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: smartOrderItems })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert("🎉 智慧採購單已成功建立並匯出！進貨草稿已產生，並已發送推播通知給主管。");
+        setShowSmartOrderModal(false);
+        fetchData();
+      } else {
+        alert("建立採購草稿失敗：" + data.error);
+      }
+    } catch (err: any) {
+      alert("操作失敗: " + err.message);
+    }
+    setIsSmartOrdering(false);
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -475,14 +559,23 @@ function InventoryDashboard() {
                <h3 className="text-xl font-black text-slate-800 tracking-tight">{salesRecords.reduce((acc, curr) => acc + curr.quantity, 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">件</span></h3>
             </div>
             
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
                <div className="flex items-center gap-3 mb-2">
                   <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center shrink-0">
                      <AlertTriangle className="w-4 h-4" />
                   </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">安全庫存預警</p>
                </div>
-               <h3 className="text-xl font-black text-rose-600 tracking-tight">{products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} <span className="text-xs font-bold text-rose-400">項需補貨</span></h3>
+               <div className="flex justify-between items-end">
+                  <h3 className="text-xl font-black text-rose-600 tracking-tight">{products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} <span className="text-xs font-bold text-rose-400">項需補貨</span></h3>
+                  <button 
+                    onClick={handleSmartOrderClick}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-[10px] font-black tracking-widest shadow-md shadow-rose-600/20 transition-all active:scale-95 group"
+                  >
+                     <Zap className="w-3 h-3 fill-white text-white group-hover:scale-110 transition-transform" />
+                     一鍵智慧補貨
+                  </button>
+               </div>
             </div>
 
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl shadow-slate-900/10">
@@ -1040,6 +1133,71 @@ function InventoryDashboard() {
                   </button>
                </div>
             </motion.div>
+         </div>
+      )}
+
+      {/* 智慧補貨單確認 Modal */}
+      {showSmartOrderModal && (
+         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSmartOrdering && setShowSmartOrderModal(false)}></div>
+            <div className="bg-white rounded-[3rem] p-8 md:p-10 w-full max-w-2xl relative z-10 shadow-2xl flex flex-col max-h-[90vh]">
+               <div className="flex justify-between items-center mb-8 shrink-0 border-b border-slate-100 pb-6">
+                  <div>
+                     <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center shadow-inner">
+                           <ShoppingCart className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        智慧採購確認單
+                     </h3>
+                     <p className="text-[10px] font-black text-slate-400 mt-2 tracking-widest uppercase">系統已為您過濾出低於安全水位的商品，請確認採購數量</p>
+                  </div>
+                  <button onClick={() => setShowSmartOrderModal(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 transition" disabled={isSmartOrdering}>
+                     <X className="w-5 h-5" />
+                  </button>
+               </div>
+
+               <div className="flex-1 overflow-y-auto pr-2 space-y-4 no-scrollbar">
+                  {smartOrderItems.map((item) => (
+                     <div key={item.id} className="bg-slate-50 rounded-3xl p-5 border border-slate-100/60 flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                           <h4 className="text-sm font-black text-slate-800 mb-1">{item.name}</h4>
+                           <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                              <AlertTriangle className="w-3 h-3" /> 目前庫存: {item.stock} / 安全線: {item.min_stock}
+                           </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col items-end gap-2">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">建議採購量</span>
+                              <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+                                 <button onClick={() => handleSmartOrderQtyChange(item.id, -10)} className="text-slate-400 hover:text-indigo-600 transition"><Minus className="w-4 h-4" /></button>
+                                 <span className="w-8 text-center font-black text-indigo-900">{item.suggested_qty}</span>
+                                 <button onClick={() => handleSmartOrderQtyChange(item.id, 10)} className="text-slate-400 hover:text-indigo-600 transition"><Plus className="w-4 h-4" /></button>
+                              </div>
+                           </div>
+                           <button onClick={() => removeSmartOrderItem(item.id)} className="w-10 h-10 bg-white hover:bg-rose-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-300 hover:text-rose-500 transition shadow-sm shrink-0">
+                              <X className="w-4 h-4" />
+                           </button>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+
+               <div className="pt-8 mt-6 border-t border-slate-100 shrink-0">
+                  <div className="bg-emerald-50 text-emerald-700 p-4 rounded-2xl mb-6 text-xs font-bold leading-relaxed border border-emerald-100">
+                     💡 點擊「確認送出採購單」後，系統將會：<br/>
+                     1. 自動下載正式採購單 (Excel/CSV)<br/>
+                     2. 於系統內建立進貨草稿單<br/>
+                     3. 推播 LINE 通知給採購管理主管
+                  </div>
+                  <button 
+                     onClick={confirmSmartOrder}
+                     disabled={isSmartOrdering}
+                     className="w-full bg-slate-900 hover:bg-slate-800 text-white py-5 rounded-2xl text-xs font-black uppercase tracking-widest transition shadow-xl shadow-slate-900/20 active:scale-[0.98] flex items-center justify-center gap-3"
+                  >
+                     {isSmartOrdering ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Zap className="w-4 h-4 fill-white text-white" /> 確認送出採購單</>}
+                  </button>
+               </div>
+            </div>
          </div>
       )}
     </div>
