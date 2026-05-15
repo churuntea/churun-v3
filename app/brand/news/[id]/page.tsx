@@ -170,11 +170,11 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
         </div>
 
         {/* Article COVER IMAGE or premium BRAND FALLBACK GRADIENT */}
-        <div className="relative aspect-[1.8/1] sm:aspect-[2.1/1] w-full overflow-hidden rounded-[2.5rem] shadow-lg border border-slate-100 group">
+        <div className="relative w-full overflow-hidden rounded-[2.5rem] shadow-lg border border-slate-100 group bg-slate-50">
            {news.image ? (
               <img 
                  src={news.image} 
-                 className="w-full h-full object-cover group-hover:scale-102 transition-all duration-700"
+                 className="w-full h-auto object-contain group-hover:scale-102 transition-all duration-700"
                  alt={news.title}
                  onError={(e) => {
                    // If image breaks, fallback elegantly to null to display the premium brand gradient
