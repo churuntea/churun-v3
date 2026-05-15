@@ -2767,6 +2767,24 @@ function StoreContent() {
                       </div>
                    </div>
 
+                   <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 mb-6 flex flex-col items-center text-center space-y-4">
+                      <div>
+                        <h4 className="text-sm font-black text-slate-800">官方物流客服 LINE</h4>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1">下單後請加入官方客服，回報匯款資訊與訂單號碼，以便快速出貨！</p>
+                      </div>
+                      <div className="w-32 h-32 bg-white rounded-2xl p-2 shadow-sm border border-slate-100 relative group overflow-hidden">
+                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://lin.ee/TVtj1mN" alt="LINE QR Code" className="w-full h-full object-contain mix-blend-multiply" />
+                      </div>
+                      <a 
+                        href="https://lin.ee/TVtj1mN" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="w-full py-4 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-black tracking-widest shadow-lg shadow-[#06C755]/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                      >
+                        點擊加入官方物流 LINE
+                      </a>
+                   </div>
+
                    <button 
                      onClick={() => {
                        setShowPaymentModal(false);
