@@ -30,7 +30,14 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
   const [news, setNews] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(1248);
   const [copied, setCopied] = useState(false);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [comments, setComments] = useState([
+    { id: 1, user: "茶友阿明", text: "這款茶葉真的很讚！回甘強烈。", time: "2 小時前" },
+    { id: 2, user: "林小姐", text: "包裝非常有質感，送禮很適合。", time: "5 小時前" }
+  ]);
 
   // Toast States
   const [toastMsg, setToastMsg] = useState("");
@@ -135,9 +142,9 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
       <nav className="sticky top-0 z-[60] bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-100/80 px-6 py-4 flex justify-between items-center max-w-2xl mx-auto">
          <button 
            onClick={() => router.back()} 
-           className="w-10 h-10 bg-white hover:bg-slate-50 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 active:scale-95 transition text-slate-500"
+           className="w-12 h-12 bg-white hover:bg-slate-900 hover:text-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 active:scale-90 transition-all duration-300 text-slate-500 group"
          >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
          </button>
          <div>
             <span className="text-[10px] font-black tracking-[0.3em] uppercase text-slate-800">初潤品牌脈動</span>
@@ -170,38 +177,52 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
         </div>
 
         {/* Article COVER IMAGE or premium BRAND FALLBACK GRADIENT */}
-        <div className="relative w-full overflow-hidden rounded-[2.5rem] shadow-lg border border-slate-100 group bg-slate-50">
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          className="relative w-full overflow-hidden rounded-[3rem] shadow-2xl border border-slate-100 group bg-slate-50 cursor-zoom-in"
+          onClick={() => triggerToast("🔍 圖片放大功能即將上線，敬請期待！")}
+        >
            {news.image ? (
-              <img 
-                 src={news.image} 
-                 className="w-full h-auto object-contain group-hover:scale-102 transition-all duration-700"
-                 alt={news.title}
-                 onError={(e) => {
-                   // If image breaks, fallback elegantly to null to display the premium brand gradient
-                   setNews((prev: any) => ({ ...prev, image: null }));
-                 }}
-              />
+              <div className="relative group">
+                <img 
+                   src={news.image} 
+                   className="w-full h-auto object-contain group-hover:brightness-105 transition-all duration-700"
+                   alt={news.title}
+                   onError={(e) => {
+                     // If image breaks, fallback elegantly to null to display the premium brand gradient
+                     setNews((prev: any) => ({ ...prev, image: null }));
+                   }}
+                />
+                {isCustomAction && (
+                  <Link href={news.action.href} className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="bg-white/90 backdrop-blur-md px-6 py-2.5 rounded-full text-[10px] font-black text-slate-900 uppercase tracking-widest shadow-xl flex items-center gap-2">
+                       {news.action.label} <ChevronRight className="w-4 h-4" />
+                    </span>
+                  </Link>
+                )}
+              </div>
            ) : (
               /* High-End Brand Gradient Fallback with minimalist watermark */
-              <div className="w-full h-full bg-gradient-to-tr from-emerald-950 via-emerald-900 to-amber-700 flex flex-col justify-between p-8 relative">
+              <div className="w-full h-64 bg-gradient-to-tr from-emerald-950 via-emerald-900 to-amber-700 flex flex-col justify-between p-10 relative">
                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,255,255,0.08),transparent)]"></div>
                  <div className="flex justify-between items-start relative z-10">
-                    <span className="text-[8px] font-black text-amber-400 border border-amber-400/30 px-2.5 py-1 rounded-full uppercase tracking-widest">
+                    <span className="text-[10px] font-black text-amber-400 border border-amber-400/30 px-3 py-1.5 rounded-full uppercase tracking-widest">
                        Official Announcement
                     </span>
                     <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
                  </div>
                  <div className="relative z-10 text-left">
-                    <p className="text-[10px] font-black tracking-[0.4em] text-white/50 uppercase">Churun Tea House</p>
-                    <p className="text-[13px] font-bold text-amber-100 tracking-wider mt-1">{news.title}</p>
+                    <p className="text-[11px] font-black tracking-[0.4em] text-white/50 uppercase">Churun Tea House</p>
+                    <p className="text-sm font-bold text-amber-100 tracking-wider mt-2">{news.title}</p>
                  </div>
                  {/* Minimalist Watermark LOGO */}
-                 <div className="absolute right-6 bottom-4 text-white/5 font-black text-6xl tracking-tighter select-none">
+                 <div className="absolute right-8 bottom-6 text-white/5 font-black text-7xl tracking-tighter select-none">
                     CR
                  </div>
               </div>
            )}
-        </div>
+           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500 pointer-events-none" />
+        </motion.div>
 
         {/* Article Body Content */}
         <div className="prose prose-slate max-w-none text-left">
@@ -216,34 +237,112 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
            )}
         </div>
 
-        {/* Interactive mock engagement stats to maintain social premium touch */}
-        <div className="flex items-center justify-between py-6 border-y border-slate-100/80 text-left">
-           <div className="flex items-center gap-6">
-              <button 
-                onClick={() => {
-                  setIsLiked(!isLiked);
-                  triggerToast(isLiked ? "💔 已取消按讚" : "💖 感謝您的認同與喜愛！");
-                }} 
-                className="flex items-center gap-2 group"
-              >
-                 <Heart className={`w-5 h-5 transition ${isLiked ? 'fill-rose-500 text-rose-500' : 'text-slate-300 group-hover:text-rose-500'}`} />
-                 <span className="text-[11px] font-bold text-slate-400">1,248</span>
-              </button>
-              <div className="flex items-center gap-2 group">
-                 <MessageCircle className="w-5 h-5 text-slate-300" />
-                 <span className="text-[11px] font-bold text-slate-400">86</span>
+        {/* Interactive engagement stats */}
+        <div className="flex flex-col py-6 border-y border-slate-100/80 space-y-6 text-left">
+           <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                 <button 
+                   onClick={() => {
+                     if (!isLiked) {
+                       setLikeCount(prev => prev + 1);
+                       triggerToast("💖 感謝您的認同與喜愛！");
+                     } else {
+                       setLikeCount(prev => prev - 1);
+                       triggerToast("💔 已取消按讚");
+                     }
+                     setIsLiked(!isLiked);
+                   }} 
+                   className="flex items-center gap-3 p-2 -m-2 group transition-all active:scale-90"
+                 >
+                    <Heart className={`w-5 h-5 transition-all duration-300 ${isLiked ? 'fill-rose-500 text-rose-500 scale-110' : 'text-slate-300 group-hover:text-rose-500'}`} />
+                    <span className={`text-[11px] font-bold ${isLiked ? 'text-rose-500' : 'text-slate-400'}`}>{likeCount.toLocaleString()}</span>
+                 </button>
+                 <button 
+                   onClick={() => setShowCommentInput(!showCommentInput)}
+                   className="flex items-center gap-3 p-2 -m-2 group transition-all active:scale-90"
+                 >
+                    <MessageCircle className={`w-5 h-5 transition-all ${showCommentInput ? 'text-emerald-600 fill-emerald-50' : 'text-slate-300 group-hover:text-emerald-600'}`} />
+                    <span className={`text-[11px] font-bold ${showCommentInput ? 'text-emerald-600' : 'text-slate-400'}`}>{comments.length + 84}</span>
+                 </button>
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="flex -space-x-2">
+                    {[1,2,3].map(i => (
+                       <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden shadow-sm shrink-0">
+                          <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="user" />
+                       </div>
+                    ))}
+                 </div>
+                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">已有 48 位夥伴轉發</span>
               </div>
            </div>
-           <div className="flex items-center gap-3">
-              <div className="flex -space-x-2">
-                 {[1,2,3].map(i => (
-                    <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden shadow-sm shrink-0">
-                       <img src={`https://i.pravatar.cc/100?u=${i}`} alt="user" />
-                    </div>
-                 ))}
-              </div>
-              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">已有 48 位夥伴轉發</span>
-           </div>
+
+           {/* Comment Input & List Area */}
+           <AnimatePresence>
+              {(showCommentInput || comments.length > 0) && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-6 overflow-hidden"
+                >
+                   {/* Input Box */}
+                   <div className="bg-slate-50 rounded-2xl p-4 flex gap-3 border border-slate-100">
+                      <div className="w-8 h-8 rounded-full bg-emerald-900 flex items-center justify-center text-white text-[10px] font-black shrink-0">
+                         ME
+                      </div>
+                      <div className="flex-1 space-y-3">
+                         <textarea 
+                           value={newComment}
+                           onChange={(e) => setNewComment(e.target.value)}
+                           placeholder="也分享您的看法與心得吧..."
+                           rows={2}
+                           className="w-full bg-transparent border-none text-sm font-bold focus:ring-0 resize-none p-0 placeholder:text-slate-300"
+                         />
+                         <div className="flex justify-end">
+                            <button 
+                              onClick={() => {
+                                if (!newComment.trim()) return;
+                                setComments(prev => [{
+                                  id: Date.now(),
+                                  user: "您",
+                                  text: newComment,
+                                  time: "剛剛"
+                                }, ...prev]);
+                                setNewComment("");
+                                triggerToast("🚀 留言成功！");
+                              }}
+                              disabled={!newComment.trim()}
+                              className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition active:scale-95"
+                            >
+                               送出留言
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* Comments List */}
+                   <div className="space-y-4">
+                      {comments.map(comment => (
+                        <div key={comment.id} className="flex gap-3">
+                           <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
+                              <img src={`https://i.pravatar.cc/100?u=${comment.id}`} alt="" />
+                           </div>
+                           <div className="flex-1 space-y-1">
+                              <div className="flex items-center justify-between">
+                                 <span className="text-xs font-black text-slate-800">{comment.user}</span>
+                                 <span className="text-[9px] font-bold text-slate-300">{comment.time}</span>
+                              </div>
+                              <p className="text-xs text-slate-500 font-medium leading-relaxed bg-white/50 p-3 rounded-2xl border border-slate-50">
+                                 {comment.text}
+                              </p>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </motion.div>
+              )}
+           </AnimatePresence>
         </div>
 
         {/* CTA Actions Redirect Panel */}
@@ -272,9 +371,9 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
               /* Clean outlined Back button taking reader back to where they came from */
               <button 
                 onClick={() => router.back()} 
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-5 rounded-2xl font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 transition"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-6 rounded-[2rem] font-black text-xs tracking-[0.3em] flex items-center justify-center gap-3 transition shadow-2xl shadow-slate-900/10 active:scale-98"
               >
-                 <ArrowLeft className="w-4 h-4 text-slate-400" />
+                 <ArrowLeft className="w-5 h-5" />
                  返回上一頁
               </button>
            )}

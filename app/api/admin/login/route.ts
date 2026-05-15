@@ -35,6 +35,28 @@ const fallbackStaffList = [
     password: "admin123",
     status: "active",
     permissions: { coupons: false, posters: false, members: true, evaluation: false, orders: false, settlement: true, products: false, backup: false, withdrawals: true }
+  },
+  {
+    id: "st-004",
+    staff_id: "CR_ST004",
+    name: "洪召安",
+    phone: "0939000444",
+    department: "營運部",
+    title: "營運經理",
+    password: "admin123",
+    status: "active",
+    permissions: { coupons: true, posters: true, members: true, evaluation: true, orders: true, settlement: true, products: true, backup: false, withdrawals: true }
+  },
+  {
+    id: "st-005",
+    staff_id: "CR_ST005",
+    name: "王守芳",
+    phone: "0939000555",
+    department: "營運部",
+    title: "營運專員",
+    password: "admin123",
+    status: "active",
+    permissions: { coupons: true, posters: true, members: true, evaluation: true, orders: true, settlement: true, products: true, backup: false, withdrawals: true }
   }
 ];
 

@@ -106,6 +106,28 @@ VALUES
     "products": false,
     "backup": false,
     "withdrawals": true
+}'),
+('CR_ST004', '洪召安', '0939000444', '營運部', '營運經理', 'admin123', 'active', '2025-04-01', '{
+    "coupons": true,
+    "posters": true,
+    "members": true,
+    "evaluation": true,
+    "orders": true,
+    "settlement": true,
+    "products": true,
+    "backup": false,
+    "withdrawals": true
+}'),
+('CR_ST005', '王守芳', '0939000555', '營運部', '營運專員', 'admin123', 'active', '2025-04-01', '{
+    "coupons": true,
+    "posters": true,
+    "members": true,
+    "evaluation": true,
+    "orders": true,
+    "settlement": true,
+    "products": true,
+    "backup": false,
+    "withdrawals": true
 }')
 ON CONFLICT (staff_id) DO UPDATE SET 
     phone = EXCLUDED.phone,

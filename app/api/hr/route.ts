@@ -73,6 +73,52 @@ let fallbackStaffList: any[] = [
       withdrawals: true
     },
     created_at: new Date().toISOString()
+  },
+  {
+    id: "st-004",
+    staff_id: "CR_ST004",
+    name: "洪召安",
+    phone: "0939000444",
+    department: "營運部",
+    title: "營運經理",
+    status: "active",
+    hire_date: "2025-04-01",
+    password: "admin123",
+    permissions: {
+      coupons: true,
+      posters: true,
+      members: true,
+      evaluation: true,
+      orders: true,
+      settlement: true,
+      products: true,
+      backup: false,
+      withdrawals: true
+    },
+    created_at: new Date().toISOString()
+  },
+  {
+    id: "st-005",
+    staff_id: "CR_ST005",
+    name: "王守芳",
+    phone: "0939000555",
+    department: "營運部",
+    title: "營運專員",
+    status: "active",
+    hire_date: "2025-04-01",
+    password: "admin123",
+    permissions: {
+      coupons: true,
+      posters: true,
+      members: true,
+      evaluation: true,
+      orders: true,
+      settlement: true,
+      products: true,
+      backup: false,
+      withdrawals: true
+    },
+    created_at: new Date().toISOString()
   }
 ];
 
