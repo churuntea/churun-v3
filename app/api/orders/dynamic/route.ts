@@ -65,7 +65,7 @@ async function sendLinePushNotification(toUserId: string, text: string) {
 
 export async function POST(request: Request) {
   try {
-    const { buyer_id, memberId, items, discountAmount = 0, pointsRedeemed = 0, shippingInfo } = await request.json();
+    const { buyer_id, memberId, items, discountAmount = 0, pointsRedeemed = 0, balanceRedeemed = 0, shippingInfo } = await request.json();
     const effectiveBuyerId = buyer_id || memberId;
 
     if (!effectiveBuyerId || !items || !Array.isArray(items) || items.length === 0) {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     }
 
     // 3. 計算扣除折抵後的商品實付淨額
-    const finalAmount = Math.max(0, totalAmount - discountAmount - pointsRedeemed);
+    const finalAmount = Math.max(0, totalAmount - discountAmount - balanceRedeemed - pointsRedeemed);
 
     // B2C 點數回饋改為依據「扣除折抵後的商品實付淨額」計算（運費絕對不計入回饋點數）
     const tierRate = TIER_RATES[buyer.tier] || 100;
@@ -172,7 +172,10 @@ export async function POST(request: Request) {
       reward_points: totalB2CPoints,
       b2b_commission: totalB2BCommission,
       order_number: orderNumber,
-      notes: pointsRedeemed > 0 ? `紅利點數折抵 ${pointsRedeemed} 點 ($${pointsRedeemed} 元)` : ''
+      notes: [
+        balanceRedeemed > 0 ? `儲值金折抵 $${balanceRedeemed} 元` : '',
+        pointsRedeemed > 0 ? `紅利點數折抵 ${pointsRedeemed} 點 ($${pointsRedeemed} 元)` : ''
+      ].filter(Boolean).join('；')
     };
 
     if (shippingInfo) {
@@ -303,6 +306,24 @@ export async function POST(request: Request) {
         });
     }
 
+    // 3.8 扣減儲值金與建立錢包明細
+    if (balanceRedeemed > 0) {
+      await supabase
+        .from('members')
+        .update({ virtual_balance: Math.max(0, (buyer.virtual_balance || 0) - balanceRedeemed) })
+        .eq('id', buyer.id);
+
+      await supabase
+        .from('wallet_transactions')
+        .insert({
+          member_id: buyer.id,
+          amount: -balanceRedeemed,
+          transaction_type: 'payment',
+          status: 'completed',
+          notes: `訂單 ${orderNumber} 付款折抵`
+        });
+    }
+
     let message = `訂單建立成功！待管理員確認匯款後，系統將發放點數。`;
 
     // 4. 處理不同身份的結算邏輯 (此處暫停，移至管理員審核階段)
@@ -350,6 +371,7 @@ export async function POST(request: Request) {
 ● 訂單編號：${orderNumber}
 ● 商品小計：$${totalAmount.toLocaleString()} 元
 ● 優惠折抵：-$${discountAmount.toLocaleString()} 元
+● 儲值金折抵：-$${balanceRedeemed.toLocaleString()} 元
 ● 紅利折抵：-$${pointsRedeemed.toLocaleString()} 點 ($${pointsRedeemed.toLocaleString()} 元)
 ● 運費金額：$${shippingFee.toLocaleString()} 元
 ● 採購總額：$${orderTotalAmount.toLocaleString()} 元
@@ -382,6 +404,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 ● 會員階級：${buyer.tier}
 ● 商品小計：$${totalAmount.toLocaleString()} 元
 ● 優惠折抵：-$${discountAmount.toLocaleString()} 元
+● 儲值金折抵：-$${balanceRedeemed.toLocaleString()} 元
 ● 紅利折抵：-$${pointsRedeemed.toLocaleString()} 點 ($${pointsRedeemed.toLocaleString()} 元)
 ● 採購總額：$${orderTotalAmount.toLocaleString()} 元
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
