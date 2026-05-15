@@ -1160,7 +1160,7 @@ function AdminDashboardContent() {
                            {[
                               { label: "會員總攬與資料匯出", icon: Users, action: "/admin/members" },
                               { label: "全體階級考核", icon: LayoutDashboard, action: "/admin/evaluation" },
-                              { label: "獎金發放結構", icon: TrendingUp, action: "/api/cron/settlement" },
+                              { label: "獎金發放結構", icon: TrendingUp, action: "/admin/bonus-structure" },
                               { label: "訂單與出貨管理", icon: Package, action: "/admin/orders" }
                            ].map((act, i) => (
                               <button 
