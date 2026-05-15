@@ -146,10 +146,7 @@ export async function POST(request: Request) {
         ...insertData,
         created_at: new Date().toISOString()
       };
-      // 排除重複的員工編號
-      if (fallbackStaffList.some(s => s.staff_id === staff_id)) {
-        return NextResponse.json({ success: false, error: '此員工編號已存在 (備援快取)' }, { status: 400 });
-      }
+      // 移除重複的員工編號檢查，讓備援模式可以無障礙新增
       fallbackStaffList.push(localNewItem);
       return NextResponse.json({ success: true, member: localNewItem, fallback: true });
     }
