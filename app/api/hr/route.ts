@@ -137,41 +137,25 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      // 資料表不存在，寫入記憶體
-      if (error.message.includes('relation "public.hr_profiles" does not exist') || error.code === '42P01') {
-        const localNewItem = {
-          id: `st-local-${Date.now()}`,
-          ...insertData,
-          created_at: new Date().toISOString()
-        };
-        // 排除重複的員工編號
-        if (fallbackStaffList.some(s => s.staff_id === staff_id)) {
-          return NextResponse.json({ success: false, error: '此員工編號已存在 (備援快取)' }, { status: 400 });
-        }
-        fallbackStaffList.push(localNewItem);
-        return NextResponse.json({ success: true, member: localNewItem, fallback: true });
+      console.warn("Supabase POST error:", error);
+      // 任何寫入錯誤（包含資料表不存在），皆寫入記憶體備援
+      const localNewItem = {
+        id: `st-local-${Date.now()}`,
+        ...insertData,
+        created_at: new Date().toISOString()
+      };
+      // 排除重複的員工編號
+      if (fallbackStaffList.some(s => s.staff_id === staff_id)) {
+        return NextResponse.json({ success: false, error: '此員工編號已存在 (備援快取)' }, { status: 400 });
       }
-      throw error;
+      fallbackStaffList.push(localNewItem);
+      return NextResponse.json({ success: true, member: localNewItem, fallback: true });
     }
 
     return NextResponse.json({ success: true, member: data, fallback: false });
   } catch (error: any) {
     console.error("API POST hr error:", error.message);
-    // 萬一發生異常，回退到記憶體儲存
-    const fallbackNewItem = {
-      id: `st-local-${Date.now()}`,
-      staff_id: `CR_ST_${Date.now().toString().slice(-3)}`,
-      name: '臨時建檔',
-      phone: '0900000000',
-      department: '未分配',
-      title: '臨時職員',
-      status: 'active',
-      hire_date: new Date().toISOString().split('T')[0],
-      permissions: {},
-      created_at: new Date().toISOString()
-    };
-    fallbackStaffList.push(fallbackNewItem);
-    return NextResponse.json({ success: true, member: fallbackNewItem, fallback: true });
+    return NextResponse.json({ success: false, error: error.message || '發生未知的系統錯誤' }, { status: 500 });
   }
 }
 
@@ -205,19 +189,17 @@ export async function PUT(request: Request) {
       .single();
 
     if (error) {
-      // 資料表不存在，更新記憶體
-      if (error.message.includes('relation "public.hr_profiles" does not exist') || error.code === '42P01' || id.startsWith('st-')) {
-        const index = fallbackStaffList.findIndex(s => s.id === id);
-        if (index !== -1) {
-          fallbackStaffList[index] = {
-            ...fallbackStaffList[index],
-            ...updateData
-          };
-          return NextResponse.json({ success: true, member: fallbackStaffList[index], fallback: true });
-        }
-        return NextResponse.json({ success: false, error: '找不到該人事資料 (備援快取)' }, { status: 404 });
+      console.warn("Supabase PUT error:", error);
+      // 任何更新錯誤，皆嘗試更新記憶體備援
+      const index = fallbackStaffList.findIndex(s => s.id === id);
+      if (index !== -1) {
+        fallbackStaffList[index] = {
+          ...fallbackStaffList[index],
+          ...updateData
+        };
+        return NextResponse.json({ success: true, member: fallbackStaffList[index], fallback: true });
       }
-      throw error;
+      return NextResponse.json({ success: false, error: '更新失敗：找不到該人事資料' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, member: data, fallback: false });
@@ -241,16 +223,14 @@ export async function DELETE(request: Request) {
       .eq('id', id);
 
     if (error) {
-      // 資料表不存在，從記憶體刪除
-      if (error.message.includes('relation "public.hr_profiles" does not exist') || error.code === '42P01' || id.startsWith('st-')) {
-        const index = fallbackStaffList.findIndex(s => s.id === id);
-        if (index !== -1) {
-          fallbackStaffList.splice(index, 1);
-          return NextResponse.json({ success: true, fallback: true });
-        }
-        return NextResponse.json({ success: false, error: '找不到該人事資料 (備援快取)' }, { status: 404 });
+      console.warn("Supabase DELETE error:", error);
+      // 任何刪除錯誤，皆嘗試在記憶體備援中刪除
+      const index = fallbackStaffList.findIndex(s => s.id === id);
+      if (index !== -1) {
+        fallbackStaffList.splice(index, 1);
+        return NextResponse.json({ success: true, fallback: true });
       }
-      throw error;
+      return NextResponse.json({ success: false, error: '刪除失敗：找不到該人事資料' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, fallback: false });
