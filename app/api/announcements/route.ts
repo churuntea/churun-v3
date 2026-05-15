@@ -6,6 +6,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('announcements')
       .select('*')
+      .neq('tag', 'SYSTEM')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
