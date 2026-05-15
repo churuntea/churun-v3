@@ -270,12 +270,8 @@ function ProfileContent() {
                      </div>
                   </div>
 
-                  {/* 底部：等級與提示 */}
-                  <div className="flex justify-between items-end relative z-10">
-                     <div className="space-y-1 text-left">
-                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Membership Tier</p>
-                        <span className="text-2xl font-black tracking-tighter uppercase text-emerald-400">{memberInfo.tier}</span>
-                     </div>
+                  {/* 底部：提示 */}
+                  <div className="flex justify-end items-end relative z-10">
                      <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">TAP TO REVEAL QR</p>
                   </div>
                </div>
