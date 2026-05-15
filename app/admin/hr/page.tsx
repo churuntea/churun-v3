@@ -348,7 +348,7 @@ function AdminHRContent() {
   const fetchStaff = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/hr");
+      const res = await fetch("/api/hr", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setStaff(data.staff || []);

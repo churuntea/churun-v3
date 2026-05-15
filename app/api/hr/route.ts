@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/app/supabase-admin';
 
+export const dynamic = 'force-dynamic';
+
 // 記憶體備援種子資料 (在客戶尚未在 Supabase 執行 SQL 時，自動降級啟用，保證極致健壯不報錯)
 let fallbackStaffList: any[] = [
   {
