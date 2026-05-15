@@ -54,7 +54,7 @@ function AdminProductsContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("全部");
 
-  const creators = ["陳總經理", "王副總", "張主任", "系統管理員"];
+  const [creators, setCreators] = useState<string[]>(["陳總經理", "王副總", "張主任", "系統管理員"]);
   const [categories, setCategories] = useState<string[]>(["極萃系列", "精品茶具", "典藏禮盒"]);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isSavingCategory, setIsSavingCategory] = useState(false);
@@ -67,7 +67,29 @@ function AdminProductsContent() {
     }
     fetchProducts();
     fetchCategories();
+    fetchCreators();
   }, [router]);
+
+  const fetchCreators = async () => {
+    try {
+      const res = await fetch("/api/hr", { cache: "no-store" });
+      const data = await res.json();
+      if (data.success && data.staff) {
+        // 從人事系統抓取所有員工的姓名
+        const names = data.staff.map((s: any) => s.name);
+        if (names.length > 0) {
+          setCreators(names);
+          // 若目前表單選擇的人不在名單內，預設改為第一位
+          setFormData(prev => ({
+            ...prev,
+            creator: names.includes(prev.creator) ? prev.creator : names[0]
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("載入人事資料出錯:", err);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
