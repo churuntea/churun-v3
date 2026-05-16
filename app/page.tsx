@@ -570,6 +570,12 @@ function DashboardContent() {
                                 exit={{ scale: 0.9, y: 20 }}
                                 className="bg-white rounded-[3rem] p-10 w-full max-w-lg shadow-2xl relative z-10 max-h-[80vh] overflow-y-auto no-scrollbar"
                               >
+                                <button 
+                                  onClick={() => setShowTierModal(false)}
+                                  className="absolute top-8 right-8 w-10 h-10 bg-slate-100/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors z-20"
+                                >
+                                   <X className="w-5 h-5" />
+                                </button>
                                 <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
                                    <Zap className="w-6 h-6" />
                                 </div>
@@ -600,13 +606,6 @@ function DashboardContent() {
                                      </div>
                                    ))}
                                 </div>
-
-                                <button 
-                                  onClick={() => setShowTierModal(false)}
-                                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all mt-8 active:scale-95"
-                                >
-                                   關閉視窗
-                                </button>
                               </motion.div>
                             </div>
                           )}
