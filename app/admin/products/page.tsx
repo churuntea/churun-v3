@@ -301,6 +301,11 @@ function AdminProductsContent() {
 
   const handleEditClick = (product: any) => {
     setEditingId(product.id);
+    
+    if (product.category && !categories.includes(product.category)) {
+      setCategories(prev => [...prev, product.category]);
+    }
+
     setFormData({
       name: product.name,
       original_price: product.original_price?.toString() || "",
