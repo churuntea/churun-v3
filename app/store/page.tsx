@@ -23,6 +23,7 @@ import {
   Check,
   Plus,
   Heart,
+  Share2,
   MapPin,
   MessageCircle,
   Package,
@@ -954,6 +955,30 @@ function StoreContent() {
                                 : "text-slate-400 hover:text-rose-400"
                             }`} 
                           />
+                        </motion.button>
+
+                        {/* Share Button */}
+                        <motion.button 
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const shareData = {
+                              title: product.name,
+                              text: `來看看初潤的「${product.name}」吧！`,
+                              url: window.location.href
+                            };
+                            if (navigator.share) {
+                              navigator.share(shareData);
+                            } else {
+                              navigator.clipboard.writeText(window.location.href);
+                              alert('連結已複製到剪貼簿，快分享給朋友吧！');
+                            }
+                          }}
+                          className="absolute top-20 right-6 z-10 w-10 h-10 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-50/50 transition cursor-pointer"
+                        >
+                          <Share2 className="w-4 h-4 text-slate-400 hover:text-emerald-500" />
                         </motion.button>
 
                         <div className="absolute top-6 left-6 flex flex-col gap-2">
