@@ -53,6 +53,7 @@ function InventoryDashboard() {
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [supplier, setSupplier] = useState("");
+  const [origin, setOrigin] = useState("");
   const [notes, setNotes] = useState("");
 
   // 新品專屬欄位
@@ -326,7 +327,7 @@ function InventoryDashboard() {
           unit_cost: Number(unitCost || 0),
           supplier: supplier || "未指定",
           type: logType,
-          notes: notes
+          notes: origin ? `[產地: ${origin}] ${notes}` : notes
         });
       } catch (logErr) {
         console.warn("未能寫入 inventory_logs", logErr);
@@ -347,6 +348,7 @@ function InventoryDashboard() {
       setQuantity("");
       setUnitCost("");
       setSupplier("");
+      setOrigin("");
       setNotes("");
       setNewProductName("");
       setNewProductPrice("");
@@ -1027,16 +1029,33 @@ function InventoryDashboard() {
                   </div>
 
                   {(modalType === "inbound" || modalType === "new_product") && (
-                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">供應商/產地來源</label>
-                        <input 
-                           type="text" 
-                           placeholder="例如：初潤南投茶園總廠" 
-                           value={supplier}
-                           onChange={e => setSupplier(e.target.value)}
-                           className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
-                        />
-                     </div>
+                     <>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">供應商</label>
+                           <input 
+                              type="text" 
+                              list="suppliers-list"
+                              placeholder="請輸入或搜尋廠商..." 
+                              value={supplier}
+                              onChange={e => setSupplier(e.target.value)}
+                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                           />
+                           <datalist id="suppliers-list">
+                              <option value="初潤南投茶園總廠" />
+                              <option value="極萃生技研發中心" />
+                           </datalist>
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">產地來源</label>
+                           <input 
+                              type="text" 
+                              placeholder="例如：南投鹿谷" 
+                              value={origin}
+                              onChange={e => setOrigin(e.target.value)}
+                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                           />
+                        </div>
+                     </>
                   )}
 
                   <div className="space-y-1">
