@@ -955,28 +955,7 @@ function StoreContent() {
                             }`} 
                           />
                         </motion.button>
-                        {/* Comment Button */}
-                        <motion.button 
-                          whileHover={{ scale: 1.15 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOpenProductComments(openProductComments === product.id ? null : product.id);
-                            if (openProductComments !== product.id) {
-                              fetchComments(product.id);
-                            }
-                          }}
-                          className="absolute top-20 right-6 z-10 w-10 h-10 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg border border-slate-50/50 transition cursor-pointer"
-                        >
-                          <MessageCircle 
-                            className={`w-4 h-4 transition-colors ${
-                              openProductComments === product.id 
-                                ? "text-emerald-600 fill-emerald-50" 
-                                : "text-slate-400 hover:text-emerald-600"
-                            }`} 
-                          />
-                        </motion.button>
+
                         <div className="absolute top-6 left-6 flex flex-col gap-2">
                           <div className="bg-emerald-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
                              <span className="text-[8px] font-black tracking-widest text-white uppercase">Premium</span>
@@ -997,6 +976,82 @@ function StoreContent() {
                        </div>
 
                        <div className="pt-6 border-t border-slate-50 space-y-4">
+                           {/* Comment Section Trigger */}
+                           <button 
+                             onClick={() => {
+                               setOpenProductComments(openProductComments === product.id ? null : product.id);
+                               if (openProductComments !== product.id) {
+                                 fetchComments(product.id);
+                               }
+                             }}
+                             className="w-full flex items-center justify-between text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-800 transition py-2 border-b border-slate-50"
+                           >
+                             <span className="flex items-center gap-2">💬 會員心得與留言</span>
+                             {openProductComments === product.id ? <Minus className="w-4 h-4 text-slate-400" /> : <Plus className="w-4 h-4 text-slate-400" />}
+                           </button>
+
+                           {/* Collapsible Comment Section */}
+                           <AnimatePresence>
+                              {openProductComments === product.id && (
+                                <motion.div 
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="space-y-6 overflow-hidden pt-2"
+                                >
+                                   {/* Input Box */}
+                                   <div className="bg-slate-50 rounded-2xl p-4 flex gap-3 border border-slate-100">
+                                      <div className="w-8 h-8 rounded-full bg-emerald-900 flex items-center justify-center text-white text-[10px] font-black shrink-0">
+                                         ME
+                                      </div>
+                                      <div className="flex-1 space-y-3">
+                                         <textarea 
+                                           value={newCommentInput[product.id] || ""}
+                                           onChange={(e) => setNewCommentInput(prev => ({ ...prev, [product.id]: e.target.value }))}
+                                           placeholder="也分享您的看法與心得吧..."
+                                           rows={2}
+                                           className="w-full bg-transparent border-none text-sm font-bold focus:ring-0 resize-none p-0 placeholder:text-slate-300"
+                                         />
+                                         <div className="flex justify-end">
+                                            <button 
+                                              onClick={() => submitComment(product.id)}
+                                              disabled={!(newCommentInput[product.id] || "").trim()}
+                                              className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition active:scale-95"
+                                            >
+                                               送出留言
+                                            </button>
+                                         </div>
+                                      </div>
+                                   </div>
+
+                                   {/* Comments List */}
+                                   <div className="space-y-4 max-h-48 overflow-y-auto no-scrollbar">
+                                      {(productComments[product.id] || []).map(comment => (
+                                        <div key={comment.id} className="flex gap-3">
+                                           <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
+                                              <img src={`https://i.pravatar.cc/100?u=${comment.id}`} alt="" />
+                                           </div>
+                                           <div className="flex-1 space-y-1">
+                                              <div className="flex items-center justify-between">
+                                                 <span className="text-xs font-black text-slate-800">{comment.members?.name || "匿名"}</span>
+                                                 <span className="text-[9px] font-bold text-slate-300">
+                                                    {new Date(comment.created_at).toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                 </span>
+                                              </div>
+                                              <p className="text-xs text-slate-500 font-medium leading-relaxed bg-white/50 p-3 rounded-2xl border border-slate-50">
+                                                 {comment.content}
+                                              </p>
+                                           </div>
+                                        </div>
+                                      ))}
+                                      {(productComments[product.id] || []).length === 0 && (
+                                         <p className="text-xs text-slate-400 text-center py-4">暫無留言，快來搶沙發吧！</p>
+                                      )}
+                                   </div>
+                                </motion.div>
+                              )}
+                           </AnimatePresence>
+
                            <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">數量</span>
                               <div className="flex items-center gap-4">
@@ -1027,67 +1082,7 @@ function StoreContent() {
                               加入購物車 <Plus className="w-3 h-3" />
                            </button>
 
-                           {/* Collapsible Comment Section */}
-                           <AnimatePresence>
-                              {openProductComments === product.id && (
-                                <motion.div 
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: "auto" }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="space-y-6 overflow-hidden pt-4"
-                                >
-                                   {/* Input Box */}
-                                   <div className="bg-slate-50 rounded-2xl p-4 flex gap-3 border border-slate-100">
-                                      <div className="w-8 h-8 rounded-full bg-emerald-900 flex items-center justify-center text-white text-[10px] font-black shrink-0">
-                                         ME
-                                      </div>
-                                      <div className="flex-1 space-y-3">
-                                         <textarea 
-                                           value={newCommentInput[product.id] || ""}
-                                           onChange={(e) => setNewCommentInput(prev => ({ ...prev, [product.id]: e.target.value }))}
-                                           placeholder="也分享您的看法與心得吧..."
-                                           rows={2}
-                                           className="w-full bg-transparent border-none text-sm font-bold focus:ring-0 resize-none p-0 placeholder:text-slate-300"
-                                         />
-                                         <div className="flex justify-end">
-                                            <button 
-                                              onClick={() => submitComment(product.id)}
-                                              disabled={!(newCommentInput[product.id] || "").trim()}
-                                              className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition active:scale-95"
-                                            >
-                                               送出留言
-                                            </button>
-                                         </div>
-                                      </div>
-                                   </div>
 
-                                   {/* Comments List */}
-                                   <div className="space-y-4">
-                                      {(productComments[product.id] || []).map(comment => (
-                                        <div key={comment.id} className="flex gap-3">
-                                           <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                                              <img src={`https://i.pravatar.cc/100?u=${comment.id}`} alt="" />
-                                           </div>
-                                           <div className="flex-1 space-y-1">
-                                              <div className="flex items-center justify-between">
-                                                 <span className="text-xs font-black text-slate-800">{comment.members?.name || "匿名"}</span>
-                                                 <span className="text-[9px] font-bold text-slate-300">
-                                                    {new Date(comment.created_at).toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                 </span>
-                                              </div>
-                                              <p className="text-xs text-slate-500 font-medium leading-relaxed bg-white/50 p-3 rounded-2xl border border-slate-50">
-                                                 {comment.content}
-                                              </p>
-                                           </div>
-                                        </div>
-                                      ))}
-                                      {(productComments[product.id] || []).length === 0 && (
-                                         <p className="text-xs text-slate-400 text-center py-4">暫無留言，快來搶沙發吧！</p>
-                                      )}
-                                   </div>
-                                </motion.div>
-                              )}
-                           </AnimatePresence>
                        </div>
                     </div>
                  </div>
