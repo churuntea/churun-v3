@@ -620,6 +620,33 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
+                   {/* 新品上線：進階分潤設定 */}
+                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 space-y-6">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進階分潤設定 (新品上線)</h4>
+                      
+                      <div className="grid grid-cols-2 gap-8">
+                         {/* 品牌大使 */}
+                         <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100/30 space-y-3">
+                            <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">品牌大使：個人消費回饋 %</label>
+                            <input type="number" name="ambassador_personal_reward" value={formData.ambassador_personal_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
+                         </div>
+                         <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100/30 space-y-3">
+                            <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">品牌大使：直推會員回饋 %</label>
+                            <input type="number" name="ambassador_direct_reward" value={formData.ambassador_direct_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
+                         </div>
+                         
+                         {/* 合夥人 */}
+                         <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 space-y-3">
+                            <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">合夥人：個人消費回饋 %</label>
+                            <input type="number" name="partner_personal_reward" value={formData.partner_personal_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-indigo-800 shadow-sm" />
+                         </div>
+                         <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 space-y-3">
+                            <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">合夥人：會員直推回饋 %</label>
+                            <input type="number" name="partner_direct_reward" value={formData.partner_direct_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-indigo-800 shadow-sm" />
+                         </div>
+                      </div>
+                   </div>
+
                    <button 
                      type="submit" 
                      disabled={isSubmitting} 
