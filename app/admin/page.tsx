@@ -108,7 +108,9 @@ function AdminDashboardContent() {
   };
 
   // 新增：大師級備份與還原擴充狀態
-  const [backupTab, setBackupTab] = useState<"stats" | "full" | "restore" | "audit">("stats");
+  const [backupTab, setBackupTab] = useState<"stats" | "full" | "restore" | "audit" | "features">("stats");
+  const [systemFeatures, setSystemFeatures] = useState<Record<string, Record<string, boolean>>>({});
+  const [isSavingFeatures, setIsSavingFeatures] = useState(false);
   const [isFullBackingUp, setIsFullBackingUp] = useState(false);
   const [fullBackupData, setFullBackupData] = useState<any>(null);
   const [restoreFile, setRestoreFile] = useState<any>(null);
@@ -138,9 +140,24 @@ function AdminDashboardContent() {
     setIsAuditing(false);
   };
 
+  const fetchSystemFeatures = async () => {
+    try {
+      const res = await fetch("/api/admin/features");
+      const result = await res.json();
+      if (result.success) {
+        setSystemFeatures(result.features);
+      }
+    } catch (err) {
+      console.error("Failed to fetch system features:", err);
+    }
+  };
+
   useEffect(() => {
     if (backupTab === "audit" && showBackupModal) {
       fetchAuditLogs();
+    }
+    if (backupTab === "features" && showBackupModal) {
+      fetchSystemFeatures();
     }
   }, [backupTab, showBackupModal]);
 
@@ -2101,7 +2118,8 @@ function AdminDashboardContent() {
                     { id: "stats", label: "營業統計備份", sub: "Legacy Analytics" },
                     { id: "full", label: "一鍵全庫備份", sub: "Full Backup" },
                     { id: "restore", label: "一鍵數據還原", sub: "Data Restore" },
-                    { id: "audit", label: "安全審計日誌", sub: "Security Audit" }
+                    { id: "audit", label: "安全審計日誌", sub: "Security Audit" },
+                    { id: "features", label: "功能總覽", sub: "Feature Toggle" }
                   ].map(tab => (
                      <button
                        key={tab.id}
@@ -2360,6 +2378,72 @@ function AdminDashboardContent() {
                           </button>
                        </div>
                     )}
+                 </div>
+               )}
+
+               {/* TAB 5: 功能總覽 */}
+               {backupTab === "features" && (
+                 <div className="flex-1 flex flex-col gap-5 overflow-hidden">
+                    <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl shrink-0">
+                       <p className="text-xs font-bold text-slate-600 leading-relaxed">
+                          💡 <span className="font-black text-slate-800">功能總覽與開關</span> 讓您可以自主決定是否開啟特定功能讓會員使用。關閉後，會員端將無法看見或使用該功能。
+                       </p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 no-scrollbar max-h-[300px]">
+                       {Object.entries(systemFeatures).map(([category, items]: any) => (
+                          <div key={category} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
+                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-50 pb-2">{category}</h4>
+                             <div className="space-y-2">
+                                {Object.entries(items).map(([item, enabled]: any) => (
+                                   <div key={item} className="flex justify-between items-center py-1">
+                                      <span className="text-xs font-bold text-slate-700">{item}</span>
+                                      <button
+                                        onClick={() => {
+                                           setSystemFeatures(prev => ({
+                                              ...prev,
+                                              [category]: {
+                                                 ...prev[category],
+                                                 [item]: !enabled
+                                              }
+                                           }));
+                                        }}
+                                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                      >
+                                         <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${enabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                                      </button>
+                                   </div>
+                                ))}
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                         setIsSavingFeatures(true);
+                         try {
+                            const res = await fetch("/api/admin/features", {
+                               method: "POST",
+                               headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify({ features: systemFeatures })
+                            });
+                            const result = await res.json();
+                            if (result.success) {
+                               alert("🎉 功能設定儲存成功！");
+                            } else {
+                               alert("儲存失敗: " + result.error);
+                            }
+                         } catch (err: any) {
+                            alert("系統錯誤: " + err.message);
+                         }
+                         setIsSavingFeatures(false);
+                      }}
+                      disabled={isSavingFeatures}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 active:scale-95 shrink-0"
+                    >
+                       {isSavingFeatures ? <Loader2 className="w-4 h-4 animate-spin" /> : "💾 儲存功能設定"}
+                    </button>
                  </div>
                )}
             </motion.div>
