@@ -98,6 +98,7 @@ function DashboardContent() {
   const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
   const [showShareHub, setShowShareHub] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLineLink, setCopiedLineLink] = useState(false);
@@ -492,64 +493,125 @@ function DashboardContent() {
                    }
 
                    return (
-                     <Link href="/rewards" className="mt-10 block group/prog cursor-pointer relative z-10 space-y-4">
-                        {/* Upper Info Row */}
-                        <div className="flex justify-between items-end">
-                           <div className="space-y-1">
-                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">晉級挑戰</span>
-                              <h4 className="text-xs font-black text-white group-hover/prog:text-amber-300 transition-colors flex items-center gap-1">
-                                 {nextTier ? `LEVEL UP TO ${nextTier.name}` : '已達成滿級神話！'}
-                                 <ChevronRight className="w-3.5 h-3.5 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
-                              </h4>
+                      <>
+                        <div onClick={() => setShowTierModal(true)} className="mt-10 block group/prog cursor-pointer relative z-10 space-y-4">
+                           {/* Upper Info Row */}
+                           <div className="flex justify-between items-end">
+                              <div className="space-y-1">
+                                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">晉級挑戰</span>
+                                 <h4 className="text-xs font-black text-white group-hover/prog:text-amber-300 transition-colors flex items-center gap-1">
+                                    {nextTier ? `LEVEL UP TO ${nextTier.name}` : '已達成滿級神話！'}
+                                    <ChevronRight className="w-3.5 h-3.5 text-white/40 group-hover/prog:translate-x-1 transition-transform" />
+                                 </h4>
+                              </div>
+                              <div className="text-right">
+                                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">EXP PROGRESS</span>
+                                 <p className="text-xs font-black text-amber-300 tracking-tighter">
+                                    {nextTier 
+                                      ? `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} / $${nextTier.upgradeAmount.toLocaleString()}`
+                                      : `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} (LOCKED)`
+                                    }
+                                 </p>
+                              </div>
                            </div>
-                           <div className="text-right">
-                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">EXP PROGRESS</span>
-                              <p className="text-xs font-black text-amber-300 tracking-tighter">
-                                 {nextTier 
-                                   ? `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} / $${nextTier.upgradeAmount.toLocaleString()}`
-                                   : `$${Number(memberInfo?.lifetime_spend || 0).toLocaleString()} (LOCKED)`
-                                 }
-                              </p>
-                           </div>
-                        </div>
 
-                        {/* Gamified RPG Progress Bar */}
-                        <div className="relative">
-                           <div className="h-4 w-full bg-slate-950/60 rounded-full overflow-hidden border border-white/5 p-[2px] flex items-center relative shadow-inner">
-                              <motion.div 
-                                initial={{ width: 0 }} 
-                                animate={{ width: `${displayPercent}%` }} 
-                                transition={{ duration: 1.5, ease: "circOut" }} 
-                                className="h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 rounded-full relative shadow-lg"
-                              >
-                                 {/* Glowing Lead Light */}
-                                 <div className="absolute right-0 top-0 bottom-0 w-3 bg-white blur-[2px] rounded-full animate-pulse"></div>
-                              </motion.div>
+                           {/* Gamified RPG Progress Bar */}
+                           <div className="relative">
+                              <div className="h-4 w-full bg-slate-950/60 rounded-full overflow-hidden border border-white/5 p-[2px] flex items-center relative shadow-inner">
+                                 <motion.div 
+                                   initial={{ width: 0 }} 
+                                   animate={{ width: `${displayPercent}%` }} 
+                                   transition={{ duration: 1.5, ease: "circOut" }} 
+                                   className="h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 rounded-full relative shadow-lg"
+                                 >
+                                    {/* Glowing Lead Light */}
+                                    <div className="absolute right-0 top-0 bottom-0 w-3 bg-white blur-[2px] rounded-full animate-pulse"></div>
+                                 </motion.div>
+                              </div>
+                              
+                              {/* Left/Right Tier Markers */}
+                              <div className="flex justify-between items-center mt-2 px-1">
+                                 <span className="text-[9px] font-black text-white/50 tracking-widest">{currentTierName}</span>
+                                 {nextTier && (
+                                   <span className="text-[9px] font-black text-amber-400/90 tracking-widest flex items-center gap-1 animate-pulse">
+                                      👑 {nextTier.name}
+                                   </span>
+                                 )}
+                              </div>
                            </div>
-                           
-                           {/* Left/Right Tier Markers */}
-                           <div className="flex justify-between items-center mt-2 px-1">
-                              <span className="text-[9px] font-black text-white/50 tracking-widest">{currentTierName}</span>
-                              {nextTier && (
-                                <span className="text-[9px] font-black text-amber-400/90 tracking-widest flex items-center gap-1 animate-pulse">
-                                   👑 {nextTier.name}
-                                </span>
-                              )}
-                           </div>
-                        </div>
 
-                        {/* Motivation Text Banner */}
-                        {nextTier && remainingAmount > 0 && (
-                          <div className="bg-white/5 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/5 flex items-center gap-3.5 mt-2 shadow-inner">
-                             <div className="w-7 h-7 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 shrink-0">
-                                <span className="text-amber-400 font-black text-[10px] animate-bounce">🔥</span>
+                           {/* Motivation Text Banner */}
+                           {nextTier && remainingAmount > 0 && (
+                             <div className="bg-white/5 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/5 flex items-center gap-3.5 mt-2 shadow-inner">
+                                <div className="w-7 h-7 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 shrink-0">
+                                   <span className="text-amber-400 font-black text-[10px] animate-bounce">🔥</span>
+                                </div>
+                                <p className="text-[10px] font-bold text-white/85 leading-relaxed">
+                                   還差 <span className="text-amber-300 font-black">{remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">{nextTier.rate}元 = 1點</span>
+                                </p>
                              </div>
-                             <p className="text-[10px] font-bold text-white/85 leading-relaxed">
-                                還差 <span className="text-amber-300 font-black">{remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">{nextTier.rate}元 = 1點</span>
-                             </p>
-                          </div>
-                        )}
-                     </Link>
+                           )}
+                        </div>
+
+                        {/* Modal */}
+                        <AnimatePresence>
+                          {showTierModal && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowTierModal(false)}
+                                className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+                              />
+                              <motion.div 
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0.9, y: 20 }}
+                                className="bg-white rounded-[3rem] p-10 w-full max-w-lg shadow-2xl relative z-10 max-h-[80vh] overflow-y-auto no-scrollbar"
+                              >
+                                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                   <Zap className="w-6 h-6" />
+                                </div>
+                                
+                                <h3 className="text-xl font-black text-slate-900 text-center mb-6">職級榮耀殿堂權利與義務</h3>
+                                
+                                <div className="space-y-6">
+                                   {[
+                                     { name: '初潤靈魂伴侶', rate: '30元 = 1點', upgrade: '累積消費滿 $50,000', maintenance: '每月消費 $1,000 或 直推 3 人', penalty: '未達標降級至 初潤知己' },
+                                     { name: '初潤知己', rate: '40元 = 1點', upgrade: '累積消費滿 $25,000', maintenance: '每月消費 $600 或 直推 2 人', penalty: '未達標降級至 初潤閨蜜' },
+                                     { name: '初潤閨蜜', rate: '50元 = 1點', upgrade: '累積滿 $12,000 (或儲值 1 萬直升)', maintenance: '每季消費 $1,200 或 直推 2 人', penalty: '未達標降級至 初潤好朋友' },
+                                     { name: '初潤好朋友', rate: '60元 = 1點', upgrade: '累積消費滿 $6,000', maintenance: '每季消費 $600 或 直推 1 人', penalty: '未達標降級至 初潤青少年' },
+                                     { name: '初潤青少年', rate: '70元 = 1點', upgrade: '累積消費滿 $3,000', maintenance: '無保級壓力' },
+                                     { name: '初潤小朋友', rate: '80元 = 1點', upgrade: '累積消費滿 $1,500', maintenance: '無保級壓力' },
+                                     { name: '初潤幼兒園', rate: '90元 = 1點', upgrade: '完成首次消費', maintenance: '無保點壓力' },
+                                     { name: '初潤寶寶', rate: '100元 = 1點', upgrade: '加入 LINE@ 註冊', maintenance: '無保點壓力' }
+                                   ].map((t, idx) => (
+                                     <div key={idx} className={`p-4 rounded-2xl border ${currentTierName === t.name ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                                        <div className="flex justify-between items-center mb-2">
+                                           <span className="text-sm font-black text-slate-800">{t.name}</span>
+                                           <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{t.rate}</span>
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 space-y-0.5">
+                                           <p><span className="font-bold text-slate-700">晉升條件：</span>{t.upgrade}</p>
+                                           <p><span className="font-bold text-slate-700">保級標準：</span>{t.maintenance}</p>
+                                           {t.penalty && <p className="text-rose-500"><span className="font-bold">降級規則：</span>{t.penalty}</p>}
+                                        </div>
+                                     </div>
+                                   ))}
+                                </div>
+
+                                <button 
+                                  onClick={() => setShowTierModal(false)}
+                                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all mt-8 active:scale-95"
+                                >
+                                   關閉視窗
+                                </button>
+                              </motion.div>
+                            </div>
+                          )}
+                        </AnimatePresence>
+                      </>
                    );
                 })()}
               </div>
