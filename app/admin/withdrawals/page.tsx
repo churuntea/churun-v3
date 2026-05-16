@@ -23,7 +23,8 @@ import {
   Search,
   Activity,
   Copy,
-  Check
+  Check,
+  TrendingUp
 } from "lucide-react";
 
 import { exportToCsv } from "@/utils/exportCsv";

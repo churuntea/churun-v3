@@ -105,7 +105,7 @@ export default function BonusStructurePage() {
     }
   };
 
-  const currentTier = rules.find(t => t.name === selectedTier || t.tier_name === selectedTier);
+  const currentTier = rules.find(t => t.tier_name === selectedTier);
 
   if (loading) {
     return (

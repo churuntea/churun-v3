@@ -57,6 +57,9 @@ export async function POST(request: Request) {
       const buyer = order.members;
       const totalAmount = order.total_amount;
       
+      // Fetch dynamic rules always as they are needed for TIERS and potentially TIER_RATES
+      const { data: dbRules } = await supabase.from('bonus_rules').select('tier_name, reward_rate, min_spend');
+
       // 如果訂單內沒存到點數資訊，動態計算
       let rewardPoints = order.reward_points || 0;
       let b2bCommission = order.b2b_commission || 0;
@@ -72,8 +75,6 @@ export async function POST(request: Request) {
         }
         b2bCommission = calculatedCommission;
 
-        // Fetch dynamic rates from database
-        const { data: dbRules } = await supabase.from('bonus_rules').select('tier_name, reward_rate');
         const TIER_RATES: Record<string, number> = (dbRules || []).reduce((acc: any, curr: any) => {
           acc[curr.tier_name] = curr.reward_rate;
           return acc;
