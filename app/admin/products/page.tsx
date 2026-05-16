@@ -55,7 +55,7 @@ function AdminProductsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalProduct, setOriginalProduct] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("add");
+  const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("全部");
 
@@ -474,19 +474,19 @@ function AdminProductsContent() {
         <div className="flex p-2 bg-slate-100 rounded-[2.5rem] shadow-inner relative z-10">
            <button 
              type="button"
+             onClick={() => setActiveTab("list")}
+             className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] transition-all duration-500 font-black text-[10px] uppercase tracking-widest cursor-pointer ${activeTab === 'list' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+              <FileText className={`w-5 h-5 ${activeTab === 'list' ? 'text-emerald-500' : 'text-slate-300'}`} />
+              已上架品項 ({products.length})
+           </button>
+           <button 
+             type="button"
              onClick={() => setActiveTab("add")}
              className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] transition-all duration-500 font-black text-[10px] uppercase tracking-widest cursor-pointer ${activeTab === 'add' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
            >
               <PackagePlus className={`w-5 h-5 ${activeTab === 'add' ? 'text-indigo-500' : 'text-slate-300'}`} />
               {editingId ? "編輯商品資料" : "新增上架商品"}
-           </button>
-           <button 
-             type="button"
-             onClick={() => setActiveTab("list")}
-             className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] transition-all duration-500 font-black text-[10px] uppercase tracking-widest cursor-pointer ${activeTab === 'list' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
-           >
-              <FileText className={`w-5 h-5 ${activeTab === 'list' ? 'text-emerald-500' : 'text-slate-300'}`} />
-              已上架庫存 ({products.length})
            </button>
            <button 
              type="button"
