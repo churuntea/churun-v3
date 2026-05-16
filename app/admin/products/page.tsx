@@ -54,6 +54,7 @@ function AdminProductsContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalProduct, setOriginalProduct] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("add");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("全部");
@@ -301,6 +302,7 @@ function AdminProductsContent() {
 
   const handleEditClick = (product: any) => {
     setEditingId(product.id);
+    setOriginalProduct(product);
     
     if (product.category && !categories.includes(product.category)) {
       setCategories(prev => [...prev, product.category]);
@@ -346,6 +348,40 @@ function AdminProductsContent() {
       sku: "",
       description: ""
     });
+  };
+
+  const getChangedFields = () => {
+    if (!originalProduct) return [];
+    const changes: { label: string; old: string; new: string }[] = [];
+    const fields = [
+      { key: "name", label: "商品名稱" },
+      { key: "sku", label: "商品貨號" },
+      { key: "category", label: "商品分類" },
+      { key: "price", label: "結帳售價" },
+      { key: "original_price", label: "官方定價" },
+      { key: "stock_count", label: "庫存量" },
+      { key: "description", label: "商品描述" },
+      { key: "b2c_reward_percent", label: "B2C 會員積分 %" },
+      { key: "b2b_commission_percent", label: "B2B 分潤比例 %" },
+      { key: "ambassador_personal_reward", label: "品牌大使個人回饋 %" },
+      { key: "ambassador_direct_reward", label: "品牌大使直推回饋 %" },
+      { key: "partner_personal_reward", label: "合夥人個人回饋 %" },
+      { key: "partner_direct_reward", label: "合夥人會員直推回饋 %" }
+    ];
+
+    fields.forEach(f => {
+      const newVal = (formData as any)[f.key] || "";
+      const oldVal = originalProduct[f.key]?.toString() || "";
+      if (newVal !== oldVal) {
+        changes.push({
+          label: f.label,
+          old: oldVal || "無",
+          new: newVal || "無"
+        });
+      }
+    });
+
+    return changes;
   };
 
   const handleConfirmSubmit = async () => {
@@ -945,9 +981,28 @@ function AdminProductsContent() {
                  <CheckCircle2 className="w-12 h-12" />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-4">{editingId ? "確認修改內容？" : "確認上架商品？"}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-10 px-4">
-                 請確認商品資訊正確無誤，確認後將立即更新至前台商城。
-              </p>
+              {editingId && originalProduct ? (
+                 <div className="text-left text-xs text-slate-600 space-y-2 mb-8 bg-slate-50 p-4 rounded-2xl max-h-[150px] overflow-y-auto">
+                    <p className="font-black text-slate-400 uppercase tracking-widest mb-2 text-[10px]">本次修改內容：</p>
+                    {getChangedFields().map((c, i) => (
+                       <div key={i} className="border-b border-slate-100 pb-1 flex justify-between gap-2">
+                          <span className="font-bold text-slate-700 shrink-0">{c.label}:</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                             <span className="text-rose-500 truncate max-w-[80px]" title={c.old}>{c.old}</span>
+                             <span className="text-slate-400">➜</span>
+                             <span className="text-emerald-500 truncate max-w-[80px]" title={c.new}>{c.new}</span>
+                          </div>
+                       </div>
+                    ))}
+                    {getChangedFields().length === 0 && (
+                       <p className="text-slate-400 italic">無任何欄位變更</p>
+                    )}
+                 </div>
+              ) : (
+                 <p className="text-xs text-slate-400 leading-relaxed mb-10 px-4">
+                    請確認商品資訊正確無誤，確認後將立即更新至前台商城。
+                 </p>
+              )}
               
               <div className="grid grid-cols-2 gap-4">
                 <button type="button" onClick={() => setShowConfirm(false)} className="py-6 bg-slate-50 text-slate-400 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition active:scale-95">
