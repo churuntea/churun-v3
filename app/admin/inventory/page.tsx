@@ -54,6 +54,7 @@ function InventoryDashboard() {
   const [unitCost, setUnitCost] = useState("");
   const [supplier, setSupplier] = useState("");
   const [origin, setOrigin] = useState("");
+  const [suppliersList, setSuppliersList] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
 
   // 新品專屬欄位
@@ -196,6 +197,14 @@ function InventoryDashboard() {
       const { data: prods } = await supabase.from("products").select("*").order("created_at", { ascending: false });
       const safeProds = prods || [];
       setProducts(safeProds);
+
+      // 1.5 獲取供應商列表
+      try {
+        const { data: sups } = await supabase.from("suppliers").select("name");
+        setSuppliersList(sups || []);
+      } catch (e) {
+        console.warn("Fetch suppliers error:", e);
+      }
 
       // 2. 獲取真實進貨與盤點紀錄 (inventory_logs)
       let inboundQuery = supabase.from("inventory_logs").select("*").order("created_at", { ascending: false });
@@ -1041,8 +1050,9 @@ function InventoryDashboard() {
                               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
                            />
                            <datalist id="suppliers-list">
-                              <option value="初潤南投茶園總廠" />
-                              <option value="極萃生技研發中心" />
+                              {suppliersList.map((s, idx) => (
+                                 <option key={idx} value={s.name} />
+                              ))}
                            </datalist>
                         </div>
                         <div className="space-y-1">
