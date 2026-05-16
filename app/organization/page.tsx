@@ -180,6 +180,7 @@ function OrganizationContent() {
   };
 
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [selectedLeaderboardTier, setSelectedLeaderboardTier] = useState<string | null>(null);
 
   const getTierCount = (tierName: string) => {
     return downlines.filter(d => d.tier === tierName).length;
@@ -187,6 +188,13 @@ function OrganizationContent() {
 
   const getTierMembers = (tierName: string) => {
     return downlines.filter(d => d.tier === tierName);
+  };
+
+  const getTop10Members = (tierName: string) => {
+    return downlines
+      .filter(d => d.tier === tierName)
+      .sort((a, b) => (Number(b.lifetime_spend) || 0) - (Number(a.lifetime_spend) || 0))
+      .slice(0, 10);
   };
 
   useEffect(() => {
@@ -279,55 +287,70 @@ function OrganizationContent() {
            </div>
         </section>
 
-        {/* Team Leaderboard - NEW */}
+        {/* 職推購買力排行榜 - NEW & ENHANCED */}
         <section className="space-y-6">
            <div className="flex justify-between items-center px-4">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">戰績榮耀榜</h3>
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">職推購買力排行榜</h3>
               <div className="flex items-center gap-1">
                  <Trophy className="w-4 h-4 text-amber-500" />
-                 <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Top Performers</span>
+                 <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Tier Leaders</span>
               </div>
            </div>
            
-           <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
-              {downlines.sort((a, b) => (Number(b.lifetime_spend) || 0) - (Number(a.lifetime_spend) || 0)).slice(0, 3).map((m, i) => (
-                <motion.div 
-                  key={m.id}
-                  whileHover={{ y: -5 }}
-                  className={`min-w-[240px] p-8 rounded-[3rem] relative overflow-hidden shadow-xl ${
-                    i === 0 ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-white' : 
-                    i === 1 ? 'bg-white border border-slate-100 text-slate-800' : 
-                    'bg-emerald-50 text-emerald-900'
-                  }`}
-                >
-                   {i === 0 && <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-amber-400/20 rounded-full blur-2xl"></div>}
-                   <div className="relative z-10 space-y-4">
-                      <div className="flex justify-between items-start">
-                         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs ${
-                           i === 0 ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-400'
-                         }`}>
-                            0{i + 1}
-                         </div>
-                         <Sparkles className={`w-4 h-4 ${i === 0 ? 'text-amber-400' : 'text-slate-200'}`} />
+           <div className="space-y-4">
+              {TIERS.map((tier) => {
+                const tierMembers = downlines
+                  .filter(d => d.tier === tier.name)
+                  .sort((a, b) => (Number(b.lifetime_spend) || 0) - (Number(a.lifetime_spend) || 0));
+                
+                if (tierMembers.length === 0) return null;
+
+                const top3 = tierMembers.slice(0, 3);
+
+                return (
+                  <motion.div 
+                    key={tier.name}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => {
+                      setSelectedLeaderboardTier(tier.name);
+                    }}
+                    className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-slate-50 rounded-full blur-2xl group-hover:bg-amber-50 transition-colors"></div>
+                    
+                    <div className="relative z-10 space-y-6">
+                      <div className="flex justify-between items-center">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tier.name}</p>
+                          <h4 className="text-lg font-black text-slate-800 tracking-tight">
+                            菁英排行榜 <span className="text-xs text-slate-300 ml-2">Total {tierMembers.length}</span>
+                          </h4>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 uppercase tracking-widest group-hover:gap-4 transition-all">
+                          查看 Top 10 <ChevronRight className="w-4 h-4" />
+                        </div>
                       </div>
-                      <div>
-                         <h4 className="font-black text-lg">{m.name}</h4>
-                         <p className={`text-[8px] font-black uppercase tracking-widest ${i === 0 ? 'text-white/40' : 'text-slate-300'}`}>
-                            {m.tier}
-                         </p>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        {top3.map((m, idx) => (
+                          <div key={m.id} className="flex justify-between items-center bg-slate-50/50 rounded-2xl px-5 py-3 group-hover:bg-white transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${
+                                idx === 0 ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-500'
+                              }`}>
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-black text-slate-700">{m.name}</span>
+                            </div>
+                            <span className="text-xs font-black text-slate-900 font-mono">${Number(m.lifetime_spend || 0).toLocaleString()}</span>
+                          </div>
+                        ))}
                       </div>
-                      <div className="pt-4 border-t border-current/10 flex justify-between items-end">
-                         <div className="space-y-1">
-                            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">團隊業績貢獻</p>
-                            <p className="text-xl font-black">${Number(m.lifetime_spend || 0).toLocaleString()}</p>
-                         </div>
-                         <div className={`px-2 py-1 rounded-full text-[8px] font-black uppercase ${i === 0 ? 'bg-white/10 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
-                            +{Math.round(Math.random() * 20)}%
-                         </div>
-                      </div>
-                   </div>
-                </motion.div>
-              ))}
+                    </div>
+                  </motion.div>
+                );
+              })}
            </div>
         </section>
 
@@ -507,6 +530,76 @@ function OrganizationContent() {
                   className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                 >
                    關閉明細
+                </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Leaderboard Top 10 Modal */}
+      <AnimatePresence>
+        {selectedLeaderboardTier && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-2xl flex items-end justify-center"
+            onClick={() => setSelectedLeaderboardTier(null)}
+          >
+             <motion.div 
+               initial={{ y: "100%" }}
+               animate={{ y: 0 }}
+               exit={{ y: "100%" }}
+               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+               className="bg-white w-full max-w-lg rounded-t-[3.5rem] p-10 shadow-2xl relative overflow-hidden"
+               onClick={e => e.stopPropagation()}
+             >
+                <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-10"></div>
+                
+                <div className="flex justify-between items-center mb-8">
+                   <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-slate-900">{selectedLeaderboardTier}</h3>
+                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                         <Trophy className="w-3 h-3" /> 購買力排行榜 TOP 10
+                      </p>
+                   </div>
+                   <button 
+                     onClick={() => setSelectedLeaderboardTier(null)}
+                     className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400"
+                   >
+                      <X className="w-5 h-5" />
+                   </button>
+                </div>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-10 px-1">
+                   {getTop10Members(selectedLeaderboardTier).map((m, idx) => (
+                     <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-100 flex justify-between items-center group hover:bg-slate-50 transition-all">
+                        <div className="flex items-center gap-5">
+                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
+                             idx === 0 ? 'bg-amber-400 text-slate-900' : 
+                             idx === 1 ? 'bg-slate-200 text-slate-600' :
+                             idx === 2 ? 'bg-amber-100 text-amber-800' : 'bg-slate-50 text-slate-400'
+                           }`}>
+                              {idx + 1}
+                           </div>
+                           <div className="space-y-1">
+                              <h4 className="font-black text-slate-800 text-sm">{m.name}</h4>
+                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{m.member_code || 'Elite Member'}</p>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-sm font-black text-slate-900 font-mono">${Number(m.lifetime_spend || 0).toLocaleString()}</p>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">LIFETIME CONTRIBUTION</p>
+                        </div>
+                     </div>
+                   ))}
+                </div>
+
+                <button 
+                  onClick={() => setSelectedLeaderboardTier(null)}
+                  className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
+                >
+                   返回組織中心
                 </button>
              </motion.div>
           </motion.div>

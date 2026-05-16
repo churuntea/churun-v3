@@ -72,10 +72,16 @@ export async function POST(request: Request) {
         }
         b2bCommission = calculatedCommission;
 
-        const TIER_RATES: Record<string, number> = {
+        // Fetch dynamic rates from database
+        const { data: dbRules } = await supabase.from('bonus_rules').select('tier_name, reward_rate');
+        const TIER_RATES: Record<string, number> = (dbRules || []).reduce((acc: any, curr: any) => {
+          acc[curr.tier_name] = curr.reward_rate;
+          return acc;
+        }, {
           '初潤靈魂伴侶': 30, '初潤知己': 40, '初潤閨蜜': 50, '初潤好朋友': 60,
           '初潤青少年': 70, '初潤小朋友': 80, '初潤幼兒園': 90, '初潤寶寶': 100
-        };
+        });
+
         const tierRate = TIER_RATES[buyer.tier] || 100;
         rewardPoints = Math.floor(totalAmount / tierRate);
       }
@@ -84,16 +90,18 @@ export async function POST(request: Request) {
       const newLifetimeSpend = (Number(buyer.lifetime_spend) || 0) + totalAmount;
       const newQuarterlySpend = (Number(buyer.quarterly_spend) || 0) + totalAmount;
 
-      const TIERS = [
-        { name: '初潤靈魂伴侶', upgradeAmount: 50000 },
-        { name: '初潤知己', upgradeAmount: 25000 },
-        { name: '初潤閨蜜', upgradeAmount: 12000 },
-        { name: '初潤好朋友', upgradeAmount: 6000 },
-        { name: '初潤青少年', upgradeAmount: 3000 },
-        { name: '初潤小朋友', upgradeAmount: 1500 },
-        { name: '初潤幼兒園', upgradeAmount: 1 },
-        { name: '初潤寶寶', upgradeAmount: 0 }
-      ];
+      const TIERS = dbRules && dbRules.length > 0 
+        ? dbRules.map(r => ({ name: r.tier_name, upgradeAmount: r.min_spend }))
+        : [
+            { name: '初潤靈魂伴侶', upgradeAmount: 50000 },
+            { name: '初潤知己', upgradeAmount: 25000 },
+            { name: '初潤閨蜜', upgradeAmount: 12000 },
+            { name: '初潤好朋友', upgradeAmount: 6000 },
+            { name: '初潤青少年', upgradeAmount: 3000 },
+            { name: '初潤小朋友', upgradeAmount: 1500 },
+            { name: '初潤幼兒園', upgradeAmount: 1 },
+            { name: '初潤寶寶', upgradeAmount: 0 }
+          ];
 
       let currentTierIdx = TIERS.findIndex(t => t.name === buyer.tier);
       if (currentTierIdx === -1) currentTierIdx = TIERS.length - 1; // Default to baby

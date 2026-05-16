@@ -121,27 +121,21 @@ export default function Rewards() {
   useEffect(() => {
     const fetchTiersPrivileges = async () => {
       try {
-        const res = await fetch("/api/materials");
+        const res = await fetch("/api/admin/bonus-rules");
         const data = await res.json();
-        if (data.success) {
-          const dbConfigs = data.materials.filter((m: any) => m.category === "職級特權設定");
-          if (dbConfigs.length > 0) {
-            const updatedTiers = TIERS.map(staticTier => {
-              const matched = dbConfigs.find((m: any) => m.title === staticTier.name);
-              if (matched) {
-                try {
-                  const privileges = JSON.parse(matched.description);
-                  if (Array.isArray(privileges)) {
-                    return { ...staticTier, privileges };
-                  }
-                } catch (e) {
-                  console.error("Failed to parse privileges for", staticTier.name, e);
-                }
-              }
-              return staticTier;
-            });
-            setTiers(updatedTiers);
-          }
+        if (data.success && Array.isArray(data.data)) {
+          const updatedTiers = TIERS.map(staticTier => {
+            const matched = data.data.find((r: any) => r.tier_name === staticTier.name);
+            if (matched) {
+              return { 
+                ...staticTier, 
+                privileges: matched.privileges || staticTier.privileges,
+                // 如果 DB 有描述也可以動態替換
+              };
+            }
+            return staticTier;
+          });
+          setTiers(updatedTiers);
         }
       } catch (err) {
         console.error("Failed to fetch dynamic tiers config:", err);

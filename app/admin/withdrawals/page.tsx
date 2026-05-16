@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabaseAdmin as supabase } from "@/app/supabase-admin";
+import { supabase } from "@/app/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   CheckCircle2, 
@@ -141,76 +141,21 @@ function AdminWithdrawalsContent() {
       async () => {
         setIsLoading(true);
         try {
-          // 1. 取得現有 metadata
-          const { data: txData } = await supabase
-            .from("wallet_transactions")
-            .select("metadata")
-            .eq("id", id)
-            .single();
-
-          const auditorName = getAuditorName();
-          const updatedMetadata = {
-            ...(txData?.metadata || {}),
-            auditor: auditorName,
-            audited_at: new Date().toISOString()
-          };
-
-          // 2. 更新交易狀態與審核人員資訊
-          const { error: updateError } = await supabase
-            .from("wallet_transactions")
-            .update({ 
+          const res = await fetch('/api/admin/wallet-actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transactionId: id,
               status,
-              metadata: updatedMetadata
+              memberId,
+              amount,
+              auditorName: getAuditorName()
             })
-            .eq("id", id);
-
-          if (updateError) throw updateError;
-
-          // 2. 如果是核准，則異動會員預收款餘額
-          if (status === 'completed') {
-            const { data: member, error: mErr } = await supabase.from("members").select("virtual_balance").eq("id", memberId).single();
-            if (mErr) throw mErr;
-
-            const currentBalance = Number(member?.virtual_balance || 0);
-            
-            // 提領 amount 為負數，儲值 amount 為正數。直接相加即為 100% 正確扣款或加值！
-            const { error: balError } = await supabase.from("members").update({
-              virtual_balance: currentBalance + amount
-            }).eq("id", memberId);
-
-            if (balError) throw balError;
-          }
-
-          // 3. 發送系統通知
-          let notifyTitle = "";
-          let notifyContent = "";
-
-          if (isDeposit) {
-            if (status === 'completed') {
-              notifyTitle = "預收儲值核發成功！ 🎉";
-              notifyContent = `您申請的預收儲值 NT$ ${Number(amount).toLocaleString()} 元已成功核對並到帳，感謝您的進貨與支持！`;
-            } else {
-              notifyTitle = "儲值審核未通過 ❌";
-              notifyContent = `您申請的預收儲值 NT$ ${Number(amount).toLocaleString()} 元因帳款對帳不符已被駁回，請確認匯款金額與帳號末五碼並重新提交。`;
-            }
-          } else {
-            if (status === 'completed') {
-              notifyTitle = "提領審核通過並已發款 💸";
-              notifyContent = `您申請提領的 NT$ ${Math.abs(amount).toLocaleString()} 元已通過審核並成功發放至您的指定銀行帳戶。`;
-            } else {
-              notifyTitle = "提領審核未通過 ❌";
-              notifyContent = `您申請提領的 NT$ ${Math.abs(amount).toLocaleString()} 元因審核資格未符已被駁回，資金已全數退回。`;
-            }
-          }
-
-          await supabase.from('notifications').insert({
-            member_id: memberId,
-            title: notifyTitle,
-            content: notifyContent,
-            type: 'system'
           });
+          const d = await res.json();
+          if (!d.success) throw new Error(d.error);
 
-          triggerToast(`🎉 申請已成功標記為【${actionName}】！`);
+          triggerToast(`${actionName}處理成功！`);
           fetchRequests();
         } catch (err: any) {
           console.error(err);
@@ -224,75 +169,37 @@ function AdminWithdrawalsContent() {
 
   const handleBatchAction = (status: 'completed' | 'failed') => {
     if (selectedIds.length === 0) return;
-    const isDeposit = sectionFilter === 'deposit';
-    const actionName = status === 'completed' ? (isDeposit ? '核准到帳' : '核准提領') : '已駁回';
     
+    const isDeposit = sectionFilter === 'deposit';
+    const actionName = status === 'completed' ? '批次核准' : '批次駁回';
     triggerConfirm(
-      `確定批次標記為 ${actionName}？`,
-      `您即將將選取的 ${selectedIds.length} 筆${isDeposit ? '儲值' : '提領'}申請批次變更為【${actionName}】。此操作將影響多筆資金餘額，請確認核對無誤。`,
+      `確定執行 ${selectedIds.length} 筆${actionName}？`,
+      `此動作將大量異動會員資金，請務必確認已完成帳款對帳。`,
       async () => {
         setIsProcessingBatch(true);
+        setIsLoading(true);
         try {
+          let successCount = 0;
           for (const id of selectedIds) {
             const req = requests.find(r => r.id === id);
             if (!req || req.status !== 'pending') continue;
 
-            const auditorName = getAuditorName();
-            const updatedMetadata = {
-              ...(req.metadata || {}),
-              auditor: auditorName,
-              audited_at: new Date().toISOString()
-            };
-
-            const { error: updateError } = await supabase
-              .from("wallet_transactions")
-              .update({ 
+            const res = await fetch('/api/admin/wallet-actions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                transactionId: id,
                 status,
-                metadata: updatedMetadata
+                memberId: req.member_id,
+                amount: req.amount,
+                auditorName: getAuditorName()
               })
-              .eq("id", id);
-
-            if (updateError) continue;
-
-            if (status === 'completed') {
-              const { data: member } = await supabase.from("members").select("virtual_balance").eq("id", req.member_id).single();
-              const currentBalance = Number(member?.virtual_balance || 0);
-              
-              await supabase.from("members").update({
-                virtual_balance: currentBalance + req.amount
-              }).eq("id", req.member_id);
-            }
-
-            // 發送通知
-            let notifyTitle = "";
-            let notifyContent = "";
-            if (isDeposit) {
-              if (status === 'completed') {
-                notifyTitle = "預收儲值核發成功！ 🎉";
-                notifyContent = `您申請的預收儲值 NT$ ${Number(req.amount).toLocaleString()} 元已成功核對並到帳！`;
-              } else {
-                notifyTitle = "儲值審核未通過 ❌";
-                notifyContent = `您申請的預收儲值 NT$ ${Number(req.amount).toLocaleString()} 元已被駁回。`;
-              }
-            } else {
-              if (status === 'completed') {
-                notifyTitle = "提領審核通過並已發款 💸";
-                notifyContent = `您申請提領的 NT$ ${Math.abs(req.amount).toLocaleString()} 元已通過審核並成功發放！`;
-              } else {
-                notifyTitle = "提領審核未通過 ❌";
-                notifyContent = `您申請提領的 NT$ ${Math.abs(req.amount).toLocaleString()} 元已被駁回。`;
-              }
-            }
-
-            await supabase.from('notifications').insert({
-              member_id: req.member_id,
-              title: notifyTitle,
-              content: notifyContent,
-              type: 'system'
             });
+            const d = await res.json();
+            if (d.success) successCount++;
           }
           
-          triggerToast(`🎉 ${selectedIds.length} 筆申請已成功批次變更為【${actionName}】！`);
+          triggerToast(`🎉 成功處理 ${successCount} 筆申請！`);
           setSelectedIds([]);
           await fetchRequests();
         } catch (err) {
@@ -307,7 +214,6 @@ function AdminWithdrawalsContent() {
 
   const handleExport = () => {
     if (finalFilteredRequests.length === 0) return;
-    
     const isDeposit = sectionFilter === 'deposit';
     const exportData = finalFilteredRequests.map(req => {
       if (isDeposit) {
@@ -317,33 +223,26 @@ function AdminWithdrawalsContent() {
           '會員代碼': req.members?.member_code,
           '儲值金額': req.amount,
           '對帳末五碼': req.metadata?.payment_last_five || '無',
-          '狀態': req.status === 'pending' ? '待對帳' : req.status === 'completed' ? '已入帳' : '已駁回',
+          '狀態': req.status,
           '申請時間': new Date(req.created_at).toLocaleString()
         };
       } else {
         return {
           '申請單號': req.id,
           '會員姓名': req.members?.name,
-          '會員代碼': req.members?.member_code,
           '銀行代碼': req.metadata?.bank?.bankCode || '',
           '銀行帳號': req.metadata?.bank?.account || '',
           '戶名': req.metadata?.bank?.name || '',
           '提領金額': Math.abs(req.amount),
-          '狀態': req.status === 'pending' ? '待處理' : req.status === 'completed' ? '已發款' : '已駁回',
+          '狀態': req.status,
           '申請時間': new Date(req.created_at).toLocaleString()
         };
       }
     });
-
-    const filename = isDeposit 
-      ? `初潤_預收儲值審核報表_${new Date().toISOString().split('T')[0]}.csv`
-      : `初潤_提領申請報表_${new Date().toISOString().split('T')[0]}.csv`;
-
-    exportToCsv(filename, exportData);
+    exportToCsv(`初潤_財務報表_${new Date().toISOString().split('T')[0]}.csv`, exportData);
     triggerToast("🎉 報表匯出成功！");
   };
 
-  // Step 1: Filter by section (withdrawal or deposit)
   const sectionRequests = requests.filter(r => {
     if (sectionFilter === 'withdrawal') {
       return r.transaction_type === 'withdrawal_request' || r.transaction_type === 'withdrawal';
@@ -352,18 +251,15 @@ function AdminWithdrawalsContent() {
     }
   });
 
-  // Step 2: Filter by status tab
   const statusFilteredRequests = sectionRequests.filter(r => filter === 'all' ? true : r.status === filter);
 
-  // Step 3: Filter by search keyword
   const finalFilteredRequests = statusFilteredRequests.filter(r => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     const nameMatch = r.members?.name?.toLowerCase().includes(term);
     const codeMatch = r.members?.member_code?.toLowerCase().includes(term);
-    const phoneMatch = r.members?.phone?.includes(term);
     const fiveMatch = r.metadata?.payment_last_five?.includes(term);
-    return nameMatch || codeMatch || phoneMatch || fiveMatch;
+    return nameMatch || codeMatch || fiveMatch;
   });
 
   const toggleSelection = (id: string) => {
@@ -379,7 +275,6 @@ function AdminWithdrawalsContent() {
     }
   };
 
-  // Change sections and clear selected
   const handleSectionChange = (section: 'withdrawal' | 'deposit') => {
     setSectionFilter(section);
     setSelectedIds([]);
@@ -387,8 +282,6 @@ function AdminWithdrawalsContent() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">
-      
-      {/* Admin Nav */}
       <nav className="bg-slate-900 text-white sticky top-0 z-50 px-8 py-6 flex items-center justify-between border-b border-white/5 shadow-xl">
          <div className="flex items-center gap-6">
             <Link href="/admin" className="p-2 -ml-2 text-white/40 hover:text-white transition">
@@ -399,333 +292,325 @@ function AdminWithdrawalsContent() {
               <p className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">Funds & Withdrawals Operations Hub</p>
             </div>
          </div>
-         <div className="flex gap-2">
-            <button onClick={handleExport} className="flex items-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition text-sm font-bold text-white shadow-sm">
-               <Download className="w-4 h-4 text-white/60" /> 匯出 {sectionFilter === 'deposit' ? '儲值' : '提領'} CSV
+         <div className="flex items-center gap-4">
+            <button onClick={fetchRequests} className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition">
+               <Activity className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
          </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto p-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-8 pt-10 space-y-8">
         
-        {/* Section Segment Picker */}
-        <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-3xl border border-slate-200">
-           <button
-             onClick={() => handleSectionChange('withdrawal')}
-             className={`flex items-center justify-center gap-2.5 py-4 rounded-2xl text-xs font-black tracking-widest transition-all ${sectionFilter === 'withdrawal' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-400 hover:text-slate-700'}`}
-           >
-              <CircleDollarSign className="w-4 h-4" />
-              💸 預付款提領審核
-           </button>
-           <button
-             onClick={() => handleSectionChange('deposit')}
-             className={`flex items-center justify-center gap-2.5 py-4 rounded-2xl text-xs font-black tracking-widest transition-all ${sectionFilter === 'deposit' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-400 hover:text-slate-700'}`}
-           >
-              <CreditCard className="w-4 h-4" />
-              💳 預收款儲值對帳
-           </button>
-        </div>
-
-        {/* Stats Summary */}
+        {/* 指揮中心戰情概況 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           {[
-             { 
-               label: sectionFilter === 'deposit' ? "待審核儲值" : "待處理提領", 
-               val: sectionRequests.filter(r => r.status === 'pending').length, 
-               color: "text-amber-500", 
-               icon: Clock 
-             },
-             { 
-               label: sectionFilter === 'deposit' ? "本月已儲值總額" : "本月已提領總額", 
-               val: `NT$ ${Math.abs(sectionRequests.filter(r => r.status === 'completed').reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString()}`, 
-               color: "text-emerald-500", 
-               icon: CheckCircle2 
-             },
-             { 
-               label: "申請總件數", 
-               val: sectionRequests.length, 
-               color: "text-slate-400", 
-               icon: Filter 
-             }
-           ].map((stat, i) => (
-             <div key={i} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-2">
-                <div className="flex justify-between items-center">
-                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
+          <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-[3.5rem] p-10 text-white border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
+            <div className="relative z-10 flex flex-col sm:flex-row justify-between gap-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 bg-indigo-500/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-indigo-500/20 w-fit">
+                  <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                  <span className="text-[9px] font-black tracking-widest uppercase">總部出納指令層級</span>
                 </div>
-                <h4 className={`text-2xl font-black ${stat.color}`}>{stat.val}</h4>
+                <h2 className="text-4xl font-black tracking-tight">
+                  {sectionFilter === 'withdrawal' ? "提領發款工作站" : "入帳對帳工作站"}
+                </h2>
+                <p className="text-sm text-slate-400 max-w-lg leading-relaxed font-medium">
+                  {sectionFilter === 'withdrawal' 
+                    ? "負責全體夥伴的提領審核與發款作業，確保每一筆出金皆有職級餘額支撐。"
+                    : "負責對應銀行帳戶之入帳對帳作業，通過後系統將自動異動預收帳戶餘額。"
+                  }
+                </p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center items-center gap-1 min-w-[220px]">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">當前待處理總額</span>
+                <div className="text-3xl font-black text-white font-mono">
+                  NT$ {finalFilteredRequests.filter(r => r.status === 'pending').reduce((sum, r) => sum + Math.abs(r.amount), 0).toLocaleString()}
+                </div>
+                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1 mt-1">
+                   {finalFilteredRequests.filter(r => r.status === 'pending').length} 筆案件 Pending
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[3.5rem] p-10 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center group">
+             <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500 shadow-inner">
+               <TrendingUp className="w-8 h-8" />
              </div>
-           ))}
-        </div>
-
-        {/* Controls block */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          {/* Status Tabs */}
-          <div className="flex gap-2 p-1.5 bg-slate-100/50 backdrop-blur-sm rounded-2xl w-fit border border-slate-100">
-             {['pending', 'completed', 'failed', 'all'].map((t) => (
-               <button 
-                 key={t}
-                 onClick={() => setFilter(t)}
-                 className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${filter === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                  {t === 'pending' ? (sectionFilter === 'deposit' ? '待對帳' : '待處理') : t === 'completed' ? '已核准' : t === 'failed' ? '已駁回' : '全部'}
-               </button>
-             ))}
-          </div>
-
-          {/* Search bar */}
-          <div className="relative w-full sm:w-72">
-             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <input
-               type="text"
-               placeholder="搜尋姓名、代碼、末五碼..."
-               value={searchTerm}
-               onChange={e => setSearchTerm(e.target.value)}
-               className="w-full bg-white border border-slate-100 pl-11 pr-4 py-3.5 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 shadow-sm"
-             />
+             <div className="space-y-1">
+               <h3 className="text-sm font-black text-slate-800">全自動流水追蹤</h3>
+               <p className="text-[10px] text-slate-400 font-bold leading-relaxed px-4">所有變動皆自動寫入系統 Ledger 並留存審核人軌跡。</p>
+             </div>
+             <Link href="/admin/finance" className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2 hover:gap-4 transition-all">
+               前往財務稽核中心 <ArrowRight className="w-4 h-4" />
+             </Link>
           </div>
         </div>
 
-        {/* Request List */}
-        <div className="space-y-4">
-          {/* Batch Actions Bar */}
+        {/* 控制列 */}
+        <div className="bg-white p-4 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex bg-slate-50 p-2 rounded-[2rem] border border-slate-100 w-full md:w-auto shadow-inner">
+            <button
+              onClick={() => handleSectionChange('withdrawal')}
+              className={`flex-1 md:flex-none px-12 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all duration-500 ${sectionFilter === 'withdrawal' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-800'}`}
+            >
+              提領發款
+            </button>
+            <button
+              onClick={() => handleSectionChange('deposit')}
+              className={`flex-1 md:flex-none px-12 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all duration-500 ${sectionFilter === 'deposit' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-800'}`}
+            >
+              入帳對帳
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 w-full md:w-auto">
+            <div className="relative group">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-slate-800 transition-colors" />
+              <input
+                type="text"
+                placeholder="搜尋姓名、手機、代碼..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-14 pr-8 py-4 bg-slate-50 border border-slate-100 rounded-full text-[11px] font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 min-w-[300px] shadow-inner"
+              />
+            </div>
+            
+            <button onClick={handleExport} className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+               <Download className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* 狀態切換標籤 */}
+        <div className="flex justify-center">
+          <div className="flex gap-2 p-1.5 bg-white rounded-[2rem] border border-slate-100 shadow-sm">
+            {['pending', 'completed', 'failed', 'all'].map(s => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${filter === s ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {s === 'pending' ? '待處理' : s === 'completed' ? '已完成' : s === 'failed' ? '已駁回' : '全部'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 申請列表 */}
+        <div className="space-y-6">
+          {/* 批次操作 */}
           <AnimatePresence>
-             {selectedIds.length > 0 && filter === 'pending' && (
-               <motion.div 
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0, y: 20 }}
-                 className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-xl shadow-slate-900/20 sticky top-24 z-40 mb-4"
-               >
-                  <div className="flex items-center gap-4 px-4">
-                     <span className="text-sm font-black">已選取 {selectedIds.length} 筆申請</span>
-                     <button onClick={() => setSelectedIds([])} className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest underline animate-pulse">取消選取</button>
-                  </div>
-                  <div className="flex items-center gap-3">
-                     <button 
-                       onClick={() => handleBatchAction('completed')}
-                       disabled={isProcessingBatch}
-                       className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50"
-                     >
-                        {isProcessingBatch && <Loader2 className="w-3 h-3 animate-spin" />}
-                        批次確認到帳
-                     </button>
-                     <button 
-                       onClick={() => handleBatchAction('failed')}
-                       disabled={isProcessingBatch}
-                       className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition disabled:opacity-50 text-rose-400"
-                     >
-                        批次駁回
-                     </button>
-                  </div>
-               </motion.div>
-             )}
+            {selectedIds.length > 0 && filter === 'pending' && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-slate-900 text-white rounded-[2.5rem] p-6 flex items-center justify-between shadow-2xl sticky top-24 z-40"
+              >
+                <div className="flex items-center gap-6 px-6">
+                  <span className="text-sm font-black tracking-tight">已選取 {selectedIds.length} 筆待對帳項目</span>
+                  <button onClick={() => setSelectedIds([])} className="text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest underline underline-offset-4">取消選取</button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => handleBatchAction('completed')}
+                    disabled={isProcessingBatch}
+                    className="px-10 py-4 bg-emerald-500 hover:bg-emerald-400 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.1em] transition flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                  >
+                    {isProcessingBatch && <Loader2 className="w-4 h-4 animate-spin" />}
+                    一鍵批次確認
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
-          {filter === 'pending' && finalFilteredRequests.length > 0 && (
-             <div className="flex items-center gap-3 px-8 py-2">
-                <input 
-                  type="checkbox" 
-                  checked={selectedIds.length > 0 && selectedIds.length === finalFilteredRequests.filter(r => r.status === 'pending').length}
-                  onChange={toggleAll}
-                  className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer" onClick={toggleAll}>全選待對帳申請</span>
-             </div>
-          )}
-
           {isLoading ? (
-             <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <Loader2 className="w-10 h-10 animate-spin text-slate-200" />
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在載入申請數據...</p>
+             <div className="flex flex-col items-center justify-center py-40 gap-4">
+                <Loader2 className="w-12 h-12 animate-spin text-slate-200" />
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">正在極速載入帳務數據...</p>
              </div>
           ) : finalFilteredRequests.length === 0 ? (
-             <div className="text-center py-20 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-4">
-                <Filter className="w-12 h-12 text-slate-200 animate-pulse" />
-                <p className="text-xs font-bold text-slate-300">目前尚無符合的對帳與審核項目</p>
+             <div className="text-center py-32 bg-white rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-6">
+                <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200">
+                  <Filter className="w-10 h-10" />
+                </div>
+                <p className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">目前無符合篩選條件之案件</p>
              </div>
-          ) : finalFilteredRequests.map((req, i) => (
-            <motion.div 
-              key={req.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`bg-white rounded-[2.5rem] p-8 border shadow-sm flex flex-col md:flex-row md:items-center gap-8 group transition ${selectedIds.includes(req.id) ? 'border-slate-800 shadow-slate-900/5' : 'border-slate-100'}`}
-            >
-               {req.status === 'pending' && (
-                 <div className="flex items-center">
-                   <input 
-                     type="checkbox" 
-                     checked={selectedIds.includes(req.id)}
-                     onChange={() => toggleSelection(req.id)}
-                     className="w-6 h-6 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                   />
-                 </div>
-               )}
-               <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">
-                        {req.members?.name.slice(0, 1)}
-                     </div>
-                     <div>
-                        <h4 className="font-black text-slate-800">{req.members?.name}{req.members?.phone && <span className="text-[10px] text-slate-400 font-bold ml-2">({req.members.phone})</span>}</h4>
-                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{req.members?.member_code}</p>
-                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-4 pt-2">
-                     {sectionFilter === 'withdrawal' ? (
-                       <>
-                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                            <Building2 className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}
-                             {req.metadata?.bank?.account && (
-                               <button
-                                 onClick={() => handleCopy(req.metadata.bank.account, `${req.id}-bank-account`)}
-                                 className="ml-1.5 p-0.5 text-slate-300 hover:text-slate-600 transition inline-flex items-center align-middle"
-                                 title="複製銀行帳號"
-                               >
-                                 {copiedField === `${req.id}-bank-account` ? (
-                                    <Check className="w-3 h-3 text-emerald-500" />
-                                 ) : (
-                                    <Copy className="w-3 h-3" />
-                                 )}
-                               </button>
-                             )}</span>
-                         </div>
-                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                            <UserIcon className="w-3 h-3 text-slate-400" />
-                            <span className="text-[10px] font-bold text-slate-500">{req.metadata?.bank?.name}
-                             {req.metadata?.bank?.name && (
-                               <button
-                                 onClick={() => handleCopy(req.metadata.bank.name, `${req.id}-bank-name`)}
-                                 className="ml-1.5 p-0.5 text-slate-300 hover:text-slate-600 transition inline-flex items-center align-middle"
-                                 title="複製戶名"
-                               >
-                                 {copiedField === `${req.id}-bank-name` ? (
-                                    <Check className="w-3 h-3 text-emerald-500" />
-                                 ) : (
-                                    <Copy className="w-3 h-3" />
-                                 )}
-                               </button>
-                             )}</span>
-                         </div>
-                       </>
-                     ) : (
-                       <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100/50">
-                          <Activity className="w-3 h-3 text-emerald-500" />
-                          <span className="text-[10px] font-black">匯款帳號末五碼: <span className="font-mono text-xs">{req.metadata?.payment_last_five || '無'}</span>
-                           {req.metadata?.payment_last_five && (
-                             <button
-                               onClick={() => handleCopy(req.metadata.payment_last_five, `${req.id}-last-five`)}
-                               className="ml-1.5 p-0.5 text-emerald-500 hover:text-emerald-800 transition inline-flex items-center align-middle"
-                               title="複製末五碼"
-                             >
-                               {copiedField === `${req.id}-last-five` ? (
-                                 <Check className="w-3 h-3 text-emerald-600" />
-                               ) : (
-                                 <Copy className="w-3 h-3" />
-                               )}
-                             </button>
-                           )}</span>
-                       </div>
-                     )}
-                  </div>
-               </div>
-
-               <div className="flex flex-col items-end gap-4 min-w-[200px]">
-                  <div className="text-right">
-                     <p className={`text-2xl font-black tracking-tighter ${sectionFilter === 'deposit' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                       {sectionFilter === 'deposit' ? '+' : '-'} NT$ {Math.abs(req.amount).toLocaleString()}
-                     </p>
-                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">申請日期: {new Date(req.created_at).toLocaleDateString()}</p>
-                  </div>
-                  
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filter === 'pending' && (
+                <div className="flex items-center gap-3 px-10 py-2">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length > 0 && selectedIds.length === finalFilteredRequests.filter(r => r.status === 'pending').length}
+                    onChange={toggleAll}
+                    className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                  />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] cursor-pointer" onClick={toggleAll}>全選所有待處理案件</span>
+                </div>
+              )}
+              
+              {finalFilteredRequests.map((req) => (
+                <motion.div 
+                  key={req.id}
+                  layout
+                  className={`bg-white rounded-[3rem] p-10 border transition-all duration-500 flex flex-col lg:flex-row lg:items-center gap-8 group ${selectedIds.includes(req.id) ? 'border-slate-900 shadow-2xl scale-[1.01]' : 'border-slate-50 shadow-sm hover:shadow-xl hover:border-slate-100'}`}
+                >
                   {req.status === 'pending' && (
-                    <div className="flex gap-2">
-                       <button 
-                         onClick={() => handleAction(req.id, 'completed', req.member_id, req.amount, req.transaction_type)}
-                         className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition shadow-lg shadow-emerald-600/15"
-                       >
-                          {sectionFilter === 'deposit' ? '確認到帳核發' : '核准發款'}
-                       </button>
-                       <button 
-                         onClick={() => handleAction(req.id, 'failed', req.member_id, req.amount, req.transaction_type)}
-                         className="px-6 py-3 bg-white text-rose-500 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition"
-                       >
+                    <div className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(req.id)}
+                        onChange={() => toggleSelection(req.id)}
+                        className="w-8 h-8 rounded-xl border-slate-200 text-slate-900 focus:ring-slate-900 cursor-pointer transition-all active:scale-75"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="flex-1 space-y-6">
+                    <div className="flex items-center gap-6">
+                      <div className="w-16 h-16 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white font-black text-xl shadow-xl shadow-slate-900/10">
+                        {req.members?.name.slice(0, 1)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-lg font-black text-slate-800 tracking-tight">{req.members?.name}</h4>
+                          <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-3 py-1 rounded-full uppercase tracking-widest">{req.members?.member_code}</span>
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1 flex items-center gap-2">
+                           <Activity className="w-3.5 h-3.5" /> 手機：{req.members?.phone || '未綁定'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {sectionFilter === 'withdrawal' ? (
+                        <>
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-3 flex items-center gap-3">
+                            <Building2 className="w-4 h-4 text-slate-400" />
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">銀行帳戶</span>
+                              <span className="text-[11px] font-black text-slate-700 tracking-wider">
+                                {req.metadata?.bank?.bankCode} - {req.metadata?.bank?.account}
+                                <button onClick={() => handleCopy(req.metadata?.bank?.account, `${req.id}-acc`)} className="ml-2 text-slate-300 hover:text-slate-900 transition">
+                                  {copiedField === `${req.id}-acc` ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-3 flex items-center gap-3">
+                            <UserIcon className="w-4 h-4 text-slate-400" />
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">戶名</span>
+                              <span className="text-[11px] font-black text-slate-700 tracking-wider">
+                                {req.metadata?.bank?.name}
+                                <button onClick={() => handleCopy(req.metadata?.bank?.name, `${req.id}-name`)} className="ml-2 text-slate-300 hover:text-slate-900 transition">
+                                  {copiedField === `${req.id}-name` ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="bg-emerald-50 border border-emerald-100/50 rounded-2xl px-6 py-4 flex items-center gap-4">
+                           <CreditCard className="w-5 h-5 text-emerald-500" />
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">匯款對帳末五碼</span>
+                              <span className="text-sm font-black text-emerald-900 tracking-[0.2em] flex items-center gap-3">
+                                {req.metadata?.payment_last_five || '無'}
+                                <button onClick={() => handleCopy(req.metadata?.payment_last_five, `${req.id}-5`)} className="text-emerald-400 hover:text-emerald-900 transition">
+                                  {copiedField === `${req.id}-5` ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                              </span>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-6 min-w-[240px]">
+                    <div className="text-right space-y-1">
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Transaction Amount</p>
+                      <h3 className={`text-4xl font-black font-mono tracking-tighter ${sectionFilter === 'deposit' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        {sectionFilter === 'deposit' ? '+' : '-'} {Math.abs(req.amount).toLocaleString()}
+                      </h3>
+                      <p className="text-[9px] font-bold text-slate-400 flex items-center justify-end gap-1.5 uppercase tracking-widest">
+                        <Clock className="w-3 h-3" /> {new Date(req.created_at).toLocaleString('zh-TW', { hour12: false })}
+                      </p>
+                    </div>
+
+                    {req.status === 'pending' ? (
+                      <div className="flex gap-3 w-full">
+                        <button 
+                          onClick={() => handleAction(req.id, 'completed', req.member_id, req.amount, req.transaction_type)}
+                          className="flex-1 px-8 py-5 bg-slate-900 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition shadow-xl shadow-slate-900/10 active:scale-95"
+                        >
+                          核准執行 ✓
+                        </button>
+                        <button 
+                          onClick={() => handleAction(req.id, 'failed', req.member_id, req.amount, req.transaction_type)}
+                          className="px-8 py-5 bg-rose-50 text-rose-500 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition border border-rose-100 active:scale-95"
+                        >
                           駁回
-                       </button>
-                    </div>
-                  )}
-
-                  {req.status !== 'pending' && (
-                     <div className="flex flex-col items-end gap-1.5">
-                    <div className={`flex items-center gap-2 px-6 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest ${req.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                       {req.status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                       {req.status === 'completed' ? (sectionFilter === 'deposit' ? '已入帳' : '已發款') : '已駁回'}
-                     </div>
-                     {req.metadata?.auditor && (
-                        <span className="text-[9px] font-black text-slate-400 bg-slate-100/50 px-2.5 py-1 rounded-lg border border-slate-200/30 uppercase tracking-wider flex items-center gap-1 mt-1 shadow-sm">
-                           👤 審核: {req.metadata.auditor}
-                        </span>
-                     )}
-                    </div>
-                  )}
-               </div>
-            </motion.div>
-          ))}
-       </div>
-
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-end gap-2 w-full">
+                        <div className={`px-8 py-4 rounded-[1.5rem] border text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 w-full justify-center ${req.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                          {req.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                          {req.status === 'completed' ? (sectionFilter === 'deposit' ? '已入帳' : '已發款') : '審核駁回'}
+                        </div>
+                        {req.metadata?.auditor && (
+                          <div className="text-[9px] font-black text-slate-400 flex items-center gap-2 pr-4">
+                            <ShieldCheck className="w-3 h-3" /> 核核人員：{req.metadata.auditor}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
-      {/* Admin Authorization Screen (Glassmorphic) */}
+      {/* Admin Authorization Screen */}
       <AnimatePresence>
         {isAuthModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-3xl">
             <motion.div 
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              className="bg-white rounded-[4rem] p-12 w-full max-w-md shadow-2xl text-center space-y-10 relative overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-[4rem] p-16 w-full max-w-lg shadow-2xl text-center space-y-12"
             >
-              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-amber-50 rounded-full blur-3xl opacity-50"></div>
-              
-              <div className="space-y-4">
-                <div className="w-20 h-20 bg-emerald-900 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-900/20">
-                  <ShieldCheck className="w-10 h-10 text-white" />
+              <div className="space-y-6">
+                <div className="w-24 h-24 bg-slate-900 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl">
+                  <Lock className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">安全中心驗證</h3>
+                <h3 className="text-3xl font-black text-slate-900">出納指揮權限驗證</h3>
                 <p className="text-xs text-slate-400 font-bold max-w-xs mx-auto leading-relaxed">
-                  本審核面板包含高度敏感資金調動數據，請輸入管理密碼以授權存取。
+                  本審核面板包含敏感資金調動權限，請輸入最高管理中心授權密碼。
                 </p>
               </div>
 
-              <form onSubmit={handleAdminAuthSubmit} className="space-y-6">
-                <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-black text-slate-400 ml-6 uppercase tracking-[0.2em]">請輸入管理密碼</label>
-                  <div className="relative group">
-                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-600 transition-colors">
-                      <Lock className="w-5 h-5" />
-                    </div>
-                    <input 
-                      type="password" 
-                      value={adminPass} 
-                      onChange={(e) => setAdminPass(e.target.value)} 
-                      placeholder="••••••••" 
-                      className="w-full bg-slate-50/50 border-2 border-transparent p-6 pl-16 rounded-[2rem] text-sm font-bold focus:outline-none focus:bg-white focus:border-emerald-900/5 transition-all shadow-inner"
-                      required
-                    />
-                  </div>
-                  {authError && (
-                    <p className="text-[10px] font-black text-rose-500 ml-6 uppercase tracking-widest">{authError}</p>
-                  )}
+              <form onSubmit={handleAdminAuthSubmit} className="space-y-8">
+                <div className="space-y-3">
+                  <input 
+                    type="password" 
+                    value={adminPass} 
+                    onChange={(e) => setAdminPass(e.target.value)} 
+                    placeholder="授權密碼" 
+                    className="w-full bg-slate-50 border-2 border-slate-100 p-8 rounded-[2rem] text-center text-lg font-bold focus:outline-none focus:border-slate-900 transition-all"
+                    required
+                  />
+                  {authError && <p className="text-xs font-black text-rose-500 uppercase tracking-widest">{authError}</p>}
                 </div>
-
-                <div className="pt-4">
-                  <button 
-                    type="submit" 
-                    className="w-full bg-slate-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-slate-900/20 group"
-                  >
-                    驗證權限並登入 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
+                <button type="submit" className="w-full bg-slate-900 text-white p-8 rounded-[2rem] font-black text-sm tracking-[0.3em] uppercase shadow-2xl active:scale-95 transition-all">
+                  驗證並進入指揮中心
+                </button>
               </form>
             </motion.div>
           </div>
@@ -735,33 +620,26 @@ function AdminWithdrawalsContent() {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {confirmModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-2xl">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-xl">
             <motion.div 
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 20, opacity: 0 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl text-center relative overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[3.5rem] p-12 w-full max-w-md shadow-2xl text-center space-y-8"
             >
-              <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ShieldCheck className="w-8 h-8" />
+              <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+                <ShieldCheck className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2">{confirmModal.title}</h3>
-              <p className="text-xs text-slate-400 font-bold leading-relaxed mb-8">{confirmModal.description}</p>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={() => setConfirmModal(null)} 
-                  className="py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition"
-                >
-                  取消返回
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-slate-900">{confirmModal.title}</h3>
+                <p className="text-sm text-slate-400 font-bold leading-relaxed">{confirmModal.description}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                <button onClick={() => setConfirmModal(null)} className="py-5 bg-slate-50 text-slate-400 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition">
+                  取消
                 </button>
-                <button 
-                  onClick={() => {
-                    confirmModal.onConfirm();
-                    setConfirmModal(null);
-                  }} 
-                  className="py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-2xl font-black text-[10px] uppercase tracking-widest transition shadow-lg shadow-slate-900/10"
-                >
-                  確定執行 ✓
+                <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="py-5 bg-slate-900 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition shadow-xl shadow-slate-900/10">
+                  確定核准執行
                 </button>
               </div>
             </motion.div>
@@ -769,7 +647,6 @@ function AdminWithdrawalsContent() {
         )}
       </AnimatePresence>
 
-      {/* Premium Toast notification feedback */}
       <Toast 
         message={toastMsg}
         type={toastType}
@@ -783,7 +660,7 @@ function AdminWithdrawalsContent() {
 
 export default function AdminWithdrawals() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-900" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-slate-900" /></div>}>
       <AdminWithdrawalsContent />
     </Suspense>
   );

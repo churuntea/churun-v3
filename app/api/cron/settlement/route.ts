@@ -10,16 +10,21 @@ async function evaluateTiers() {
 
     if (fetchError) throw fetchError;
 
-    const tierRules = [
-      { name: '初潤靈魂伴侶', minSpend: 50000 },
-      { name: '初潤知己', minSpend: 25000 },
-      { name: '初潤閨蜜', minSpend: 12000 },
-      { name: '初潤好朋友', minSpend: 6000 },
-      { name: '初潤青少年', minSpend: 3000 },
-      { name: '初潤小朋友', minSpend: 1500 },
-      { name: '初潤幼兒園', minSpend: 1 },
-      { name: '初潤寶寶', minSpend: 0 }
-    ];
+    // Fetch dynamic rules from database
+    const { data: dbRules } = await supabase.from('bonus_rules').select('tier_name, min_spend').order('display_order', { ascending: true });
+    
+    const tierRules = dbRules && dbRules.length > 0 
+      ? dbRules.map(r => ({ name: r.tier_name, minSpend: r.min_spend }))
+      : [
+          { name: '初潤靈魂伴侶', minSpend: 50000 },
+          { name: '初潤知己', minSpend: 25000 },
+          { name: '初潤閨蜜', minSpend: 12000 },
+          { name: '初潤好朋友', minSpend: 6000 },
+          { name: '初潤青少年', minSpend: 3000 },
+          { name: '初潤小朋友', minSpend: 1500 },
+          { name: '初潤幼兒園', minSpend: 1 },
+          { name: '初潤寶寶', minSpend: 0 }
+        ];
 
     let updatedCount = 0;
 
