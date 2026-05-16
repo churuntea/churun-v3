@@ -15,7 +15,8 @@ import {
   Sparkles,
   Megaphone,
   Home,
-  Check
+  Check,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
   
   const [news, setNews] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isZoomed, setIsZoomed] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(1248);
   const [copied, setCopied] = useState(false);
@@ -88,6 +90,17 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
 
     fetchNews();
   }, [id]);
+
+  useEffect(() => {
+    if (isZoomed) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isZoomed]);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -180,7 +193,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
         <motion.div 
           whileHover={{ scale: 1.01 }}
           className="relative w-full overflow-hidden rounded-[3rem] shadow-2xl border border-slate-100 group bg-slate-50 cursor-zoom-in"
-          onClick={() => triggerToast("🔍 圖片放大功能即將上線，敬請期待！")}
+          onClick={() => news?.image && setIsZoomed(true)}
         >
            {news.image ? (
               <div className="relative group">
@@ -390,6 +403,34 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
             CHURUN TEA HOUSE PHILOSOPHY
          </p>
       </footer>
+
+      {/* Lightbox for zooming image */}
+      <AnimatePresence>
+        {isZoomed && news?.image && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setIsZoomed(false)}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={news.image}
+              className="max-w-full max-h-full object-contain rounded-2xl"
+              alt={news.title}
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}
+              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Premium feedback toast notifications */}
       <Toast 

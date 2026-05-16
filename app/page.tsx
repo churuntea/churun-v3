@@ -568,53 +568,64 @@ function DashboardContent() {
            {(() => {
               const badgeList = [
                 { name: "初入江湖", desc: "完成首筆訂單", icon: Sparkles, color: "from-indigo-500 to-purple-600", earned: true },
-                { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "from-emerald-500 to-teal-600", earned: Number(downlines?.length || 0) >= 5 },
+                { name: "團隊領袖", desc: "直推夥伴滿 5 人", icon: Users, color: "from-emerald-500 to-teal-600", earned: Number(downlines?.length || 0) >= 5, link: "/organization" },
                 { name: "業績推手", desc: "累計業績破萬", icon: TrendingUp, color: "from-amber-400 to-orange-500", earned: Number(memberInfo?.lifetime_spend || 0) >= 10000 },
               ];
 
               return (
                 <div className="grid grid-cols-3 gap-3.5 pb-2 px-2">
-                   {badgeList.map((badge, i) => (
-                      <div 
-                        key={i} 
-                        className={`p-4 sm:p-5 rounded-[2.2rem] border relative overflow-hidden transition-all duration-300 flex flex-col items-center gap-3.5 bg-white shadow-xl ${
-                          badge.earned 
-                            ? 'border-emerald-100/40 shadow-emerald-950/5' 
-                            : 'border-slate-100/60 opacity-60'
-                        }`}
-                      >
-                         {/* Unlocked / Locked Floating Indicator */}
-                         <div className="absolute top-3.5 right-3.5 shrink-0">
-                            {badge.earned ? (
-                               <span className="flex h-1.5 w-1.5 relative">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                               </span>
-                            ) : (
-                               <span className="text-[8px] leading-none text-slate-300">🔒</span>
-                            )}
-                         </div>
-
-                         {/* Badge Icon Circular Block */}
-                         <div className={`w-12 h-12 rounded-[1.4rem] flex items-center justify-center shadow-md relative ${
+                   {badgeList.map((badge, i) => {
+                     const content = (
+                       <div 
+                         className={`p-4 sm:p-5 rounded-[2.2rem] border relative overflow-hidden transition-all duration-300 flex flex-col items-center gap-3.5 bg-white shadow-xl h-full ${
                            badge.earned 
-                             ? `bg-gradient-to-tr ${badge.color} text-white` 
-                             : 'bg-slate-50 text-slate-300 border border-slate-100'
-                         }`}>
-                            <badge.icon className="w-5 h-5" />
-                         </div>
+                             ? 'border-emerald-100/40 shadow-emerald-950/5' 
+                             : 'border-slate-100/60 opacity-60'
+                         } ${badge.link ? 'cursor-pointer hover:shadow-2xl hover:shadow-slate-200/50' : ''}`}
+                       >
+                          {/* Unlocked / Locked Floating Indicator */}
+                          <div className="absolute top-3.5 right-3.5 shrink-0">
+                             {badge.earned ? (
+                                <span className="flex h-1.5 w-1.5 relative">
+                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                             ) : (
+                                <span className="text-[8px] leading-none text-slate-300">🔒</span>
+                             )}
+                          </div>
 
-                         {/* Badge Details */}
-                         <div className="space-y-0.5 text-center">
-                            <h4 className="text-[10px] font-black tracking-widest text-slate-800 whitespace-nowrap">
-                               {badge.name}
-                            </h4>
-                            <p className="text-[8px] font-bold text-slate-400 whitespace-nowrap">
-                               {badge.desc}
-                            </p>
-                         </div>
-                      </div>
-                   ))}
+                          {/* Badge Icon Circular Block */}
+                          <div className={`w-12 h-12 rounded-[1.4rem] flex items-center justify-center shadow-md relative ${
+                            badge.earned 
+                              ? `bg-gradient-to-tr ${badge.color} text-white` 
+                              : 'bg-slate-50 text-slate-300 border border-slate-100'
+                          }`}>
+                             <badge.icon className="w-5 h-5" />
+                          </div>
+
+                          {/* Badge Details */}
+                          <div className="space-y-0.5 text-center">
+                             <h4 className="text-[10px] font-black tracking-widest text-slate-800 whitespace-nowrap">
+                                {badge.name}
+                             </h4>
+                             <p className="text-[8px] font-bold text-slate-400 whitespace-nowrap">
+                                {badge.desc}
+                             </p>
+                          </div>
+                       </div>
+                     );
+
+                     return badge.link ? (
+                       <Link href={badge.link} key={i} className="block h-full">
+                         {content}
+                       </Link>
+                     ) : (
+                       <div key={i}>
+                         {content}
+                       </div>
+                     );
+                   })}
                 </div>
               );
            })()}
