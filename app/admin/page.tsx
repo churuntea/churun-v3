@@ -1340,6 +1340,25 @@ function AdminDashboardContent() {
                               </div>
                               <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
                            </button>
+
+                           <button 
+                              onClick={() => {
+                                 if (adminUser && !adminUser.permissions?.backup) {
+                                    alert("🔒 權限不足！您目前的職務並未獲授權「功能總覽」模組。");
+                                    return;
+                                 }
+                                 logFeatureAccess("功能總覽");
+                                 setShowBackupModal(true);
+                                 setBackupTab("features");
+                              }}
+                              className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                           >
+                              <div className="flex items-center gap-3">
+                                 <Settings className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                 <span className="text-xs font-bold text-slate-700 group-hover:text-white">功能總覽</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                           </button>
                         </motion.div>
                      )}
                   </AnimatePresence>
