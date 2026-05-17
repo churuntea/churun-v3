@@ -81,6 +81,7 @@ function AdminDashboardContent() {
   const [peakHoursData, setPeakHoursData] = useState({ morning: 0, afternoon: 0, evening: 0, night: 0 });
   const [categoryShares, setCategoryShares] = useState<any[]>([]);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   const [backupTimeframe, setBackupTimeframe] = useState("month");
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isAuditing, setIsAuditing] = useState(false);
@@ -1348,8 +1349,7 @@ function AdminDashboardContent() {
                                     return;
                                  }
                                  logFeatureAccess("功能總覽");
-                                 setShowBackupModal(true);
-                                 setBackupTab("features");
+                                 setShowFeaturesModal(true);
                               }}
                               className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
                            >
@@ -2137,8 +2137,7 @@ function AdminDashboardContent() {
                     { id: "stats", label: "營業統計備份", sub: "Legacy Analytics" },
                     { id: "full", label: "一鍵全庫備份", sub: "Full Backup" },
                     { id: "restore", label: "一鍵數據還原", sub: "Data Restore" },
-                    { id: "audit", label: "安全審計日誌", sub: "Security Audit" },
-                    { id: "features", label: "功能總覽", sub: "Feature Toggle" }
+                    { id: "audit", label: "安全審計日誌", sub: "Security Audit" }
                   ].map(tab => (
                      <button
                        key={tab.id}
@@ -2400,16 +2399,56 @@ function AdminDashboardContent() {
                  </div>
                )}
 
-               {/* TAB 5: 功能總覽 */}
-               {backupTab === "features" && (
-                 <div className="flex-1 flex flex-col gap-5 overflow-hidden">
+               {/* TAB 5: 功能總覽 (已移至獨立 Modal) */}
+            </motion.div>
+          </div>
+        )}
+
+        {/* Features Modal */}
+        {showFeaturesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFeaturesModal(false)}
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-3xl shadow-2xl relative z-10 max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col gap-6 border border-slate-100"
+              onClick={e => e.stopPropagation()}
+            >
+               {/* Modal Header */}
+               <div className="flex items-center justify-between border-b border-slate-100 pb-5 shrink-0">
+                  <div className="flex items-center gap-3">
+                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-md">
+                        <Settings className="w-6 h-6" />
+                     </div>
+                     <div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">系統功能開關與設定</h3>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Feature Toggle & Configuration</p>
+                     </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowFeaturesModal(false)} 
+                    className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 transition text-sm font-bold"
+                  >
+                    ✕
+                  </button>
+               </div>
+
+               {/* Modal Content */}
+               <div className="flex-1 flex flex-col gap-5 overflow-hidden">
                     <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl shrink-0">
                        <p className="text-xs font-bold text-slate-600 leading-relaxed">
                           💡 <span className="font-black text-slate-800">功能總覽與開關</span> 讓您可以自主決定是否開啟特定功能讓會員使用。關閉後，會員端將無法看見或使用該功能。
                        </p>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 no-scrollbar max-h-[300px]">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 no-scrollbar max-h-[400px]">
                        {Object.entries(systemFeatures).map(([category, items]: any) => (
                           <div key={category} className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
                              <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b border-slate-50 pb-2">{category}</h4>
@@ -2450,6 +2489,7 @@ function AdminDashboardContent() {
                             const result = await res.json();
                             if (result.success) {
                                alert("🎉 功能設定儲存成功！");
+                               setShowFeaturesModal(false);
                             } else {
                                alert("儲存失敗: " + result.error);
                             }
@@ -2464,7 +2504,6 @@ function AdminDashboardContent() {
                        {isSavingFeatures ? <Loader2 className="w-4 h-4 animate-spin" /> : "💾 儲存功能設定"}
                     </button>
                  </div>
-               )}
             </motion.div>
           </div>
         )}
