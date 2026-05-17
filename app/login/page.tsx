@@ -294,7 +294,7 @@ function LoginContent() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="bg-white/70 backdrop-blur-3xl rounded-[4rem] p-12 shadow-[0_32px_64px_-16px_rgba(6,78,59,0.1)] border border-white">
+        <div className="glass-panel rounded-[4rem] p-12">
            
             {lineUser ? (
               <motion.div
@@ -366,7 +366,7 @@ function LoginContent() {
                       whileTap={{ scale: 0.98 }}
                       disabled={lineRegistering}
                       type="submit" 
-                      className="w-full bg-emerald-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
+                      className="w-full btn-premium p-6 rounded-[2rem] text-sm flex items-center justify-center gap-3 group disabled:opacity-50"
                     >
                        {lineRegistering ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                          <>
