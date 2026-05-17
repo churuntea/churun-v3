@@ -156,7 +156,7 @@ export default function SecurityPage() {
                </div>
                <div className="space-y-2">
                   <h2 className="text-2xl font-black tracking-tight">帳號安全等級：優良</h2>
-                  <p className="text-xs text-white/40 font-medium">上次登入：2026/05/03 台北市</p>
+                  <p className="text-xs text-white/40 font-medium">最新登入：{new Date().toISOString().slice(0, 10).replace(/-/g, '/')} 台北市</p>
                </div>
             </div>
          </section>
