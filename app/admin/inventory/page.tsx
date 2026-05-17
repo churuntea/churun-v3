@@ -28,7 +28,7 @@ import {
 function InventoryDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") || "inbound";
+  const initialTab = searchParams.get("tab") || "stock";
   
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [isLoading, setIsLoading] = useState(true);
@@ -694,9 +694,9 @@ function InventoryDashboard() {
             {/* 三大核心 Tab */}
             <div className="flex gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full md:w-auto">
                {[
-                 { id: "inbound", label: "進貨管理", icon: Package, color: "text-blue-600" },
+                 { id: "stock", label: "已上架品項", icon: Database, color: "text-emerald-600" },
                  { id: "sales", label: "銷售管理", icon: TrendingUp, color: "text-indigo-600" },
-                 { id: "stock", label: "庫存管理", icon: Database, color: "text-emerald-600" }
+                 { id: "inbound", label: "進貨管理", icon: Package, color: "text-blue-600" }
                ].map(t => {
                  const isActive = activeTab === t.id;
                  return (

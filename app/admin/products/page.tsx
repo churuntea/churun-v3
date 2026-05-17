@@ -52,6 +52,7 @@ function AdminProductsContent() {
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isDiffConfirmed, setIsDiffConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalProduct, setOriginalProduct] = useState<any>(null);
@@ -297,6 +298,7 @@ function AdminProductsContent() {
   const handleSubmitAttempt = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.price) return alert("品名與嘗鮮價為必填");
+    setIsDiffConfirmed(false);
     setShowConfirm(true);
   };
 
@@ -974,7 +976,7 @@ function AdminProductsContent() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[4rem] w-full max-w-sm p-12 text-center shadow-2xl relative overflow-hidden"
+              className="bg-white rounded-[4rem] w-full max-w-lg p-12 text-center shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
               <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-inner">
@@ -982,20 +984,47 @@ function AdminProductsContent() {
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-4">{editingId ? "確認修改內容？" : "確認上架商品？"}</h3>
               {editingId && originalProduct ? (
-                 <div className="text-left text-xs text-slate-600 space-y-2 mb-8 bg-slate-50 p-4 rounded-2xl max-h-[150px] overflow-y-auto">
+                 <div className="text-left text-xs text-slate-600 space-y-4 mb-8">
                     <p className="font-black text-slate-400 uppercase tracking-widest mb-2 text-[10px]">本次修改內容：</p>
-                    {getChangedFields().map((c, i) => (
-                       <div key={i} className="border-b border-slate-100 pb-1 flex justify-between gap-2">
-                          <span className="font-bold text-slate-700 shrink-0">{c.label}:</span>
-                          <div className="flex items-center gap-1 min-w-0">
-                             <span className="text-rose-500 truncate max-w-[80px]" title={c.old}>{c.old}</span>
-                             <span className="text-slate-400">➜</span>
-                             <span className="text-emerald-500 truncate max-w-[80px]" title={c.new}>{c.new}</span>
-                          </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl max-h-[250px] overflow-y-auto border border-slate-100">
+                       <table className="w-full text-xs">
+                          <thead>
+                             <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                                <th className="pb-2 text-left">欄位</th>
+                                <th className="pb-2 text-left">修改前</th>
+                                <th className="pb-2 text-left">修改後</th>
+                             </tr>
+                          </thead>
+                          <tbody>
+                             {getChangedFields().map((c, i) => (
+                                <tr key={i} className="border-b border-slate-100 last:border-0">
+                                   <td className="py-2 font-bold text-slate-700">{c.label}</td>
+                                   <td className="py-2 text-rose-500 font-bold truncate max-w-[100px]" title={c.old}>{c.old}</td>
+                                   <td className="py-2 text-emerald-500 font-bold truncate max-w-[100px]" title={c.new}>{c.new}</td>
+                                </tr>
+                             ))}
+                             {getChangedFields().length === 0 && (
+                                <tr>
+                                   <td colSpan={3} className="py-4 text-center text-slate-400 italic">無任何欄位變更</td>
+                                </tr>
+                             )}
+                          </tbody>
+                       </table>
+                    </div>
+                    
+                    {getChangedFields().length > 0 && (
+                       <div className="flex items-center gap-2 mt-4 ml-1">
+                          <input 
+                            type="checkbox" 
+                            id="confirm_diff" 
+                            checked={isDiffConfirmed}
+                            onChange={(e) => setIsDiffConfirmed(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <label htmlFor="confirm_diff" className="text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none">
+                             我已核對上述修改內容，確認無誤。
+                          </label>
                        </div>
-                    ))}
-                    {getChangedFields().length === 0 && (
-                       <p className="text-slate-400 italic">無任何欄位變更</p>
                     )}
                  </div>
               ) : (
@@ -1008,7 +1037,12 @@ function AdminProductsContent() {
                 <button type="button" onClick={() => setShowConfirm(false)} className="py-6 bg-slate-50 text-slate-400 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition active:scale-95">
                    取消返回
                 </button>
-                <button type="button" onClick={handleConfirmSubmit} className="py-6 bg-slate-900 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition shadow-xl shadow-slate-900/20 active:scale-95">
+                <button 
+                  type="button" 
+                  onClick={handleConfirmSubmit} 
+                  disabled={!!editingId && getChangedFields().length > 0 && !isDiffConfirmed}
+                  className={`py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-widest transition shadow-xl active:scale-95 ${!!editingId && getChangedFields().length > 0 && !isDiffConfirmed ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-900/20'}`}
+                >
                    確認送出
                 </button>
               </div>
