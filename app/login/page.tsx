@@ -104,6 +104,51 @@ function LoginContent() {
     }
   }, [searchParams, router]);
 
+  useEffect(() => {
+    const handleGoogleCallback = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsLoading(true);
+        try {
+          const user = session.user;
+          const email = user.email;
+          const providerId = user.id;
+
+          // 尋找是否有對應的會員 (透過 email 或 google_id)
+          const { data: member, error } = await supabase
+            .from("members")
+            .select("id, name")
+            .or(`email.eq."${email}",google_id.eq."${providerId}"`)
+            .maybeSingle();
+
+          if (member) {
+            // 登入成功，儲存資訊並跳轉
+            localStorage.setItem("churun_member_id", member.id);
+            localStorage.setItem("churun_member_name", member.name);
+            
+            // 更新最後登入時間
+            try {
+              await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", member.id);
+            } catch (err) {
+              console.warn("更新最後登入時間失敗", err);
+            }
+            
+            router.push("/profile");
+          } else {
+            // 找不到會員，提示去註冊或綁定
+            alert("找不到對應的會員資料，請先使用帳號密碼登入後，再至個人資料綁定 Google 帳號！");
+            await supabase.auth.signOut();
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error("Google login handling error:", err);
+          setIsLoading(false);
+        }
+      }
+    };
+    handleGoogleCallback();
+  }, [router]);
+
   const handleLineRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!linePhone || linePhone.trim().length < 8) {
