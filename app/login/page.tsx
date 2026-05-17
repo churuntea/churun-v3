@@ -74,6 +74,14 @@ function LoginContent() {
             // 已有綁定過 ➔ 登入成功，儲存資訊並跳轉
             localStorage.setItem("churun_member_id", data.memberId);
             localStorage.setItem("churun_member_name", data.memberName);
+            
+            // 更新最後登入時間
+            try {
+              await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
+            } catch (err) {
+              console.warn("更新最後登入時間失敗", err);
+            }
+            
             router.push("/profile");
           } else if (data.status === "new_user") {
             // 未綁定過 ➔ 開啟手機號碼與推薦人資料輸入框
@@ -127,6 +135,13 @@ function LoginContent() {
       // 儲存登入態
       localStorage.setItem("churun_member_id", data.memberId);
       localStorage.setItem("churun_member_name", data.memberName);
+      
+      // 更新最後登入時間
+      try {
+        await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
+      } catch (err) {
+        console.warn("更新最後登入時間失敗", err);
+      }
       
       if (data.status === 'linked') {
         alert(`🎉 帳戶綁定成功！歡迎回來，${data.memberName}！`);
@@ -232,6 +247,13 @@ function LoginContent() {
     localStorage.setItem("churun_member_id", data.id);
     localStorage.setItem("churun_member_name", data.name);
     localStorage.setItem("churun_last_phone", effectivePhone);
+    
+    // 更新最後登入時間
+    try {
+      await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.id);
+    } catch (err) {
+      console.warn("更新最後登入時間失敗", err);
+    }
     
     if (rememberPhone) {
       localStorage.setItem("churun_remembered_phone", effectivePhone);
