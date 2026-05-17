@@ -56,6 +56,8 @@ function InventoryDashboard() {
   const [origin, setOrigin] = useState("");
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("2"); // 預設新莊
+  const [warehousesList, setWarehousesList] = useState<any[]>([]);
 
   // 新品專屬欄位
   const [newProductName, setNewProductName] = useState("");
@@ -193,10 +195,26 @@ function InventoryDashboard() {
         startDateStr = new Date(now.setDate(now.getDate() - 30)).toISOString();
       }
 
-      // 1. 獲取商品列表及即時庫存
+      // 1. 獲取商品列表
       const { data: prods } = await supabase.from("products").select("*").order("created_at", { ascending: false });
       const safeProds = prods || [];
-      setProducts(safeProds);
+
+      // 1.2 獲取倉庫列表與庫存
+      const { data: whs } = await supabase.from("warehouses").select("*");
+      setWarehousesList(whs || []);
+
+      const { data: whInv } = await supabase.from("warehouse_inventory").select("*");
+      const safeWhInv = whInv || [];
+
+      // 合併庫存數據到商品列表
+      const mergedProds = safeProds.map(p => {
+         const daan = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 1)?.stock || 0;
+         const xinzhuang = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 2)?.stock || 0;
+         const caotun = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 3)?.stock || 0;
+         const total = daan + xinzhuang + caotun;
+         return { ...p, stock_daan: daan, stock_xinzhuang: xinzhuang, stock_caotun: caotun, stock: total };
+      });
+      setProducts(mergedProds);
 
       // 1.5 獲取供應商列表
       try {
@@ -311,20 +329,34 @@ function InventoryDashboard() {
         targetProdName = targetProd?.name;
         targetProdCategory = targetProd?.category || "極萃系列";
         minStock = targetProd?.min_stock || 10;
-        const currentStock = Number(targetProd?.stock || 0);
-        finalStock = currentStock + qty;
-        await supabase.from("products").update({ stock: finalStock }).eq("id", selectedProductId);
-        alert(`🎉 成功進貨入庫！商品「${targetProd?.name}」現有庫存更新為 ${finalStock} 件。`);
-      } else {
-        // 庫存盤點覆寫
-        const targetProd = products.find(p => p.id === selectedProductId);
-        targetProdName = targetProd?.name;
-        targetProdCategory = targetProd?.category || "極萃系列";
-        minStock = targetProd?.min_stock || 10;
-        finalStock = qty;
-        logType = "stock_check";
-        await supabase.from("products").update({ stock: finalStock }).eq("id", selectedProductId);
-        alert(`🎯 庫存盤點完成！商品「${targetProd?.name}」庫存校正為 ${finalStock} 件。`);
+        
+        // 獲取該倉庫目前的庫存
+        const { data: currentInv } = await supabase
+          .from("warehouse_inventory")
+          .select("stock")
+          .eq("product_id", selectedProductId)
+          .eq("warehouse_id", Number(selectedWarehouseId))
+          .single();
+          
+        const currentStock = Number(currentInv?.stock || 0);
+        
+        if (modalType === "inbound" || modalType === "new_product") {
+          finalStock = currentStock + qty;
+          alert(`🎉 成功進貨入庫！商品「${targetProd?.name}」在指定倉庫的庫存更新為 ${finalStock} 件。`);
+        } else {
+          finalStock = qty;
+          logType = "stock_check";
+          alert(`🎯 庫存盤點完成！商品「${targetProd?.name}」在指定倉庫的庫存校正為 ${finalStock} 件。`);
+        }
+        
+        // 更新倉庫庫存
+        await supabase
+          .from("warehouse_inventory")
+          .upsert({ 
+            product_id: selectedProductId, 
+            warehouse_id: Number(selectedWarehouseId), 
+            stock: finalStock 
+          });
       }
 
       // 嘗試寫入真實日誌
@@ -839,7 +871,10 @@ function InventoryDashboard() {
                               <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('id')}>商品編號<SortIcon sortKey="id" /></th>
                               <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('name')}>商品名稱<SortIcon sortKey="name" /></th>
                               <th className="pb-4 cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('category')}>所屬分類<SortIcon sortKey="category" /></th>
-                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('stock')}>現有庫存量<SortIcon sortKey="stock" /></th>
+                              <th className="pb-4 text-right">大安庫存</th>
+                              <th className="pb-4 text-right">新莊庫存</th>
+                              <th className="pb-4 text-right">草屯庫存</th>
+                              <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('stock')}>總庫存量<SortIcon sortKey="stock" /></th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('min_stock')}>安全預警水位<SortIcon sortKey="min_stock" /></th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('price')}>零售售價<SortIcon sortKey="price" /></th>
                               <th className="pb-4 text-center pr-2">庫存狀態</th>
@@ -867,6 +902,9 @@ function InventoryDashboard() {
                                     <td className="py-4 pl-2 font-mono font-black text-slate-400 text-[10px]">{p.id?.substring(0,8)}</td>
                                     <td className="py-4 text-slate-900 font-black">{p.name}</td>
                                     <td className="py-4 text-slate-500">{p.category || "極萃系列"}</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_daan || 0)} 件</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_xinzhuang || 0)} 件</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_caotun || 0)} 件</td>
                                     <td className={`py-4 text-right font-mono font-black ${isLow ? 'text-rose-600 text-sm' : 'text-slate-800'}`}>{stock} 件</td>
                                     <td className="py-4 text-right font-mono text-slate-400">{minStock} 件</td>
                                     <td className="py-4 text-right font-mono text-slate-800 font-black">NT$ {Number(p.price || 0).toLocaleString()}</td>
@@ -1008,6 +1046,20 @@ function InventoryDashboard() {
                         </select>
                      </div>
                   )}
+
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">選擇入庫/盤點倉庫</label>
+                     <select 
+                        value={selectedWarehouseId}
+                        onChange={e => setSelectedWarehouseId(e.target.value)}
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                        required
+                     >
+                        {warehousesList.map(w => (
+                           <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                     </select>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1">
