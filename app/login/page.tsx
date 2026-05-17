@@ -135,9 +135,12 @@ function LoginContent() {
             
             router.push("/profile");
           } else {
-            // 找不到會員，提示去註冊或綁定
-            alert("找不到對應的會員資料，請先使用帳號密碼登入後，再至個人資料綁定 Google 帳號！");
-            await supabase.auth.signOut();
+            // 找不到會員，開啟手機號碼補填 (複用 LINE 的註冊表單)
+            setLineUser({
+              userId: "google_" + providerId,
+              displayName: user.user_metadata?.full_name || "Google 用戶",
+              pictureUrl: user.user_metadata?.avatar_url || "https://i.ibb.co/6R2M5X1/churun-baby.png"
+            });
             setIsLoading(false);
           }
         } catch (err) {
@@ -157,47 +160,101 @@ function LoginContent() {
     }
 
     setLineRegistering(true);
+    
+    const isGoogle = lineUser?.userId?.startsWith("google_");
+    
     try {
-      const res = await fetch("/api/auth/line/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lineUserId: lineUser?.userId,
-          displayName: lineUser?.displayName,
-          pictureUrl: lineUser?.pictureUrl,
-          phone: linePhone.trim(),
-          referralCode: lineReferral.trim()
-        })
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        alert(data.error || "註冊綁定失敗，請確認資料後再試。");
-        setLineRegistering(false);
-        return;
-      }
-
-      // 儲存登入態
-      localStorage.setItem("churun_member_id", data.memberId);
-      localStorage.setItem("churun_member_name", data.memberName);
-      
-      // 更新最後登入時間
-      try {
-        await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
-      } catch (err) {
-        console.warn("更新最後登入時間失敗", err);
-      }
-      
-      if (data.status === 'linked') {
-        alert(`🎉 帳戶綁定成功！歡迎回來，${data.memberName}！`);
+      if (isGoogle) {
+        // Google 新會員註冊
+        const googleId = lineUser?.userId?.replace("google_", "");
+        
+        // 檢查手機號碼是否已被使用
+        const { data: existingMember } = await supabase
+          .from("members")
+          .select("id, name")
+          .eq("phone", linePhone.trim())
+          .maybeSingle();
+          
+        if (existingMember) {
+          // 手機號碼已存在，進行綁定
+          const { error: updateError } = await supabase
+            .from("members")
+            .update({ google_id: googleId })
+            .eq("id", existingMember.id);
+            
+          if (updateError) throw updateError;
+          
+          localStorage.setItem("churun_member_id", existingMember.id);
+          localStorage.setItem("churun_member_name", existingMember.name || "會員");
+          alert("🎉 帳戶綁定成功！歡迎回來！");
+          router.push("/profile");
+        } else {
+          // 手機號碼不存在，建立新會員
+          const { data: newMember, error: insertError } = await supabase
+            .from("members")
+            .insert({
+              name: lineUser?.displayName,
+              phone: linePhone.trim(),
+              google_id: googleId,
+              avatar_url: lineUser?.pictureUrl,
+              referral_code: lineReferral.trim() || null,
+              status: "active",
+              role: "member",
+              created_at: new Date().toISOString()
+            })
+            .select("id, name")
+            .single();
+            
+          if (insertError) throw insertError;
+          
+          localStorage.setItem("churun_member_id", newMember.id);
+          localStorage.setItem("churun_member_name", newMember.name);
+          alert("🎉 恭喜您註冊成功！");
+          router.push("/profile");
+        }
       } else {
-        alert(`🎉 恭喜您註冊成功！迎新好禮折價券已存入您的券包，開始下單吧！`);
-      }
+        // LINE 新會員註冊 (原本的邏輯)
+        const res = await fetch("/api/auth/line/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineUserId: lineUser?.userId,
+            displayName: lineUser?.displayName,
+            pictureUrl: lineUser?.pictureUrl,
+            phone: linePhone.trim(),
+            referralCode: lineReferral.trim()
+          })
+        });
 
-      router.push("/profile");
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.error || "註冊綁定失敗，請確認資料後再試。");
+          setLineRegistering(false);
+          return;
+        }
+
+        // 儲存登入態
+        localStorage.setItem("churun_member_id", data.memberId);
+        localStorage.setItem("churun_member_name", data.memberName);
+        
+        // 更新最後登入時間
+        try {
+          await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
+        } catch (err) {
+          console.warn("更新最後登入時間失敗", err);
+        }
+        
+        if (data.status === 'linked') {
+          alert(`🎉 帳戶綁定成功！歡迎回來，${data.memberName}！`);
+        } else {
+          alert(`🎉 恭喜您註冊成功！迎新好禮折價券已存入您的券包，開始下單吧！`);
+        }
+        router.push("/profile");
+      }
     } catch (err) {
-      console.error("LINE Register linking error:", err);
-      alert("連線失敗，請稍候再試");
+      console.error("Register error:", err);
+      alert("系統連線異常，請重新再試。");
+    } finally {
       setLineRegistering(false);
     }
   };
