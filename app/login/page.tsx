@@ -276,7 +276,7 @@ function LoginContent() {
              rotate: [0, 90, 0],
            }}
            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-           className="absolute -top-1/4 -left-1/4 w-full h-full bg-emerald-50 rounded-full blur-[120px] opacity-60"
+           className="absolute -top-1/4 -left-1/4 w-full h-full bg-emerald-200/60 rounded-full blur-[120px]"
          />
          <motion.div 
            animate={{ 
@@ -284,7 +284,7 @@ function LoginContent() {
              rotate: [0, -90, 0],
            }}
            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-           className="absolute -bottom-1/4 -right-1/4 w-full h-full bg-amber-50 rounded-full blur-[120px] opacity-40"
+           className="absolute -bottom-1/4 -right-1/4 w-full h-full bg-amber-200/40 rounded-full blur-[120px]"
          />
       </div>
 
@@ -391,12 +391,12 @@ function LoginContent() {
             ) : (
               <>
                  <div className="text-center mb-12">
-                    <motion.div 
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-                      className="w-20 h-20 bg-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-900/20"
-                    >
+                     <motion.div 
+                       initial={{ scale: 0 }}
+                       animate={{ scale: 1 }}
+                       transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+                       className="w-20 h-20 bg-gradient-to-r from-emerald-800 to-emerald-900 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-900/20"
+                     >
                        <span className="text-white font-black text-2xl tracking-tighter">CR</span>
                     </motion.div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">歡迎回來</h1>
@@ -483,13 +483,13 @@ function LoginContent() {
                             </div>
                          </div>
 
-                         <motion.button 
-                           whileHover={{ scale: 1.02 }}
-                           whileTap={{ scale: 0.98 }}
-                           disabled={isLoading}
-                           type="submit" 
-                           className="w-full bg-emerald-900 text-white p-6 rounded-[2rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-emerald-900/30 group disabled:opacity-50"
-                         >
+                          <motion.button 
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            disabled={isLoading}
+                            type="submit" 
+                            className="w-full btn-premium p-6 rounded-[2rem] text-sm flex items-center justify-center gap-3 group disabled:opacity-50"
+                          >
                             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                               <>
                                 確認登入系統 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
