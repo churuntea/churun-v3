@@ -148,22 +148,46 @@ function MaterialsContent() {
         phone: { x: 380, y: 1155, size: 24, color: "#ffffff" },
         address: { x: 380, y: 1190, size: 20, color: "#ffffff" }
       };
-      const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
-      if (hiddenQr) ctx.drawImage(hiddenQr, config.qr?.x || 800, config.qr?.y || 1100, config.qr?.size || 160, config.qr?.size || 160);
       
+      // Smart clamping to prevent cropping
+      const qrSize = config.qr?.size || 160;
+      const qrX = Math.min(config.qr?.x || 800, canvas.width - qrSize - 40);
+      const qrY = Math.min(config.qr?.y || 1100, canvas.height - qrSize - 40);
+      
+      const hiddenQr = document.querySelector("#hidden-qr-canvas canvas") as HTMLCanvasElement;
+      if (hiddenQr) ctx.drawImage(hiddenQr, qrX, qrY, qrSize, qrSize);
+      
+      // Calculate text positions with clamping
+      const nameX = config.name?.x || 380;
+      const nameY = config.name?.y || 1120;
+      
+      const phoneX = config.phone?.x || nameX;
+      const phoneY = config.phone?.y || (nameY + 35);
+      
+      const addressX = config.address?.x || nameX;
+      const addressY = config.address?.y || (phoneY + 35);
+
+      let bottomY = addressY;
+      if (!config.address) bottomY = phoneY;
+      
+      const offset = bottomY - nameY;
+      const clampedNameY = Math.min(nameY, canvas.height - offset - 40);
+      const clampedPhoneY = clampedNameY + (phoneY - nameY);
+      const clampedAddressY = clampedNameY + (addressY - nameY);
+
       ctx.fillStyle = config.name?.color || '#ffffff';
       ctx.font = `${config.name?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
       ctx.textAlign = 'left';
-      ctx.fillText("聯絡人：" + (memberInfo?.name || ''), config.name?.x || 380, config.name?.y || 1120);
+      ctx.fillText("聯絡人：" + (memberInfo?.name || ''), nameX, clampedNameY);
       
       ctx.fillStyle = config.phone?.color || config.name?.color || '#ffffff';
       ctx.font = `${config.phone?.size || 40}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
-      ctx.fillText("電話：" + (memberInfo?.phone || ''), config.phone?.x || 380, config.phone?.y || 1155);
+      ctx.fillText("電話：" + (memberInfo?.phone || ''), phoneX, clampedPhoneY);
       
       if (config.address) {
         ctx.fillStyle = config.address.color || config.name?.color || '#ffffff';
         ctx.font = `${config.address.size || 36}px "PMingLiU", "MingLiU", "Noto Serif TC", serif`;
-        ctx.fillText("地址：" + (memberInfo?.address || ''), config.address.x || 380, config.address.y || 1190);
+        ctx.fillText("地址：" + (memberInfo?.address || ''), addressX, clampedAddressY);
       }
 
       setPosterDataUrl(canvas.toDataURL('image/png'));
