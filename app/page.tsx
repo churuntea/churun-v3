@@ -121,7 +121,10 @@ function DashboardContent() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!currentUserId) return;
+      if (!currentUserId) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
 
       try {
@@ -374,7 +377,31 @@ function DashboardContent() {
     }
   };
 
-  if (isLoading || !memberInfo) return <DashboardSkeleton />;
+  if (isLoading) return <DashboardSkeleton />;
+
+  if (!memberInfo) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-6">
+          <X className="w-6 h-6" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 mb-2">載入會員資料失敗</h2>
+        <p className="text-sm text-slate-500 mb-6">找不到您的會員資料，可能已被刪除或系統異常。</p>
+        <button 
+          onClick={() => {
+            localStorage.removeItem("churun_member_id");
+            if (currentUserId) {
+              localStorage.removeItem(`churun_cache:member:${currentUserId}`);
+            }
+            router.replace("/login");
+          }}
+          className="bg-emerald-900 text-white px-6 py-3 rounded-full font-bold text-sm"
+        >
+          重新登入
+        </button>
+      </div>
+    );
+  }
 
   const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const itemVariants = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { duration: 0.8 } } };

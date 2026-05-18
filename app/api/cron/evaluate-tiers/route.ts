@@ -200,13 +200,29 @@ async function evaluateTiers() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+  const { searchParams } = new URL(request.url);
+  const secret = searchParams.get('secret');
+
+  if (!cronSecret || secret !== cronSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const result = await evaluateTiers();
   if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+  const { searchParams } = new URL(request.url);
+  const secret = searchParams.get('secret');
+
+  if (!cronSecret || secret !== cronSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const result = await evaluateTiers();
   if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);

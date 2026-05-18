@@ -27,6 +27,10 @@ export async function POST(request: Request) {
 
     if (existingMember) {
       // ======= 情況 A：手機已被註冊過 ➔ 直接「綁定 Google 帳號」並完成登入！ =======
+      if (existingMember.google_id && existingMember.google_id !== googleId) {
+        return NextResponse.json({ success: false, error: '該手機號碼已綁定其他 Google 帳號，無法覆蓋。' }, { status: 403 });
+      }
+
       const { error: updateError } = await supabase
         .from('members')
         .update({

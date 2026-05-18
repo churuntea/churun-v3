@@ -5,8 +5,12 @@ export async function POST(request: Request) {
   try {
     const { member_id, points, item_name } = await request.json();
 
-    if (!member_id || !points) {
+    if (!member_id || points === undefined) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+
+    if (typeof points !== 'number' || points <= 0) {
+      return NextResponse.json({ error: 'Invalid points value' }, { status: 400 });
     }
 
     // 1. 抓取會員資料並確認餘額
