@@ -35,12 +35,7 @@ interface Coupon {
   description: string;
 }
 
-const AVAILABLE_COUPONS: Coupon[] = [
-  { code: "WELCOME200", name: "新會員入會折 $200", discountType: "fixed", value: 200, minSpend: 1000, description: "新客滿千折 $200" },
-  { code: "CHURUN88", name: "初潤創業 88 折", discountType: "percent", value: 12, minSpend: 2000, description: "滿 $2,000 享 88 折優惠" },
-  { code: "CHURUN95", name: "體驗 95 折", discountType: "percent", value: 5, minSpend: 100, description: "滿 $100 即可享 95 折體驗" },
-  { code: "VIP100", name: "貴賓體驗折 $100", discountType: "fixed", value: 100, minSpend: 500, description: "滿 $500 現折 $100" }
-];
+
 
 function WholesaleContent() {
   const router = useRouter();
@@ -517,7 +512,7 @@ function WholesaleContent() {
 
               {/* Predefined Coupon Chips (Click to use or cancel) */}
               <div className="grid grid-cols-1 gap-3">
-                 {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map((coupon) => {
+                 userCoupons.map((coupon) => {
                     const isSelected = activeCoupon?.code === coupon.code;
                     const canApply = totalAmount >= coupon.minSpend;
                     

@@ -55,12 +55,7 @@ interface Coupon {
   description: string;
 }
 
-const AVAILABLE_COUPONS: Coupon[] = [
-  { code: "WELCOME200", name: "新會員入會折 $200", discountType: "fixed", value: 200, minSpend: 1000, description: "新客滿千折 $200" },
-  { code: "CHURUN88", name: "初潤創業 88 折", discountType: "percent", value: 12, minSpend: 2000, description: "滿 $2,000 享 88 折優惠" },
-  { code: "CHURUN95", name: "體驗 95 折", discountType: "percent", value: 5, minSpend: 100, description: "滿 $100 即可享 95 折體驗" },
-  { code: "VIP100", name: "貴賓體驗折 $100", discountType: "fixed", value: 100, minSpend: 500, description: "滿 $500 現折 $100" }
-];
+
 
 const PICKUP_POINTS = [
   { id: 'caotun', name: '南投草屯自取點', address: '南投縣草屯鎮草鞋墩一街 (請聯繫總部預約自取)', phone: '聯絡總部辦理' },
@@ -1345,7 +1340,7 @@ function StoreContent() {
                                setCouponError(null);
                                return;
                              }
-                             const coupons = userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS;
+                             const coupons = userCoupons;
                              const found = coupons.find(c => c.code === code);
                              if (found) {
                                if (totalPrice < found.minSpend) {
@@ -1360,7 +1355,7 @@ function StoreContent() {
                            className="w-full bg-slate-50 border-none px-4 py-3.5 rounded-xl text-xs font-black text-slate-700 focus:ring-1 focus:ring-emerald-500/20 cursor-pointer"
                          >
                            <option value="">🎟️ 點擊展開可套用優惠券...</option>
-                           {(userCoupons.length > 0 ? userCoupons : AVAILABLE_COUPONS).map(coupon => {
+                           userCoupons.map(coupon => {
                              const canApply = totalPrice >= coupon.minSpend;
                              const discountText = coupon.discountType === 'fixed' ? `$${coupon.value}` : `${100 - coupon.value}折`;
                              return (
