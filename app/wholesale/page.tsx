@@ -512,7 +512,7 @@ function WholesaleContent() {
 
               {/* Predefined Coupon Chips (Click to use or cancel) */}
               <div className="grid grid-cols-1 gap-3">
-                 userCoupons.map((coupon) => {
+                 {userCoupons.map((coupon) => {
                     const isSelected = activeCoupon?.code === coupon.code;
                     const canApply = totalAmount >= coupon.minSpend;
                     
@@ -591,7 +591,7 @@ function WholesaleContent() {
                          } else if (code === "100" || code === "VIP" || code === "VIP100折") {
                             code = "VIP100";
                          }
-                         const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
+                         const found = [...userCoupons].find(c => c.code === code);
                          if (found) {
                             if (totalAmount < found.minSpend) {
                                setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);

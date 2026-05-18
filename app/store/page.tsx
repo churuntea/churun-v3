@@ -1355,7 +1355,7 @@ function StoreContent() {
                            className="w-full bg-slate-50 border-none px-4 py-3.5 rounded-xl text-xs font-black text-slate-700 focus:ring-1 focus:ring-emerald-500/20 cursor-pointer"
                          >
                            <option value="">🎟️ 點擊展開可套用優惠券...</option>
-                           userCoupons.map(coupon => {
+                           {userCoupons.map(coupon => {
                              const canApply = totalPrice >= coupon.minSpend;
                              const discountText = coupon.discountType === 'fixed' ? `$${coupon.value}` : `${100 - coupon.value}折`;
                              return (
@@ -1413,7 +1413,7 @@ function StoreContent() {
                                  } else if (code === "100" || code === "VIP" || code === "VIP100折") {
                                     code = "VIP100";
                                  }
-                                 const found = [...userCoupons, ...AVAILABLE_COUPONS].find(c => c.code === code);
+                                 const found = [...userCoupons].find(c => c.code === code);
                                  if (found) {
                                     if (totalPrice < found.minSpend) {
                                        setCouponError(`未達該券最低消費門檻 $${found.minSpend}`);
