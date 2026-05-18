@@ -20,6 +20,29 @@ import {
 import Link from "next/link";
 import { supabase } from "@/app/supabase";
 
+function calculateDueDate(startDateStr: string | null): string {
+  const startDate = startDateStr ? new Date(startDateStr) : new Date();
+  let count = 0;
+  let currentDate = new Date(startDate);
+  currentDate.setDate(currentDate.getDate() + 1);
+
+  while (count < 3) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    if (count < 3) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth() + 1;
+  const date = currentDate.getDate();
+
+  return `${year}年${month}月${date}號`;
+}
+
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id");
@@ -296,7 +319,10 @@ function OrderSuccessContent() {
                      </div>
                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-[9px] text-emerald-300 leading-relaxed font-bold flex gap-2 items-start">
                         <Info className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>請匯入正確金額 <span className="underline">${actualAmount.toLocaleString()}</span> 元。完成後，請至個人中心點選【回報匯款】，管理員將立即為您安排出貨！</span>
+                        <span>
+                          請於 <span className="text-white underline">{calculateDueDate(orderData?.created_at)}</span> 24點前完成匯款。
+                          請匯入正確金額 <span className="underline">${actualAmount.toLocaleString()}</span> 元。完成後，請至個人中心點選【回報匯款】，管理員將立即為您安排出貨！
+                        </span>
                      </div>
                   </div>
                )}

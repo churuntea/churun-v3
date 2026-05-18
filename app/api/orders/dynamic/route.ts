@@ -4,6 +4,29 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
 
+function calculateDueDate(startDateStr: string | null): string {
+  const startDate = startDateStr ? new Date(startDateStr) : new Date();
+  let count = 0;
+  let currentDate = new Date(startDate);
+  currentDate.setDate(currentDate.getDate() + 1);
+
+  while (count < 3) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    if (count < 3) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth() + 1;
+  const date = currentDate.getDate();
+
+  return `${year}年${month}月${date}號`;
+}
+
 function getLineAccessToken(): string {
   if (process.env.LINE_CHANNEL_ACCESS_TOKEN) {
     return process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -375,6 +398,7 @@ export async function POST(request: Request) {
 ● 紅利折抵：-$${pointsRedeemed.toLocaleString()} 點 ($${pointsRedeemed.toLocaleString()} 元)
 ● 運費金額：$${shippingFee.toLocaleString()} 元
 ● 採購總額：$${orderTotalAmount.toLocaleString()} 元
+● 匯款期限：${calculateDueDate(null)} 24點前
 ● 物流方式：${shippingInfo?.method || '宅配到府'}
 ● 配送收件人：${shippingInfo?.name || buyer.name}
 ━━━━━━━━━━━━━━━━━━

@@ -578,6 +578,44 @@ function StoreContent() {
       // 拉取該會員最近的歷史訂單明細
       await fetchUserOrders(userId);
 
+      // 載入該會員擁有且未使用的優惠券
+      try {
+        const { data: mcData } = await supabase
+          .from("member_coupons")
+          .select(`
+            id,
+            is_used,
+            coupons (
+              id,
+              code,
+              name,
+              discount_type,
+              value,
+              min_spend,
+              description
+            )
+          `)
+          .eq("member_id", userId)
+          .eq("is_used", false);
+
+        if (mcData) {
+          const fetched: any[] = mcData
+            .filter((row: any) => row.coupons !== null)
+            .map((row: any) => ({
+              id: row.id, // 會員優惠券紀錄的 ID，以便結帳後標記已使用
+              code: row.coupons.code,
+              name: row.coupons.name,
+              discountType: row.coupons.discount_type,
+              value: Number(row.coupons.value),
+              minSpend: Number(row.coupons.min_spend),
+              description: row.coupons.description
+            }));
+          setUserCoupons(fetched);
+        }
+      } catch (couponErr) {
+        console.error("載入會員自訂優惠券失敗:", couponErr);
+      }
+
       // 載入動態分類大項
       try {
         const { data: catData } = await supabase
@@ -658,6 +696,19 @@ function StoreContent() {
         setCreatedOrderId(data.orderId);
         setCreatedOrderNumber(data.orderNumber);
         clearCart();
+        
+        // 如果使用的是真正的資料庫優惠券，將其狀態更新為已使用！
+        if (activeCoupon && activeCoupon.id) {
+          try {
+            await supabase
+              .from("member_coupons")
+              .update({ is_used: true, used_at: new Date().toISOString() })
+              .eq("id", activeCoupon.id);
+          } catch (couponErr) {
+            console.error("更新優惠券狀態為已使用失敗:", couponErr);
+          }
+        }
+        
         fetchData(memberInfo.id); 
       } else {
         alert(data.error || "結帳失敗");
@@ -732,6 +783,19 @@ function StoreContent() {
         setCreatedOrderId(data.orderId);
         setCreatedOrderNumber(data.orderNumber);
         clearCart();
+        
+        // 如果使用的是真正的資料庫優惠券，將其狀態更新為已使用！
+        if (activeCoupon && activeCoupon.id) {
+          try {
+            await supabase
+              .from("member_coupons")
+              .update({ is_used: true, used_at: new Date().toISOString() })
+              .eq("id", activeCoupon.id);
+          } catch (couponErr) {
+            console.error("更新優惠券狀態為已使用失敗:", couponErr);
+          }
+        }
+        
         fetchData(memberInfo.id); 
       } else {
         alert(data.error || "結帳失敗");
