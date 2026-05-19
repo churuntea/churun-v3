@@ -116,7 +116,20 @@ function OrdersContent() {
   const [remitterBanks, setRemitterBanks] = useState<Record<string, string>>({});
   const [isEditingRemittance, setIsEditingRemittance] = useState<Record<string, boolean>>({});
   const [activeBankFocus, setActiveBankFocus] = useState<Record<string, boolean>>({});
-  const [memberProfileInfo, setMemberProfileInfo] = useState<{ name: string; bankName: string } | null>(null);
+  const [memberProfileInfo, setMemberProfileInfo] = useState<{ name: string; bankName: string; lastFive: string } | null>(null);
+
+  // 常用匯款帳號簿狀態
+  const [showBankBookModal, setShowBankBookModal] = useState(false);
+  const [selectedOrderIdForBankBook, setSelectedOrderIdForBankBook] = useState<string | null>(null);
+  const [savedBanks, setSavedBanks] = useState<any[]>([]);
+  
+  // 新增常用帳號表單狀態
+  const [newBankAlias, setNewBankAlias] = useState("");
+  const [newBankName, setNewBankName] = useState("");
+  const [newBankLastFive, setNewBankLastFive] = useState("");
+  const [newBankSearchText, setNewBankSearchText] = useState("");
+  const [showNewBankForm, setShowNewBankForm] = useState(false);
+  const [newBankFocus, setNewBankFocus] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -125,6 +138,16 @@ function OrdersContent() {
       return;
     }
     fetchOrders(savedId);
+
+    // 載入常用帳號
+    try {
+      const saved = localStorage.getItem("churun_saved_banks");
+      if (saved) {
+        setSavedBanks(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("載入常用帳號失敗:", e);
+    }
   }, [router]);
 
   const fetchOrders = async (userId: string) => {
@@ -133,11 +156,12 @@ function OrdersContent() {
     // 取得會員綁定的銀行與姓名資訊
     let memberName = localStorage.getItem("churun_member_name") || "";
     let memberBankName = "";
+    let memberLastFive = "";
 
     try {
       const { data: member } = await supabase
         .from("members")
-        .select("name, bank_code")
+        .select("name, bank_code, bank_account")
         .eq("id", userId)
         .single();
       if (member) {
@@ -146,12 +170,15 @@ function OrdersContent() {
           const found = TAIWAN_BANKS.find(b => b.code === member.bank_code);
           memberBankName = found ? found.name : member.bank_code;
         }
+        if (member.bank_account) {
+          memberLastFive = member.bank_account.slice(-5);
+        }
       }
     } catch (err) {
       console.error("抓取會員綁定資料失敗:", err);
     }
 
-    setMemberProfileInfo({ name: memberName, bankName: memberBankName });
+    setMemberProfileInfo({ name: memberName, bankName: memberBankName, lastFive: memberLastFive });
 
     const { data } = await supabase
       .from("orders")
@@ -177,9 +204,10 @@ function OrdersContent() {
 
     setOrders(processed);
 
-    // 預設匯款人姓名與銀行為會員資料
+    // 預設匯款人姓名、銀行與末五碼為會員資料
     const defaultNames: Record<string, string> = {};
     const defaultBanks: Record<string, string> = {};
+    const defaultLastFives: Record<string, string> = {};
 
     processed.forEach((order: any) => {
       if (!order.remitter_name && memberName) {
@@ -187,6 +215,9 @@ function OrdersContent() {
       }
       if (!order.remitter_bank && memberBankName) {
         defaultBanks[order.id] = memberBankName;
+      }
+      if (!order.payment_last_five && memberLastFive) {
+        defaultLastFives[order.id] = memberLastFive;
       }
     });
 
@@ -196,10 +227,64 @@ function OrdersContent() {
     if (Object.keys(defaultBanks).length > 0) {
       setRemitterBanks(prev => ({ ...defaultBanks, ...prev }));
     }
+    if (Object.keys(defaultLastFives).length > 0) {
+      setRemittanceInputs(prev => ({ ...defaultLastFives, ...prev }));
+    }
 
     setIsLoading(false);
   };
 
+  const handleSaveBank = () => {
+    if (!newBankAlias.trim()) { alert("請輸入常用帳號名稱 (例如：我的富邦)"); return; }
+    if (!newBankName.trim()) { alert("請輸入匯款人姓名"); return; }
+    if (!newBankSearchText.trim()) { alert("請選擇或輸入匯款銀行"); return; }
+    if (!newBankLastFive.trim() || newBankLastFive.length !== 5) { alert("請輸入正確的 5 碼帳號末五碼"); return; }
+
+    const newAcc = {
+      id: Date.now().toString(),
+      alias: newBankAlias.trim(),
+      name: newBankName.trim(),
+      bank: newBankSearchText.trim(),
+      lastFive: newBankLastFive.trim()
+    };
+
+    const updated = [newAcc, ...savedBanks];
+    setSavedBanks(updated);
+    localStorage.setItem("churun_saved_banks", JSON.stringify(updated));
+
+    // 自動套用到當前正在操作的訂單
+    if (selectedOrderIdForBankBook) {
+      setRemitterNames(prev => ({ ...prev, [selectedOrderIdForBankBook]: newAcc.name }));
+      setRemitterBanks(prev => ({ ...prev, [selectedOrderIdForBankBook]: newAcc.bank }));
+      setRemittanceInputs(prev => ({ ...prev, [selectedOrderIdForBankBook]: newAcc.lastFive }));
+    }
+
+    // 重設表單
+    setNewBankAlias("");
+    setNewBankName("");
+    setNewBankSearchText("");
+    setNewBankLastFive("");
+    setShowNewBankForm(false);
+    setShowBankBookModal(false);
+    alert("✅ 成功儲存常用帳號並已自動套用到欄位中！");
+  };
+
+  const handleDeleteBank = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("確定要刪除此常用帳號嗎？")) return;
+    const updated = savedBanks.filter(b => b.id !== id);
+    setSavedBanks(updated);
+    localStorage.setItem("churun_saved_banks", JSON.stringify(updated));
+  };
+
+  const handleSelectBank = (bankInfo: { name: string; bank: string; lastFive: string }) => {
+    if (selectedOrderIdForBankBook) {
+      setRemitterNames(prev => ({ ...prev, [selectedOrderIdForBankBook]: bankInfo.name }));
+      setRemitterBanks(prev => ({ ...prev, [selectedOrderIdForBankBook]: bankInfo.bank }));
+      setRemittanceInputs(prev => ({ ...prev, [selectedOrderIdForBankBook]: bankInfo.lastFive }));
+    }
+    setShowBankBookModal(false);
+  };
   const fetchOrderItems = async (orderId: string) => {
     if (orderItems[orderId]) {
       setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -427,24 +512,44 @@ function OrdersContent() {
                                        </div>
                                     </div>
                                  </div>
-                                 <button 
-                                   onClick={() => {
-                                     setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || "" }));
-                                     setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || memberProfileInfo?.name || localStorage.getItem("churun_member_name") || "" }));
-                                     setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || memberProfileInfo?.bankName || "" }));
-                                     setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
-                                   }}
-                                   className="text-slate-400 hover:text-slate-600 text-[10px] font-black tracking-widest transition uppercase shrink-0"
-                                 >
-                                    修改資訊
-                                 </button>
-                              </div>
-                           ) : (
-                              <div className="space-y-3">
-                                 <div className="flex justify-between items-center">
-                                    <p className="text-[10px] font-black text-amber-700 tracking-wider">請回報匯款資訊以供對帳</p>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Remittance Form</span>
-                                 </div>
+                                  <div className="flex flex-col items-end gap-2 shrink-0">
+                                     <button 
+                                       onClick={() => {
+                                         setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || memberProfileInfo?.lastFive || "" }));
+                                         setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || memberProfileInfo?.name || localStorage.getItem("churun_member_name") || "" }));
+                                         setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || memberProfileInfo?.bankName || "" }));
+                                         setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
+                                       }}
+                                       className="text-amber-600 hover:text-amber-700 text-[10px] font-black tracking-widest transition uppercase"
+                                     >
+                                        修改資訊
+                                     </button>
+                                     <button 
+                                       onClick={() => {
+                                         setSelectedOrderIdForBankBook(order.id);
+                                         setShowBankBookModal(true);
+                                       }}
+                                       className="text-slate-400 hover:text-slate-600 text-[9px] font-bold tracking-wider transition flex items-center gap-1"
+                                     >
+                                        🏦 常用帳號
+                                     </button>
+                                  </div>
+                               </div>
+                            ) : (
+                               <div className="space-y-3">
+                                  <div className="flex justify-between items-center">
+                                     <p className="text-[10px] font-black text-amber-700 tracking-wider">請回報匯款資訊以供對帳</p>
+                                     <button 
+                                       type="button"
+                                       onClick={() => {
+                                         setSelectedOrderIdForBankBook(order.id);
+                                         setShowBankBookModal(true);
+                                       }}
+                                       className="text-[9px] font-black text-amber-700 hover:text-amber-800 bg-amber-100/60 hover:bg-amber-200/80 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm"
+                                     >
+                                       🏦 選擇常用帳號
+                                     </button>
+                                  </div>
                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                     <div>
                                       <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款人姓名</label>
@@ -606,6 +711,197 @@ function OrdersContent() {
            )
          )}
 
+      {/* 常用銀行帳號選擇 Modal */}
+      <AnimatePresence>
+        {showBankBookModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setShowBankBookModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh]"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-slate-900 p-6 text-white shrink-0 relative">
+                <h3 className="text-base font-black tracking-wider flex items-center gap-2">🏦 常用匯款帳號簿</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Saved Remittance Accounts</p>
+                <button
+                  onClick={() => setShowBankBookModal(false)}
+                  className="absolute right-5 top-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1 min-h-0">
+                {/* 🌟 預設綁定帳號 */}
+                {memberProfileInfo && (
+                  <div className="bg-emerald-50/40 border border-emerald-900/10 rounded-2xl p-4 text-left relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-emerald-900 text-white text-[8px] font-black tracking-wider px-2.5 py-1 rounded-bl-xl uppercase">
+                      🌟 預設綁定
+                    </div>
+                    <p className="text-[10px] font-black text-emerald-800 tracking-wider">會員註冊綁定帳號</p>
+                    <div className="mt-2.5 space-y-1 text-xs font-bold text-slate-650">
+                      <p>👤 戶名：<span className="text-slate-800">{memberProfileInfo.name}</span></p>
+                      <p>🏦 銀行：<span className="text-slate-800">{memberProfileInfo.bankName || "未設定"}</span></p>
+                      <p>🔢 末五碼：<span className="text-emerald-700 font-mono font-black">{memberProfileInfo.lastFive || "未設定"}</span></p>
+                    </div>
+                    {memberProfileInfo.bankName && (
+                      <button
+                        onClick={() => handleSelectBank({ name: memberProfileInfo.name, bank: memberProfileInfo.bankName, lastFive: memberProfileInfo.lastFive })}
+                        className="w-full bg-emerald-900 hover:bg-emerald-950 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition shadow-lg shadow-emerald-900/10 mt-3 flex items-center justify-center gap-1"
+                      >
+                        套用此預設帳號 ➔
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 常用帳號列表 */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">常用帳號列表 ({savedBanks.length})</h4>
+                    {!showNewBankForm && (
+                      <button
+                        onClick={() => setShowNewBankForm(true)}
+                        className="text-[9px] font-black text-amber-600 hover:text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg transition"
+                      >
+                        + 新增常用帳號
+                      </button>
+                    )}
+                  </div>
+
+                  {showNewBankForm && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 text-left animate-fade-in"
+                    >
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex justify-between items-center">
+                        <span>➕ 填寫常用帳號</span>
+                        <span onClick={() => setShowNewBankForm(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">收起 ✕</span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="col-span-2">
+                          <label className="text-[9px] font-bold text-slate-500 mb-1 block">帳號暱稱 / 簡稱</label>
+                          <input
+                            type="text"
+                            placeholder="例：我的富邦卡、媽媽的帳戶"
+                            value={newBankAlias}
+                            onChange={e => setNewBankAlias(e.target.value)}
+                            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款人姓名</label>
+                          <input
+                            type="text"
+                            placeholder="例：陳小明"
+                            value={newBankName}
+                            onChange={e => setNewBankName(e.target.value)}
+                            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div className="relative">
+                          <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款銀行</label>
+                          <input
+                            type="text"
+                            placeholder="例：國泰世華"
+                            value={newBankSearchText}
+                            onChange={e => setNewBankSearchText(e.target.value)}
+                            onFocus={() => setNewBankFocus(true)}
+                            onBlur={() => setTimeout(() => setNewBankFocus(false), 200)}
+                            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                          {newBankFocus && TAIWAN_BANKS.filter(b => b.name.includes(newBankSearchText) || b.code.includes(newBankSearchText)).length > 0 && (
+                            <div className="absolute left-0 right-0 z-[110] mt-1 max-h-32 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl divide-y divide-slate-50">
+                              {TAIWAN_BANKS.filter(b => b.name.includes(newBankSearchText) || b.code.includes(newBankSearchText)).map(bank => (
+                                <button
+                                  key={bank.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewBankSearchText(bank.name);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[10px] text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
+                                >
+                                  <span className="font-mono text-slate-400 mr-1">[{bank.code}]</span>
+                                  {bank.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-[9px] font-bold text-slate-500 mb-1 block">帳號末五碼</label>
+                          <input
+                            type="text"
+                            maxLength={5}
+                            placeholder="例：12345"
+                            value={newBankLastFive}
+                            onChange={e => setNewBankLastFive(e.target.value.replace(/\D/g, ""))}
+                            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSaveBank}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition mt-1 shadow-md shadow-amber-500/10"
+                      >
+                        儲存並套用 ✓
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {savedBanks.length === 0 ? (
+                    <div className="bg-slate-50 rounded-2xl p-6 text-center border border-slate-100">
+                      <p className="text-xs text-slate-400 font-bold">尚無任何常用帳號</p>
+                      <p className="text-[9px] text-slate-350 font-bold mt-1 leading-relaxed">您可以點擊右上角新增，以便未來一鍵快速代入！</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                      {savedBanks.map(bank => (
+                        <div
+                          key={bank.id}
+                          onClick={() => handleSelectBank({ name: bank.name, bank: bank.bank, lastFive: bank.lastFive })}
+                          className="bg-white border border-slate-100 hover:border-amber-200 hover:bg-amber-50/10 rounded-2xl p-4 text-left transition cursor-pointer flex justify-between items-center relative group"
+                        >
+                          <div>
+                            <span className="text-[8px] font-black text-slate-400 bg-slate-50 group-hover:bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              🏷️ {bank.alias}
+                            </span>
+                            <div className="mt-2 space-y-0.5 text-[11px] font-bold text-slate-650">
+                              <p>👤 戶名：<span className="text-slate-800">{bank.name}</span></p>
+                              <p>🏦 銀行：<span className="text-slate-800">{bank.bank}</span></p>
+                              <p>🔢 末五碼：<span className="text-amber-800 font-mono font-black">{bank.lastFive}</span></p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteBank(bank.id, e)}
+                              className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center text-xs transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </main>
     </div>
   );
