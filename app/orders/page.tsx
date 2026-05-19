@@ -116,6 +116,7 @@ function OrdersContent() {
   const [remitterBanks, setRemitterBanks] = useState<Record<string, string>>({});
   const [isEditingRemittance, setIsEditingRemittance] = useState<Record<string, boolean>>({});
   const [activeBankFocus, setActiveBankFocus] = useState<Record<string, boolean>>({});
+  const [memberProfileInfo, setMemberProfileInfo] = useState<{ name: string; bankName: string } | null>(null);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -128,6 +129,30 @@ function OrdersContent() {
 
   const fetchOrders = async (userId: string) => {
     setIsLoading(true);
+
+    // 取得會員綁定的銀行與姓名資訊
+    let memberName = localStorage.getItem("churun_member_name") || "";
+    let memberBankName = "";
+
+    try {
+      const { data: member } = await supabase
+        .from("members")
+        .select("name, bank_code")
+        .eq("id", userId)
+        .single();
+      if (member) {
+        if (member.name) memberName = member.name;
+        if (member.bank_code) {
+          const found = TAIWAN_BANKS.find(b => b.code === member.bank_code);
+          memberBankName = found ? found.name : member.bank_code;
+        }
+      }
+    } catch (err) {
+      console.error("抓取會員綁定資料失敗:", err);
+    }
+
+    setMemberProfileInfo({ name: memberName, bankName: memberBankName });
+
     const { data } = await supabase
       .from("orders")
       .select("*")
@@ -152,16 +177,24 @@ function OrdersContent() {
 
     setOrders(processed);
 
-    // 預設匯款人姓名為當前登入之會員姓名
-    const memberName = localStorage.getItem("churun_member_name") || "";
-    if (memberName) {
-      const defaultNames: Record<string, string> = {};
-      processed.forEach((order: any) => {
-        if (!order.remitter_name) {
-          defaultNames[order.id] = memberName;
-        }
-      });
+    // 預設匯款人姓名與銀行為會員資料
+    const defaultNames: Record<string, string> = {};
+    const defaultBanks: Record<string, string> = {};
+
+    processed.forEach((order: any) => {
+      if (!order.remitter_name && memberName) {
+        defaultNames[order.id] = memberName;
+      }
+      if (!order.remitter_bank && memberBankName) {
+        defaultBanks[order.id] = memberBankName;
+      }
+    });
+
+    if (Object.keys(defaultNames).length > 0) {
       setRemitterNames(prev => ({ ...defaultNames, ...prev }));
+    }
+    if (Object.keys(defaultBanks).length > 0) {
+      setRemitterBanks(prev => ({ ...defaultBanks, ...prev }));
     }
 
     setIsLoading(false);
@@ -397,8 +430,8 @@ function OrdersContent() {
                                  <button 
                                    onClick={() => {
                                      setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || "" }));
-                                     setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || localStorage.getItem("churun_member_name") || "" }));
-                                     setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || "" }));
+                                     setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || memberProfileInfo?.name || localStorage.getItem("churun_member_name") || "" }));
+                                     setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || memberProfileInfo?.bankName || "" }));
                                      setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
                                    }}
                                    className="text-slate-400 hover:text-slate-600 text-[10px] font-black tracking-widest transition uppercase shrink-0"
