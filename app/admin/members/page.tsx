@@ -18,7 +18,8 @@ import {
   Coins,
   ShieldAlert,
   Sparkles,
-  Award
+  Award,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -56,10 +57,19 @@ function AdminMembersContent() {
     is_b2b: false,
     balanceAdjustment: "",
     pointsAdjustment: "",
-    adjustmentReason: ""
+    adjustmentReason: "",
+    status: "active"
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [adminUser, setAdminUser] = useState<any>(null);
+
+  // Referrer State Variables
+  const [selectedUplineId, setSelectedUplineId] = useState<string | null>(null);
+  const [uplineSearch, setUplineSearch] = useState("");
+  const [uplineSearchResult, setUplineSearchResult] = useState<any | null>(null);
+  const [isSearchingUpline, setIsSearchingUpline] = useState(false);
 
   useEffect(() => {
     const auth = sessionStorage.getItem("churun_admin_auth");
@@ -67,16 +77,83 @@ function AdminMembersContent() {
       router.replace("/admin");
       return;
     }
+    const userStr = sessionStorage.getItem("churun_admin_user");
+    if (userStr) {
+      try {
+        setAdminUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error(e);
+      }
+    }
     setIsAdmin(true);
     fetchMembers();
   }, [router]);
+
+  // Real-time lookup for debounced referrer search text
+  useEffect(() => {
+    if (!showEditModal || !selectedMember) return;
+    const term = uplineSearch.trim().toUpperCase();
+    if (!term) {
+      // If search is empty, revert search result back to selectedUplineId details if they match
+      if (selectedUplineId === (selectedMember.upline?.id || null)) {
+        setUplineSearchResult(selectedMember.upline || null);
+      } else {
+        // Query current selectedUplineId if it changed
+        if (selectedUplineId) {
+          const fetchCurrentUpline = async () => {
+            const { data } = await supabase
+              .from("members")
+              .select("id, name, member_code, phone")
+              .eq("id", selectedUplineId)
+              .maybeSingle();
+            if (data) setUplineSearchResult(data);
+          };
+          fetchCurrentUpline();
+        } else {
+          setUplineSearchResult(null);
+        }
+      }
+      return;
+    }
+
+    if (term === selectedMember.member_code?.toUpperCase() || term === selectedMember.phone) {
+      setUplineSearchResult({ error: "self" });
+      return;
+    }
+
+    const searchRef = async () => {
+      setIsSearchingUpline(true);
+      const { data, error } = await supabase
+        .from("members")
+        .select("id, name, member_code, phone")
+        .or(`referral_code.eq.${term},member_code.eq.${term},phone.eq.${term}`)
+        .maybeSingle();
+
+      if (error) {
+        console.error(error);
+        setUplineSearchResult(null);
+      } else if (data) {
+        if (data.id === selectedMember.id) {
+          setUplineSearchResult({ error: "self" });
+        } else {
+          setUplineSearchResult(data);
+        }
+      } else {
+        setUplineSearchResult(null);
+      }
+      setIsSearchingUpline(false);
+    };
+
+    const timer = setTimeout(searchRef, 600);
+    return () => clearTimeout(timer);
+  }, [uplineSearch, selectedMember, showEditModal, selectedUplineId]);
 
   const fetchMembers = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("members")
-        .select("*")
+        .select("*, upline:upline_id(id, name, member_code, phone)")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -94,7 +171,8 @@ function AdminMembersContent() {
     const exportData = members.map(m => ({
       '註冊日期': new Date(m.created_at).toLocaleString(),
       '會員代碼': m.member_code,
-      '推薦人代碼': m.inviter_code || '無',
+      '推薦人姓名': m.upline?.name || '無',
+      '推薦人代碼': m.upline?.member_code || '無',
       '姓名': m.name,
       '電話': m.phone,
       '信箱': m.email || '',
@@ -126,7 +204,9 @@ function AdminMembersContent() {
         is_b2b: editForm.is_b2b,
         balanceAdjustment: editForm.balanceAdjustment ? Number(editForm.balanceAdjustment) : 0,
         pointsAdjustment: editForm.pointsAdjustment ? Number(editForm.pointsAdjustment) : 0,
-        adjustmentReason: editForm.adjustmentReason
+        adjustmentReason: editForm.adjustmentReason,
+        uplineId: selectedUplineId,
+        status: editForm.status
       };
 
       // 串接 API 進行後端特權異動與日誌寫入
@@ -147,6 +227,44 @@ function AdminMembersContent() {
     } catch (err: any) {
       console.error(err);
       setErrorMessage("網路請求錯誤：" + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!selectedMember || !adminUser) return;
+    if (adminUser.title !== '總經理' && adminUser.title !== '超級管理員') {
+      alert("🔒 權限不足！只有最高管理員（總經理/超級管理員）有權執行刪除程序。");
+      return;
+    }
+
+    const firstConfirm = confirm(`🚨 警告：您即將永久刪除會員「${selectedMember.name}」的帳戶！\n此操作會將該會員的錢包餘額、紅利點數、訂單明細、交易紀錄等「所有相關資料」在資料庫中安全永久抹除，且無法回復！\n\n您確定要繼續嗎？`);
+    if (!firstConfirm) return;
+
+    const secondConfirm = prompt(`❗ 請輸入會員的姓名「${selectedMember.name}」以確認授權刪除：`);
+    if (secondConfirm !== selectedMember.name) {
+      alert("❌ 驗證姓名不符，已取消刪除程序。");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      const res = await fetch(`/api/admin/members?memberId=${selectedMember.id}&adminTitle=${encodeURIComponent(adminUser.title)}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowEditModal(false);
+        alert("🎉 會員「" + selectedMember.name + "」所有相關資料已成功從雲端資料庫安全永久抹除！");
+        fetchMembers();
+      } else {
+        setErrorMessage(data.error || "刪除會員失敗");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage("網路錯誤：" + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -176,9 +294,14 @@ function AdminMembersContent() {
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Members Override Directory</p>
             </div>
          </div>
-         <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest">
-            <Download className="w-4 h-4" /> 匯出名單 (CSV)
-         </button>
+         <div className="flex gap-3">
+            <Link href="/admin/deleted-members" className="flex items-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 border border-rose-100/50 rounded-[1.5rem] hover:bg-rose-100 transition text-[10px] font-black uppercase tracking-widest active:scale-95">
+               <Trash2 className="w-3.5 h-3.5 text-rose-500" /> 已刪除名單總覽
+            </Link>
+            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest active:scale-95 cursor-pointer">
+               <Download className="w-4 h-4" /> 匯出名單 (CSV)
+            </button>
+         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto p-10 space-y-10">
@@ -245,7 +368,19 @@ function AdminMembersContent() {
                                   {m.name?.slice(0, 1)}
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-sm font-black text-slate-800">{m.name}</p>
+                                  <div className="flex items-center gap-2">
+                                     <p className="text-sm font-black text-slate-800">{m.name}</p>
+                                     {m.status === 'warning' && (
+                                        <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-0.5 border border-rose-200 shrink-0">
+                                           ⚠️ 警示帳戶
+                                        </span>
+                                     )}
+                                     {m.status === 'exited' && (
+                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-0.5 border border-slate-200 shrink-0">
+                                           🔴 已退會
+                                        </span>
+                                     )}
+                                  </div>
                                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
                                     <Phone className="w-3 h-3" /> {m.phone}
                                   </div>
@@ -271,7 +406,9 @@ function AdminMembersContent() {
                          <td className="p-6">
                             <div className="space-y-1">
                                <p className="text-xs font-mono font-bold text-indigo-600">{m.member_code}</p>
-                               <p className="text-[9px] font-bold text-slate-400">推薦人: {m.inviter_code || '無'}</p>
+                               <p className="text-[9px] font-bold text-slate-400">
+                                 推薦人: {m.upline ? `${m.upline.name} (${m.upline.member_code || '無代碼'})` : '無'}
+                               </p>
                             </div>
                          </td>
                          <td className="p-6 text-right">
@@ -295,8 +432,13 @@ function AdminMembersContent() {
                                   is_b2b: !!m.is_b2b,
                                   balanceAdjustment: "",
                                   pointsAdjustment: "",
-                                  adjustmentReason: ""
+                                  adjustmentReason: "",
+                                  status: m.status || "active"
                                 });
+                                // Initialize referrer states
+                                setSelectedUplineId(m.upline?.id || null);
+                                setUplineSearch("");
+                                setUplineSearchResult(m.upline || null);
                                 setErrorMessage("");
                                 setShowEditModal(true);
                               }}
@@ -426,6 +568,96 @@ function AdminMembersContent() {
                      </div>
                   </div>
 
+                  {/* 👥 推薦關係設定 */}
+                  <div className="space-y-4 pt-2">
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">👥 推薦關係設定</span>
+                     <div className="bg-slate-50 p-5 rounded-2xl space-y-4 border border-slate-100/50">
+                        <div className="flex items-center justify-between">
+                           <div className="space-y-1">
+                              <span className="text-[8px] font-black text-slate-400 block uppercase">當前推薦人</span>
+                              <p className="text-xs font-bold text-slate-700">
+                                 {selectedUplineId ? (
+                                    uplineSearchResult && uplineSearchResult.id === selectedUplineId ? (
+                                       `${uplineSearchResult.name} (${uplineSearchResult.member_code || uplineSearchResult.phone || '無代碼'})`
+                                    ) : (
+                                       "已選擇新推薦人 (見下方)"
+                                    )
+                                 ) : (
+                                    <span className="text-slate-400 font-bold">無推薦人 (系統預設)</span>
+                                 )}
+                              </p>
+                           </div>
+                           {selectedUplineId && (
+                              <button
+                                 type="button"
+                                 onClick={() => {
+                                    setSelectedUplineId(null);
+                                    setUplineSearch("");
+                                    setUplineSearchResult(null);
+                                 }}
+                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[9px] font-black tracking-widest uppercase transition"
+                              >
+                                 ✕ 清除推薦人
+                              </button>
+                           )}
+                        </div>
+
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/50 relative">
+                           <label className="text-[9px] font-black text-slate-400 ml-1">搜尋並變更推薦人 (輸入代碼或手機號碼)</label>
+                           <div className="relative">
+                              <input
+                                 type="text"
+                                 value={uplineSearch}
+                                 onChange={e => {
+                                    const val = e.target.value;
+                                    setUplineSearch(val);
+                                 }}
+                                 placeholder="例: CR26M311991 或 0912345678"
+                                 className="w-full bg-white border border-slate-100 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                              />
+                              {isSearchingUpline && (
+                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                                 </div>
+                              )}
+                           </div>
+
+                           {uplineSearch.trim() && (
+                              <div className="mt-2 ml-1">
+                                 {uplineSearchResult === null && !isSearchingUpline && (
+                                    <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                                       ❌ 找不到該推薦人，請確認代碼或手機號碼是否正確
+                                    </p>
+                                 )}
+                                 {uplineSearchResult && uplineSearchResult.error === "self" && (
+                                    <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                                       ⚠️ 不能將會員自己設為自己的推薦人！
+                                    </p>
+                                 )}
+                                 {uplineSearchResult && !uplineSearchResult.error && uplineSearchResult.id && (
+                                    <div className="flex items-center justify-between bg-emerald-50/50 border border-emerald-100/50 p-2.5 rounded-xl mt-2">
+                                       <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                          ✨ 找到推薦人：{uplineSearchResult.name} ({uplineSearchResult.member_code || '無代碼'})
+                                       </p>
+                                       {selectedUplineId !== uplineSearchResult.id && (
+                                          <button
+                                             type="button"
+                                             onClick={() => {
+                                                setSelectedUplineId(uplineSearchResult.id);
+                                             }}
+                                             className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[8px] font-black tracking-widest uppercase transition"
+                                          >
+                                             套用變更 ✓
+                                          </button>
+                                       )}
+                                    </div>
+                                 )}
+                              </div>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+
                   {/* Account Balance and Points Adjustment Panel */}
                   <div className="space-y-4 pt-2">
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">💰 資金與點數調度 (留空代表不異動)</span>
@@ -475,6 +707,41 @@ function AdminMembersContent() {
                         />
                      </div>
                   </div>
+
+                  {/* 🛡️ 最高管理權限專區 (限總經理/超級管理員) */}
+                  {(adminUser?.title === '總經理' || adminUser?.title === '超級管理員') && (
+                     <div className="space-y-4 pt-4 border-t border-rose-100/50">
+                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest block ml-1">🛡️ 最高管理權限專區 (限總經理/超級管理員)</span>
+                        <div className="bg-rose-50/20 p-5 rounded-[2rem] space-y-4 border border-rose-100/30">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {/* Status Selector */}
+                              <div className="space-y-1.5">
+                                 <label className="text-[9px] font-black text-slate-500 ml-1">帳戶運作狀態</label>
+                                 <select 
+                                   value={editForm.status || "active"} 
+                                   onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+                                   className="w-full bg-white border border-rose-100 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-rose-500/10 outline-none cursor-pointer text-slate-800"
+                                 >
+                                    <option value="active">🟢 正常運作 (Active)</option>
+                                    <option value="warning">⚠️ 警示帳戶 (Warning)</option>
+                                    <option value="exited">🔴 已退會 (Exited)</option>
+                                 </select>
+                              </div>
+
+                              {/* Permanent Delete Button */}
+                              <div className="space-y-1.5 flex flex-col justify-end">
+                                 <button
+                                    type="button"
+                                    onClick={handleDeleteMember}
+                                    className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-rose-600/10 active:scale-95 cursor-pointer"
+                                 >
+                                    🚨 永久刪除該會員資料
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  )}
 
                   {/* Actions */}
                   <div className="pt-4 border-t border-slate-100 flex gap-3">

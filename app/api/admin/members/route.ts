@@ -12,11 +12,17 @@ export async function PUT(request: Request) {
       is_b2b, 
       balanceAdjustment, 
       pointsAdjustment,
-      adjustmentReason 
+      adjustmentReason,
+      uplineId,
+      status
     } = await request.json();
 
     if (!memberId) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
+    }
+
+    if (uplineId && uplineId === memberId) {
+      return NextResponse.json({ success: false, error: '不能將會員自己設為推薦人' }, { status: 400 });
     }
 
     // 1. 獲取該會員當前資料
@@ -96,6 +102,14 @@ export async function PUT(request: Request) {
       points_balance: currentPoints
     };
 
+    if (uplineId !== undefined) {
+      updatePayload.upline_id = uplineId;
+    }
+
+    if (status !== undefined) {
+      updatePayload.status = status;
+    }
+
     const { data: updatedMember, error: updateErr } = await supabase
       .from('members')
       .update(updatePayload)
@@ -134,5 +148,109 @@ export async function PUT(request: Request) {
   } catch (error: any) {
     console.error('Admin Member Edit API Error:', error);
     return NextResponse.json({ success: false, error: '內部系統錯誤' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const memberId = searchParams.get('memberId');
+    const adminTitle = searchParams.get('adminTitle');
+
+    if (adminTitle !== '總經理' && adminTitle !== '超級管理員') {
+      return NextResponse.json({ success: false, error: '權限不足！只有最高管理員有權執行刪除程序。' }, { status: 403 });
+    }
+
+    if (!memberId) {
+      return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
+    }
+
+    // 0. 獲取會員資料以利備份記錄到刪除日誌
+    const { data: memberToBackup, error: fetchBackupError } = await supabase
+      .from('members')
+      .select('*')
+      .eq('id', memberId)
+      .single();
+
+    if (fetchBackupError || !memberToBackup) {
+      return NextResponse.json({ success: false, error: '找不到該會員的備份資料，已取消刪除程序。' }, { status: 404 });
+    }
+
+    // 寫入刪除記錄到 announcements 表 (SYSTEM 類別)
+    const backupLog = {
+      title: `[DELETED_MEMBER] ${memberToBackup.name}`,
+      tag: 'SYSTEM',
+      content: JSON.stringify({
+        id: memberToBackup.id,
+        name: memberToBackup.name,
+        phone: memberToBackup.phone,
+        referral_code: memberToBackup.referral_code,
+        member_code: memberToBackup.member_code,
+        tier: memberToBackup.tier,
+        is_b2b: memberToBackup.is_b2b,
+        points_balance: memberToBackup.points_balance,
+        virtual_balance: memberToBackup.virtual_balance,
+        initial_deposit: memberToBackup.initial_deposit,
+        lifetime_spend: memberToBackup.lifetime_spend,
+        quarterly_spend: memberToBackup.quarterly_spend,
+        referral_count: memberToBackup.referral_count,
+        bank_code: memberToBackup.bank_code,
+        bank_account: memberToBackup.bank_account,
+        email: memberToBackup.email,
+        id_card_number: memberToBackup.id_card_number,
+        address: memberToBackup.address,
+        line_id: memberToBackup.line_id,
+        beneficiary: memberToBackup.beneficiary,
+        deleted_by_name: '最高管理員',
+        deleted_by_title: adminTitle,
+        deleted_at: new Date().toISOString(),
+        original_data: memberToBackup
+      }),
+      color: 'bg-rose-600',
+      action_label: '已刪除備份',
+      action_href: '#'
+    };
+
+    const { error: logError } = await supabase
+      .from('announcements')
+      .insert(backupLog);
+
+    if (logError) {
+      console.error('Failed to write deleted member log:', logError);
+    }
+
+    // 1. 刪除系統通知
+    await supabase.from('notifications').delete().eq('member_id', memberId);
+
+    // 2. 刪除錢包與點數交易明細
+    await supabase.from('wallet_transactions').delete().eq('member_id', memberId);
+    await supabase.from('point_transactions').delete().eq('member_id', memberId);
+
+    // 3. 處理推薦關係斷開 (將下線的 upline_id 設為 null)
+    await supabase.from('members').update({ upline_id: null }).eq('upline_id', memberId);
+
+    // 4. 清除訂單與訂單商品細項
+    const { data: userOrders } = await supabase.from('orders').select('id').eq('member_id', memberId);
+    if (userOrders && userOrders.length > 0) {
+      const orderIds = userOrders.map(o => o.id);
+      await supabase.from('order_items').delete().in('order_id', orderIds);
+      await supabase.from('orders').delete().in('id', orderIds);
+    }
+
+    // 5. 永久刪除會員主體資料
+    const { error } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', memberId);
+
+    if (error) {
+      console.error('Delete member row failed:', error);
+      return NextResponse.json({ success: false, error: '永久刪除會員資料失敗' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: '該會員之所有相關交易、訂單與檔案已完全永久刪除！' });
+  } catch (err: any) {
+    console.error('Delete member API Error:', err);
+    return NextResponse.json({ success: false, error: '內部伺服器錯誤' }, { status: 500 });
   }
 }

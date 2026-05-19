@@ -36,19 +36,167 @@ function RegisterContent() {
     email: "",
     address: "",
     referral_code: "",
-    password: ""
+    password: "",
+    google_id: "",
+    line_id: "",
+    avatar_url: ""
   });
   const [uplineName, setUplineName] = useState<string | null>(null);
   const [isValidatingRef, setIsValidatingRef] = useState(false);
   const [hasRef, setHasRef] = useState(false);
 
+  // 1. 還原/帶入推薦碼
   useEffect(() => {
-    const ref = searchParams.get("ref");
+    const savedRef = localStorage.getItem("churun_register_ref");
+    const ref = searchParams.get("ref") || savedRef;
     if (ref) {
       setFormData(prev => ({ ...prev, referral_code: ref.trim().toUpperCase() }));
       setHasRef(true);
+      if (savedRef) {
+        localStorage.removeItem("churun_register_ref");
+      }
     }
   }, [searchParams]);
+
+  // 2. 處理社群 OAuth 登入/資料帶入回調
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const provider = searchParams.get("provider");
+      const code = searchParams.get("code");
+      const state = searchParams.get("state");
+
+      // Google 帶入回調
+      if (provider === "google") {
+        setIsLoading(true);
+        try {
+          const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+          if (sessionErr) throw sessionErr;
+          
+          if (session?.user) {
+            const user = session.user;
+            const email = user.email || "";
+            const name = user.user_metadata?.full_name || "Google 用戶";
+            const googleId = user.id;
+            const avatarUrl = user.user_metadata?.avatar_url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+
+            // 檢查是否已註冊過
+            const { data: existingMember } = await supabase
+              .from("members")
+              .select("id, name")
+              .eq("google_id", googleId)
+              .maybeSingle();
+
+            if (existingMember) {
+              localStorage.setItem("churun_member_id", existingMember.id);
+              localStorage.setItem("churun_member_name", existingMember.name);
+              await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", existingMember.id);
+              alert(`歡迎回來，${existingMember.name}！您已註冊過會員，已為您自動登入。`);
+              router.push("/profile");
+              return;
+            }
+
+            setFormData(prev => ({
+              ...prev,
+              name,
+              email,
+              google_id: googleId,
+              avatar_url: avatarUrl
+            }));
+            alert("✅ 成功從 Google 帳戶帶入基本資料 (姓名、信箱)！請確認或補全手機號碼與自訂密碼即可完成註冊。");
+          }
+        } catch (err: any) {
+          console.error("Google callback error:", err);
+          setErrorMsg("Google 資料帶入失敗，請稍後重試。");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+
+      // LINE 帶入回調
+      if (code && state === "churun_line_register") {
+        setIsLoading(true);
+        try {
+          const res = await fetch("/api/auth/line", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code,
+              redirectUri: `${window.location.origin}/register`
+            })
+          });
+
+          const data = await res.json();
+          if (!data.success) {
+            alert(data.error || "LINE 授權驗證失敗");
+            router.replace("/register");
+            return;
+          }
+
+          if (data.status === "success") {
+            localStorage.setItem("churun_member_id", data.memberId);
+            localStorage.setItem("churun_member_name", data.memberName);
+            await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
+            alert(`歡迎回來，${data.memberName}！您已註冊過會員，已為您自動登入。`);
+            router.push("/profile");
+          } else if (data.status === "new_user") {
+            setFormData(prev => ({
+              ...prev,
+              name: data.displayName || "LINE 用戶",
+              line_id: data.lineUserId,
+              avatar_url: data.pictureUrl || "https://i.ibb.co/6R2M5X1/churun-baby.png"
+            }));
+            alert("✅ 成功從 LINE 授權帶入基本資料 (姓名)！請確認或補全手機號碼與自訂密碼即可完成註冊。");
+          }
+        } catch (err: any) {
+          console.error("LINE callback error:", err);
+          setErrorMsg("LINE 資料帶入失敗，請稍後重試。");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, [searchParams, router]);
+
+  // 3. 實作 Google 與 LINE 的跳轉授權
+  const handleGoogleAuth = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    const refCode = formData.referral_code || searchParams.get("ref") || "";
+    if (refCode) {
+      localStorage.setItem("churun_register_ref", refCode.trim().toUpperCase());
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/register?provider=google`
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Google auth error:", err);
+      setErrorMsg("啟動 Google 授權失敗，請確認網路連線。");
+      setIsLoading(false);
+    }
+  };
+
+  const handleLineAuth = () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    const refCode = formData.referral_code || searchParams.get("ref") || "";
+    if (refCode) {
+      localStorage.setItem("churun_register_ref", refCode.trim().toUpperCase());
+    }
+
+    const clientId = "2010007687";
+    const redirectUri = encodeURIComponent(`${window.location.origin}/register`);
+    const state = "churun_line_register";
+    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=profile%20openid`;
+    window.location.href = lineAuthUrl;
+  };
 
   // Real-time Referral Code Validation
   useEffect(() => {
@@ -63,7 +211,7 @@ function RegisterContent() {
       const { data, error } = await supabase
         .from("members")
         .select("name")
-        .or(`referral_code.eq.${refCode},member_code.eq.${refCode}`)
+        .or(`referral_code.eq.${refCode},member_code.eq.${refCode},phone.eq.${refCode}`)
         .single();
       
       if (data && !error) {
@@ -95,7 +243,7 @@ function RegisterContent() {
         const { data: upline, error: uplineErr } = await supabase
           .from("members")
           .select("id")
-          .or(`referral_code.eq.${refCode},member_code.eq.${refCode}`)
+          .or(`referral_code.eq.${refCode},member_code.eq.${refCode},phone.eq.${refCode}`)
           .single();
         
         if (uplineErr || !upline) {
@@ -132,10 +280,12 @@ function RegisterContent() {
         quarterly_spend: 0,
         points_balance: 0,
         virtual_balance: 0,
-        avatar_url: "https://i.ibb.co/6R2M5X1/churun-baby.png"
+        avatar_url: formData.avatar_url || "https://i.ibb.co/6R2M5X1/churun-baby.png"
       };
 
       if (uplineId) insertData.upline_id = uplineId;
+      if (formData.google_id) insertData.google_id = formData.google_id;
+      if (formData.line_id) insertData.line_id = formData.line_id;
 
       const { data, error } = await supabase
         .from("members")
@@ -239,29 +389,23 @@ function RegisterContent() {
            <div className="bg-slate-50/80 rounded-[2.5rem] p-6 mb-10 border border-slate-100">
              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">⚡ 想要省去填寫時間？選擇社群帳號一鍵帶入基本資料</p>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-               <motion.button 
-                 type="button" 
-                 whileHover={{ scale: 1.02 }} 
-                 whileTap={{ scale: 0.98 }}
-                 onClick={() => {
-                   setFormData(prev => ({ ...prev, name: "初潤好朋友 (LINE 帶入)", email: "friend_line@churun.com" }));
-                   alert("✅ 成功從 LINE 授權帶入基本資料 (姓名、信箱)！請確認或補全手機號碼即可完成註冊。");
-                 }}
-                 className="w-full bg-[#06C755] text-white p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/20 hover:bg-[#05b04b] transition"
-               >
-                 <svg className="w-4 h-4 fill-current shrink-0 text-white" viewBox="0 0 24 24"><path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/></svg>
-                 LINE 帶入基本資料
-               </motion.button>
-               <motion.button 
-                 type="button" 
-                 whileHover={{ scale: 1.02 }} 
-                 whileTap={{ scale: 0.98 }}
-                 onClick={() => {
-                   setFormData(prev => ({ ...prev, name: "初潤好朋友 (Google 帶入)", email: "friend_google@gmail.com" }));
-                   alert("✅ 成功從 Google 帳戶帶入基本資料 (姓名、信箱)！請確認或補全手機號碼即可完成註冊。");
-                 }}
-                 className="w-full bg-white border border-slate-200 text-slate-700 p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-200/50 hover:bg-slate-50 transition"
-               >
+                <motion.button 
+                  type="button" 
+                  whileHover={{ scale: 1.02 }} 
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleLineAuth}
+                  className="w-full bg-[#06C755] text-white p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-[#06C755]/20 hover:bg-[#05b04b] transition"
+                >
+                  <svg className="w-4 h-4 fill-current shrink-0 text-white" viewBox="0 0 24 24"><path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10 10.1.4.1.9.4.9.9 0 .6-.3 1.5-.4 2.2 0 .1-.1.3 0 .4.1.2.3.2.4.1 1.4-.9 6.4-3.8 8.7-5.5 2.8-2.3 4.4-4.8 4.4-7.9z"/></svg>
+                  LINE 帶入基本資料
+                </motion.button>
+                <motion.button 
+                  type="button" 
+                  whileHover={{ scale: 1.02 }} 
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGoogleAuth}
+                  className="w-full bg-white border border-slate-200 text-slate-700 p-4 rounded-2xl font-black text-xs tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-slate-200/50 hover:bg-slate-50 transition"
+                >
                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.5-.1.14 2.44 1.63v3.71h3.94c2.31-2.12 3.64-5.25 3.64-8.78z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.94-3.71c-1.08.72-2.45 1.16-3.99 1.16-3.06 0-5.66-2.07-6.58-4.84H1.31v3.82C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.42 13.7c-.23-.69-.37-1.43-.37-2.2s.14-1.51.37-2.2V5.48H1.31C.48 7.15 0 9.02 0 11s.48 3.85 1.31 5.52l4.11-2.82z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.31 6.48l4.11 3.82c.92-2.77 3.52-4.84 6.58-4.84z"/></svg>
                  Google 帶入基本資料
                </motion.button>
@@ -310,16 +454,16 @@ function RegisterContent() {
               </div>
 
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">推薦代碼 (選填)</label>
-                 <div className="relative">
-                    <Hash className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
-                    <input 
-                      name="referral_code" 
-                      type="text" 
-                      value={formData.referral_code} 
-                      onChange={handleChange} 
-                      placeholder="REFCODE" 
-                      readOnly={hasRef}
+                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-6">推薦人代碼或手機號碼 (選填)</label>
+                  <div className="relative">
+                     <Hash className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-200" />
+                     <input 
+                       name="referral_code" 
+                       type="text" 
+                       value={formData.referral_code} 
+                       onChange={handleChange} 
+                       placeholder="推薦碼或推薦人手機" 
+                       readOnly={hasRef}
                       className={`w-full border-none p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-emerald-900/5 transition shadow-inner ${hasRef ? 'bg-emerald-50/50 text-emerald-800 cursor-not-allowed font-black' : 'bg-slate-50/50 text-slate-800'}`} 
                     />
                     {hasRef && (

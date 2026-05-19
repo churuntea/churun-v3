@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       const { data: upline } = await supabase
         .from('members')
         .select('id')
-        .or(`referral_code.eq.${refCode},member_code.eq.${refCode}`)
+        .or(`referral_code.eq.${refCode},member_code.eq.${refCode},phone.eq.${refCode}`)
         .maybeSingle();
 
       if (upline) {
