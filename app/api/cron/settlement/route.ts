@@ -81,10 +81,114 @@ async function performSettlement() {
 
     // 2. Evaluate tiers
     const tierResult = await evaluateTiers();
+
+    // 3. 自動發放已出貨滿 30 天之訂單的紅利點數
+    let pointsIssuedCount = 0;
+    let pointsOrdersCount = 0;
+    try {
+      const { data: shippedOrders } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          total_amount,
+          custom_logo_url,
+          shipped_at,
+          status,
+          fulfillment_status,
+          members (
+            id,
+            name,
+            tier,
+            is_b2b,
+            points_balance
+          )
+        `)
+        .eq('status', 'completed')
+        .eq('fulfillment_status', 'shipped');
+
+      if (shippedOrders && shippedOrders.length > 0) {
+        const rateMapping: Record<string, number> = {
+          '初潤寶寶': 100,
+          '初潤幼兒園': 90,
+          '初潤小朋友': 80,
+          '初潤青少年': 70,
+          '初潤好朋友': 60,
+          '初潤閨蜜': 50,
+          '初潤知己': 40,
+          '初潤靈魂伴侶': 30,
+        };
+
+        for (const order of shippedOrders) {
+          const buyer: any = order.members;
+          if (!buyer || buyer.is_b2b) continue;
+
+          // 獲取 shipped_at 時間
+          let shippedAt = order.shipped_at;
+          if (!shippedAt && order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+            try {
+              const parsed = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+              shippedAt = parsed.shipped_at;
+            } catch (e) {}
+          }
+
+          if (!shippedAt) continue;
+
+          // 計算出貨至今的時間天數
+          const diffTime = Math.abs(new Date().getTime() - new Date(shippedAt).getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          // 判斷是否大於等於 30 天
+          if (diffDays >= 30) {
+            // 檢查該訂單是否已經發過紅利點數
+            const { data: existingPts } = await supabase
+              .from('point_transactions')
+              .select('id')
+              .eq('order_id', order.id)
+              .eq('transaction_type', 'earned_from_order');
+
+            if (existingPts && existingPts.length > 0) {
+              continue; // 已經發過了，跳過
+            }
+
+            // 計算紅利點數
+            const rate = rateMapping[buyer.tier] || 100;
+            const rewardPoints = Math.floor(Number(order.total_amount) / rate);
+
+            if (rewardPoints > 0) {
+              // 1. 寫入積分流水
+              await supabase.from('point_transactions').insert({
+                member_id: buyer.id,
+                order_id: order.id,
+                amount: rewardPoints,
+                transaction_type: 'earned_from_order'
+              });
+
+              // 2. 更新會員餘額
+              await supabase.from('members').update({
+                points_balance: (buyer.points_balance || 0) + rewardPoints
+              }).eq('id', buyer.id);
+
+              // 3. 發送系統通知
+              await supabase.from('notifications').insert({
+                member_id: buyer.id,
+                title: '🎁 紅利點數已自動入帳！',
+                content: `您好！您的訂單編號已出貨滿 30 天，系統已自動為您存入消費回饋之紅利點數 ${rewardPoints} 點！`,
+                type: 'system'
+              });
+
+              pointsIssuedCount += rewardPoints;
+              pointsOrdersCount++;
+            }
+          }
+        }
+      }
+    } catch (ptsErr: any) {
+      console.error('[Settlement Cron] Points issuance failed:', ptsErr);
+    }
     
     return { 
       success: true, 
-      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌營運規章，本期所有消費獲贈之紅利點數將於【隔月 10 號統一發送】。` 
+      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌新制營運規章，消費回饋之紅利點數已改為【出貨後滿 30 天自動發送】。本次共完成 ${pointsOrdersCount} 筆出貨達標訂單對帳，累計發放 ${pointsIssuedCount} 點紅利點數。` 
     };
 
   } catch (error: any) {

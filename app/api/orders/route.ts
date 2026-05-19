@@ -110,25 +110,12 @@ export async function POST(request: Request) {
       message += ' 已從虛擬帳戶扣款。';
 
     } else {
-      // B2C 一般消費者下單：發放積分
-      const rate = pointsRateMapping[buyer.tier] || 100;
-      const earnedPoints = Math.floor(totalAmount / rate);
-
-      if (earnedPoints > 0) {
-        await supabase.from('point_transactions').insert({
-          member_id: buyer.id,
-          order_id: order.id,
-          amount: earnedPoints,
-          transaction_type: 'earned_from_order'
-        });
-
-        await supabase.from('members').update({ 
-          points_balance: buyer.points_balance + earnedPoints,
-          lifetime_spend: buyer.lifetime_spend + totalAmount // 累加消費金額
-        }).eq('id', buyer.id);
-        
-        message += ` 獲得 ${earnedPoints} 點積分。`;
-      }
+      // B2C 一般消費者下單：(紅利點數已改為出貨後 30 天發送，此處僅累加累積消費)
+      await supabase.from('members').update({ 
+        lifetime_spend: buyer.lifetime_spend + totalAmount // 累加消費金額
+      }).eq('id', buyer.id);
+      
+      message += ` 訂單已建立，紅利點數將於出貨後 30 天自動發送。`;
 
       // 5. 處理上線退傭 (若上線為 B2B 夥伴)
       if (buyer.upline_id) {

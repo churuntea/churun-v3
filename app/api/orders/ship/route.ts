@@ -78,7 +78,36 @@ export async function POST(request: Request) {
     for (const item of orders) {
       const { orderId, status = 'shipped', trackingNumber } = item;
       
-      const updatePayload: any = { fulfillment_status: status };
+      // 獲取當前訂單以進行 JSON 備份寫入 (以防資料庫無 shipped_at 欄位)
+      let customLogoVal = "";
+      try {
+        const { data: currOrd } = await supabase.from('orders').select('custom_logo_url').eq('id', orderId).single();
+        if (currOrd) customLogoVal = currOrd.custom_logo_url || "";
+      } catch (e) {}
+
+      let shippedAtStr = new Date().toISOString();
+      let updatedCustomLogo = customLogoVal;
+
+      if (status === 'shipped') {
+        if (customLogoVal.startsWith('FALLBACK_JSON:')) {
+          try {
+            const parsed = JSON.parse(customLogoVal.substring('FALLBACK_JSON:'.length));
+            parsed.shipped_at = shippedAtStr;
+            updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(parsed);
+          } catch (e) {}
+        } else {
+          updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify({
+            original_logo_url: customLogoVal,
+            shipped_at: shippedAtStr
+          });
+        }
+      }
+
+      const updatePayload: any = { 
+        fulfillment_status: status,
+        shipped_at: status === 'shipped' ? shippedAtStr : null,
+        custom_logo_url: updatedCustomLogo
+      };
       if (trackingNumber !== undefined) {
         updatePayload.tracking_number = trackingNumber;
       }

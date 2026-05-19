@@ -147,18 +147,8 @@ export async function POST(request: Request) {
         }).eq('id', buyer.id);
 
       } else {
-        // B2C: update spend & points & tier & avatar_settings
-        if (rewardPoints > 0) {
-          await supabase.from('point_transactions').insert({
-            member_id: buyer.id,
-            order_id: order.id,
-            amount: rewardPoints,
-            transaction_type: 'earned_from_order'
-          });
-        }
-
+        // B2C: update spend & tier & avatar_settings (Do NOT issue points immediately; points are now scheduled to issue 30 days after shipment!)
         await supabase.from('members').update({ 
-          points_balance: (buyer.points_balance || 0) + rewardPoints,
           lifetime_spend: newLifetimeSpend,
           quarterly_spend: newQuarterlySpend,
           tier: newTier,

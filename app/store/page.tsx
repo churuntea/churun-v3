@@ -3170,7 +3170,7 @@ function StoreContent() {
                          </div>
                       </div>
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-[9px] text-emerald-300 leading-relaxed font-bold">
-                         💡 系統已受理您的訂單！請匯款正確金額。依據初潤製茶所營運規章，本筆消費獲贈之紅利點數將於【隔月 10 號統一發送】至您的帳戶。
+                         💡 系統已受理您的訂單！請匯款正確金額。依據初潤製茶所營運規章，本筆消費獲贈之紅利點數將於【出貨後滿 30 天自動發送】至您的帳戶。
                       </div>
                    </div>
 
@@ -3517,7 +3517,7 @@ function StoreContent() {
               <div className="flex-1 overflow-y-auto p-8 space-y-4">
                 <div className="bg-emerald-50 text-emerald-800 p-4 rounded-2xl border border-emerald-100/50 text-xs font-bold flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>撥點週期公告：依據營運規章，消費獲贈點數於【隔月 10 號統一發送】，效期為一年。</span>
+                  <span>撥點週期公告：依據營運規章，消費獲贈點數於【出貨後滿 30 天自動發送】，效期為一年。</span>
                 </div>
 
                 <div className="overflow-x-auto">
