@@ -465,13 +465,15 @@ function OrdersContent() {
                      <div className="space-y-3">
                         <div className="flex justify-between text-[8px] font-black tracking-widest text-slate-300">
                            <span className={order.status !== 'cancelled' ? 'text-emerald-600 font-extrabold' : ''}>下單成功</span>
+                           <span className={(order.status === 'completed' || order.status === 'paid') ? 'text-blue-600 font-extrabold' : ''}>已付款</span>
                            <span className={order.fulfillment_status === 'shipped' ? 'text-indigo-600 font-extrabold' : ''}>包裹配送中</span>
-                           <span className={(order.status === 'completed' && order.fulfillment_status === 'shipped') ? 'text-emerald-700 font-extrabold' : ''}>簽收完成</span>
+                           <span className={((order.status === 'completed' || order.status === 'paid') && order.fulfillment_status === 'shipped') ? 'text-emerald-700 font-extrabold' : ''}>簽收完成</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden flex gap-1">
-                           <div className={`h-full rounded-full transition-all duration-1000 ${order.status !== 'cancelled' ? 'bg-emerald-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
-                           <div className={`h-full rounded-full transition-all duration-1000 ${order.fulfillment_status === 'shipped' ? 'bg-indigo-500 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
-                           <div className={`h-full rounded-full transition-all duration-1000 ${(order.status === 'completed' && order.fulfillment_status === 'shipped') ? 'bg-emerald-600 w-1/3' : 'bg-slate-100 w-1/3'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${order.status !== 'cancelled' ? 'bg-emerald-500 w-1/4' : 'bg-slate-100 w-1/4'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${(order.status === 'completed' || order.status === 'paid') ? 'bg-blue-500 w-1/4' : 'bg-slate-100 w-1/4'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${order.fulfillment_status === 'shipped' ? 'bg-indigo-500 w-1/4' : 'bg-slate-100 w-1/4'}`}></div>
+                           <div className={`h-full rounded-full transition-all duration-1000 ${((order.status === 'completed' || order.status === 'paid') && order.fulfillment_status === 'shipped') ? 'bg-emerald-600 w-1/4' : 'bg-slate-100 w-1/4'}`}></div>
                         </div>
                      </div>
 
