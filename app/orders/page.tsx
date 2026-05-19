@@ -580,8 +580,10 @@ function OrdersContent() {
                                             <button
                                               key={bank.code}
                                               type="button"
-                                              onClick={() => {
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
                                                 setRemitterBanks(prev => ({ ...prev, [order.id]: bank.name }));
+                                                setActiveBankFocus(prev => ({ ...prev, [order.id]: false }));
                                               }}
                                               className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
                                             >
@@ -829,8 +831,10 @@ function OrdersContent() {
                                 <button
                                   key={bank.code}
                                   type="button"
-                                  onClick={() => {
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
                                     setNewBankSearchText(bank.name);
+                                    setNewBankFocus(false);
                                   }}
                                   className="w-full text-left px-3 py-2 text-[10px] text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
                                 >
