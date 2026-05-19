@@ -101,14 +101,15 @@ function AdminOrdersContent() {
       const { data, error } = await supabase
         .from("announcements")
         .select("*")
-        .eq("title", "[SYSTEM_PICKUP_POINTS]")
-        .maybeSingle();
+        .eq("title", "[SYSTEM_PICKUP_POINTS]");
 
       if (error) throw error;
 
-      if (data && data.content) {
+      const singleData = data && data.length > 0 ? data[0] : null;
+
+      if (singleData && singleData.content) {
         try {
-          const parsed = JSON.parse(data.content);
+          const parsed = JSON.parse(singleData.content);
           if (Array.isArray(parsed)) {
             setPickupPoints(parsed);
             return;
