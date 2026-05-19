@@ -28,22 +28,20 @@ import { supabaseAdmin } from "@/app/supabase-admin";
 import { exportToCsv } from "@/utils/exportCsv";
 
 const CARRIERS = [
-  { name: "黑貓宅急便", url: (num: string) => `https://www.t-cat.com.tw/Inquire/TraceDetail.aspx?Sn=${num}` },
-  { name: "新竹物流", url: (num: string) => `https://www.hct.com.tw/Search/Search_Query.aspx?stype=1&search_no=${num}` },
-  { name: "大榮貨運", url: (num: string) => `https://www.kerrytj.com/ZH/search/search.aspx?gnum=${num}` },
-  { name: "中華郵政", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
-  { name: "7-11 交貨便", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
-  { name: "全家 店到店", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
-  { name: "門市自取 / 自家配送", url: null }
+  { name: "自取", url: null },
+  { name: "郵局", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
+  { name: "7-11", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
+  { name: "全家", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
+  { name: "蝦皮", url: (num: string) => `https://shopee.tw/track/${num}` }
 ];
 
 const getCarrierTrackingInfo = (trackingStr: string) => {
-  if (!trackingStr) return { carrierName: "黑貓宅急便", trackingNum: "" };
+  if (!trackingStr) return { carrierName: "自取", trackingNum: "" };
   if (trackingStr.includes(": ")) {
     const parts = trackingStr.split(": ");
     return { carrierName: parts[0], trackingNum: parts[1] };
   }
-  return { carrierName: "黑貓宅急便", trackingNum: trackingStr };
+  return { carrierName: "自取", trackingNum: trackingStr };
 };
 
 const handleOpenTrackingLink = (trackingStr: string) => {
@@ -996,7 +994,7 @@ function AdminOrdersContent() {
                               {order.status === 'completed' && order.fulfillment_status !== 'shipped' && order.fulfillment_status !== 'delivered' && (
                                 <button 
                                   onClick={() => {
-                                    const num = prompt("請輸入物流單號（留空則僅標記為已出貨）：");
+                                    const num = prompt("請輸入物流單號，支援格式如「7-11: 123456」或「郵局: 123456」（留空則標記為「自取」已出貨）：");
                                     if (num !== null) updateFulfillment(order.id, 'shipped', num);
                                   }}
                                   className="p-3 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:scale-110 transition"

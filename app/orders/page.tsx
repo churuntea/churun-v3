@@ -18,13 +18,11 @@ import {
 } from "lucide-react";
 
 const CARRIERS = [
-  { name: "黑貓宅急便", url: (num: string) => `https://www.t-cat.com.tw/Inquire/TraceDetail.aspx?Sn=${num}` },
-  { name: "新竹物流", url: (num: string) => `https://www.hct.com.tw/Search/Search_Query.aspx?stype=1&search_no=${num}` },
-  { name: "大榮貨運", url: (num: string) => `https://www.kerrytj.com/ZH/search/search.aspx?gnum=${num}` },
-  { name: "中華郵政", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
-  { name: "7-11 交貨便", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
-  { name: "全家 店到店", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
-  { name: "門市自取 / 自家配送", url: null }
+  { name: "自取", url: null },
+  { name: "郵局", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
+  { name: "7-11", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
+  { name: "全家", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
+  { name: "蝦皮", url: (num: string) => `https://shopee.tw/track/${num}` }
 ];
 
 const TAIWAN_BANKS = [
@@ -64,12 +62,12 @@ const TAIWAN_BANKS = [
 ];
 
 const getCarrierTrackingInfo = (trackingStr: string) => {
-  if (!trackingStr) return { carrierName: "黑貓宅急便", trackingNum: "" };
+  if (!trackingStr) return { carrierName: "自取", trackingNum: "" };
   if (trackingStr.includes(": ")) {
     const parts = trackingStr.split(": ");
     return { carrierName: parts[0], trackingNum: parts[1] };
   }
-  return { carrierName: "黑貓宅急便", trackingNum: trackingStr };
+  return { carrierName: "自取", trackingNum: trackingStr };
 };
 
 const handleOpenTrackingLink = (trackingStr: string) => {
