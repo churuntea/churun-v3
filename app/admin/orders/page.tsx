@@ -44,6 +44,26 @@ const getCarrierTrackingInfo = (trackingStr: string) => {
   return { carrierName: "自取", trackingNum: trackingStr };
 };
 
+const getDefaultCarrier = (order: any) => {
+  if (!order) return "自取";
+  
+  if (order.tracking_number) {
+    const savedInfo = getCarrierTrackingInfo(order.tracking_number);
+    if (savedInfo.trackingNum) {
+      return savedInfo.carrierName || "自取";
+    }
+  }
+
+  const method = order.shipping_info?.method || "";
+  if (method.includes("7-11") || method.includes("711")) return "7-11";
+  if (method.includes("全家")) return "全家";
+  if (method.includes("郵局") || method.includes("郵寄") || method.includes("宅配到府") || method.includes("宅配")) return "郵局";
+  if (method.includes("蝦皮")) return "蝦皮店到店";
+  if (method.includes("自取") || method.includes("門市自取")) return "自取";
+
+  return "自取";
+};
+
 const handleOpenTrackingLink = (trackingStr: string) => {
   const { carrierName, trackingNum } = getCarrierTrackingInfo(trackingStr);
   if (!trackingNum) return;
@@ -517,6 +537,17 @@ function AdminOrdersContent() {
   };
 
   const handleSubmitBulkShip = async () => {
+    for (const [orderId, data] of Object.entries(bulkShipData)) {
+      if (data.carrier === "自取" && !data.trackingNum) {
+        alert("⚠️ 請選擇所有勾選訂單的自取據點！");
+        return;
+      }
+      if (data.carrier !== "自取" && !data.trackingNum) {
+        alert("⚠️ 請填入所有勾選訂單的物流單號！");
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       const payload = Object.entries(bulkShipData).map(([orderId, data]) => {
@@ -1082,7 +1113,7 @@ function AdminOrdersContent() {
                                   <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
                                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出貨控制台</h5>
                                     {order.status === 'completed' && (() => {
-                                      const currentCarrier = selectedCarriers[order.id] || getCarrierTrackingInfo(order.tracking_number).carrierName || "自取";
+                                      const currentCarrier = selectedCarriers[order.id] || getDefaultCarrier(order);
                                       return (
                                         <div className="space-y-3">
                                           <div className="flex gap-2">
@@ -1126,7 +1157,15 @@ function AdminOrdersContent() {
                                               onClick={() => {
                                                 const carrier = (document.getElementById(`carrier-select-${order.id}`) as HTMLSelectElement)?.value || "自取";
                                                 const input = (document.getElementById(`tracking-input-${order.id}`) as HTMLSelectElement | HTMLInputElement)?.value || "";
-                                                const finalTracking = input ? `${carrier}: ${input}` : "";
+                                                if (carrier === "自取" && !input) {
+                                                  alert("⚠️ 請選擇自取據點！");
+                                                  return;
+                                                }
+                                                if (carrier !== "自取" && !input) {
+                                                  alert("⚠️ 請填入物流單號！");
+                                                  return;
+                                                }
+                                                const finalTracking = `${carrier}: ${input}`;
                                                 updateFulfillment(order.id, 'shipped', finalTracking);
                                               }}
                                               className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition shrink-0"
@@ -1208,7 +1247,7 @@ function AdminOrdersContent() {
                           const initialData: Record<string, { carrier: string; trackingNum: string }> = {};
                           orders.filter(o => selectedOrderIds.includes(o.id)).forEach(o => {
                             const info = getCarrierTrackingInfo(o.tracking_number);
-                            initialData[o.id] = { carrier: info.carrierName || "黑貓宅急便", trackingNum: info.trackingNum || "" };
+                            initialData[o.id] = { carrier: info.trackingNum ? (info.carrierName || "自取") : getDefaultCarrier(o), trackingNum: info.trackingNum || "" };
                           });
                           setBulkShipData(initialData);
                           setShowBulkShipModal(true);
