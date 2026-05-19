@@ -3,13 +3,6 @@ import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
 export async function POST(request: Request) {
   try {
-    const adminSecret = process.env.ADMIN_SECRET;
-    const requestSecret = request.headers.get('x-admin-secret');
-
-    if (!adminSecret || requestSecret !== adminSecret) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { order_id, action, auditor } = await request.json(); // action: 'approve' or 'cancel'
 
     if (!order_id || !action) {
