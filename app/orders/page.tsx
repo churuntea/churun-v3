@@ -336,31 +336,32 @@ function OrdersContent() {
 
   const filteredOrders = orders.filter(order => {
     if (activeTab === "all") return true;
-    if (activeTab === "processing") return order.status !== "cancelled" && order.fulfillment_status !== "shipped";
-    if (activeTab === "shipped") return order.fulfillment_status === "shipped" && order.status !== "completed";
-    if (activeTab === "completed") return order.status === "completed";
+    if (activeTab === "processing") return order.status !== "cancelled" && order.fulfillment_status !== "shipped" && order.fulfillment_status !== "delivered";
+    if (activeTab === "shipped") return order.fulfillment_status === "shipped" && order.status !== "cancelled";
+    if (activeTab === "completed") return order.fulfillment_status === "delivered";
     return order.status === activeTab;
   });
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-emerald-500 text-white shadow-emerald-500/20';
-      case 'pending': return 'bg-amber-500 text-white shadow-amber-500/20';
-      case 'paid': return 'bg-blue-500 text-white shadow-blue-500/20';
-      case 'shipping': return 'bg-indigo-500 text-white shadow-indigo-500/20';
-      default: return 'bg-slate-400 text-white shadow-slate-400/20';
+  const getStatusStyle = (status: string, fulfillmentStatus?: string) => {
+    if (status === 'cancelled') return 'bg-slate-400 text-white shadow-slate-400/20';
+    if (status === 'pending') return 'bg-amber-500 text-white shadow-amber-500/20';
+    if (status === 'completed') {
+      if (fulfillmentStatus === 'delivered') return 'bg-emerald-500 text-white shadow-emerald-500/20';
+      if (fulfillmentStatus === 'shipped') return 'bg-indigo-500 text-white shadow-indigo-500/20';
+      return 'bg-blue-500 text-white shadow-blue-500/20';
     }
+    return 'bg-slate-400 text-white shadow-slate-400/20';
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'completed': return '訂單已完成';
-      case 'pending': return '待核對/待處理';
-      case 'paid': return '已付款/備貨中';
-      case 'shipping': return '商品已發貨';
-      case 'cancelled': return '已取消';
-      default: return status || '已取消';
+  const getStatusLabel = (status: string, fulfillmentStatus?: string) => {
+    if (status === 'cancelled') return '已取消';
+    if (status === 'pending') return '待核對/待付款';
+    if (status === 'completed') {
+      if (fulfillmentStatus === 'delivered') return '已簽收/已完成';
+      if (fulfillmentStatus === 'shipped') return '運送中/待取貨';
+      return '已付款/備貨中';
     }
+    return status || '已取消';
   };
 
   return (
@@ -430,8 +431,8 @@ function OrdersContent() {
                     >
                      <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                           <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${getStatusStyle(order.status)}`}>
-                              {getStatusLabel(order.status)}
+                           <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${getStatusStyle(order.status, order.fulfillment_status)}`}>
+                              {getStatusLabel(order.status, order.fulfillment_status)}
                            </div>
                            <h4 
                              onClick={() => fetchOrderItems(order.id)}

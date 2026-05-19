@@ -782,9 +782,9 @@ function AdminOrdersContent() {
     if (filterStatus === "pending") {
       matchesStatus = order.status === "pending";
     } else if (filterStatus === "preparing") {
-      matchesStatus = order.status === "completed" && order.fulfillment_status !== "shipped";
+      matchesStatus = order.status === "completed" && order.fulfillment_status !== "shipped" && order.fulfillment_status !== "delivered";
     } else if (filterStatus === "shipped") {
-      matchesStatus = order.fulfillment_status === "shipped";
+      matchesStatus = order.fulfillment_status === "shipped" || order.fulfillment_status === "delivered";
     } else if (filterStatus === "cancelled") {
       matchesStatus = order.status === "cancelled";
     }
@@ -823,11 +823,11 @@ function AdminOrdersContent() {
     .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
   const preparingCount = orders
-    .filter(o => o.status === "completed" && o.fulfillment_status !== "shipped")
+    .filter(o => o.status === "completed" && o.fulfillment_status !== "shipped" && o.fulfillment_status !== "delivered")
     .length;
 
   const shippedTodayCount = orders
-    .filter(o => o.fulfillment_status === "shipped" && isToday(o.updated_at || o.created_at))
+    .filter(o => (o.fulfillment_status === "shipped" || o.fulfillment_status === "delivered") && isToday(o.updated_at || o.created_at))
     .length;
 
   const monthlyRevenue = orders
@@ -1552,7 +1552,7 @@ function AdminOrdersContent() {
 
         {showConsolidationModal && (() => {
           const matchedOrders = orders.filter(o => {
-            if (o.status !== "completed" || o.fulfillment_status === "shipped") return false;
+            if (o.status !== "completed" || o.fulfillment_status === "shipped" || o.fulfillment_status === "delivered") return false;
             const defaultCarrier = getDefaultCarrier(o);
             if (defaultCarrier !== selectedConsolidationType) return false;
             if (selectedConsolidationType === "自取" && selectedConsolidationPoint) {
