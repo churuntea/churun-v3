@@ -163,6 +163,7 @@ function StoreContent() {
   const [categories, setCategories] = useState<string[]>(["全部商品", "極萃系列", "精品茶具", "典藏禮盒"]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showOrderListModal, setShowOrderListModal] = useState(false);
+  const [showHistoryOrders, setShowHistoryOrders] = useState(false);
   const [userOrders, setUserOrders] = useState<any[]>([]);
   const [bundleDeals, setBundleDeals] = useState<any[]>([]);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
@@ -537,7 +538,7 @@ function StoreContent() {
     try {
       const { data: oData } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at, custom_logo_url, order_number, shipping_info, notes")
+        .select("id, total_amount, status, created_at, custom_logo_url")
         .eq("member_id", userId)
         .order("created_at", { ascending: false });
 
@@ -3279,91 +3280,203 @@ function StoreContent() {
                     <p className="text-xs text-slate-400">當您完成第一筆精品採購後，明細與物流進度將在此呈現。</p>
                   </div>
                 ) : (
-                  userOrders.map((order, index) => {
-                    const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
-                    const statusMap: { [key: string]: { label: string, color: string, step: number } } = {
-                      pending: { label: "⏳ 處理中 (待核對)", color: "bg-amber-50 text-amber-700 border-amber-200", step: 1 },
-                      paid: { label: "💳 已付款 (備貨中)", color: "bg-blue-50 text-blue-700 border-blue-200", step: 2 },
-                      shipping: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
-                      shipped: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
-                      completed: { label: "✅ 已完成 (已交付)", color: "bg-slate-100 text-slate-700 border-slate-200", step: 4 },
-                      cancelled: { label: "✕ 已取消", color: "bg-rose-50 text-rose-700 border-rose-200", step: 0 },
-                    };
-                    const statusObj = statusMap[order.status] || { label: order.status, color: "bg-slate-50 text-slate-700 border-slate-200", step: 1 };
-                    
-                    const orderNum = order.order_number || `P260514A${order.id.slice(0, 4).toUpperCase()}`;
-                    const shipping = order.shipping_info || {};
+                  <div className="space-y-6">
+                    {/* 近五筆資料 */}
+                    <div className="space-y-6">
+                      {userOrders.slice(0, 5).map((order) => {
+                        const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+                        const statusMap: { [key: string]: { label: string, color: string, step: number } } = {
+                          pending: { label: "⏳ 處理中 (待核對)", color: "bg-amber-50 text-amber-700 border-amber-200", step: 1 },
+                          paid: { label: "💳 已付款 (備貨中)", color: "bg-blue-50 text-blue-700 border-blue-200", step: 2 },
+                          shipping: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                          shipped: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                          completed: { label: "✅ 已完成 (已交付)", color: "bg-slate-100 text-slate-700 border-slate-200", step: 4 },
+                          cancelled: { label: "✕ 已取消", color: "bg-rose-50 text-rose-700 border-rose-200", step: 0 },
+                        };
+                        const statusObj = statusMap[order.status] || { label: order.status, color: "bg-slate-50 text-slate-700 border-slate-200", step: 1 };
+                        
+                        const orderNum = order.order_number || `P260514A${order.id.slice(0, 4).toUpperCase()}`;
+                        const shipping = order.shipping_info || {};
 
-                    return (
-                      <div key={order.id} className="bg-slate-50/70 rounded-[2rem] p-6 border border-slate-100/80 space-y-4 hover:shadow-md transition duration-300">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black font-mono text-slate-800">#{orderNum}</span>
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusObj.color}`}>
-                                {statusObj.label}
-                              </span>
+                        return (
+                          <div key={order.id} className="bg-slate-50/70 rounded-[2rem] p-6 border border-slate-100/80 space-y-4 hover:shadow-md transition duration-300">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black font-mono text-slate-800">#{orderNum}</span>
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusObj.color}`}>
+                                    {statusObj.label}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
+                              </div>
+                              <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
+
+                            {/* 購買品項清單 */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-1.5">
+                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">訂購明細</span>
+                              {order.items && order.items.length > 0 ? (
+                                order.items.map((it: any, i: number) => (
+                                  <div key={i} className="flex justify-between items-center text-xs">
+                                    <span className="font-bold text-slate-700">{it.name}</span>
+                                    <span className="font-mono font-medium text-slate-500">x{it.quantity}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">精選茶款組合</span>
+                              )}
+                            </div>
+
+                            {/* 物流狀況與動態軌跡 */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-0.5">物流狀況</span>
+                                  <span className="text-xs font-bold text-slate-800">{shipping.method || '宅配到府 🚚'}</span>
+                                </div>
+                                {shipping.name && (
+                                  <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                                    收件人：{shipping.name}
+                                  </span>
+                                )}
+                              </div>
+                              {shipping.address && (
+                                <p className="text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100/50 break-words">
+                                  📍 {shipping.address}
+                                </p>
+                              )}
+
+                              {/* 視覺化物流進度條 */}
+                              {statusObj.step > 0 && (
+                                <div className="pt-2">
+                                  <div className="flex justify-between text-[9px] font-black text-slate-400 px-1 mb-1.5">
+                                    <span className={statusObj.step >= 1 ? "text-emerald-600" : ""}>處理中</span>
+                                    <span className={statusObj.step >= 2 ? "text-emerald-600" : ""}>備貨中</span>
+                                    <span className={statusObj.step >= 3 ? "text-emerald-600" : ""}>配送中</span>
+                                    <span className={statusObj.step >= 4 ? "text-emerald-600" : ""}>已完成</span>
+                                  </div>
+                                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                    <div className={`h-full bg-emerald-500 transition-all duration-500 rounded-full ${
+                                      statusObj.step === 1 ? 'w-1/4' : statusObj.step === 2 ? 'w-2/4' : statusObj.step === 3 ? 'w-3/4' : 'w-full'
+                                    }`} />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
-                        </div>
+                        );
+                      })}
+                    </div>
 
-                        {/* 購買品項清單 */}
-                        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-1.5">
-                          <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">訂購明細</span>
-                          {order.items && order.items.length > 0 ? (
-                            order.items.map((it: any, i: number) => (
-                              <div key={i} className="flex justify-between items-center text-xs">
-                                <span className="font-bold text-slate-700">{it.name}</span>
-                                <span className="font-mono font-medium text-slate-500">x{it.quantity}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">精選茶款組合</span>
-                          )}
-                        </div>
+                    {/* 超過 5 筆歸納到已購紀錄 */}
+                    {userOrders.length > 5 && (
+                      <div className="pt-4 border-t border-slate-100 space-y-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowHistoryOrders(!showHistoryOrders)}
+                          className="w-full flex items-center justify-between py-4 px-6 bg-slate-50 hover:bg-slate-100 rounded-2xl text-xs font-black text-slate-600 transition"
+                        >
+                          <span className="flex items-center gap-2">
+                            📂 歷史已購紀錄 ({userOrders.length - 5} 筆)
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {showHistoryOrders ? '收起 ▲' : '展開 ▼'}
+                          </span>
+                        </button>
 
-                        {/* 物流狀況與動態軌跡 */}
-                        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-0.5">物流狀況</span>
-                              <span className="text-xs font-bold text-slate-800">{shipping.method || '宅配到府 🚚'}</span>
-                            </div>
-                            {shipping.name && (
-                              <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                                收件人：{shipping.name}
-                              </span>
-                            )}
+                        {showHistoryOrders && (
+                          <div className="space-y-6 pt-2">
+                            {userOrders.slice(5).map((order) => {
+                              const orderDate = new Date(order.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).slice(0, 16);
+                              const statusMap: { [key: string]: { label: string, color: string, step: number } } = {
+                                pending: { label: "⏳ 處理中 (待核對)", color: "bg-amber-50 text-amber-700 border-amber-200", step: 1 },
+                                paid: { label: "💳 已付款 (備貨中)", color: "bg-blue-50 text-blue-700 border-blue-200", step: 2 },
+                                shipping: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                                shipped: { label: "🚚 已出貨 (配送中)", color: "bg-emerald-50 text-emerald-700 border-emerald-200", step: 3 },
+                                completed: { label: "✅ 已完成 (已交付)", color: "bg-slate-100 text-slate-700 border-slate-200", step: 4 },
+                                cancelled: { label: "✕ 已取消", color: "bg-rose-50 text-rose-700 border-rose-200", step: 0 },
+                              };
+                              const statusObj = statusMap[order.status] || { label: order.status, color: "bg-slate-50 text-slate-700 border-slate-200", step: 1 };
+                              
+                              const orderNum = order.order_number || `P260514A${order.id.slice(0, 4).toUpperCase()}`;
+                              const shipping = order.shipping_info || {};
+
+                              return (
+                                <div key={order.id} className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100/50 space-y-4 hover:shadow-md transition duration-300">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-black font-mono text-slate-800">#{orderNum}</span>
+                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusObj.color}`}>
+                                          {statusObj.label}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
+                                    </div>
+                                    <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                                  </div>
+
+                                  {/* 購買品項清單 */}
+                                  <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-1.5">
+                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">訂購明細</span>
+                                    {order.items && order.items.length > 0 ? (
+                                      order.items.map((it: any, i: number) => (
+                                        <div key={i} className="flex justify-between items-center text-xs">
+                                          <span className="font-bold text-slate-700">{it.name}</span>
+                                          <span className="font-mono font-medium text-slate-500">x{it.quantity}</span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-slate-400 italic">精選茶款組合</span>
+                                    )}
+                                  </div>
+
+                                  {/* 物流狀況與動態軌跡 */}
+                                  <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-0.5">物流狀況</span>
+                                        <span className="text-xs font-bold text-slate-800">{shipping.method || '宅配到府 🚚'}</span>
+                                      </div>
+                                      {shipping.name && (
+                                        <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                                          收件人：{shipping.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {shipping.address && (
+                                      <p className="text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100/50 break-words">
+                                        📍 {shipping.address}
+                                      </p>
+                                    )}
+
+                                    {/* 視覺化物流進度條 */}
+                                    {statusObj.step > 0 && (
+                                      <div className="pt-2">
+                                        <div className="flex justify-between text-[9px] font-black text-slate-400 px-1 mb-1.5">
+                                          <span className={statusObj.step >= 1 ? "text-emerald-600" : ""}>處理中</span>
+                                          <span className={statusObj.step >= 2 ? "text-emerald-600" : ""}>備貨中</span>
+                                          <span className={statusObj.step >= 3 ? "text-emerald-600" : ""}>配送中</span>
+                                          <span className={statusObj.step >= 4 ? "text-emerald-600" : ""}>已完成</span>
+                                        </div>
+                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                          <div className={`h-full bg-emerald-500 transition-all duration-500 rounded-full ${
+                                            statusObj.step === 1 ? 'w-1/4' : statusObj.step === 2 ? 'w-2/4' : statusObj.step === 3 ? 'w-3/4' : 'w-full'
+                                          }`} />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          {shipping.address && (
-                            <p className="text-[11px] font-medium text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100/50 break-words">
-                              📍 {shipping.address}
-                            </p>
-                          )}
-
-                          {/* 視覺化物流進度條 */}
-                          {statusObj.step > 0 && (
-                            <div className="pt-2">
-                              <div className="flex justify-between text-[9px] font-black text-slate-400 px-1 mb-1.5">
-                                <span className={statusObj.step >= 1 ? "text-emerald-600" : ""}>處理中</span>
-                                <span className={statusObj.step >= 2 ? "text-emerald-600" : ""}>備貨中</span>
-                                <span className={statusObj.step >= 3 ? "text-emerald-600" : ""}>配送中</span>
-                                <span className={statusObj.step >= 4 ? "text-emerald-600" : ""}>已完成</span>
-                              </div>
-                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
-                                <div className={`h-full bg-emerald-500 transition-all duration-500 rounded-full ${
-                                  statusObj.step === 1 ? 'w-1/4' : statusObj.step === 2 ? 'w-2/4' : statusObj.step === 3 ? 'w-3/4' : 'w-full'
-                                }`} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    );
-                  })
-                )}
+                    )}
+                  </div>
+                ) }
               </div>
             </motion.div>
           </motion.div>
