@@ -64,6 +64,36 @@ const getDefaultCarrier = (order: any) => {
   return "自取";
 };
 
+const getDefaultPickupPoint = (order: any, points: any[]) => {
+  if (!order) return "";
+
+  if (order.tracking_number) {
+    const savedInfo = getCarrierTrackingInfo(order.tracking_number);
+    if (savedInfo.trackingNum) {
+      return savedInfo.trackingNum;
+    }
+  }
+
+  const address = order.shipping_info?.address || "";
+  const notes = order.shipping_info?.notes || "";
+  const method = order.shipping_info?.method || "";
+  
+  for (const pt of points) {
+    if (address.includes(pt.name) || notes.includes(pt.name) || method.includes(pt.name)) {
+      return pt.name;
+    }
+  }
+
+  for (const pt of points) {
+    const keyword = pt.name.replace("自取點", "").replace("總店", "").replace("店", "");
+    if (keyword && (address.includes(keyword) || notes.includes(keyword) || method.includes(keyword))) {
+      return pt.name;
+    }
+  }
+
+  return "";
+};
+
 const handleOpenTrackingLink = (trackingStr: string) => {
   const { carrierName, trackingNum } = getCarrierTrackingInfo(trackingStr);
   if (!trackingNum) return;
@@ -1133,7 +1163,7 @@ function AdminOrdersContent() {
                                             {currentCarrier === "自取" ? (
                                               <select
                                                 id={`tracking-input-${order.id}`}
-                                                defaultValue={getCarrierTrackingInfo(order.tracking_number).trackingNum}
+                                                defaultValue={getDefaultPickupPoint(order, pickupPoints)}
                                                 className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 cursor-pointer"
                                               >
                                                 <option value="">-- 請選擇自取據點 --</option>
