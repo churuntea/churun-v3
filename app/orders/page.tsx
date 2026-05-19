@@ -27,6 +27,42 @@ const CARRIERS = [
   { name: "門市自取 / 自家配送", url: null }
 ];
 
+const TAIWAN_BANKS = [
+  { code: "004", name: "臺灣銀行" },
+  { code: "005", name: "土地銀行" },
+  { code: "006", name: "合作金庫" },
+  { code: "007", name: "第一銀行" },
+  { code: "008", name: "華南銀行" },
+  { code: "009", name: "彰化銀行" },
+  { code: "011", name: "上海商業儲蓄銀行" },
+  { code: "012", name: "台北富邦銀行" },
+  { code: "013", name: "國泰世華銀行" },
+  { code: "017", name: "兆豐國際商業銀行" },
+  { code: "018", name: "臺灣企銀" },
+  { code: "048", name: "王道商業銀行" },
+  { code: "052", name: "渣打銀行" },
+  { code: "053", name: "台中銀行" },
+  { code: "054", name: "京城銀行" },
+  { code: "081", name: "匯豐台灣" },
+  { code: "102", name: "華泰銀行" },
+  { code: "103", name: "新光銀行" },
+  { code: "108", name: "陽信銀行" },
+  { code: "118", name: "板信商業銀行" },
+  { code: "147", name: "三信商業銀行" },
+  { code: "700", name: "中華郵政" },
+  { code: "803", name: "聯邦商業銀行" },
+  { code: "805", name: "遠東國際商業銀行" },
+  { code: "806", name: "元大商業銀行" },
+  { code: "807", name: "永豐商業銀行" },
+  { code: "808", name: "玉山商業銀行" },
+  { code: "809", name: "凱基商業銀行" },
+  { code: "812", name: "台新國際商業銀行" },
+  { code: "822", name: "中國信託商業銀行" },
+  { code: "823", name: "將來商業銀行" },
+  { code: "824", name: "樂天國際商業銀行" },
+  { code: "826", name: "LINE Bank 連線商業銀行" }
+];
+
 const getCarrierTrackingInfo = (trackingStr: string) => {
   if (!trackingStr) return { carrierName: "黑貓宅急便", trackingNum: "" };
   if (trackingStr.includes(": ")) {
@@ -79,6 +115,7 @@ function OrdersContent() {
   const [remitterNames, setRemitterNames] = useState<Record<string, string>>({});
   const [remitterBanks, setRemitterBanks] = useState<Record<string, string>>({});
   const [isEditingRemittance, setIsEditingRemittance] = useState<Record<string, boolean>>({});
+  const [activeBankFocus, setActiveBankFocus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -114,6 +151,19 @@ function OrdersContent() {
     });
 
     setOrders(processed);
+
+    // 預設匯款人姓名為當前登入之會員姓名
+    const memberName = localStorage.getItem("churun_member_name") || "";
+    if (memberName) {
+      const defaultNames: Record<string, string> = {};
+      processed.forEach((order: any) => {
+        if (!order.remitter_name) {
+          defaultNames[order.id] = memberName;
+        }
+      });
+      setRemitterNames(prev => ({ ...defaultNames, ...prev }));
+    }
+
     setIsLoading(false);
   };
 
@@ -248,14 +298,20 @@ function OrdersContent() {
              </motion.div>
            ) : (
              <div className="space-y-6">
-                {filteredOrders.map((order, i) => (
-                  <motion.div 
-                    key={order.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-[0_15px_40px_rgba(0,0,0,0.02)] space-y-6 group hover:border-emerald-100 transition-all duration-500"
-                  >
+                {filteredOrders.map((order, i) => {
+                  const bankQuery = (remitterBanks[order.id] || "").trim();
+                  const filteredBanks = bankQuery ? TAIWAN_BANKS.filter(
+                    b => b.name.includes(bankQuery) || b.code.includes(bankQuery)
+                  ) : [];
+
+                  return (
+                    <motion.div 
+                      key={order.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-[0_15px_40px_rgba(0,0,0,0.02)] space-y-6 group hover:border-emerald-100 transition-all duration-500"
+                    >
                      <div className="flex justify-between items-start">
                         <div className="space-y-3">
                            <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-lg ${getStatusStyle(order.status)}`}>
@@ -288,7 +344,6 @@ function OrdersContent() {
                         </div>
                      </div>
 
-                     {/* Visual Timeline */}
                      <div className="space-y-3">
                         <div className="flex justify-between text-[8px] font-black tracking-widest text-slate-300">
                            <span className={order.status !== 'cancelled' ? 'text-emerald-600 font-extrabold' : ''}>下單成功</span>
@@ -302,7 +357,6 @@ function OrdersContent() {
                         </div>
                      </div>
 
-                     {/* ─── 物流配送即時查單卡 (Smart Logistics tracking) ─── */}
                      {order.fulfillment_status === 'shipped' && order.tracking_number && (
                         <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-3 mt-4">
                            <div className="flex items-center gap-3">
@@ -323,10 +377,8 @@ function OrdersContent() {
                         </div>
                      )}
 
-                     {/* ─── 匯款末五碼回報對帳表單 (Remittance payment tracking form) ─── */}
                      {order.status === 'pending' && (
                         <div className="bg-amber-50/30 border border-amber-100/70 rounded-2xl p-4 mt-4 space-y-3 text-left">
-                           {/* Check if already submitted remittance code */}
                            {order.payment_last_five && !isEditingRemittance[order.id] ? (
                               <div className="flex items-start justify-between gap-4">
                                  <div className="flex items-start gap-3">
@@ -345,7 +397,7 @@ function OrdersContent() {
                                  <button 
                                    onClick={() => {
                                      setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || "" }));
-                                     setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || "" }));
+                                     setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || localStorage.getItem("churun_member_name") || "" }));
                                      setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || "" }));
                                      setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
                                    }}
@@ -371,15 +423,34 @@ function OrdersContent() {
                                         className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-300"
                                       />
                                     </div>
-                                    <div>
+                                    <div className="relative">
                                       <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款銀行名稱</label>
                                       <input 
                                         type="text" 
                                         placeholder="例：國泰世華"
                                         value={remitterBanks[order.id] || ""}
                                         onChange={e => setRemitterBanks(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                        onFocus={() => setActiveBankFocus(prev => ({ ...prev, [order.id]: true }))}
+                                        onBlur={() => setTimeout(() => setActiveBankFocus(prev => ({ ...prev, [order.id]: false })), 200)}
                                         className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-300"
                                       />
+                                      {activeBankFocus[order.id] && filteredBanks.length > 0 && (
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl divide-y divide-slate-50">
+                                          {filteredBanks.map(bank => (
+                                            <button
+                                              key={bank.code}
+                                              type="button"
+                                              onClick={() => {
+                                                setRemitterBanks(prev => ({ ...prev, [order.id]: bank.name }));
+                                              }}
+                                              className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
+                                            >
+                                              <span className="font-mono text-slate-400 mr-2">[{bank.code}]</span>
+                                              {bank.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                     <div>
                                       <label className="text-[9px] font-bold text-slate-500 mb-1 block">帳號末五碼</label>
@@ -495,8 +566,9 @@ function OrdersContent() {
                             </button>
                          </div>
                       </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
              </div>
            )
          )}
