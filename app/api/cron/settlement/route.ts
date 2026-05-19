@@ -82,9 +82,11 @@ async function performSettlement() {
     // 2. Evaluate tiers
     const tierResult = await evaluateTiers();
 
-    // 3. 自動發放已出貨滿 30 天之訂單的紅利點數
+    // 3. 自動發放已出貨滿 30 天之訂單的紅利點數與 B2B 上線推薦佣金
     let pointsIssuedCount = 0;
     let pointsOrdersCount = 0;
+    let commissionsIssuedCount = 0;
+    let commissionsOrdersCount = 0;
     try {
       const { data: shippedOrders } = await supabase
         .from('orders')
@@ -95,16 +97,19 @@ async function performSettlement() {
           shipped_at,
           status,
           fulfillment_status,
+          b2b_commission,
+          created_at,
           members (
             id,
             name,
             tier,
             is_b2b,
+            upline_id,
             points_balance
           )
         `)
         .eq('status', 'completed')
-        .eq('fulfillment_status', 'shipped');
+        .in('fulfillment_status', ['shipped', 'delivered']);
 
       if (shippedOrders && shippedOrders.length > 0) {
         const rateMapping: Record<string, number> = {
@@ -120,75 +125,128 @@ async function performSettlement() {
 
         for (const order of shippedOrders) {
           const buyer: any = order.members;
-          if (!buyer || buyer.is_b2b) continue;
+          if (!buyer) continue;
 
-          // 獲取 shipped_at 時間
-          let shippedAt = order.shipped_at;
-          if (!shippedAt && order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+          // 獲取 delivered_at 或 shipped_at 時間
+          let referenceTime = null;
+          if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
             try {
               const parsed = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
-              shippedAt = parsed.shipped_at;
+              referenceTime = parsed.delivered_at || parsed.shipped_at;
             } catch (e) {}
           }
 
-          if (!shippedAt) continue;
+          if (!referenceTime) {
+            referenceTime = order.shipped_at || order.created_at;
+          }
 
-          // 計算出貨至今的時間天數
-          const diffTime = Math.abs(new Date().getTime() - new Date(shippedAt).getTime());
+          if (!referenceTime) continue;
+
+          // 計算至今的時間天數
+          const diffTime = Math.abs(new Date().getTime() - new Date(referenceTime).getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
           // 判斷是否大於等於 30 天
           if (diffDays >= 30) {
-            // 檢查該訂單是否已經發過紅利點數
-            const { data: existingPts } = await supabase
-              .from('point_transactions')
-              .select('id')
-              .eq('order_id', order.id)
-              .eq('transaction_type', 'earned_from_order');
+            // A. 一般消費者 (B2C) 發放紅利點數
+            if (!buyer.is_b2b) {
+              // 檢查該訂單是否已經發過紅利點數
+              const { data: existingPts } = await supabase
+                .from('point_transactions')
+                .select('id')
+                .eq('order_id', order.id)
+                .eq('transaction_type', 'earned_from_order');
 
-            if (existingPts && existingPts.length > 0) {
-              continue; // 已經發過了，跳過
+              if (!existingPts || existingPts.length === 0) {
+                // 計算紅利點數
+                const rate = rateMapping[buyer.tier] || 100;
+                const rewardPoints = Math.floor(Number(order.total_amount) / rate);
+
+                if (rewardPoints > 0) {
+                  // 1. 寫入積分流水
+                  await supabase.from('point_transactions').insert({
+                    member_id: buyer.id,
+                    order_id: order.id,
+                    amount: rewardPoints,
+                    transaction_type: 'earned_from_order'
+                  });
+
+                  // 2. 更新會員餘額
+                  await supabase.from('members').update({
+                    points_balance: (buyer.points_balance || 0) + rewardPoints
+                  }).eq('id', buyer.id);
+
+                  // 3. 發送系統通知
+                  await supabase.from('notifications').insert({
+                    member_id: buyer.id,
+                    title: '🎁 紅利點數已自動入帳！',
+                    content: `您好！您的訂單已簽收取貨滿 30 天，系統已自動為您存入消費回饋之紅利點數 ${rewardPoints} 點！`,
+                    type: 'system'
+                  });
+
+                  pointsIssuedCount += rewardPoints;
+                  pointsOrdersCount++;
+                }
+              }
             }
 
-            // 計算紅利點數
-            const rate = rateMapping[buyer.tier] || 100;
-            const rewardPoints = Math.floor(Number(order.total_amount) / rate);
+            // B. 處理上線 B2B 夥伴退傭獎金 (簽收取貨後滿 30 天發送)
+            if (buyer.upline_id && Number(order.b2b_commission) > 0) {
+              // 檢查該訂單是否已經發過推薦退傭獎金
+              const { data: existingTx } = await supabase
+                .from('wallet_transactions')
+                .select('id')
+                .eq('order_id', order.id)
+                .eq('transaction_type', 'commission_refund');
 
-            if (rewardPoints > 0) {
-              // 1. 寫入積分流水
-              await supabase.from('point_transactions').insert({
-                member_id: buyer.id,
-                order_id: order.id,
-                amount: rewardPoints,
-                transaction_type: 'earned_from_order'
-              });
+              if (!existingTx || existingTx.length === 0) {
+                // 獲取上線資訊
+                const { data: upline } = await supabase
+                  .from('members')
+                  .select('id, name, is_b2b, virtual_balance')
+                  .eq('id', buyer.upline_id)
+                  .single();
 
-              // 2. 更新會員餘額
-              await supabase.from('members').update({
-                points_balance: (buyer.points_balance || 0) + rewardPoints
-              }).eq('id', buyer.id);
+                if (upline && upline.is_b2b) {
+                  const commAmount = Number(order.b2b_commission);
 
-              // 3. 發送系統通知
-              await supabase.from('notifications').insert({
-                member_id: buyer.id,
-                title: '🎁 紅利點數已自動入帳！',
-                content: `您好！您的訂單編號已出貨滿 30 天，系統已自動為您存入消費回饋之紅利點數 ${rewardPoints} 點！`,
-                type: 'system'
-              });
+                  // 1. 寫入推薦獎金錢包流水
+                  await supabase.from('wallet_transactions').insert({
+                    member_id: upline.id,
+                    order_id: order.id,
+                    amount: commAmount,
+                    transaction_type: 'commission_refund',
+                    status: 'completed'
+                  });
 
-              pointsIssuedCount += rewardPoints;
-              pointsOrdersCount++;
+                  // 2. 更新上線預收帳戶餘額 (359 獎金由來)
+                  await supabase.from('members').update({
+                    virtual_balance: (Number(upline.virtual_balance) || 0) + commAmount
+                  }).eq('id', upline.id);
+
+                  // 3. 發送推薦獎金入帳通知
+                  await supabase.from('notifications').insert({
+                    member_id: upline.id,
+                    title: '🎁 推薦推廣分紅已自動撥發入帳！',
+                    content: `您的下線夥伴 ${buyer.name} 的訂單已簽收取貨滿 30 天，您獲得的 $${commAmount.toLocaleString()} 推廣獎金已自動存入您的帳本！`,
+                    type: 'referral'
+                  });
+
+                  commissionsIssuedCount += commAmount;
+                  commissionsOrdersCount++;
+                }
+              }
             }
           }
         }
       }
     } catch (ptsErr: any) {
-      console.error('[Settlement Cron] Points issuance failed:', ptsErr);
+      console.error('[Settlement Cron] Points/Commission issuance failed:', ptsErr);
     }
     
     return { 
       success: true, 
-      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌新制營運規章，消費回饋之紅利點數已改為【出貨後滿 30 天自動發送】。本次共完成 ${pointsOrdersCount} 筆出貨達標訂單對帳，累計發放 ${pointsIssuedCount} 點紅利點數。` 
+      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌新制營運規章，消費紅利與推廣獎金已改為【簽收取貨後滿 30 天自動發送】。本次共完成 ${pointsOrdersCount} 筆簽收點數發放（共 ${pointsIssuedCount} 點）與 ${commissionsOrdersCount} 筆推薦退傭獎金撥點（共 $${commissionsIssuedCount.toLocaleString()} 元）。` 
     };
 
   } catch (error: any) {

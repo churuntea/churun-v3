@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       } catch (e) {}
 
       let shippedAtStr = new Date().toISOString();
+      let deliveredAtStr = new Date().toISOString();
       let updatedCustomLogo = customLogoVal;
 
       if (status === 'shipped') {
@@ -101,13 +102,30 @@ export async function POST(request: Request) {
             shipped_at: shippedAtStr
           });
         }
+      } else if (status === 'delivered') {
+        if (customLogoVal.startsWith('FALLBACK_JSON:')) {
+          try {
+            const parsed = JSON.parse(customLogoVal.substring('FALLBACK_JSON:'.length));
+            parsed.delivered_at = deliveredAtStr;
+            updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(parsed);
+          } catch (e) {}
+        } else {
+          updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify({
+            original_logo_url: customLogoVal,
+            delivered_at: deliveredAtStr
+          });
+        }
       }
 
       const updatePayload: any = { 
         fulfillment_status: status,
-        shipped_at: status === 'shipped' ? shippedAtStr : null,
         custom_logo_url: updatedCustomLogo
       };
+      if (status === 'shipped') {
+        updatePayload.shipped_at = shippedAtStr;
+      } else if (status === 'delivered') {
+        updatePayload.delivered_at = deliveredAtStr;
+      }
       if (trackingNumber !== undefined) {
         updatePayload.tracking_number = trackingNumber;
       }
@@ -211,6 +229,36 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
             if (adminId && adminId.trim()) {
               await sendLinePushNotification(adminId.trim(), adminPushText);
             }
+          }
+        } else if (status === 'delivered') {
+          await supabase.from('notifications').insert({
+            member_id: buyer.id,
+            title: '訂單已簽收/已取貨 🎉',
+            content: `您的訂單 #${(orderData.order_number || orderData.id).slice(0, 8)} 已簽收/已取貨！依品牌規章新制，消費回饋與推廣分紅將於簽收後滿 30 天由系統自動撥點發送。`,
+            type: 'order'
+          });
+
+          if (buyer.line_id) {
+            const pushText = `🎉 【初潤製茶所】簽收取貨成功通知 🎉
+━━━━━━━━━━━━━━━━━━
+親愛的茶友 ${buyer.name} 您好：
+
+您的訂單已順利簽收/取貨完成！
+● 訂單編號：${orderData.order_number || orderData.id.slice(0, 8)}
+● 採購總額：$${Number(orderData.total_amount || 0).toLocaleString()} 元
+━━━━━━━━━━━━━━━━━━
+🍵 購買商品明細：
+${itemsList}━━━━━━━━━━━━━━━━━━
+💡 溫馨提示：依據品牌規章新制，消費回饋紅利與推廣分紅將於「簽收取貨滿 30 天」自動發送存入您的帳戶，感謝您的支持與愛護！`;
+
+            const pushResult = await sendLinePushNotification(buyer.line_id, pushText);
+            if (pushResult && pushResult.success) {
+              pushStatusMessage = "標記已簽收/已取貨成功，LINE 推播成功！";
+            } else {
+              pushStatusMessage = `標記已簽收/已取貨成功！(註：LINE 推播失敗 - ${pushResult?.reason})`;
+            }
+          } else {
+            pushStatusMessage = "標記已簽收/已取貨成功！(註：此會員尚未綁定 LINE 帳號)";
           }
         }
       }

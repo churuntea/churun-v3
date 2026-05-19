@@ -8,6 +8,7 @@ import { supabase } from "./supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wallet, 
+  CreditCard,
   Star, 
   Users, 
   ShoppingBag, 
@@ -105,6 +106,117 @@ function DashboardContent() {
   const [showOfficialQrModal, setShowOfficialQrModal] = useState(false);
   const [copiedFbLink, setCopiedFbLink] = useState(false);
   const [showFbQrModal, setShowFbQrModal] = useState(false);
+  const [showWalletDetailModal, setShowWalletDetailModal] = useState(false);
+  const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
+  const [isFetchingWalletTx, setIsFetchingWalletTx] = useState(false);
+  const [activeWalletTab, setActiveWalletTab] = useState<'pending' | 'history'>('pending');
+  const [pendingCommissions, setPendingCommissions] = useState<any[]>([]);
+  const [isFetchingPending, setIsFetchingPending] = useState(false);
+
+  const handleOpenWalletDetails = async () => {
+    setShowWalletDetailModal(true);
+    const savedId = currentUserId || localStorage.getItem("churun_member_id");
+    if (!savedId) return;
+    setIsFetchingWalletTx(true);
+    setIsFetchingPending(true);
+    try {
+      // 1. Fetch ledger history
+      const { data: txData, error: txError } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .eq('member_id', savedId)
+        .order('created_at', { ascending: false });
+      if (!txError && txData) {
+        setWalletTransactions(txData);
+      }
+
+      // 2. Fetch pending B2B commissions (downline orders not yet settled)
+      const { data: downlineMembers } = await supabase
+        .from('members')
+        .select('id, name')
+        .eq('upline_id', savedId);
+
+      if (downlineMembers && downlineMembers.length > 0) {
+        const downlineIds = downlineMembers.map(m => m.id);
+        const downlineNameMap = new Map(downlineMembers.map(m => [m.id, m.name]));
+
+        // Fetch completed orders of these downlines that have b2b_commission > 0
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('id, member_id, total_amount, b2b_commission, shipped_at, custom_logo_url, created_at, status, fulfillment_status')
+          .in('member_id', downlineIds)
+          .eq('status', 'completed')
+          .gt('b2b_commission', 0);
+
+        if (orders && orders.length > 0) {
+          // Fetch existing settled commissions for these orders
+          const orderIds = orders.map(o => o.id);
+          const { data: existingTx } = await supabase
+            .from('wallet_transactions')
+            .select('order_id')
+            .eq('transaction_type', 'commission_refund')
+            .in('order_id', orderIds);
+
+          const settledOrderIds = new Set(existingTx?.map(tx => tx.order_id) || []);
+
+          // Filter out orders that are already settled
+          const pending = orders
+            .filter(o => !settledOrderIds.has(o.id))
+            .map(o => {
+              // Parse delivered_at or shipped_at from custom_logo_url fallback JSON
+              let refTime = null;
+              if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+                try {
+                  const parsed = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
+                  refTime = parsed.delivered_at || parsed.shipped_at;
+                } catch (e) {}
+              }
+              if (!refTime) {
+                refTime = o.shipped_at || o.created_at;
+              }
+
+              // Calculate countdown relative to 30 days cooling period
+              let countdownText = "待發送";
+              let daysRemaining = 30;
+              if (refTime) {
+                const diffTime = new Date().getTime() - new Date(refTime).getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                daysRemaining = Math.max(0, 30 - diffDays);
+                if (daysRemaining > 0) {
+                  countdownText = `約剩餘 ${daysRemaining} 天撥發`;
+                } else {
+                  countdownText = "將於下次對帳撥發";
+                }
+              }
+
+              return {
+                orderId: o.id,
+                buyerName: downlineNameMap.get(o.member_id) || '下線夥伴',
+                orderAmount: Number(o.total_amount),
+                commissionAmount: Number(o.b2b_commission),
+                refTime: refTime,
+                daysRemaining: daysRemaining,
+                countdownText: countdownText,
+                status: o.fulfillment_status
+              };
+            })
+            // Sort so the ones closest to settlement show first
+            .sort((a, b) => (a.daysRemaining || 0) - (b.daysRemaining || 0));
+
+          setPendingCommissions(pending);
+        } else {
+          setPendingCommissions([]);
+        }
+      } else {
+        setPendingCommissions([]);
+      }
+    } catch (err) {
+      console.error("Fetch pending commissions failed:", err);
+    } finally {
+      setIsFetchingWalletTx(false);
+      setIsFetchingPending(false);
+    }
+  };
 
   useEffect(() => {
     const currentVersion = "3.0.0";
@@ -474,10 +586,12 @@ function DashboardContent() {
                 </div>
   
                 <div className="grid grid-cols-2 gap-6 relative z-10">
-                   <div className="space-y-1">
-                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">虛擬預收貨款</p>
-                      <h3 className="text-2xl font-black tracking-tighter">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
-                   </div>
+                    <div onClick={handleOpenWalletDetails} className="space-y-1 cursor-pointer hover:opacity-85 active:scale-95 transition-all duration-300">
+                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-300 flex items-center gap-1">
+                          虛擬預收貨款 <span className="text-[9px]">💡 點選明細</span>
+                       </p>
+                       <h3 className="text-2xl font-black tracking-tighter text-white">${Number(memberInfo.virtual_balance).toLocaleString()}</h3>
+                    </div>
                    <div className="space-y-1">
                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40">紅利點數餘額</p>
                       <h3 className="text-2xl font-black tracking-tighter">{memberInfo.points_balance.toLocaleString()} <span className="text-[10px] font-medium ml-1">pts</span></h3>
@@ -1129,6 +1243,184 @@ function DashboardContent() {
             <Link href="/profile" className="flex-1 flex flex-col items-center gap-1 text-white/40 hover:text-white transition"><User className="w-5 h-5" /><span className="text-[8px] font-black uppercase tracking-[0.2em]">Me</span></Link>
          </div>
       </div>
+
+      {/* Wallet Details Modal */}
+      <AnimatePresence>
+        {showWalletDetailModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowWalletDetailModal(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10 max-h-[85vh] flex flex-col"
+            >
+              <button 
+                onClick={() => setShowWalletDetailModal(false)}
+                className="absolute top-6 right-6 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="text-center pb-4 border-b border-slate-100">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900">分紅帳本與交易明細</h3>
+                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Virtual Ledger & Referral Rewards</p>
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="flex bg-slate-100 p-1 rounded-2xl my-4">
+                <button
+                  onClick={() => setActiveWalletTab('pending')}
+                  className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
+                    activeWalletTab === 'pending'
+                      ? 'bg-white text-emerald-800 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  ⏱️ 預估撥發明細
+                </button>
+                <button
+                  onClick={() => setActiveWalletTab('history')}
+                  className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
+                    activeWalletTab === 'history'
+                      ? 'bg-white text-emerald-800 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  📜 帳務歷史明細
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar py-2 space-y-4">
+                {activeWalletTab === 'pending' ? (
+                  <div className="space-y-4">
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
+                      💡 <strong>預估撥發說明：</strong><br />
+                      依據初潤品牌營運規章，下線夥伴消費所產生的推廣分紅，均需在該筆訂單<strong>【簽收取貨滿 30 天】</strong>後，且無退換貨等異常時，由系統自動考核並撥發至您的可用餘額中。
+                    </p>
+
+                    {isFetchingPending ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                      </div>
+                    ) : pendingCommissions.length === 0 ? (
+                      <div className="text-center py-10 bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
+                        <span className="text-2xl">🍃</span>
+                        <p className="text-xs font-black text-slate-400 mt-2">目前尚無預估撥發中的分紅</p>
+                        <p className="text-[9px] text-slate-400/80 mt-1 px-6">當您的下線團隊夥伴完成消費後，將在此顯示倒數明細。</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⏳ 預計發放項目 (${pendingCommissions.length})：</h4>
+                        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                          {pendingCommissions.map((item, idx) => (
+                            <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center text-left hover:scale-[1.01] transition-all duration-300">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-slate-800">${item.buyerName}</span>
+                                  <span className="text-[8px] bg-slate-200/50 px-2 py-0.5 rounded text-slate-500 font-bold">下線消費</span>
+                                </div>
+                                <p className="text-[9px] text-slate-400 font-bold">訂單金額: ${item.orderAmount.toLocaleString()} · 訂單狀態: ${item.status === 'delivered' ? '已簽收' : '已出貨'}</p>
+                                <span className={`inline-flex items-center gap-1 text-[8px] font-black px-2 py-0.5 rounded-full ${
+                                  item.daysRemaining > 7 
+                                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                }`}>
+                                  ⏱️ ${item.countdownText}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs font-mono font-black text-emerald-600">
+                                  +${item.commissionAmount.toLocaleString()}
+                                </span>
+                                <p className="text-[7px] text-slate-400 font-black mt-0.5">預估分紅</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      💡 <strong>可用餘額說明：</strong><br />
+                      此處顯示您已正式入帳的可用預收貨款與分紅歷史紀錄，您可用於批貨消費扣款、儲值充值或申請提領。
+                    </p>
+
+                    {isFetchingWalletTx ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                      </div>
+                    ) : walletTransactions.length === 0 ? (
+                      <div className="text-center py-10 bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
+                        <span className="text-2xl">📜</span>
+                        <p className="text-xs font-black text-slate-400 mt-2">暫無帳務異動明細紀錄</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">📜 歷史異動明細：</h4>
+                        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                          {walletTransactions.map((tx: any) => {
+                            const dateStr = new Date(tx.created_at).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                            const isPos = Number(tx.amount) > 0;
+                            
+                            let txLabel = "交易明細";
+                            let txDesc = tx.description || "";
+                            if (tx.transaction_type === 'deposit') {
+                              txLabel = "📥 儲值預收金";
+                              txDesc = txDesc || "加盟儲值款";
+                            } else if (tx.transaction_type === 'commission_refund') {
+                              txLabel = "🎁 推薦分紅獎金";
+                              txDesc = txDesc || `下線訂單對帳 (滿30天自動撥發)`;
+                            } else if (tx.transaction_type === 'order_deduction') {
+                              txLabel = "💸 批貨消費扣款";
+                              txDesc = txDesc || "自主下單支出";
+                            } else if (tx.transaction_type === 'withdrawal') {
+                              txLabel = "📤 帳戶餘額提領";
+                              txDesc = txDesc || "提款出帳";
+                            }
+
+                            return (
+                              <div key={tx.id} className="p-3.5 bg-white border border-slate-100 rounded-2xl flex justify-between items-center text-left hover:border-slate-200 transition-all duration-300">
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-800">{txLabel}</p>
+                                  <p className="text-[8px] font-medium text-slate-400 mt-0.5">{txDesc} · {dateStr}</p>
+                                </div>
+                                <span className={`text-xs font-mono font-black ${isPos ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                  {isPos ? `+${tx.amount}` : tx.amount}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex gap-3">
+                <button 
+                  onClick={() => setShowWalletDetailModal(false)}
+                  className="flex-1 bg-slate-900 text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 active:scale-95 transition"
+                >
+                  關閉視窗
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="opacity-0 pointer-events-none absolute -z-10" aria-hidden="true" id="hidden-qr-canvas">
         <QRCodeCanvas value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo?.member_code}`} size={512} level="H" />

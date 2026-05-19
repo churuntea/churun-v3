@@ -165,30 +165,7 @@ export async function POST(request: Request) {
         });
       }
 
-      // 3. 處理上線退傭
-      if (buyer.upline_id && b2bCommission > 0) {
-          const { data: upline } = await supabase.from('members').select('*').eq('id', buyer.upline_id).single();
-          if (upline && upline.is_b2b) {
-            await supabase.from('wallet_transactions').insert({
-              member_id: upline.id,
-              order_id: order.id,
-              amount: b2bCommission,
-              transaction_type: 'commission_refund',
-              status: 'completed'
-            });
-            
-            await supabase.from('members').update({ 
-              virtual_balance: (Number(upline.virtual_balance) || 0) + b2bCommission 
-            }).eq('id', upline.id);
-
-            await supabase.from('notifications').insert({
-              member_id: upline.id,
-              title: '獲得推薦獎金！',
-              content: `您的下線夥伴 ${buyer.name} 的訂單已確認，您獲得 $${b2bCommission.toLocaleString()} 推薦獎金。`,
-              type: 'referral'
-            });
-        }
-      }
+      // 3. 處理上線退傭 (紅利新制：改由 Settlement Cron 於出貨 30 天後自動審核撥發，此處不再即時發放)
 
       // 4. 更新訂單狀態
       const updateData: any = { 

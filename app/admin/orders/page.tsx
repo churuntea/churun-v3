@@ -959,12 +959,12 @@ function AdminOrdersContent() {
                              )}
                              {order.status === 'completed' && (
                                <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1 ${
-                                 order.fulfillment_status === 'shipped' ? 'bg-blue-50 text-blue-600' :
+                                  order.fulfillment_status === 'shipped' ? 'bg-blue-50 text-blue-600' : order.fulfillment_status === 'delivered' ? 'bg-emerald-50 text-emerald-600' :
                                  order.fulfillment_status === 'processing' ? 'bg-indigo-50 text-indigo-600' :
                                  'bg-slate-100 text-slate-500'
                                }`}>
                                  <Truck className="w-3 h-3" />
-                                 {order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨'}
+                                 {order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'delivered' ? '已簽收/已取貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨'}
                                </span>
                              )}
                              {order.tracking_number && (
@@ -993,7 +993,7 @@ function AdminOrdersContent() {
                                 </>
                               )}
                               
-                              {order.status === 'completed' && order.fulfillment_status !== 'shipped' && (
+                              {order.status === 'completed' && order.fulfillment_status !== 'shipped' && order.fulfillment_status !== 'delivered' && (
                                 <button 
                                   onClick={() => {
                                     const num = prompt("請輸入物流單號（留空則僅標記為已出貨）：");
@@ -1005,7 +1005,20 @@ function AdminOrdersContent() {
                                    <Truck className="w-4 h-4" />
                                 </button>
                               )}
-                              <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition">
+                              {order.status === 'completed' && order.fulfillment_status === 'shipped' && (
+                                 <button 
+                                   onClick={() => {
+                                     if (confirm("確認此訂單已順利簽收或取貨完成？\n確認後將啟動 30 天鑑賞期計時，屆滿後自動撥發分紅與點數。")) {
+                                       updateFulfillment(order.id, 'delivered', order.tracking_number);
+                                     }
+                                   }}
+                                   className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition mr-2"
+                                   title="標記為已簽收/已取貨"
+                                 >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                 </button>
+                               )}
+                               <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition">
                                  <MoreVertical className="w-4 h-4" />
                               </button>
                            </div>

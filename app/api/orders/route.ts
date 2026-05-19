@@ -117,36 +117,7 @@ export async function POST(request: Request) {
       
       message += ` 訂單已建立，紅利點數將於出貨後 30 天自動發送。`;
 
-      // 5. 處理上線退傭 (若上線為 B2B 夥伴)
-      if (buyer.upline_id) {
-        const { data: upline } = await supabase
-          .from('members')
-          .select('*')
-          .eq('id', buyer.upline_id)
-          .single();
-
-        if (upline && upline.is_b2b) {
-          // B2B 自動退傭：差價利潤 (原價 - 結帳價)
-          // 或是 (結帳價 - 夥伴進貨價)，這裡先以 (原價 - 結帳價) 示範
-          const commission = originalAmount - totalAmount; 
-          
-          if (commission > 0) {
-            await supabase.from('wallet_transactions').insert({
-              member_id: upline.id,
-              order_id: order.id,
-              amount: commission,
-              transaction_type: 'commission_refund',
-              status: 'completed'
-            });
-
-            await supabase.from('members').update({ 
-              virtual_balance: upline.virtual_balance + commission 
-            }).eq('id', upline.id);
-            
-            message += ` 上線(${upline.name})獲得退傭 $${commission}。`;
-          }
-        }
-      }
+      // 5. 處理上線退傭 (紅利新制：改由 Settlement Cron 於出貨 30 天後自動審核撥發，此處不再即時發放)
     }
 
     return NextResponse.json({ success: true, order, message });
