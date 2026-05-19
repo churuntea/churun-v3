@@ -46,6 +46,15 @@ const TIER_RATES: Record<string, number> = {
   '初潤寶寶': 100
 };
 
+const BUNDLE_RULE = {
+  items: [
+    { id: '9955531d-c7b2-4f7a-89fd-2cdf7bc97f29', quantity: 2, name: '高山烏龍' },
+    { id: 'ddd0cf47-63ef-4be0-8ab9-490391819895', quantity: 1, name: '帆布袋' }
+  ],
+  targetPrice: 799,
+  name: '兩組高山烏龍+一組帆布袋特惠'
+};
+
 interface Coupon {
   code: string;
   name: string;
@@ -155,6 +164,7 @@ function StoreContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showOrderListModal, setShowOrderListModal] = useState(false);
   const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [bundleDeals, setBundleDeals] = useState<any[]>([]);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [pointsInput, setPointsInput] = useState<string>("");
   const [balanceToRedeem, setBalanceToRedeem] = useState<number>(0);
@@ -405,16 +415,69 @@ function StoreContent() {
   
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
-  const getDiscountAmount = () => {
-    if (!activeCoupon) return 0;
-    if (totalPrice < activeCoupon.minSpend) return 0;
+  const handleAddBundleToCart = (deal: any) => {
+    deal.items.forEach((ruleItem: any) => {
+      const product = products.find(p => p.id === ruleItem.id) || {
+        id: ruleItem.id,
+        name: '未知商品 (套組)',
+        price: 0,
+        image_url: ''
+      };
+      
+      for (let i = 0; i < ruleItem.quantity; i++) {
+        addToCart(product);
+      }
+    });
     
-    if (activeCoupon.discountType === 'fixed') {
-      return activeCoupon.value;
-    } else if (activeCoupon.discountType === 'percent') {
-      return Math.floor(totalPrice * (activeCoupon.value / 100));
+    alert(`已將「${deal.name}」商品加入購物車！`);
+  };
+
+  const getDiscountAmount = () => {
+    let discount = 0;
+
+    // 1. 檢查組合套組優惠
+    bundleDeals.forEach(deal => {
+      // 檢查身份限制
+      if (deal.tier_restriction && memberInfo?.tier !== deal.tier_restriction) return;
+      
+      // 檢查限購
+      if (deal.limit_one_per_user) {
+        const hasUsed = userOrders.some((o: any) => o.notes && o.notes.includes(`[套組優惠: ${deal.name}]`));
+        if (hasUsed) return;
+      }
+      
+      // 檢查商品
+      const items = deal.items;
+      let allFound = true;
+      let totalNormalPrice = 0;
+      
+      items.forEach((ruleItem: any) => {
+        const itemInCart = cart.find(it => it.id === ruleItem.id);
+        if (!itemInCart || itemInCart.quantity < ruleItem.quantity) {
+          allFound = false;
+        } else {
+          totalNormalPrice += itemInCart.price * ruleItem.quantity;
+        }
+      });
+      
+      if (allFound) {
+        const dealDiscount = totalNormalPrice - deal.target_price;
+        if (dealDiscount > 0) {
+          discount += dealDiscount;
+        }
+      }
+    });
+
+    // 2. 原有的優惠券邏輯
+    if (activeCoupon && totalPrice >= activeCoupon.minSpend) {
+      if (activeCoupon.discountType === 'fixed') {
+        discount += activeCoupon.value;
+      } else if (activeCoupon.discountType === 'percent') {
+        discount += Math.floor(totalPrice * (activeCoupon.value / 100));
+      }
     }
-    return 0;
+    
+    return discount;
   };
 
   const discountAmount = getDiscountAmount();
@@ -474,7 +537,7 @@ function StoreContent() {
     try {
       const { data: oData } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at, custom_logo_url, order_number, shipping_info")
+        .select("id, total_amount, status, created_at, custom_logo_url, order_number, shipping_info, notes")
         .eq("member_id", userId)
         .order("created_at", { ascending: false });
 
@@ -628,6 +691,17 @@ function StoreContent() {
       } catch (catErr) {
         console.error("載入商城分類大項失敗:", catErr);
       }
+      // 載入組合套組活動
+      try {
+        const res = await fetch("/api/bundle-deals");
+        const bData = await res.json();
+        if (bData.success) {
+          setBundleDeals(bData.data);
+        }
+      } catch (bErr) {
+        console.error("載入組合活動失敗:", bErr);
+      }
+
       const { data: pData } = await supabase.from("products").select("*").eq("status", "active");
       
       const processed = (pData || []).map(p => {
@@ -673,6 +747,23 @@ function StoreContent() {
         }));
       }
 
+      const appliedDeal = bundleDeals.find(deal => {
+        if (deal.tier_restriction && memberInfo?.tier !== deal.tier_restriction) return false;
+        if (deal.limit_one_per_user) {
+          const hasUsed = userOrders.some((o: any) => o.notes && o.notes.includes(`[套組優惠: ${deal.name}]`));
+          if (hasUsed) return false;
+        }
+        const items = deal.items;
+        let allFound = true;
+        items.forEach((ruleItem: any) => {
+          const itemInCart = cart.find(it => it.id === ruleItem.id);
+          if (!itemInCart || itemInCart.quantity < ruleItem.quantity) {
+            allFound = false;
+          }
+        });
+        return allFound;
+      });
+
       const res = await fetch("/api/orders/dynamic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -682,7 +773,12 @@ function StoreContent() {
           discountAmount: discountAmount,
           pointsRedeemed: pointsDiscount,
           couponCode: activeCoupon ? activeCoupon.code : null,
-          shippingInfo: shippingInfo
+          shippingInfo: {
+            ...shippingInfo,
+            notes: appliedDeal 
+                    ? `${shippingInfo.notes || ''} [套組優惠: ${appliedDeal.name}]`.trim() 
+                    : shippingInfo.notes
+          }
         })
       });
       const data = await res.json();
@@ -759,6 +855,23 @@ function StoreContent() {
         }));
       }
 
+      const appliedDeal = bundleDeals.find(deal => {
+        if (deal.tier_restriction && memberInfo?.tier !== deal.tier_restriction) return false;
+        if (deal.limit_one_per_user) {
+          const hasUsed = userOrders.some((o: any) => o.notes && o.notes.includes(`[套組優惠: ${deal.name}]`));
+          if (hasUsed) return false;
+        }
+        const items = deal.items;
+        let allFound = true;
+        items.forEach((ruleItem: any) => {
+          const itemInCart = cart.find(it => it.id === ruleItem.id);
+          if (!itemInCart || itemInCart.quantity < ruleItem.quantity) {
+            allFound = false;
+          }
+        });
+        return allFound;
+      });
+
       const res = await fetch("/api/orders/dynamic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -769,7 +882,12 @@ function StoreContent() {
           balanceRedeemed: balanceDiscount,
           pointsRedeemed: pointsDiscount,
           couponCode: activeCoupon ? activeCoupon.code : null,
-          shippingInfo: currentShippingInfo
+          shippingInfo: {
+            ...currentShippingInfo,
+            notes: appliedDeal 
+                    ? `${currentShippingInfo.notes || ''} [套組優惠: ${appliedDeal.name}]`.trim() 
+                    : currentShippingInfo.notes
+          }
         })
       });
       const data = await res.json();
@@ -985,6 +1103,42 @@ function StoreContent() {
               </div>
            </div>
         )}
+
+        {/* 組合套組特惠區塊 */}
+        {bundleDeals.map(deal => {
+          // 檢查身份限制
+          if (deal.tier_restriction && memberInfo?.tier !== deal.tier_restriction) return null;
+          
+          // 檢查限購
+          if (deal.limit_one_per_user) {
+            const hasUsed = userOrders.some((o: any) => o.notes && o.notes.includes(`[套組優惠: ${deal.name}]`));
+            if (hasUsed) return null;
+          }
+
+          return (
+            <div key={deal.id} className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-[3.5rem] p-8 sm:p-10 space-y-6 shadow-sm mb-8">
+               <div>
+                  <h4 className="text-sm font-black text-emerald-800 uppercase tracking-widest flex items-center gap-2">
+                     <Zap className="w-5 h-5 text-emerald-500 animate-pulse" /> 🚀 限時特惠組合
+                  </h4>
+                  <p className="text-[10px] font-black text-emerald-600 mt-1 uppercase tracking-wider">{deal.name}</p>
+               </div>
+
+               <div className="flex justify-between items-center p-5 bg-white border border-emerald-100 rounded-3xl hover:bg-emerald-50/50 transition duration-200 group shadow-sm">
+                  <div className="text-left space-y-1">
+                     <h5 className="text-sm font-black text-slate-800 group-hover:text-emerald-950 transition">{deal.name}</h5>
+                     <p className="text-[10px] font-bold text-slate-400">限時特價 ${deal.target_price} 元</p>
+                  </div>
+                  <button
+                     onClick={() => handleAddBundleToCart(deal)}
+                     className="text-xs font-black px-5 py-3 rounded-2xl transition tracking-widest bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95"
+                  >
+                     一鍵加入購物車
+                  </button>
+               </div>
+            </div>
+          );
+        })}
 
         <div className="grid grid-cols-1 gap-8">
            {isLoading ? (

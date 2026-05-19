@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../supabase";
 import { dbCache, fetchWithSWR } from "@/utils/dbCache";
+import BundleDealsManager from "@/components/BundleDealsManager";
 import { 
   ChevronLeft, 
   PackagePlus, 
@@ -56,7 +57,7 @@ function AdminProductsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalProduct, setOriginalProduct] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"add" | "list" | "category">("list");
+  const [activeTab, setActiveTab] = useState<"add" | "list" | "category" | "bundle">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("全部");
 
@@ -498,6 +499,14 @@ function AdminProductsContent() {
               <LayoutDashboard className={`w-5 h-5 ${activeTab === 'category' ? 'text-amber-500' : 'text-slate-300'}`} />
               大項分類管理
            </button>
+           <button 
+             type="button"
+             onClick={() => setActiveTab("bundle")}
+             className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] transition-all duration-500 font-black text-[10px] uppercase tracking-widest cursor-pointer ${activeTab === 'bundle' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+              <Zap className={`w-5 h-5 ${activeTab === 'bundle' ? 'text-emerald-500' : 'text-slate-300'}`} />
+              組合套組管理
+           </button>
         </div>
 
         <div className="relative z-0">
@@ -864,7 +873,7 @@ function AdminProductsContent() {
                    </div>
                 )}
               </motion.div>
-           ) : (
+            ) : activeTab === 'category' ? (
               <motion.div 
                 key="category-view"
                 initial={{ opacity: 0, y: 10 }}
@@ -956,7 +965,16 @@ function AdminProductsContent() {
                     </div>
                  </div>
               </motion.div>
-            )}
+            ) : activeTab === 'bundle' ? (
+              <motion.div 
+                key="bundle-view"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-[4rem] p-12 border border-slate-50 shadow-2xl shadow-slate-200/20"
+              >
+                <BundleDealsManager />
+              </motion.div>
+            ) : null}
          </div>
 
       </main>
