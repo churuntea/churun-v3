@@ -133,6 +133,12 @@ function AdminOrdersContent() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [selectedCarriers, setSelectedCarriers] = useState<Record<string, string>>({});
 
+  // 物流彙整出貨狀態
+  const [showConsolidationModal, setShowConsolidationModal] = useState(false);
+  const [selectedConsolidationType, setSelectedConsolidationType] = useState("自取");
+  const [selectedConsolidationPoint, setSelectedConsolidationPoint] = useState("");
+  const [consolidationTrackingInputs, setConsolidationTrackingInputs] = useState<Record<string, string>>({});
+
   // 自取點管理狀態與載入
   const [showPickupPointsModal, setShowPickupPointsModal] = useState(false);
   const [pickupPoints, setPickupPoints] = useState<any[]>([]);
@@ -604,6 +610,88 @@ function AdminOrdersContent() {
     }
   };
 
+  const handleBatchConsolidatedShip = async (matchedOrders: any[]) => {
+    if (matchedOrders.length === 0) {
+      alert("⚠️ 沒有符合條件的待出貨訂單！");
+      return;
+    }
+
+    if (selectedConsolidationType === "自取") {
+      if (!selectedConsolidationPoint) {
+        alert("⚠️ 請先選擇要彙整出貨的自取據點！");
+        return;
+      }
+      if (!confirm(`🎉 確定要將這 ${matchedOrders.length} 筆【自取】訂單一鍵完成彙整出貨嗎？\n據點將預設為：${selectedConsolidationPoint}`)) {
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const payload = matchedOrders.map(o => ({
+          orderId: o.id,
+          status: 'shipped',
+          trackingNumber: `自取: ${selectedConsolidationPoint}`
+        }));
+
+        const res = await fetch('/api/orders/ship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orders: payload })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '一鍵彙整出貨失敗');
+
+        setShowConsolidationModal(false);
+        fetchOrders();
+        alert(`🎉 恭喜！已成功將 ${matchedOrders.length} 筆自取訂單一鍵出貨完成！`);
+      } catch (err: any) {
+        console.error(err);
+        alert("一鍵出貨失敗: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      const payload: any[] = [];
+      for (const o of matchedOrders) {
+        const trackingCode = consolidationTrackingInputs[o.id] || "";
+        if (!trackingCode.trim()) {
+          alert(`⚠️ 請先填入訂單 #${(o.order_number || o.id).slice(-4)} 的物流單號！`);
+          return;
+        }
+        payload.push({
+          orderId: o.id,
+          status: 'shipped',
+          trackingNumber: `${selectedConsolidationType}: ${trackingCode.trim()}`
+        });
+      }
+
+      if (!confirm(`確定要將這 ${matchedOrders.length} 筆【${selectedConsolidationType}】訂單一鍵送出並出貨嗎？`)) {
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/orders/ship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orders: payload })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || '一鍵彙整出貨失敗');
+
+        setShowConsolidationModal(false);
+        setConsolidationTrackingInputs({});
+        fetchOrders();
+        alert(`🎉 恭喜！已成功為 ${matchedOrders.length} 筆訂單綁定單號並出貨完成！`);
+      } catch (err: any) {
+        console.error(err);
+        alert("一鍵出貨失敗: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const getAuditorName = () => {
     try {
       const adminStr = sessionStorage.getItem("churun_admin_user");
@@ -768,7 +856,13 @@ function AdminOrdersContent() {
             >
                📍 自取點管理
             </button>
-            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest">
+            <button 
+                onClick={() => setShowConsolidationModal(true)} 
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-[1.5rem] hover:bg-blue-700 transition shadow-lg shadow-blue-600/20 text-[10px] font-black uppercase tracking-widest mr-2"
+             >
+                🚚 物流彙整出貨
+             </button>
+             <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest">
                <Download className="w-4 h-4" /> 匯出訂單 (CSV)
             </button>
             <button onClick={fetchOrders} className="p-3 bg-slate-100 text-slate-400 rounded-[1.5rem] hover:text-indigo-600 hover:bg-indigo-50 transition">
@@ -1455,6 +1549,173 @@ function AdminOrdersContent() {
             </motion.div>
           </div>
         )}
+
+        {showConsolidationModal && (() => {
+          const matchedOrders = orders.filter(o => {
+            if (o.status !== "completed" || o.fulfillment_status === "shipped") return false;
+            const defaultCarrier = getDefaultCarrier(o);
+            if (defaultCarrier !== selectedConsolidationType) return false;
+            if (selectedConsolidationType === "自取" && selectedConsolidationPoint) {
+              return getDefaultPickupPoint(o, pickupPoints) === selectedConsolidationPoint;
+            }
+            return true;
+          });
+
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-[3.5rem] p-10 max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-50"
+              >
+                {/* Header */}
+                <div className="flex justify-between items-start pb-6 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                      🚚 物流出貨一鍵彙整中心
+                    </h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      Logistics consolidation and instant fulfillment workstation
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowConsolidationModal(false)}
+                    className="p-2 hover:bg-slate-100 rounded-full transition text-slate-400 hover:text-slate-600 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                      篩選物流種類
+                    </label>
+                    <select
+                      value={selectedConsolidationType}
+                      onChange={e => {
+                        setSelectedConsolidationType(e.target.value);
+                        setSelectedConsolidationPoint("");
+                        setConsolidationTrackingInputs({});
+                      }}
+                      className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="自取">自取</option>
+                      <option value="郵局">郵局</option>
+                      <option value="7-11">7-11</option>
+                      <option value="全家">全家</option>
+                      <option value="蝦皮店到店">蝦皮店到店</option>
+                    </select>
+                  </div>
+
+                  {selectedConsolidationType === "自取" && (
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                        篩選特定自取據點
+                      </label>
+                      <select
+                        value={selectedConsolidationPoint}
+                        onChange={e => setSelectedConsolidationPoint(e.target.value)}
+                        className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                      >
+                        <option value="">-- 請選擇自取據點 --</option>
+                        {pickupPoints.map(pt => (
+                          <option key={pt.id} value={pt.name}>
+                            {pt.name} ({pt.address})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Match Banner & Action */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500/10 text-blue-600 rounded-xl flex items-center justify-center font-black text-sm">
+                      {matchedOrders.length}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-700">
+                        已找到 {matchedOrders.length} 筆符合條件之待出貨訂單
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        {selectedConsolidationType === "自取" 
+                          ? `篩選據點：${selectedConsolidationPoint || '未選擇'}` 
+                          : `篩選物流商：${selectedConsolidationType}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleBatchConsolidatedShip(matchedOrders)}
+                    disabled={matchedOrders.length === 0 || isLoading}
+                    className="w-full md:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/10"
+                  >
+                    <Truck className="w-4 h-4" />
+                    {selectedConsolidationType === "自取" ? "一鍵完成自取出貨" : "一鍵批次填單送出"}
+                  </button>
+                </div>
+
+                {/* Orders List */}
+                <div className="flex-1 overflow-y-auto my-6 pr-2 space-y-4 max-h-[45vh] no-scrollbar">
+                  {matchedOrders.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <Package className="w-10 h-10 mb-2 stroke-1" />
+                      <p className="text-xs font-bold">沒有符合此物流篩選條件的待出貨訂單</p>
+                    </div>
+                  ) : (
+                    matchedOrders.map(order => (
+                      <div 
+                        key={order.id} 
+                        className="bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-mono font-bold text-slate-500">
+                              #{order.order_number || order.id.substring(0, 8)}
+                            </span>
+                            <span className="text-sm font-black text-slate-800">
+                              {order.shipping_info?.name || order.members?.name || '無收件人'}
+                            </span>
+                            <span className="text-xs font-bold text-slate-400">
+                              ({order.shipping_info?.phone || order.members?.phone || '無電話'})
+                            </span>
+                          </div>
+                          <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                            📍 {order.shipping_info?.address || '門市自取'}
+                          </p>
+                          <div className="text-[9px] font-bold text-indigo-600/80 bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
+                            品項：{order.order_items ? order.order_items.map((i: any) => `${i.name}x${i.quantity}`).join(', ') : '無'}
+                          </div>
+                        </div>
+
+                        {selectedConsolidationType !== "自取" && (
+                          <div className="w-full md:w-auto">
+                            <input 
+                              type="text" 
+                              placeholder="請輸入此訂單物流單號"
+                              value={consolidationTrackingInputs[order.id] || ""}
+                              onChange={e => {
+                                setConsolidationTrackingInputs(prev => ({
+                                  ...prev,
+                                  [order.id]: e.target.value
+                                }));
+                              }}
+                              className="w-full md:w-56 bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
 
         {showPickupPointsModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
