@@ -78,67 +78,78 @@ export async function POST(request: Request) {
     for (const item of orders) {
       const { orderId, status = 'shipped', trackingNumber } = item;
       
-      // 獲取當前訂單以進行 JSON 備份寫入 (以防資料庫無 shipped_at 欄位)
+      // 獲取當前訂單以進行 JSON 備份寫入 (以防資料庫無 shipped_at 或其他物流欄位)
       let customLogoVal = "";
+      let existingOrderData: any = null;
       try {
-        const { data: currOrd } = await supabase.from('orders').select('custom_logo_url').eq('id', orderId).single();
-        if (currOrd) customLogoVal = currOrd.custom_logo_url || "";
+        const { data: currOrd } = await supabase.from('orders').select('*').eq('id', orderId).single();
+        if (currOrd) {
+          existingOrderData = currOrd;
+          customLogoVal = currOrd.custom_logo_url || "";
+        }
       } catch (e) {}
 
       let shippedAtStr = new Date().toISOString();
       let deliveredAtStr = new Date().toISOString();
-      let updatedCustomLogo = customLogoVal;
-
-      if (status === 'shipped') {
-        if (customLogoVal.startsWith('FALLBACK_JSON:')) {
-          try {
-            const parsed = JSON.parse(customLogoVal.substring('FALLBACK_JSON:'.length));
-            parsed.shipped_at = shippedAtStr;
-            updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(parsed);
-          } catch (e) {}
-        } else {
-          updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify({
-            original_logo_url: customLogoVal,
-            shipped_at: shippedAtStr
-          });
+      
+      // 1. 解析與初始化 fallback JSON 物件
+      let fallbackObj: any = {};
+      if (customLogoVal.startsWith('FALLBACK_JSON:')) {
+        try {
+          fallbackObj = JSON.parse(customLogoVal.substring('FALLBACK_JSON:'.length));
+        } catch (e) {
+          console.error("解析現有 FALLBACK_JSON 失敗:", e);
         }
-      } else if (status === 'delivered') {
-        if (customLogoVal.startsWith('FALLBACK_JSON:')) {
-          try {
-            const parsed = JSON.parse(customLogoVal.substring('FALLBACK_JSON:'.length));
-            parsed.delivered_at = deliveredAtStr;
-            updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(parsed);
-          } catch (e) {}
-        } else {
-          updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify({
-            original_logo_url: customLogoVal,
-            delivered_at: deliveredAtStr
-          });
-        }
+      } else if (customLogoVal) {
+        fallbackObj.original_logo_url = customLogoVal;
       }
 
+      // 2. 更新出貨相關資訊至 fallback 物件，確保即使物理欄位不存在，也能完整備份
+      fallbackObj.fulfillment_status = status;
+      if (trackingNumber !== undefined) {
+        fallbackObj.tracking_number = trackingNumber;
+      } else if (existingOrderData && existingOrderData.tracking_number) {
+        fallbackObj.tracking_number = existingOrderData.tracking_number;
+      }
+
+      if (status === 'shipped') {
+        fallbackObj.shipped_at = shippedAtStr;
+      } else if (status === 'delivered') {
+        fallbackObj.delivered_at = deliveredAtStr;
+      }
+
+      const updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(fallbackObj);
+
+      // 3. 準備物理欄位更新 payload (排除不存在的 shipped_at / delivered_at 物件欄位)
       const updatePayload: any = { 
         fulfillment_status: status,
         custom_logo_url: updatedCustomLogo
       };
-      if (status === 'shipped') {
-        updatePayload.shipped_at = shippedAtStr;
-      } else if (status === 'delivered') {
-        updatePayload.delivered_at = deliveredAtStr;
-      }
       if (trackingNumber !== undefined) {
         updatePayload.tracking_number = trackingNumber;
       }
 
-      // 1. 更新資料庫
-      const { error: updateError } = await supabase
+      // 4. 嘗試物理欄位更新
+      let { error: updateError } = await supabase
         .from('orders')
         .update(updatePayload)
         .eq('id', orderId);
 
+      // 5. 若物理更新失敗，則降級為僅更新 custom_logo_url 欄位 (相容原本的資料庫設計)
       if (updateError) {
-        console.error(`[Order Ship Error] Failed to update order ${orderId}:`, updateError);
-        continue;
+        console.warn(`[Order Ship Warning] 物理欄位更新失敗，正降級為更新 custom_logo_url (FALLBACK_JSON) 模式。錯誤:`, updateError.message);
+        
+        const { error: fallbackError } = await supabase
+          .from('orders')
+          .update({ custom_logo_url: updatedCustomLogo })
+          .eq('id', orderId);
+
+        if (fallbackError) {
+          console.error(`[Order Ship Error] 降級更新 custom_logo_url 依然失敗 for order ${orderId}:`, fallbackError);
+          continue;
+        } else {
+          console.log(`[Order Ship Success] 降級更新 custom_logo_url 成功 for order ${orderId}`);
+        }
       }
 
       // 2. 查詢該訂單與會員資料以便發送通知

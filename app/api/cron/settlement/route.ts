@@ -94,7 +94,6 @@ async function performSettlement() {
           id,
           total_amount,
           custom_logo_url,
-          shipped_at,
           status,
           fulfillment_status,
           b2b_commission,
@@ -137,7 +136,7 @@ async function performSettlement() {
           }
 
           if (!referenceTime) {
-            referenceTime = order.shipped_at || order.created_at;
+            referenceTime = order.created_at;
           }
 
           if (!referenceTime) continue;

@@ -143,7 +143,7 @@ function DashboardContent() {
         // Fetch completed orders of these downlines that have b2b_commission > 0
         const { data: orders } = await supabase
           .from('orders')
-          .select('id, member_id, total_amount, b2b_commission, shipped_at, custom_logo_url, created_at, status, fulfillment_status')
+          .select('id, member_id, total_amount, b2b_commission, custom_logo_url, created_at, status, fulfillment_status')
           .in('member_id', downlineIds)
           .eq('status', 'completed')
           .gt('b2b_commission', 0);
@@ -172,7 +172,7 @@ function DashboardContent() {
                 } catch (e) {}
               }
               if (!refTime) {
-                refTime = o.shipped_at || o.created_at;
+                refTime = o.created_at;
               }
 
               // Calculate countdown relative to 30 days cooling period
