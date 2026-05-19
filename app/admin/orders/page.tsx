@@ -32,7 +32,7 @@ const CARRIERS = [
   { name: "郵局", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
   { name: "7-11", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
   { name: "全家", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
-  { name: "蝦皮", url: (num: string) => `https://shopee.tw/track/${num}` }
+  { name: "蝦皮店到店", url: (num: string) => `https://shopee.tw/track/${num}` }
 ];
 
 const getCarrierTrackingInfo = (trackingStr: string) => {
@@ -81,6 +81,7 @@ function AdminOrdersContent() {
   const [endDate, setEndDate] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [selectedCarriers, setSelectedCarriers] = useState<Record<string, string>>({});
 
   // 自取點管理狀態與載入
   const [showPickupPointsModal, setShowPickupPointsModal] = useState(false);
@@ -1079,52 +1080,75 @@ function AdminOrdersContent() {
                                   {/* 物流出貨管理控鍵 */}
                                   <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
                                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出貨控制台</h5>
-                                    {order.status === 'completed' && (
-                                      <div className="space-y-3">
-                                        <div className="flex gap-2">
-                                          <select 
-                                            id={`carrier-select-${order.id}`}
-                                            defaultValue={getCarrierTrackingInfo(order.tracking_number).carrierName}
-                                            className="bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 max-w-[150px] cursor-pointer"
-                                          >
-                                            {CARRIERS.map(c => (
-                                              <option key={c.name} value={c.name}>{c.name}</option>
-                                            ))}
-                                          </select>
-                                          <input 
-                                            id={`tracking-input-${order.id}`}
-                                            type="text" 
-                                            defaultValue={getCarrierTrackingInfo(order.tracking_number).trackingNum}
-                                            placeholder="請輸入物流單號"
-                                            className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
-                                          />
-                                          <button 
-                                            onClick={() => {
-                                              const carrier = (document.getElementById(`carrier-select-${order.id}`) as HTMLSelectElement)?.value || "自取/其他";
-                                              const input = (document.getElementById(`tracking-input-${order.id}`) as HTMLInputElement)?.value || "";
-                                              const finalTracking = input ? `${carrier}: ${input}` : "";
-                                              updateFulfillment(order.id, 'shipped', finalTracking);
-                                            }}
-                                            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition"
-                                          >
-                                            {order.fulfillment_status === 'shipped' ? '更新單號' : '確認出貨'}
-                                          </button>
-                                        </div>
-                                        {order.tracking_number && (
-                                          <div className="flex justify-between items-center bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
-                                            <span className="text-[10px] font-bold text-slate-500">
-                                              當前單號: <span className="font-mono text-blue-600 font-black">{order.tracking_number}</span>
-                                            </span>
-                                            <button 
-                                              onClick={() => handleOpenTrackingLink(order.tracking_number)}
-                                              className="text-[9px] font-black text-indigo-600 hover:underline flex items-center gap-1"
+                                    {order.status === 'completed' && (() => {
+                                      const currentCarrier = selectedCarriers[order.id] || getCarrierTrackingInfo(order.tracking_number).carrierName || "自取";
+                                      return (
+                                        <div className="space-y-3">
+                                          <div className="flex gap-2">
+                                            <select 
+                                              id={`carrier-select-${order.id}`}
+                                              value={currentCarrier}
+                                              onChange={(e) => {
+                                                setSelectedCarriers(prev => ({ ...prev, [order.id]: e.target.value }));
+                                              }}
+                                              className="bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 max-w-[150px] cursor-pointer"
                                             >
-                                              🔍 追蹤配送軌跡 ➔
+                                              {CARRIERS.map(c => (
+                                                <option key={c.name} value={c.name}>{c.name}</option>
+                                              ))}
+                                            </select>
+
+                                            {currentCarrier === "自取" ? (
+                                              <select
+                                                id={`tracking-input-${order.id}`}
+                                                defaultValue={getCarrierTrackingInfo(order.tracking_number).trackingNum}
+                                                className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                              >
+                                                <option value="">-- 請選擇自取據點 --</option>
+                                                {pickupPoints.map(pt => (
+                                                  <option key={pt.id} value={pt.name}>
+                                                    {pt.name} ({pt.address})
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            ) : (
+                                              <input 
+                                                id={`tracking-input-${order.id}`}
+                                                type="text" 
+                                                defaultValue={getCarrierTrackingInfo(order.tracking_number).trackingNum}
+                                                placeholder="請輸入物流單號"
+                                                className="flex-1 bg-slate-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-500"
+                                              />
+                                            )}
+
+                                            <button 
+                                              onClick={() => {
+                                                const carrier = (document.getElementById(`carrier-select-${order.id}`) as HTMLSelectElement)?.value || "自取";
+                                                const input = (document.getElementById(`tracking-input-${order.id}`) as HTMLSelectElement | HTMLInputElement)?.value || "";
+                                                const finalTracking = input ? `${carrier}: ${input}` : "";
+                                                updateFulfillment(order.id, 'shipped', finalTracking);
+                                              }}
+                                              className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-blue-600/10 hover:bg-blue-700 transition shrink-0"
+                                            >
+                                              {order.fulfillment_status === 'shipped' ? '更新單號' : '確認出貨'}
                                             </button>
                                           </div>
-                                        )}
-                                      </div>
-                                    )}
+                                          {order.tracking_number && (
+                                            <div className="flex justify-between items-center bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-slate-500">
+                                                當前單號: <span className="font-mono text-blue-600 font-black">{order.tracking_number}</span>
+                                              </span>
+                                              <button 
+                                                onClick={() => handleOpenTrackingLink(order.tracking_number)}
+                                                className="text-[9px] font-black text-indigo-600 hover:underline flex items-center gap-1"
+                                              >
+                                                🔍 追蹤配送軌跡 ➔
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     <div className="flex gap-2">
                                       <button 
                                         onClick={() => handlePrintPackingSlip(order)}
@@ -1290,7 +1314,7 @@ function AdminOrdersContent() {
                             onChange={e => {
                               setBulkShipData({
                                 ...bulkShipData,
-                                [order.id]: { ...orderData, carrier: e.target.value }
+                                [order.id]: { ...orderData, carrier: e.target.value, trackingNum: "" }
                               });
                             }}
                             className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 cursor-pointer min-w-[140px]"
@@ -1299,18 +1323,38 @@ function AdminOrdersContent() {
                               <option key={c.name} value={c.name}>{c.name}</option>
                             ))}
                           </select>
-                          <input 
-                            type="text" 
-                            placeholder="輸入物流單號"
-                            value={orderData.trackingNum}
-                            onChange={e => {
-                              setBulkShipData({
-                                ...bulkShipData,
-                                [order.id]: { ...orderData, trackingNum: e.target.value }
-                              });
-                            }}
-                            className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 flex-1 md:w-48"
-                          />
+                          {orderData.carrier === "自取" ? (
+                            <select
+                              value={orderData.trackingNum}
+                              onChange={e => {
+                                setBulkShipData({
+                                  ...bulkShipData,
+                                  [order.id]: { ...orderData, trackingNum: e.target.value }
+                                });
+                              }}
+                              className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 flex-1 md:w-48 cursor-pointer"
+                            >
+                              <option value="">-- 請選擇自取點 --</option>
+                              {pickupPoints.map(pt => (
+                                <option key={pt.id} value={pt.name}>
+                                  {pt.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input 
+                              type="text" 
+                              placeholder="輸入物流單號"
+                              value={orderData.trackingNum}
+                              onChange={e => {
+                                setBulkShipData({
+                                  ...bulkShipData,
+                                  [order.id]: { ...orderData, trackingNum: e.target.value }
+                                });
+                              }}
+                              className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 flex-1 md:w-48"
+                            />
+                          )}
                         </div>
                       </div>
                     );

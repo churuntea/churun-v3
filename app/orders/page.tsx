@@ -22,7 +22,7 @@ const CARRIERS = [
   { name: "郵局", url: (num: string) => `https://postserv.post.gov.tw/pstmail/seek_result.jsp?q_mail_no=${num}` },
   { name: "7-11", url: (num: string) => `https://eservice.7-11.com.tw/e-tracking/search.aspx?type=1&sn=${num}` },
   { name: "全家", url: (num: string) => `https://www.famiport.com.tw/Web_Famiport/page/process.aspx?item=${num}` },
-  { name: "蝦皮", url: (num: string) => `https://shopee.tw/track/${num}` }
+  { name: "蝦皮店到店", url: (num: string) => `https://shopee.tw/track/${num}` }
 ];
 
 const TAIWAN_BANKS = [
