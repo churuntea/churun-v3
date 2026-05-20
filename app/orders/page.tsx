@@ -128,6 +128,97 @@ function OrdersContent() {
   const [newBankSearchText, setNewBankSearchText] = useState("");
   const [showNewBankForm, setShowNewBankForm] = useState(false);
   const [newBankFocus, setNewBankFocus] = useState(false);
+  const [orderBankActiveIndex, setOrderBankActiveIndex] = useState(-1);
+  const [newBankActiveIndex, setNewBankActiveIndex] = useState(-1);
+
+  // Scroll active autocomplete options into view
+  useEffect(() => {
+    if (orderBankActiveIndex >= 0) {
+      const activeEl = document.querySelector('[data-bank-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [orderBankActiveIndex]);
+
+  useEffect(() => {
+    if (newBankActiveIndex >= 0) {
+      const activeEl = document.querySelector('[data-new-bank-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [newBankActiveIndex]);
+
+  // Key handlers for bank autocomplete fields
+  const handleOrderBankKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    orderId: string,
+    filteredBanks: typeof TAIWAN_BANKS
+  ) => {
+    if (!filteredBanks || filteredBanks.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOrderBankActiveIndex(prev => {
+        const nextIndex = prev + 1;
+        return nextIndex >= filteredBanks.length ? 0 : nextIndex;
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setOrderBankActiveIndex(prev => {
+        const nextIndex = prev - 1;
+        return nextIndex < 0 ? filteredBanks.length - 1 : nextIndex;
+      });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (orderBankActiveIndex >= 0 && orderBankActiveIndex < filteredBanks.length) {
+        const selectedBank = filteredBanks[orderBankActiveIndex];
+        setRemitterBanks(prev => ({ ...prev, [orderId]: selectedBank.name }));
+        setActiveBankFocus(prev => ({ ...prev, [orderId]: false }));
+        setOrderBankActiveIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setActiveBankFocus(prev => ({ ...prev, [orderId]: false }));
+      setOrderBankActiveIndex(-1);
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  const handleNewBankKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    filteredNewBanks: typeof TAIWAN_BANKS
+  ) => {
+    if (!filteredNewBanks || filteredNewBanks.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setNewBankActiveIndex(prev => {
+        const nextIndex = prev + 1;
+        return nextIndex >= filteredNewBanks.length ? 0 : nextIndex;
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setNewBankActiveIndex(prev => {
+        const nextIndex = prev - 1;
+        return nextIndex < 0 ? filteredNewBanks.length - 1 : nextIndex;
+      });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (newBankActiveIndex >= 0 && newBankActiveIndex < filteredNewBanks.length) {
+        const selectedBank = filteredNewBanks[newBankActiveIndex];
+        setNewBankSearchText(selectedBank.name);
+        setNewBankFocus(false);
+        setNewBankActiveIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setNewBankFocus(false);
+      setNewBankActiveIndex(-1);
+      (e.target as HTMLInputElement).blur();
+    }
+  };
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -593,14 +684,24 @@ function OrdersContent() {
                                         type="text" 
                                         placeholder="例：國泰世華"
                                         value={remitterBanks[order.id] || ""}
-                                        onChange={e => setRemitterBanks(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                        onFocus={() => setActiveBankFocus(prev => ({ ...prev, [order.id]: true }))}
-                                        onBlur={() => setTimeout(() => setActiveBankFocus(prev => ({ ...prev, [order.id]: false })), 200)}
+                                        onChange={e => {
+                                          setRemitterBanks(prev => ({ ...prev, [order.id]: e.target.value }));
+                                          setOrderBankActiveIndex(-1);
+                                        }}
+                                        onFocus={() => {
+                                          setActiveBankFocus(prev => ({ ...prev, [order.id]: true }));
+                                          setOrderBankActiveIndex(-1);
+                                        }}
+                                        onBlur={() => setTimeout(() => {
+                                          setActiveBankFocus(prev => ({ ...prev, [order.id]: false }));
+                                          setOrderBankActiveIndex(-1);
+                                        }, 200)}
+                                        onKeyDown={(e) => handleOrderBankKeyDown(e, order.id, filteredBanks)}
                                         className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-300"
                                       />
                                       {activeBankFocus[order.id] && filteredBanks.length > 0 && (
                                         <div className="absolute left-0 right-0 z-50 mt-1 max-h-40 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl divide-y divide-slate-50">
-                                          {filteredBanks.map(bank => (
+                                          {filteredBanks.map((bank, idx) => (
                                             <button
                                               key={bank.code}
                                               type="button"
@@ -608,8 +709,14 @@ function OrdersContent() {
                                                 e.preventDefault();
                                                 setRemitterBanks(prev => ({ ...prev, [order.id]: bank.name }));
                                                 setActiveBankFocus(prev => ({ ...prev, [order.id]: false }));
+                                                setOrderBankActiveIndex(-1);
                                               }}
-                                              className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
+                                              data-bank-active={idx === orderBankActiveIndex ? "true" : "false"}
+                                              className={`w-full text-left px-3 py-2 text-xs transition font-bold ${
+                                                idx === orderBankActiveIndex
+                                                  ? "bg-amber-100 text-amber-950 font-extrabold shadow-sm ring-1 ring-amber-500/20"
+                                                  : "text-slate-700 hover:bg-amber-50 hover:text-amber-900"
+                                              }`}
                                             >
                                               <span className="font-mono text-slate-400 mr-2">[{bank.code}]</span>
                                               {bank.name}
@@ -840,34 +947,59 @@ function OrdersContent() {
                         </div>
                         <div className="relative">
                           <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款銀行</label>
-                          <input
-                            type="text"
-                            placeholder="例：國泰世華"
-                            value={newBankSearchText}
-                            onChange={e => setNewBankSearchText(e.target.value)}
-                            onFocus={() => setNewBankFocus(true)}
-                            onBlur={() => setTimeout(() => setNewBankFocus(false), 200)}
-                            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          />
-                          {newBankFocus && TAIWAN_BANKS.filter(b => b.name.includes(newBankSearchText) || b.code.includes(newBankSearchText)).length > 0 && (
-                            <div className="absolute left-0 right-0 z-[110] mt-1 max-h-32 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl divide-y divide-slate-50">
-                              {TAIWAN_BANKS.filter(b => b.name.includes(newBankSearchText) || b.code.includes(newBankSearchText)).map(bank => (
-                                <button
-                                  key={bank.code}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setNewBankSearchText(bank.name);
-                                    setNewBankFocus(false);
+                          {(() => {
+                            const filteredNewBanks = TAIWAN_BANKS.filter(
+                              b => b.name.includes(newBankSearchText) || b.code.includes(newBankSearchText)
+                            );
+                            return (
+                              <>
+                                <input
+                                  type="text"
+                                  placeholder="例：國泰世華"
+                                  value={newBankSearchText}
+                                  onChange={e => {
+                                    setNewBankSearchText(e.target.value);
+                                    setNewBankActiveIndex(-1);
                                   }}
-                                  className="w-full text-left px-3 py-2 text-[10px] text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition font-bold"
-                                >
-                                  <span className="font-mono text-slate-400 mr-1">[{bank.code}]</span>
-                                  {bank.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                                  onFocus={() => {
+                                    setNewBankFocus(true);
+                                    setNewBankActiveIndex(-1);
+                                  }}
+                                  onBlur={() => setTimeout(() => {
+                                    setNewBankFocus(false);
+                                    setNewBankActiveIndex(-1);
+                                  }, 200)}
+                                  onKeyDown={(e) => handleNewBankKeyDown(e, filteredNewBanks)}
+                                  className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                />
+                                {newBankFocus && filteredNewBanks.length > 0 && (
+                                  <div className="absolute left-0 right-0 z-[110] mt-1 max-h-32 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl divide-y divide-slate-50">
+                                    {filteredNewBanks.map((bank, idx) => (
+                                      <button
+                                        key={bank.code}
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          setNewBankSearchText(bank.name);
+                                          setNewBankFocus(false);
+                                          setNewBankActiveIndex(-1);
+                                        }}
+                                        data-new-bank-active={idx === newBankActiveIndex ? "true" : "false"}
+                                        className={`w-full text-left px-3 py-2 text-[10px] transition font-bold ${
+                                          idx === newBankActiveIndex
+                                            ? "bg-amber-100 text-amber-950 font-extrabold shadow-sm ring-1 ring-amber-500/20"
+                                            : "text-slate-700 hover:bg-amber-50 hover:text-amber-900"
+                                        }`}
+                                      >
+                                        <span className="font-mono text-slate-400 mr-1">[{bank.code}]</span>
+                                        {bank.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         <div className="col-span-2">
                           <label className="text-[9px] font-bold text-slate-500 mb-1 block">帳號末五碼</label>
