@@ -22,6 +22,7 @@ import {
   Truck,
   Download,
   Printer,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/app/supabase-admin";
@@ -379,11 +380,12 @@ function AdminOrdersContent() {
     if (!confirm(`確定要批量核對並同意這 ${selectedOrderIds.length} 筆訂單的付款嗎？`)) return;
     setIsLoading(true);
     try {
+      const adminName = getAuditorName();
       for (const orderId of selectedOrderIds) {
         await fetch('/api/orders/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId })
+          body: JSON.stringify({ order_id: orderId, action: 'approve', auditor: adminName })
         });
       }
       setSelectedOrderIds([]);
@@ -719,6 +721,41 @@ function AdminOrdersContent() {
         fetchOrders();
       } else {
         alert(data.error || "操作失敗");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("系統錯誤");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    const doubleConfirm = confirm(
+      "⚠️ 警告：您即將進行「物理刪除」訂單！\n\n" +
+      "此操作將會：\n" +
+      "1. 扣回該訂單發放給買家的一切購物紅利點數。\n" +
+      "2. 扣回該訂單發放給其直屬上線的推薦分紅儲值金。\n" +
+      "3. 退還買家該訂單所折抵扣除的紅利點數與儲值金。\n" +
+      "4. 返還商品的庫存數量。\n" +
+      "5. 從資料庫中「永久物理刪除」該訂單與其明細。\n\n" +
+      "此操作無法復原，您確定要繼續執行嗎？"
+    );
+    if (!doubleConfirm) return;
+    
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/orders/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId, action: "delete" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("🎉 訂單已物理刪除，相關點數/紅利/庫存已完全回滾與退還！");
+        fetchOrders();
+      } else {
+        alert(data.error || "刪除失敗");
       }
     } catch (err) {
       console.error(err);
@@ -1087,65 +1124,33 @@ function AdminOrdersContent() {
                            )}
                         </td>
                         <td className="p-8 text-right">
-                           <div className="space-y-1">
-                              <p className="text-lg font-black text-slate-900 tracking-tighter">${Number(order.total_amount).toLocaleString()}</p>
-                              <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TWD</p>
-                           </div>
-                        </td>
-                        <td className="p-8 text-right">
-                           <div className="space-y-1">
-                              {order.reward_points > 0 && <p className="text-sm font-black text-emerald-600">{order.reward_points} pts</p>}
-                              {order.b2b_commission > 0 && order.members?.is_b2b && <p className="text-sm font-black text-indigo-600">${Number(order.b2b_commission).toLocaleString()} 退傭</p>}
-                              {(!order.reward_points && (!order.b2b_commission || !order.members?.is_b2b)) && <p className="text-sm text-slate-300">-</p>}
-                           </div>
-                        </td>
-                        <td className="p-8 text-center">
-                           <div className="flex flex-col items-center gap-2">
-                             <span className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                               order.status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
-                               order.status === 'pending' ? 'bg-amber-50 text-amber-600' :
-                               'bg-rose-50 text-rose-600'
-                             }`}>
-                                {order.status === 'completed' ? '已付款' :
-                                 order.status === 'pending' ? '待付款' : 'Cancelled'}
-                             </span>
-                             {order.auditor && (
-                               <span className="text-[8px] font-bold text-slate-400 block">👤 審核: {order.auditor}</span>
-                             )}
-                             {order.status === 'completed' && (
-                               <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1 ${
-                                  order.fulfillment_status === 'shipped' ? 'bg-blue-50 text-blue-600' : order.fulfillment_status === 'delivered' ? 'bg-emerald-50 text-emerald-600' :
-                                 order.fulfillment_status === 'processing' ? 'bg-indigo-50 text-indigo-600' :
-                                 'bg-slate-100 text-slate-500'
-                               }`}>
-                                 <Truck className="w-3 h-3" />
-                                 {order.fulfillment_status === 'shipped' ? '已出貨' : order.fulfillment_status === 'delivered' ? '已簽收/已取貨' : order.fulfillment_status === 'processing' ? '備貨中' : '未出貨'}
-                               </span>
-                             )}
-                             {order.tracking_number && (
-                               <span className="text-[9px] font-mono font-bold text-slate-400">{order.tracking_number}</span>
-                             )}
-                           </div>
-                        </td>
-                        <td className="p-8 text-right">
-                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition" onClick={e => e.stopPropagation()}>
                               {order.status === 'pending' && (
-                                <>
+                                <button 
+                                  onClick={() => {
+                                    if (confirm("確認已核對此訂單付款無誤，並同意審核通過？")) {
+                                      updateOrderStatus(order.id, 'approve');
+                                    }
+                                  }}
+                                  className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition"
+                                  title="核對付款並審核通過"
+                                >
+                                   <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                              )}
+
+                              {order.status !== 'cancelled' && (
                                   <button 
-                                    onClick={() => updateOrderStatus(order.id, 'approve')}
-                                    className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition"
-                                    title="確認匯款並發放點數"
-                                  >
-                                     <CheckCircle2 className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => updateOrderStatus(order.id, 'cancel')}
+                                    onClick={() => {
+                                      if (confirm("⚠️ 確定要取消此訂單嗎？\n取消後將自動回滾並退還該訂單已發放/扣除的紅利點數與儲值金。")) {
+                                        updateOrderStatus(order.id, 'cancel');
+                                      }
+                                    }}
                                     className="p-3 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-500/20 hover:scale-110 transition"
-                                    title="取消訂單"
+                                    title="取消訂單 (執行點數與紅利回滾)"
                                   >
                                      <XCircle className="w-4 h-4" />
                                   </button>
-                                </>
                               )}
                               
                               {order.status === 'completed' && order.fulfillment_status !== 'shipped' && order.fulfillment_status !== 'delivered' && (
@@ -1173,11 +1178,20 @@ function AdminOrdersContent() {
                                     <CheckCircle2 className="w-4 h-4" />
                                  </button>
                                )}
+
+                               <button 
+                                 onClick={() => deleteOrder(order.id)}
+                                 className="p-3 bg-red-600 text-white rounded-xl shadow-lg shadow-red-600/20 hover:scale-110 transition mr-2"
+                                 title="永久物理刪除訂單"
+                               >
+                                  <Trash2 className="w-4 h-4" />
+                               </button>
+
                                <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition">
                                  <MoreVertical className="w-4 h-4" />
-                              </button>
-                           </div>
-                        </td>
+                               </button>
+</div>
+                         </td>
                        </motion.tr>
                        {expandedOrderId === order.id && (
                          <tr className="bg-slate-50/30 border-b border-slate-50">

@@ -56,17 +56,25 @@ function TransactionContent() {
   const getTransactionLabel = (type: string, isWallet: boolean) => {
     if (isWallet) {
       switch (type) {
-        case "commission_refund": return { label: "B2B 分紅折讓", desc: "合夥人進貨折讓返還", color: "text-emerald-600 bg-emerald-50" };
+        case "commission_refund": return { label: "B2B 分紅折讓", desc: "推廣夥伴消費分紅撥發", color: "text-emerald-600 bg-emerald-50" };
+        case "commission_rollback": return { label: "⚠️ 分紅折讓扣回", desc: "相關訂單取消，扣回推廣分紅", color: "text-rose-600 bg-rose-50 border border-rose-100" };
         case "withdrawal": return { label: "帳戶資金提領", desc: "提款至綁定銀行帳戶", color: "text-rose-600 bg-rose-50" };
-        case "purchase": return { label: "進貨/商品消費", desc: "商城進貨扣除貨款", color: "text-amber-600 bg-amber-50" };
+        case "purchase": 
+        case "payment":
+        case "order_deduction": return { label: "進貨/商品消費", desc: "商城結帳扣除儲值金", color: "text-amber-600 bg-amber-50" };
+        case "order_cancelled_refund": return { label: "🎉 購物退款返還", desc: "訂單退款/刪除，儲值金退回錢包", color: "text-emerald-600 bg-emerald-50 border border-emerald-100 font-black" };
         case "deposit": return { label: "錢包儲值進貨", desc: "匯款儲值至預收帳戶", color: "text-indigo-600 bg-indigo-50" };
         case "admin_adjustment": return { label: "總部手動調整", desc: "總部系統管理調整", color: "text-slate-600 bg-slate-50" };
         default: return { label: type || "其他異動", desc: "錢包帳務異動紀錄", color: "text-slate-600 bg-slate-50" };
       }
     } else {
       switch (type) {
-        case "points_reward": return { label: "購物積分回饋", desc: "商城消費累積之點數", color: "text-amber-600 bg-amber-50" };
-        case "redeem": return { label: "點數兌換商品", desc: "點數商城商品兌換", color: "text-rose-600 bg-rose-50" };
+        case "points_reward":
+        case "earned_from_order": return { label: "購物紅利回饋", desc: "商城消費累積之紅利點數", color: "text-emerald-600 bg-emerald-50" };
+        case "redeem":
+        case "redeemed": return { label: "結帳點數折抵", desc: "商城購物折抵紅利點數", color: "text-amber-600 bg-amber-50" };
+        case "order_cancelled_deduction": return { label: "⚠️ 紅利積分扣回", desc: "訂單取消/刪除，扣回發放點數", color: "text-rose-600 bg-rose-50 border border-rose-100" };
+        case "order_cancelled_refund": return { label: "🎉 紅利點數退還", desc: "訂單取消/刪除，退還折抵點數", color: "text-emerald-600 bg-emerald-50 border border-emerald-100 font-black" };
         case "admin_adjustment": return { label: "總部點數調整", desc: "總部系統點數調整", color: "text-slate-600 bg-slate-50" };
         default: return { label: type || "其他點數異動", desc: "點數異動明細紀錄", color: "text-slate-600 bg-slate-50" };
       }
@@ -388,10 +396,26 @@ function TransactionContent() {
                                <div className={`w-11 h-11 rounded-[1.2rem] flex items-center justify-center font-black text-sm shrink-0 ${info.color}`}>
                                   {isPositive ? '+' : '-'}
                                </div>
-                               <div className="text-left min-w-0">
-                                  <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
-                                  <p className="text-[9px] font-bold text-slate-300 mt-0.5 uppercase tracking-tight truncate">{info.desc}</p>
-                               </div>
+                               <div className="text-left min-w-0 flex flex-col items-start">
+                                   <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
+                                   <p className="text-[9px] font-bold text-slate-300 mt-0.5 uppercase tracking-tight truncate">{info.desc}</p>
+                                   {tx.order_id && (
+                                     <Link 
+                                       href={`/orders?id=${tx.order_id}`}
+                                       className="inline-flex items-center gap-1 text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 hover:bg-emerald-100 transition active:scale-95 border border-emerald-100 font-bold"
+                                     >
+                                        查看相關訂單 ➔
+                                     </Link>
+                                   )}
+                                   {(tx.transaction_type === "redeem" || tx.transaction_type === "redeemed") && (
+                                     <Link 
+                                       href="/store"
+                                       className="inline-flex items-center gap-1 text-[8px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 hover:bg-indigo-100 transition active:scale-95 border border-indigo-100 font-bold"
+                                     >
+                                        前往點數商城 ➔
+                                     </Link>
+                                   )}
+                                </div>
                             </div>
                             <div className="text-right shrink-0 ml-3">
                                <p className={`text-sm font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
@@ -655,10 +679,26 @@ function TransactionContent() {
                                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${info.color}`}>
                                        {isPositive ? '+' : '-'}
                                     </div>
-                                    <div className="text-left min-w-0">
-                                       <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
-                                       <p className="text-[8px] font-bold text-slate-400 mt-0.5 truncate">{info.desc}</p>
-                                    </div>
+                                    <div className="text-left min-w-0 flex flex-col items-start">
+                                        <h4 className="font-black text-slate-800 text-xs truncate">{info.label}</h4>
+                                        <p className="text-[8px] font-bold text-slate-400 mt-0.5 truncate">{info.desc}</p>
+                                        {tx.order_id && (
+                                          <Link 
+                                            href={`/orders?id=${tx.order_id}`}
+                                            className="inline-flex items-center gap-1 text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 hover:bg-emerald-100 transition active:scale-95 border border-emerald-100 font-bold"
+                                          >
+                                             查看相關訂單 ➔
+                                          </Link>
+                                        )}
+                                        {(tx.transaction_type === "redeem" || tx.transaction_type === "redeemed") && (
+                                          <Link 
+                                            href="/store"
+                                            className="inline-flex items-center gap-1 text-[8px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 hover:bg-indigo-100 transition active:scale-95 border border-indigo-100 font-bold"
+                                          >
+                                             前往點數商城 ➔
+                                          </Link>
+                                        )}
+                                     </div>
                                  </div>
                                  <div className="text-right shrink-0 ml-3">
                                     <p className={`text-xs font-black tracking-tighter ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>

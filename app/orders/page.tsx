@@ -148,6 +148,30 @@ function OrdersContent() {
     }
   }, [router]);
 
+  useEffect(() => {
+    if (orders.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get("id");
+      if (orderId) {
+        const found = orders.find(o => o.id === orderId);
+        if (found) {
+          fetchOrderItems(orderId);
+          setTimeout(() => {
+            const el = document.getElementById(`order-${orderId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              el.classList.add("border-emerald-500", "ring-4", "ring-emerald-500/20");
+              // Auto-remove highlight ring after 3 seconds
+              setTimeout(() => {
+                el.classList.remove("border-emerald-500", "ring-4", "ring-emerald-500/20");
+              }, 3000);
+            }
+          }, 600);
+        }
+      }
+    }
+  }, [orders]);
+
   const fetchOrders = async (userId: string) => {
     setIsLoading(true);
 
@@ -424,6 +448,7 @@ function OrdersContent() {
                   return (
                     <motion.div 
                       key={order.id}
+                      id={`order-${order.id}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}

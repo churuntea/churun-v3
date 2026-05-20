@@ -1,9 +1,215 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
 
+async function rollbackOrderCommissionsAndPoints(orderId: string, supabase: any) {
+  try {
+    // 1. 取得訂單完整資料與買家資料
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*, members(*)')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error(`[Rollback] Order ${orderId} not found`);
+      return;
+    }
+
+    const buyer = order.members;
+    if (!buyer) return;
+
+    const orderNumber = order.order_number || order.id.slice(-8).toUpperCase();
+
+    // =========================================================================
+    // A. 回滾已發放的 B2C 點數 (購物積分)
+    // =========================================================================
+    const { data: earnedPointsTxs } = await supabase
+      .from('point_transactions')
+      .select('*')
+      .eq('order_id', orderId)
+      .eq('transaction_type', 'earned_from_order');
+
+    for (const tx of earnedPointsTxs || []) {
+      if (tx.amount > 0) {
+        const { data: rolledBackTxs } = await supabase
+          .from('point_transactions')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('transaction_type', 'order_cancelled_deduction')
+          .eq('amount', -tx.amount);
+
+        if (!rolledBackTxs || rolledBackTxs.length === 0) {
+          const refundAmount = -tx.amount;
+          await supabase.from('point_transactions').insert({
+            member_id: tx.member_id,
+            order_id: orderId,
+            amount: refundAmount,
+            transaction_type: 'order_cancelled_deduction'
+          });
+
+          const { data: m } = await supabase.from('members').select('points_balance').eq('id', tx.member_id).single();
+          if (m) {
+            await supabase.from('members')
+              .update({ points_balance: Math.max(0, (m.points_balance || 0) + refundAmount) })
+              .eq('id', tx.member_id);
+          }
+
+          await supabase.from('notifications').insert({
+            member_id: tx.member_id,
+            title: '⚠️ 購物紅利點數已扣回',
+            content: `您的訂單 ${orderNumber} 已無效/刪除，系統已扣回原消費發放之紅利點數 ${tx.amount} 點。`,
+            type: 'system'
+          });
+          console.log(`[Rollback] Deducted ${tx.amount} points from Member ${tx.member_id}`);
+        }
+      }
+    }
+
+    // =========================================================================
+    // B. 回滾已發放的 B2B 上線推薦分紅
+    // =========================================================================
+    const { data: commissionTxs } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .eq('order_id', orderId)
+      .eq('transaction_type', 'commission_refund');
+
+    for (const tx of commissionTxs || []) {
+      if (tx.amount > 0) {
+        const { data: rolledBackWts } = await supabase
+          .from('wallet_transactions')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('transaction_type', 'commission_rollback')
+          .eq('amount', -tx.amount);
+
+        if (!rolledBackWts || rolledBackWts.length === 0) {
+          const refundAmount = -tx.amount;
+          await supabase.from('wallet_transactions').insert({
+            member_id: tx.member_id,
+            order_id: orderId,
+            amount: refundAmount,
+            transaction_type: 'commission_rollback',
+            status: 'completed'
+          });
+
+          const { data: m } = await supabase.from('members').select('virtual_balance').eq('id', tx.member_id).single();
+          if (m) {
+            await supabase.from('members')
+              .update({ virtual_balance: (Number(m.virtual_balance) || 0) + Number(refundAmount) })
+              .eq('id', tx.member_id);
+          }
+
+          await supabase.from('notifications').insert({
+            member_id: tx.member_id,
+            title: '⚠️ 推薦分紅獎金已扣回',
+            content: `您的下線夥伴 ${buyer.name} 的訂單 ${orderNumber} 已無效/刪除，系統已扣回原撥發之推廣分紅 $${tx.amount} 元。`,
+            type: 'referral'
+          });
+          console.log(`[Rollback] Deducted $${tx.amount} commission from Member ${tx.member_id}`);
+        }
+      }
+    }
+
+    // =========================================================================
+    // C. 退還結帳時折抵的 B2C 紅利點數
+    // =========================================================================
+    const { data: redeemedTxs } = await supabase
+      .from('point_transactions')
+      .select('*')
+      .eq('order_id', orderId)
+      .eq('transaction_type', 'redeemed');
+
+    for (const tx of redeemedTxs || []) {
+      if (tx.amount < 0) {
+        const { data: refundedTxs } = await supabase
+          .from('point_transactions')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('transaction_type', 'order_cancelled_refund')
+          .eq('amount', Math.abs(tx.amount));
+
+        if (!refundedTxs || refundedTxs.length === 0) {
+          const refundAmount = Math.abs(tx.amount);
+          await supabase.from('point_transactions').insert({
+            member_id: tx.member_id,
+            order_id: orderId,
+            amount: refundAmount,
+            transaction_type: 'order_cancelled_refund'
+          });
+
+          const { data: m } = await supabase.from('members').select('points_balance').eq('id', tx.member_id).single();
+          if (m) {
+            await supabase.from('members')
+              .update({ points_balance: (m.points_balance || 0) + refundAmount })
+              .eq('id', tx.member_id);
+          }
+
+          await supabase.from('notifications').insert({
+            member_id: tx.member_id,
+            title: '🎉 紅利點數已退還',
+            content: `您的訂單 ${orderNumber} 已無效/刪除，系統已退還您於下單時折抵的紅利點數 ${refundAmount} 點。`,
+            type: 'system'
+          });
+          console.log(`[Rollback] Refunded ${refundAmount} points to Member ${tx.member_id}`);
+        }
+      }
+    }
+
+    // =========================================================================
+    // D. 退還結帳時支付的儲值金 (B2B 或 B2C)
+    // =========================================================================
+    const { data: payTxs } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .eq('order_id', orderId)
+      .in('transaction_type', ['payment', 'order_deduction']);
+
+    for (const tx of payTxs || []) {
+      if (tx.amount < 0) {
+        const { data: refundedWts } = await supabase
+          .from('wallet_transactions')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('transaction_type', 'order_cancelled_refund')
+          .eq('amount', Math.abs(Number(tx.amount)));
+
+        if (!refundedWts || refundedWts.length === 0) {
+          const refundAmount = Math.abs(Number(tx.amount));
+          await supabase.from('wallet_transactions').insert({
+            member_id: tx.member_id,
+            order_id: orderId,
+            amount: refundAmount,
+            transaction_type: 'order_cancelled_refund',
+            status: 'completed'
+          });
+
+          const { data: m } = await supabase.from('members').select('virtual_balance').eq('id', tx.member_id).single();
+          if (m) {
+            await supabase.from('members')
+              .update({ virtual_balance: (Number(m.virtual_balance) || 0) + refundAmount })
+              .eq('id', tx.member_id);
+          }
+
+          await supabase.from('notifications').insert({
+            member_id: tx.member_id,
+            title: '🎉 儲值支付已退還',
+            content: `您的訂單 ${orderNumber} 已無效/刪除，系統已退還您於結帳時支付的儲值金 $${refundAmount.toLocaleString()} 元。`,
+            type: 'system'
+          });
+          console.log(`[Rollback] Refunded $${refundAmount} wallet balance to Member ${tx.member_id}`);
+        }
+      }
+    }
+
+  } catch (err: any) {
+    console.error(`[Rollback Error] Failed to rollback order ${orderId}:`, err.message);
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const { order_id, action, auditor } = await request.json(); // action: 'approve' or 'cancel'
+    const { order_id, action, auditor } = await request.json(); // action: 'approve', 'cancel', or 'delete'
 
     if (!order_id || !action) {
       return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
@@ -20,12 +226,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '找不到訂單' }, { status: 404 });
     }
 
-    if (order.status !== 'pending') {
+    if (action === 'approve' && order.status !== 'pending') {
       return NextResponse.json({ success: false, error: '訂單狀態不符，無法處理' }, { status: 400 });
     }
 
     if (action === 'cancel') {
-      // 取消訂單：返還庫存
+      // 1. 執行點數/餘額回滾與退還
+      await rollbackOrderCommissionsAndPoints(order.id, supabase);
+
+      // 2. 取消訂單：返還庫存
       const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
       for (const item of items || []) {
         const { data: prod } = await supabase.from('products').select('stock_count').eq('id', item.product_id).single();
@@ -50,7 +259,27 @@ export async function POST(request: Request) {
       }
 
       await supabase.from('orders').update(updateData).eq('id', order.id);
-      return NextResponse.json({ success: true, message: '訂單已取消' });
+      return NextResponse.json({ success: true, message: '訂單已取消，相關紅利已扣回/退還' });
+    }
+
+    if (action === 'delete') {
+      // 1. 執行點數/餘額回滾與退還
+      await rollbackOrderCommissionsAndPoints(order.id, supabase);
+
+      // 2. 返還庫存
+      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+      for (const item of items || []) {
+        const { data: prod } = await supabase.from('products').select('stock_count').eq('id', item.product_id).single();
+        if (prod) {
+          await supabase.from('products').update({ stock_count: (prod.stock_count || 0) + item.quantity }).eq('id', item.product_id);
+        }
+      }
+
+      // 3. 物理刪除明細與訂單
+      await supabase.from('order_items').delete().eq('order_id', order.id);
+      await supabase.from('orders').delete().eq('id', order.id);
+
+      return NextResponse.json({ success: true, message: '訂單已物理刪除，相關紅利已扣回/退還' });
     }
 
     if (action === 'approve') {
