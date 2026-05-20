@@ -23,6 +23,7 @@ import {
   Download,
   Printer,
   Trash2,
+  Edit2,
 } from "lucide-react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/app/supabase-admin";
@@ -133,6 +134,35 @@ function AdminOrdersContent() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [selectedCarriers, setSelectedCarriers] = useState<Record<string, string>>({});
+
+  // 結帳金額編輯狀態
+  const [editingTotalAmountId, setEditingTotalAmountId] = useState<string | null>(null);
+  const [editingTotalAmountValue, setEditingTotalAmountValue] = useState("");
+
+  const handleUpdateTotalAmount = async (orderId: string, newAmount: number) => {
+    if (isNaN(newAmount) || newAmount < 0) {
+      alert("⚠️ 請輸入有效的結帳金額！");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ total_amount: newAmount })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      alert("🎉 結帳金額已成功更新至資料庫！");
+      setEditingTotalAmountId(null);
+      fetchOrders();
+    } catch (err: any) {
+      alert("更新結帳金額失敗: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 物流彙整出貨狀態
   const [showConsolidationModal, setShowConsolidationModal] = useState(false);
@@ -887,6 +917,12 @@ function AdminOrdersContent() {
             </div>
          </div>
          <div className="flex gap-2">
+            <Link 
+               href="/admin/orders/deleted" 
+               className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-[1.5rem] hover:bg-rose-700 transition shadow-lg shadow-rose-600/20 text-[10px] font-black uppercase tracking-widest mr-1 animate-pulse"
+            >
+               🗑️ 廢棄訂單查詢
+            </Link>
             <button 
                onClick={() => setShowPickupPointsModal(true)} 
                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-[1.5rem] hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/20 text-[10px] font-black uppercase tracking-widest"
@@ -1057,13 +1093,13 @@ function AdminOrdersContent() {
               <tbody className="divide-y divide-slate-50">
                  {isLoading ? (
                    <tr>
-                      <td colSpan={6} className="p-20 text-center">
+                      <td colSpan={8} className="p-20 text-center">
                          <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
                       </td>
                    </tr>
                  ) : filteredOrders.length === 0 ? (
                    <tr>
-                      <td colSpan={5} className="p-20 text-center">
+                      <td colSpan={8} className="p-20 text-center">
                          <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
                             <Package className="w-8 h-8 text-slate-200" />
                          </div>
@@ -1123,7 +1159,98 @@ function AdminOrdersContent() {
                              <span className="text-[10px] font-black text-slate-200">未回報</span>
                            )}
                         </td>
-                        <td className="p-8 text-right">
+                                                {/* 結帳金額 (支援 inline 編輯) */}
+                        <td className="p-8 text-right" onClick={e => e.stopPropagation()}>
+                          {editingTotalAmountId === order.id ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <input 
+                                type="number"
+                                value={editingTotalAmountValue}
+                                onChange={e => setEditingTotalAmountValue(e.target.value)}
+                                className="w-20 bg-slate-50 border border-slate-200 p-1.5 rounded-lg text-xs text-right font-black focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+                              <button 
+                                onClick={() => handleUpdateTotalAmount(order.id, parseFloat(editingTotalAmountValue))}
+                                className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition"
+                                title="儲存"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                onClick={() => setEditingTotalAmountId(null)}
+                                className="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition"
+                                title="取消"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1.5 font-black text-slate-800 text-sm">
+                              <span>${Number(order.total_amount).toLocaleString()}</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTotalAmountId(order.id);
+                                  setEditingTotalAmountValue(order.total_amount.toString());
+                                }}
+                                className="p-1 text-slate-300 hover:text-emerald-600 hover:bg-slate-100 rounded-md transition opacity-0 group-hover:opacity-100"
+                                title="修改金額"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 預計回饋 (B2B 分紅 / B2C 點數) */}
+                        <td className="p-8 text-right font-bold text-xs text-slate-600">
+                          {order.members?.is_b2b ? (
+                            <span className="text-amber-600 font-mono font-black" title="B2B 上線推薦分紅">
+                              分紅: ${order.b2b_commission || 0}
+                            </span>
+                          ) : (
+                            <span className="text-indigo-600 font-mono font-black" title="B2C 積分紅利">
+                              點數: {order.reward_points || 0} 點
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 目前狀態 */}
+                        <td className="p-8 text-center">
+                          {order.status === "pending" && (
+                            <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-[1.5rem] text-[9px] font-black tracking-widest uppercase border border-amber-100">
+                              ⏳ 待對帳
+                            </span>
+                          )}
+                          {order.status === "cancelled" && (
+                            <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-[1.5rem] text-[9px] font-black tracking-widest uppercase border border-rose-100">
+                              ✕ 已取消
+                            </span>
+                          )}
+                          {order.status === "completed" && (() => {
+                            if (order.fulfillment_status === "delivered") {
+                              return (
+                                <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-[1.5rem] text-[9px] font-black tracking-widest uppercase border border-emerald-100">
+                                  ✅ 已完成
+                                </span>
+                              );
+                            }
+                            if (order.fulfillment_status === "shipped") {
+                              return (
+                                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-[1.5rem] text-[9px] font-black tracking-widest uppercase border border-blue-100">
+                                  🚚 已出貨
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-[1.5rem] text-[9px] font-black tracking-widest uppercase border border-indigo-100">
+                                📦 待出貨
+                              </span>
+                            );
+                          })()}
+                        </td>
+
+<td className="p-8 text-right">
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition" onClick={e => e.stopPropagation()}>
                               {order.status === 'pending' && (
                                 <button 

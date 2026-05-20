@@ -297,7 +297,8 @@ function DashboardContent() {
         // 3. 系統快訊公告快取 (SWR 緩存 5 分鐘，本地持久化，減少全域不變數據重複查詢)
         const announcementsKey = "churun_cache:announcements_latest";
         const aData = await fetchWithSWR(announcementsKey, async () => {
-          const { data, error } = await supabase.from("announcements").select("*").neq("tag", "SYSTEM").order("created_at", { ascending: false }).limit(5);
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const { data, error } = await supabase.from("announcements").select("*").neq("tag", "SYSTEM").neq("tag", "DELETED").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(5);
           if (error) throw error;
           return data || [];
         }, { 

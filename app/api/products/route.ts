@@ -151,6 +151,23 @@ export async function POST(request: Request) {
     }
 
     if (error) throw error;
+
+    // 新品新增成功時，自動發布新品上市公告
+    try {
+      if (data && data.name) {
+        await supabaseAdmin.from('announcements').insert({
+          title: `🎉 全新新品上市：${data.name}`,
+          tag: 'NEW',
+          content: `初潤製茶所推出全新新品【${data.name}】！特惠價僅需 ${data.price} 元。${data.description || ''}`,
+          color: 'bg-emerald-900',
+          action_label: '立即查看',
+          action_href: '/store'
+        });
+      }
+    } catch (anonErr) {
+      console.error('Auto Announcement Failed:', anonErr);
+    }
+
     return NextResponse.json({ success: true, product: data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

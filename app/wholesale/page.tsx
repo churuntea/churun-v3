@@ -34,8 +34,39 @@ interface Coupon {
   minSpend: number;
   description: string;
 }
+const TAIWAN_CVS_DATA: Record<string, string[]> = {
+  "台北市": ["中正區", "萬華區", "大同區", "中山區", "松山區", "大安區", "信義區", "內湖區", "南港區", "士林區", "北投區", "文山區"],
+  "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "汐止區", "樹林區", "淡水區", "五股區", "泰山區", "林口區", "三峽區", "鶯歌區", "八里區", "瑞芳區"],
+  "桃園市": ["桃園區", "中壢區", "平鎮區", "八德區", "楊梅區", "蘆竹區", "大溪區", "龍潭區", "龜山區", "大園區"],
+  "台中市": ["中區", "東區", "南區", "西區", "北區", "北屯區", "西屯區", "南屯區", "太平區", "大里區", "霧峰區", "烏日區", "豐原區", "后里區", "潭子區", "大雅區", "沙鹿區", "清水區", "大甲區"],
+  "台南市": ["中西區", "東區", "南區", "北區", "安平區", "安南區", "永康區", "歸仁區", "新化區", "麻豆區", "佳里區", "新營區", "白河區", "善化區"],
+  "高雄市": ["新興區", "前金區", "苓雅區", "鹽埕區", "鼓山區", "前鎮區", "三民區", "楠梓區", "小港區", "左營區", "鳳山區", "大寮區", "林園區", "岡山區", "路竹區", "旗山區", "美濃區"],
+  "基隆市": ["仁愛區", "信義區", "中正區", "中山區", "安樂區", "暖暖區", "七堵區"],
+  "新竹市": ["東區", "北區", "香山區"],
+  "新竹縣": ["竹北市", "竹東鎮", "新埔鎮", "關西鎮", "湖口鄉", "新豐鄉", "芎林鄉", "寶山鄉"],
+  "苗栗縣": ["苗栗市", "頭份市", "竹南鎮", "後龍鎮", "通霄鎮", "苑裡鎮", "公館鄉", "三義鄉"],
+  "彰化縣": ["彰化市", "鹿港鎮", "和美鎮", "員林市", "溪湖鎮", "田中鎮", "二林鎮", "北斗鎮", "花壇鄉", "大村鄉"],
+  "南投縣": ["南投市", "埔里鎮", "草屯鎮", "竹山鎮", "集集鎮", "名間鄉", "鹿谷鄉", "魚池鄉", "國姓鄉"],
+  "雲林縣": ["斗六市", "斗南鎮", "虎尾鎮", "西螺鎮", "土庫鎮", "北港鎮", "麥寮鄉", "古坑鄉"],
+  "嘉義市": ["東區", "西區"],
+  "嘉義縣": ["太保市", "朴子市", "民雄鄉", "新港鄉", "水上鄉", "中埔鄉", "竹崎鄉", "梅山鄉", "阿里山鄉"],
+  "屏東縣": ["屏東市", "潮州鎮", "東港鎮", "恆春鎮", "萬丹鄉", "長治鄉", "內埔鄉", "枋寮鄉", "琉球鄉"],
+  "宜蘭縣": ["宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉", "冬山鄉", "五結鄉", "三星鄉"],
+  "花蓮縣": ["花蓮市", "鳳林鎮", "玉里鎮", "新城鄉", "吉安鄉", "壽豐鄉", "光復鄉", "瑞穗鄉"],
+  "台東縣": ["台東市", "成功鎮", "關山鎮", "卑南鄉", "太麻里鄉", "鹿野鄉", "池上鄉", "綠島鄉", "蘭嶼鄉"],
+  "澎湖縣": ["馬公市", "湖西鄉", "白沙鄉", "西嶼鄉"],
+  "金門縣": ["金城鎮", "金湖鎮", "金沙鎮", "金寧鄉"],
+  "連江縣": ["南竿鄉", "北竿鄉", "莒光鄉", "東引鄉"]
+};
 
-
+const generateCvsStores = (brand: string, city: string, dist: string) => {
+  const prefix = brand === '7-11' ? '初潤' : '潤茶';
+  return [
+    { name: `${dist}${prefix}店`, code: brand === '7-11' ? '915801' : '15801', address: `${city}${dist}中山路88號` },
+    { name: `${dist}春水店`, code: brand === '7-11' ? '912304' : '12304', address: `${city}${dist}中正路220號` },
+    { name: `${dist}初韻店`, code: brand === '7-11' ? '918809' : '18809', address: `${city}${dist}自由街66號` }
+  ];
+};
 
 function WholesaleContent() {
   const router = useRouter();
@@ -79,6 +110,8 @@ function WholesaleContent() {
   const [cvsBrand, setCvsBrand] = useState("7-11");
   const [cvsStoreName, setCvsStoreName] = useState("");
   const [cvsStoreCode, setCvsStoreCode] = useState("");
+  const [selectedCity, setSelectedCity] = useState("台北市");
+  const [selectedDist, setSelectedDist] = useState("中正區");
 
   const [dynamicPickupPoints, setDynamicPickupPoints] = useState<any[]>([
     { name: "草屯自由總店", address: "南投縣草屯鎮自由街34號" },
@@ -470,9 +503,12 @@ function WholesaleContent() {
                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 space-y-1">
-                   <h4 className="font-bold text-slate-800 text-sm">{product.name}</h4>
-                   <p className="text-emerald-600 font-black text-sm">${product.price}</p>
-                </div>
+                    <h4 className="font-bold text-slate-800 text-sm">{product.name}</h4>
+                    {product.description && (
+                       <p className="text-[11px] font-bold text-slate-400/90 leading-relaxed">{product.description}</p>
+                    )}
+                    <p className="text-emerald-600 font-black text-sm">${product.price}</p>
+                 </div>
                 <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl">
                    <button 
                      onClick={() => updateQuantity(product.id, -1)}
@@ -1396,6 +1432,70 @@ function WholesaleContent() {
                                        </div>
                                     );
                                  })}
+                              </div>
+
+                              {/* 縣市與鄉鎮區選擇器 */}
+                              <div className="grid grid-cols-2 gap-3">
+                                 <div>
+                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">選擇縣市</label>
+                                    <select 
+                                       value={selectedCity}
+                                       onChange={e => {
+                                          const city = e.target.value;
+                                          setSelectedCity(city);
+                                          setSelectedDist(TAIWAN_CVS_DATA[city][0]);
+                                       }}
+                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800 focus:outline-none cursor-pointer"
+                                    >
+                                       {Object.keys(TAIWAN_CVS_DATA).map(city => (
+                                          <option key={city} value={city}>{city}</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                                 <div>
+                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">選擇鄉鎮區</label>
+                                    <select 
+                                       value={selectedDist}
+                                       onChange={e => setSelectedDist(e.target.value)}
+                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800 focus:outline-none cursor-pointer"
+                                    >
+                                       {(TAIWAN_CVS_DATA[selectedCity] || []).map(dist => (
+                                          <option key={dist} value={dist}>{dist}</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                              </div>
+
+                              {/* 推薦門市快速點選 */}
+                              <div className="space-y-2">
+                                 <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1 uppercase tracking-widest">💡 點選快速自動填入門市</label>
+                                 <div className="grid grid-cols-3 gap-2">
+                                    {generateCvsStores(cvsBrand, selectedCity, selectedDist).map(store => {
+                                       const isThisStore = cvsStoreName === store.name && cvsStoreCode === store.code;
+                                       return (
+                                          <button
+                                             key={store.code}
+                                             type="button"
+                                             onClick={() => {
+                                                setCvsStoreName(store.name);
+                                                setCvsStoreCode(store.code);
+                                             }}
+                                             className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 focus:outline-none ${
+                                                isThisStore 
+                                                   ? (cvsBrand === '7-11' ? 'bg-[#FF6600]/5 border-[#FF6600]' : 'bg-[#0080FF]/5 border-[#0080FF]')
+                                                   : 'bg-slate-50 border-slate-100 hover:bg-slate-100/60'
+                                             }`}
+                                          >
+                                             <span className={`text-[10px] font-black ${isThisStore ? (cvsBrand === '7-11' ? 'text-[#FF6600]' : 'text-[#0080FF]') : 'text-slate-800'}`}>
+                                                {store.name}
+                                             </span>
+                                             <span className="text-[8px] font-bold text-slate-400 font-mono">
+                                                店號: {store.code}
+                                             </span>
+                                          </button>
+                                       );
+                                    })}
+                                 </div>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">

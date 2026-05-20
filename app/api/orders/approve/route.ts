@@ -275,11 +275,52 @@ export async function POST(request: Request) {
         }
       }
 
-      // 3. 物理刪除明細與訂單
+      // 3. 在物理刪除前，備份訂單完整資料至 announcements 作為歷史刪除查詢
+      const backupData = {
+        order_id: order.id,
+        member_id: order.member_id,
+        total_amount: order.total_amount,
+        original_amount: order.original_amount,
+        status: order.status,
+        fulfillment_status: order.fulfillment_status,
+        custom_logo_url: order.custom_logo_url,
+        reward_points: order.reward_points,
+        b2b_commission: order.b2b_commission,
+        bank_last_five: order.bank_last_five,
+        remitter_name: order.remitter_name,
+        remitter_bank: order.remitter_bank,
+        payment_last_five: order.payment_last_five,
+        order_number: order.order_number,
+        created_at: order.created_at,
+        deleted_at: new Date().toISOString(),
+        member: order.members ? {
+          name: order.members.name,
+          phone: order.members.phone,
+          email: order.members.email,
+          member_code: order.members.member_code,
+          is_b2b: order.members.is_b2b,
+          tier: order.members.tier
+        } : null,
+        order_items: (items || []).map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        shipping_info: order.shipping_info
+      };
+
+      await supabase.from('announcements').insert({
+        title: `[DELETED_ORDER]: ${order.order_number || order.id.slice(-8).toUpperCase()}`,
+        tag: 'DELETED',
+        content: JSON.stringify(backupData),
+        color: 'bg-red-900'
+      });
+
+      // 4. 物理刪除明細與訂單
       await supabase.from('order_items').delete().eq('order_id', order.id);
       await supabase.from('orders').delete().eq('id', order.id);
 
-      return NextResponse.json({ success: true, message: '訂單已物理刪除，相關紅利已扣回/退還' });
+      return NextResponse.json({ success: true, message: '訂單已物理刪除，備份已存檔，相關紅利已扣回/退還' });
     }
 
     if (action === 'approve') {
