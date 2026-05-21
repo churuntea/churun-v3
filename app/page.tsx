@@ -103,6 +103,8 @@ function DashboardContent() {
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
   const [showShareHub, setShowShareHub] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLineLink, setCopiedLineLink] = useState(false);
@@ -999,7 +1001,12 @@ function DashboardContent() {
                          <img 
                            src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} 
                            alt={news.title} 
-                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+                           onClick={(e) => {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             setPreviewImage(news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80");
+                           }}
+                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out cursor-zoom-in relative z-20" 
                          />
                          {/* Floating Tag */}
                          <div className="absolute top-4 left-4 flex gap-1.5 z-10">
@@ -1788,6 +1795,34 @@ function DashboardContent() {
       <div className="opacity-0 pointer-events-none absolute -z-10" aria-hidden="true" id="hidden-qr-canvas">
         <QRCodeCanvas value={`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${memberInfo?.member_code}`} size={512} level="H" />
       </div>
+
+      {/* Global Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setPreviewImage(null)}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={previewImage}
+              className="max-w-full max-h-full object-contain rounded-2xl"
+              alt="Preview"
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -248,6 +248,7 @@ function StoreContent() {
   const [expiringPointsInfo, setExpiringPointsInfo] = useState<{ amount: number, expiryDate: string } | null>(null);
 
   const [cvsBrand, setCvsBrand] = useState("7-11");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [cvsStoreName, setCvsStoreName] = useState("");
   const [cvsStoreCode, setCvsStoreCode] = useState("");
   const [selectedCity, setSelectedCity] = useState("台北市");
@@ -1202,7 +1203,12 @@ function StoreContent() {
                         <img 
                           src={product.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80"} 
                           alt={product.name} 
-                          className="w-full h-auto max-h-[650px] object-contain group-hover:scale-102 transition duration-1000"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPreviewImage(product.image_url || "https://images.unsplash.com/photo-1544787210-2213d2427384?w=800&q=80");
+                          }}
+                          className="w-full h-auto max-h-[650px] object-contain group-hover:scale-102 transition duration-1000 cursor-zoom-in"
                         />
                        {/* Heart Favorite Button */}
                         <motion.button 
@@ -3726,6 +3732,34 @@ function StoreContent() {
                  查看篩選結果 ({filteredProducts.length} 筆符合)
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setPreviewImage(null)}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={previewImage}
+              className="max-w-full max-h-full object-contain rounded-2xl"
+              alt="Preview"
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
