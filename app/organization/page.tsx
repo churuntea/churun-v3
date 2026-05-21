@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from '@/app/supabase';
@@ -14,6 +15,7 @@ import {
   Plus, 
   Zap, 
   User, 
+  XCircle,
   Loader2,
   TrendingUp,
   Award,
