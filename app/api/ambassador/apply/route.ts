@@ -5,12 +5,19 @@ import { sendAmbassadorApplicationNotify } from '../ambassador-notify';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { member_id, application_type, last_five, remittance_photo } = body;
+    const { member_id, application_type, last_five, remittance_photo, id_card_front, id_card_back } = body;
 
     // ── 參數驗證 ──
     if (!member_id || !application_type) {
       return NextResponse.json(
         { success: false, message: '缺少必要參數：member_id 和 application_type 為必填' },
+        { status: 400 }
+      );
+    }
+    
+    if (!id_card_front || !id_card_back) {
+      return NextResponse.json(
+        { success: false, message: '身分證正反面照片為必填項目' },
         { status: 400 }
       );
     }
@@ -104,6 +111,8 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       last_five: last_five || null,
       remittance_photo: remittance_photo || null,
+      id_card_front,
+      id_card_back,
     };
 
     if (application_type === 'free') {

@@ -32,6 +32,8 @@ interface ApplicationRow {
   status: string; // 'pending' | 'approved' | 'rejected'
   remittance_last_five: string | null;
   remittance_photo: string | null;
+  id_card_front: string | null;
+  id_card_back: string | null;
   free_performance_total: number | null;
   notes: string | null;
   reviewed_by: string | null;
@@ -525,6 +527,82 @@ export default function AmbassadorAdminPage() {
                       )}
                     </div>
                   )}
+
+                  {/* ── ID Card Photos ── */}
+                  <div className="bg-slate-50 rounded-xl p-4 mb-4">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                      🪪 身分證件
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {app.id_card_front ? (
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 mb-2">正面照片：</p>
+                          {isBase64Image(app.id_card_front) ? (
+                            <button
+                              onClick={() => setPreviewPhoto(app.id_card_front!)}
+                              className="group relative w-full h-24"
+                            >
+                              <img
+                                src={
+                                  app.id_card_front.startsWith("data:")
+                                    ? app.id_card_front
+                                    : `data:image/jpeg;base64,${app.id_card_front}`
+                                }
+                                alt="身分證正面"
+                                className="w-full h-full object-cover rounded-xl border border-slate-200 group-hover:border-emerald-300 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition flex items-center justify-center">
+                                <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition" />
+                              </div>
+                            </button>
+                          ) : (
+                            <p className="text-xs font-bold text-slate-500 bg-white p-3 rounded-lg border border-slate-100 break-all truncate">
+                              {app.id_card_front}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 mb-2">正面照片：</p>
+                          <div className="w-full h-24 bg-slate-100 rounded-xl flex items-center justify-center border border-dashed border-slate-200 text-[10px] text-slate-400">未上傳</div>
+                        </div>
+                      )}
+
+                      {app.id_card_back ? (
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 mb-2">反面照片：</p>
+                          {isBase64Image(app.id_card_back) ? (
+                            <button
+                              onClick={() => setPreviewPhoto(app.id_card_back!)}
+                              className="group relative w-full h-24"
+                            >
+                              <img
+                                src={
+                                  app.id_card_back.startsWith("data:")
+                                    ? app.id_card_back
+                                    : `data:image/jpeg;base64,${app.id_card_back}`
+                                }
+                                alt="身分證反面"
+                                className="w-full h-full object-cover rounded-xl border border-slate-200 group-hover:border-emerald-300 transition"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition flex items-center justify-center">
+                                <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition" />
+                              </div>
+                            </button>
+                          ) : (
+                            <p className="text-xs font-bold text-slate-500 bg-white p-3 rounded-lg border border-slate-100 break-all truncate">
+                              {app.id_card_back}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 mb-2">反面照片：</p>
+                          <div className="w-full h-24 bg-slate-100 rounded-xl flex items-center justify-center border border-dashed border-slate-200 text-[10px] text-slate-400">未上傳</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {app.application_type === "free_performance" && app.free_performance_total !== null && (
                     <div className="bg-emerald-50/50 rounded-xl p-4 mb-4">

@@ -102,7 +102,7 @@ export async function sendAmbassadorApplicationNotify(
 ● 預計審核：3-5 個工作日
 ━━━━━━━━━━━━━━━━━━
 📋 審核完成後，系統將立即通知您結果。
-💡 如有任何疑問，歡迎隨時聯繫我們！
+💡 如有任何疑問，歡迎聯繫官方帳號 @332lujot
 
 初潤製茶所 敬上`;
 
@@ -332,7 +332,7 @@ export async function sendAmbassadorReviewNotify(
 ● 審核時間：${timestamp}
 ━━━━━━━━━━━━━━━━━━
 💡 您可以重新提交申請，我們期待您的再次參與。
-如有任何疑問，歡迎隨時聯繫我們！
+如有任何疑問，歡迎聯繫官方帳號 @332lujot
 
 初潤製茶所 敬上`;
 

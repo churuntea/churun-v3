@@ -140,8 +140,9 @@ function OrganizationContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAmbassadorModal, setShowAmbassadorModal] = useState(false);
   const [selectedApplyType, setSelectedApplyType] = useState<'free' | 'paid' | 'partner' | null>(null);
-  const [ambassadorFormData, setAmbassadorFormData] = useState({ name: '', phone: '', email: '', last_five: '', remittance_photo: '' });
+  const [ambassadorFormData, setAmbassadorFormData] = useState({ name: '', phone: '', email: '', last_five: '', remittance_photo: '', id_card_front: '', id_card_back: '' });
   const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
+  const [pendingApplication, setPendingApplication] = useState<any>(null);
   const [ambassadorError, setAmbassadorError] = useState("");
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
@@ -158,6 +159,11 @@ function OrganizationContent() {
     setIsLoading(true);
     const { data: mData } = await supabase.from("members").select("*").eq("id", userId).single();
     setMemberInfo(mData);
+
+    if (mData?.ambassador_status === 'pending') {
+      const { data: appData } = await supabase.from("ambassador_applications").select("*").eq("member_id", userId).eq("status", "pending").order("created_at", { ascending: false }).limit(1).single();
+      setPendingApplication(appData);
+    }
 
     const { data } = await supabase
       .from("members")
@@ -226,7 +232,9 @@ function OrganizationContent() {
         phone: memberInfo.phone || '',
         email: memberInfo.email || '',
         last_five: '',
-        remittance_photo: ''
+        remittance_photo: '',
+        id_card_front: '',
+        id_card_back: ''
       });
     }
     setSelectedApplyType(null);
@@ -239,9 +247,19 @@ function OrganizationContent() {
       setAmbassadorError("請選擇申請方案");
       return;
     }
-    if ((selectedApplyType === 'paid' || selectedApplyType === 'partner') && !ambassadorFormData.last_five) {
-      setAmbassadorError("請填寫匯款帳號後五碼");
+    if (!ambassadorFormData.id_card_front || !ambassadorFormData.id_card_back) {
+      setAmbassadorError("請上傳身分證正反面照片");
       return;
+    }
+    if (selectedApplyType === 'paid' || selectedApplyType === 'partner') {
+      if (!ambassadorFormData.last_five) {
+        setAmbassadorError("請填寫匯款帳號後五碼");
+        return;
+      }
+      if (!ambassadorFormData.remittance_photo) {
+        setAmbassadorError("請上傳匯款水單照片");
+        return;
+      }
     }
     
     // Check if user changed info
@@ -294,15 +312,22 @@ function OrganizationContent() {
           member_id: currentUserId,
           application_type: selectedApplyType,
           last_five: ambassadorFormData.last_five,
-          remittance_photo: ambassadorFormData.remittance_photo
+          remittance_photo: ambassadorFormData.remittance_photo,
+          id_card_front: ambassadorFormData.id_card_front,
+          id_card_back: ambassadorFormData.id_card_back
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '申請失敗');
+      if (!res.ok) throw new Error(data.error || data.message || '申請失敗');
+      
+      // Update member status to show timeline
+      setMemberInfo((prev: any) => ({ ...prev, ambassador_status: 'pending' }));
       
       setShowSyncConfirm(false);
+      // keep modal open to show timeline, or we can close it, but since we have a timeline we shouldn't close it, wait... the original code closed it. Let's just alert and then user can see it next time, or we stay. 
+      // Actually we will render the timeline IN the modal or in the page. The user says "這邊點選的連結要失效". Let's close modal and let the page update.
       setShowAmbassadorModal(false);
-      alert('✅ 申請已送出！我們將盡快審核。');
+      alert('✅ 申請已送出！');
     } catch (e: any) {
       setAmbassadorError(e.message);
     } finally {
@@ -376,8 +401,8 @@ function OrganizationContent() {
                        <p className="text-[10px] font-bold text-white/40 tracking-widest uppercase">晉升進度</p>
                        <p className="text-2xl font-black text-white">{progress}%</p>
                     </div>
-                    {/* 品牌大使申請按鈕：初潤知己(含)以上才顯示 */}
-                    {memberInfo && AMBASSADOR_ELIGIBLE_TIERS.has(memberInfo.tier) && (
+                    {/* 品牌大使申請按鈕：初潤知己(含)以上才顯示，且狀態不能是待審核 */}
+                    {memberInfo && AMBASSADOR_ELIGIBLE_TIERS.has(memberInfo.tier) && memberInfo.ambassador_status !== 'pending' && (
                       <motion.button
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
@@ -387,6 +412,12 @@ function OrganizationContent() {
                         <Crown className="w-3.5 h-3.5" />
                         申請品牌大使
                       </motion.button>
+                    )}
+                    {memberInfo?.ambassador_status === 'pending' && (
+                      <div className="flex items-center justify-end gap-1.5 mt-2">
+                        <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                        <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">申請審核中</span>
+                      </div>
                     )}
                  </div>
               </div>
@@ -410,6 +441,49 @@ function OrganizationContent() {
            </div>
         </section>
 
+         {/* 申請進度追蹤器 */}
+         {memberInfo?.ambassador_status === 'pending' && pendingApplication && (
+           <section className="bg-white rounded-[3rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden">
+             <div className="flex justify-between items-center mb-8 relative z-10">
+               <div>
+                 <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase flex items-center gap-2">
+                   <Activity className="w-4 h-4 text-emerald-500" /> 申請進度追蹤
+                 </h3>
+                 <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">
+                   {pendingApplication.application_type === 'paid' ? '付費品牌大使' : pendingApplication.application_type === 'partner' ? '合夥人' : '績效品牌大使'}
+                 </p>
+               </div>
+             </div>
+
+             <div className="relative z-10 pl-4 border-l-2 border-emerald-100 space-y-6">
+               <div className="relative">
+                 <div className="absolute -left-[21px] top-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm ring-4 ring-emerald-50"></div>
+                 <p className="text-xs font-black text-slate-800 mb-0.5">✅ 送出申請</p>
+                 <p className="text-[10px] font-bold text-slate-400">{new Date(pendingApplication.created_at).toLocaleString()}</p>
+               </div>
+
+               {pendingApplication.application_type !== 'free' && (
+                 <div className="relative">
+                   <div className="absolute -left-[21px] top-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm ring-4 ring-emerald-50"></div>
+                   <p className="text-xs font-black text-slate-800 mb-0.5">✅ 匯款資料已上傳</p>
+                   <p className="text-[10px] font-bold text-slate-400">後五碼: {pendingApplication.last_five}</p>
+                 </div>
+               )}
+
+               <div className="relative">
+                 <div className="absolute -left-[21px] top-1 w-3 h-3 bg-amber-400 rounded-full border-2 border-white shadow-sm ring-4 ring-amber-50 animate-pulse"></div>
+                 <p className="text-xs font-black text-amber-600 mb-0.5">⏳ 總部審核中</p>
+                 <p className="text-[10px] font-bold text-amber-500/70">預計需要 3-5 個工作天，請留意 LINE 通知</p>
+               </div>
+
+               <div className="relative">
+                 <div className="absolute -left-[21px] top-1 w-3 h-3 bg-slate-200 rounded-full border-2 border-white shadow-sm ring-4 ring-slate-50"></div>
+                 <p className="text-xs font-black text-slate-400 mb-0.5">⚪ 核准生效</p>
+                 <p className="text-[10px] font-bold text-slate-300">等待審核結果</p>
+               </div>
+             </div>
+           </section>
+         )}
 
         {/* 職推購買力排行榜 - NEW & ENHANCED */}
         <section className="space-y-6">
@@ -878,6 +952,38 @@ function OrganizationContent() {
                       <input type="email" value={ambassadorFormData.email} onChange={e => setAmbassadorFormData({...ambassadorFormData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
                     </div>
 
+                    <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">身分證正面相片 <span className="text-rose-500">*</span></label>
+                      <label className={`flex items-center justify-center gap-2 bg-slate-50 border-2 border-dashed ${ambassadorFormData.id_card_front ? 'border-emerald-500 text-emerald-600' : 'border-slate-200 text-slate-400'} rounded-xl p-4 text-sm font-bold cursor-pointer hover:border-emerald-400 transition-all`}>
+                        <Camera className="w-4 h-4" />
+                        <span>{ambassadorFormData.id_card_front ? '已選擇正面，點擊重新上傳' : '上傳身分證正面'}</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => setAmbassadorFormData({...ambassadorFormData, id_card_front: event.target?.result as string});
+                            reader.readAsDataURL(file);
+                          }
+                        }} />
+                      </label>
+                    </div>
+
+                    <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">身分證反面相片 <span className="text-rose-500">*</span></label>
+                      <label className={`flex items-center justify-center gap-2 bg-slate-50 border-2 border-dashed ${ambassadorFormData.id_card_back ? 'border-emerald-500 text-emerald-600' : 'border-slate-200 text-slate-400'} rounded-xl p-4 text-sm font-bold cursor-pointer hover:border-emerald-400 transition-all`}>
+                        <Camera className="w-4 h-4" />
+                        <span>{ambassadorFormData.id_card_back ? '已選擇反面，點擊重新上傳' : '上傳身分證反面'}</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => setAmbassadorFormData({...ambassadorFormData, id_card_back: event.target?.result as string});
+                            reader.readAsDataURL(file);
+                          }
+                        }} />
+                      </label>
+                    </div>
+
                     {(selectedApplyType === 'paid' || selectedApplyType === 'partner') && (
                       <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 space-y-4 mt-2">
                          <div className="space-y-1.5">
@@ -885,10 +991,10 @@ function OrganizationContent() {
                            <input type="text" maxLength={5} placeholder="例如: 12345" value={ambassadorFormData.last_five} onChange={e => setAmbassadorFormData({...ambassadorFormData, last_five: e.target.value.replace(/\D/g, '')})} className="w-full bg-white p-3 rounded-xl text-sm font-bold border border-amber-200 focus:border-amber-500 outline-none" />
                          </div>
                          <div className="space-y-1.5">
-                           <label className="text-[10px] font-black text-amber-700">匯款水單照片 (選填)</label>
-                           <label className="flex items-center justify-center gap-2 bg-white border-2 border-dashed border-amber-200 rounded-xl p-4 text-sm font-bold text-amber-600 cursor-pointer hover:border-amber-400 transition-all">
+                           <label className="text-[10px] font-black text-amber-700">匯款水單照片 <span className="text-rose-500">*</span></label>
+                           <label className={`flex items-center justify-center gap-2 bg-white border-2 border-dashed ${ambassadorFormData.remittance_photo ? 'border-amber-500 text-amber-600' : 'border-amber-200 text-amber-500'} rounded-xl p-4 text-sm font-bold cursor-pointer hover:border-amber-400 transition-all`}>
                              <Camera className="w-4 h-4" />
-                             <span>{ambassadorFormData.remittance_photo ? '已選擇照片，點擊重新上傳' : '上傳截圖或照片'}</span>
+                             <span>{ambassadorFormData.remittance_photo ? '已選擇水單，點擊重新上傳' : '上傳匯款截圖或水單'}</span>
                              <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                const file = e.target.files?.[0];
                                if (file) {
