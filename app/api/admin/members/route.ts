@@ -14,7 +14,8 @@ export async function PUT(request: Request) {
       pointsAdjustment,
       adjustmentReason,
       uplineId,
-      status
+      status,
+      member_code
     } = await request.json();
 
     if (!memberId) {
@@ -101,6 +102,11 @@ export async function PUT(request: Request) {
       virtual_balance: currentBalance,
       points_balance: currentPoints
     };
+
+    if (member_code !== undefined) {
+      updatePayload.member_code = member_code;
+    }
+
 
     if (uplineId !== undefined) {
       updatePayload.upline_id = uplineId;

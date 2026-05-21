@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/app/supabase-admin';
 export const dynamic = 'force-dynamic';
 
 // 記憶體備援種子資料 (在客戶尚未在 Supabase 執行 SQL 時，自動降級啟用，保證極致健壯不報錯)
-let fallbackStaffList: any[] = [
+const initialFallbackStaffList: any[] = [
   {
     id: "st-001",
     staff_id: "CR_ST001",
@@ -121,6 +121,12 @@ let fallbackStaffList: any[] = [
     created_at: new Date().toISOString()
   }
 ];
+
+const globalForStaff = globalThis as unknown as { fallbackStaffList: any[] };
+if (!globalForStaff.fallbackStaffList) {
+  globalForStaff.fallbackStaffList = initialFallbackStaffList;
+}
+const fallbackStaffList = globalForStaff.fallbackStaffList;
 
 export async function GET() {
   try {

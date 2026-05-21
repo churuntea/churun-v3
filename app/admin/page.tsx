@@ -101,7 +101,8 @@ function AdminDashboardContent() {
     finance: true,
     hr: true,
     backup: true,
-    marketing_ai: true
+    marketing_ai: true,
+    ambassador: true
   });
 
   const toggleSection = (key: string) => {
@@ -1200,6 +1201,59 @@ function AdminDashboardContent() {
                                     <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
                                  </div>
                                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                           ))}
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
+               </div>
+
+               {/* Zone 2.5: 品牌大使與合夥人專區 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('ambassador')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-bold">👑</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">品牌大使與合夥人專區</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Ambassadors & Partners</p>
+                        </div>
+                     </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.ambassador ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
+                  </div>
+
+                  <AnimatePresence>
+                     {!collapsedSections.ambassador && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
+                        >
+                           {[
+                              { label: "👑 品牌大使申請審核", icon: Crown, action: "/admin/ambassador" },
+                              { label: "🤝 合夥人管理 (即將推出)", icon: Users, action: "#" }
+                           ].map((act, i) => (
+                              <button 
+                                 key={act.label}
+                                 onClick={() => {
+                                    if (act.action !== "#") {
+                                       router.push(act.action);
+                                    } else {
+                                       alert("合夥人管理功能即將推出，敬請期待！");
+                                    }
+                                 }}
+                                 className={`w-full flex items-center justify-between p-3.5 rounded-xl transition group ${act.action === "#" ? 'bg-slate-50 opacity-60 cursor-not-allowed' : 'bg-slate-50 hover:bg-slate-900 hover:text-white'}`}
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <act.icon className={`w-4 h-4 ${act.action === "#" ? 'text-slate-300' : 'text-slate-400 group-hover:text-white'}`} />
+                                    <span className={`text-xs font-bold ${act.action === "#" ? 'text-slate-400' : 'text-slate-700 group-hover:text-white'}`}>{act.label}</span>
+                                 </div>
+                                 {act.action !== "#" && <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />}
                               </button>
                            ))}
                         </motion.div>

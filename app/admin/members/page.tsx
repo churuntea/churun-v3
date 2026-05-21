@@ -58,6 +58,7 @@ function AdminMembersContent() {
     name: "",
     phone: "",
     email: "",
+    member_code: "",
     tier: "一般會員",
     is_b2b: false,
     balanceAdjustment: "",
@@ -190,11 +191,11 @@ function AdminMembersContent() {
   };
 
   const handleExport = () => {
-    if (members.length === 0) return;
+    if (filteredMembers.length === 0) return;
     
-    const exportData = members.map(m => ({
+    const exportData = filteredMembers.map(m => ({
       '註冊日期': new Date(m.created_at).toLocaleString(),
-      '會員代碼': m.member_code,
+      '會員編號': m.member_code || '',
       '推薦人姓名': m.upline?.name || '無',
       '推薦人代碼': m.upline?.member_code || '無',
       '姓名': m.name,
@@ -224,6 +225,7 @@ function AdminMembersContent() {
         name: editForm.name,
         phone: editForm.phone,
         email: editForm.email,
+        member_code: editForm.member_code,
         tier: editForm.tier,
         is_b2b: editForm.is_b2b,
         balanceAdjustment: editForm.balanceAdjustment ? Number(editForm.balanceAdjustment) : 0,
@@ -355,7 +357,7 @@ function AdminMembersContent() {
                  <tr className="bg-slate-50/50 border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="p-6 pl-8">會員資訊</th>
                     <th className="p-6">身份職級</th>
-                    <th className="p-6">代碼與推薦人</th>
+                    <th className="p-6">會員編號與推薦人</th>
                     <th className="p-6 text-right">可用餘額</th>
                     <th className="p-6 text-right">紅利點數</th>
                     <th className="p-6 text-right">團隊累積業績</th>
@@ -452,6 +454,7 @@ function AdminMembersContent() {
                                   name: m.name || "",
                                   phone: m.phone || "",
                                   email: m.email || "",
+                                  member_code: m.member_code || "",
                                   tier: m.tier || "一般會員",
                                   is_b2b: !!m.is_b2b,
                                   balanceAdjustment: "",
@@ -561,15 +564,29 @@ function AdminMembersContent() {
                            />
                         </div>
                      </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 ml-1">電子信箱 (選填)</label>
-                        <input 
-                          type="email" 
-                          value={editForm.email} 
-                          onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                          className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
-                          placeholder="未設定信箱"
-                        />
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 ml-1">電子信箱 (選填)</label>
+                           <input 
+                             type="email" 
+                             value={editForm.email} 
+                             onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                             className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                             placeholder="未設定信箱"
+                           />
+                        </div>
+                        <div className="space-y-1.5">
+                           <label className="text-[9px] font-black text-slate-400 ml-1">會員編號 {adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員' && "(僅限最高管理員修改)"}</label>
+                           <input 
+                             type="text" 
+                             value={editForm.member_code} 
+                             onChange={e => setEditForm(prev => ({ ...prev, member_code: e.target.value }))}
+                             disabled={adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員'}
+                             className={`w-full border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none ${adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-50 text-amber-900'}`}
+                             placeholder="例如：CR24M0101123"
+                             required
+                           />
+                        </div>
                      </div>
                   </div>
 

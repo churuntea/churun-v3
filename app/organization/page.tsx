@@ -28,7 +28,9 @@ import {
   Crown,
   Star,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  Shield
 } from "lucide-react";
 import ReferralCard from "@/components/ReferralCard";
 import TeamTree from "@/components/TeamTree";
@@ -137,6 +139,11 @@ function OrganizationContent() {
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAmbassadorModal, setShowAmbassadorModal] = useState(false);
+  const [selectedApplyType, setSelectedApplyType] = useState<'free' | 'paid' | 'partner' | null>(null);
+  const [ambassadorFormData, setAmbassadorFormData] = useState({ name: '', phone: '', email: '', last_five: '', remittance_photo: '' });
+  const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
+  const [ambassadorError, setAmbassadorError] = useState("");
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
   useEffect(() => {
     const savedId = localStorage.getItem("churun_member_id");
@@ -212,6 +219,97 @@ function OrganizationContent() {
     if (currentUserId) fetchOrganization(currentUserId);
   }, [currentUserId]);
 
+  const openAmbassadorModal = () => {
+    if (memberInfo) {
+      setAmbassadorFormData({
+        name: memberInfo.name || '',
+        phone: memberInfo.phone || '',
+        email: memberInfo.email || '',
+        last_five: '',
+        remittance_photo: ''
+      });
+    }
+    setSelectedApplyType(null);
+    setAmbassadorError("");
+    setShowAmbassadorModal(true);
+  };
+
+  const checkAndSubmitAmbassador = async () => {
+    if (!selectedApplyType) {
+      setAmbassadorError("請選擇申請方案");
+      return;
+    }
+    if ((selectedApplyType === 'paid' || selectedApplyType === 'partner') && !ambassadorFormData.last_five) {
+      setAmbassadorError("請填寫匯款帳號後五碼");
+      return;
+    }
+    
+    // Check if user changed info
+    if (
+      memberInfo && 
+      (ambassadorFormData.name !== memberInfo.name || 
+       ambassadorFormData.phone !== memberInfo.phone || 
+       ambassadorFormData.email !== memberInfo.email)
+    ) {
+      setShowSyncConfirm(true);
+      return;
+    }
+
+    await submitAmbassadorForm(false);
+  };
+
+  const submitAmbassadorForm = async (syncProfile: boolean) => {
+    setIsSubmittingAmbassador(true);
+    setAmbassadorError("");
+    try {
+      if (syncProfile) {
+        // 先同步更新個人資料
+        const resSync = await fetch('/api/member/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            memberId: currentUserId,
+            name: ambassadorFormData.name,
+            phone: ambassadorFormData.phone,
+            email: ambassadorFormData.email
+          })
+        });
+        if (!resSync.ok) {
+           console.warn("同步個人資料失敗", await resSync.text());
+        } else {
+           // update local memberInfo
+           setMemberInfo((prev: any) => ({
+             ...prev,
+             name: ambassadorFormData.name,
+             phone: ambassadorFormData.phone,
+             email: ambassadorFormData.email
+           }));
+        }
+      }
+
+      const res = await fetch('/api/ambassador/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: currentUserId,
+          application_type: selectedApplyType,
+          last_five: ambassadorFormData.last_five,
+          remittance_photo: ambassadorFormData.remittance_photo
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '申請失敗');
+      
+      setShowSyncConfirm(false);
+      setShowAmbassadorModal(false);
+      alert('✅ 申請已送出！我們將盡快審核。');
+    } catch (e: any) {
+      setAmbassadorError(e.message);
+    } finally {
+      setIsSubmittingAmbassador(false);
+    }
+  };
+
   if (isLoading && !memberInfo) return (
     <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>
   );
@@ -283,7 +381,7 @@ function OrganizationContent() {
                       <motion.button
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowAmbassadorModal(true)}
+                        onClick={openAmbassadorModal}
                         className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 px-3 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 transition-all"
                       >
                         <Crown className="w-3.5 h-3.5" />
@@ -683,100 +781,189 @@ function OrganizationContent() {
                   </div>
                 </div>
 
-                {/* 兩種申請方式 */}
+                {/* 申請方式選擇 */}
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">選擇申請方式</p>
                 
                 <div className="space-y-4 mb-8">
                   {/* 方式一：付費申請 */}
-                  <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 space-y-3">
+                  <div 
+                    onClick={() => setSelectedApplyType('paid')}
+                    className={`cursor-pointer rounded-3xl p-6 space-y-3 border-2 transition-all ${selectedApplyType === 'paid' ? 'bg-amber-50 border-amber-500 shadow-lg shadow-amber-500/20' : 'bg-white border-slate-100 hover:border-amber-200'}`}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Star className="w-4 h-4 text-amber-500" />
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedApplyType === 'paid' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-500'}`}>
+                        <Star className="w-4 h-4" />
                       </div>
                       <div className="flex-1">
                         <p className="font-black text-slate-800 text-sm">付費升級（兩年資格）</p>
-                        <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Paid Upgrade · 2 Years</p>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest ${selectedApplyType === 'paid' ? 'text-amber-600' : 'text-slate-400'}`}>Paid Upgrade</p>
                       </div>
                       <span className="text-lg font-black text-amber-600 flex-shrink-0">$98,000</span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed pl-11">
-                      繳納 $98,000 申請費，取得兩年品牌大使資格。
-                      兩年內自己與直推會員的結帳差額福利回饋將自動發放。
-                    </p>
                   </div>
 
-                  {/* 方式二：滾動式免費升級 */}
-                  <div className="bg-white border-2 border-slate-100 rounded-3xl p-6 space-y-3">
+                  {/* 方式二：合夥人 */}
+                  <div 
+                    onClick={() => setSelectedApplyType('partner')}
+                    className={`cursor-pointer rounded-3xl p-6 space-y-3 border-2 transition-all ${selectedApplyType === 'partner' ? 'bg-indigo-50 border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-slate-100 hover:border-indigo-200'}`}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedApplyType === 'partner' ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-indigo-500'}`}>
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-black text-slate-800 text-sm">申請成為合夥人（兩年資格）</p>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest ${selectedApplyType === 'partner' ? 'text-indigo-600' : 'text-slate-400'}`}>Partner Upgrade</p>
+                      </div>
+                      <span className="text-lg font-black text-indigo-600 flex-shrink-0">$298,000</span>
+                    </div>
+                  </div>
+
+                  {/* 方式三：滾動式免費升級 */}
+                  <div 
+                    onClick={() => {
+                      const score = ((Number(memberInfo?.lifetime_spend) || 0) / 2) + (downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0) / 2);
+                      if (score >= 300000) {
+                        setSelectedApplyType('free');
+                      }
+                    }}
+                    className={`rounded-3xl p-6 space-y-3 border-2 transition-all ${selectedApplyType === 'free' ? 'bg-emerald-50 border-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-white border-slate-100'} ${(((Number(memberInfo?.lifetime_spend) || 0) / 2) + (downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0) / 2)) >= 300000 ? 'cursor-pointer hover:border-emerald-200' : 'opacity-60 cursor-not-allowed'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedApplyType === 'free' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-500'}`}>
+                        <TrendingUp className="w-4 h-4" />
                       </div>
                       <div className="flex-1">
                         <p className="font-black text-slate-800 text-sm">累積業績免費升級（一年資格）</p>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Performance Upgrade · 1 Year</p>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest ${selectedApplyType === 'free' ? 'text-emerald-600' : 'text-slate-400'}`}>Performance Upgrade</p>
                       </div>
-                      <span className="text-lg font-black text-emerald-600 flex-shrink-0">$294,000</span>
+                      <span className="text-lg font-black text-emerald-600 flex-shrink-0">30萬積分</span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed pl-11">
-                      一年滾動式統計本人 + 直推下線累積消費達 $294,000（= $98,000 × 3），
-                      可免費晉升為品牌大使一年資格。
-                    </p>
                     <div className="pl-11">
-                      <div className="bg-slate-50 rounded-xl px-4 py-2 text-[9px] font-black">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-500">目前累積業績</span>
+                      <div className="bg-slate-50 rounded-xl px-4 py-3 text-[9px] font-black">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-500">目前累積積分</span>
                           <span className="text-emerald-600">
-                            ${((Number(memberInfo?.lifetime_spend) || 0) + downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0)).toLocaleString()}
+                            {(((Number(memberInfo?.lifetime_spend) || 0) / 2) + (downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0) / 2)).toLocaleString()} / 300,000
                           </span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                        <p className="text-[8px] text-slate-400 font-bold mb-2">積分計算 = (個人總消費/2) + (直推總消費/2)</p>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
-                            style={{ width: `${Math.min(((Number(memberInfo?.lifetime_spend) || 0) + downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0)) / 294000 * 100, 100)}%` }}
+                            style={{ width: `${Math.min((((Number(memberInfo?.lifetime_spend) || 0) / 2) + (downlines.reduce((acc, d) => acc + (Number(d.lifetime_spend) || 0), 0) / 2)) / 300000 * 100, 100)}%` }}
                           />
                         </div>
-                        <p className="text-slate-400 mt-1">目標 $294,000</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* 獎勵結構說明 */}
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-8">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">品牌大使獎勵回饋結構</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-slate-500">下線結帳回饋（給自己）</span>
-                      <span className="text-[10px] font-black text-amber-600">訂單金額 × 15%</span>
+                {/* 填寫表單區塊 */}
+                {selectedApplyType && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4 mb-8 overflow-hidden">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2 border-t border-slate-100">填寫申請資料</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400">會員姓名</label>
+                        <input type="text" value={ambassadorFormData.name} onChange={e => setAmbassadorFormData({...ambassadorFormData, name: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400">聯絡電話</label>
+                        <input type="text" value={ambassadorFormData.phone} onChange={e => setAmbassadorFormData({...ambassadorFormData, phone: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-slate-500">上線合夥人獲得</span>
-                      <span className="text-[10px] font-black text-emerald-600">訂單金額 × 15%</span>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400">電子信箱</label>
+                      <input type="email" value={ambassadorFormData.email} onChange={e => setAmbassadorFormData({...ambassadorFormData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
                     </div>
-                    <div className="h-px bg-slate-100"></div>
-                    <p className="text-[9px] font-bold text-slate-400 italic">
-                      例：結帳 $1,000 → 您拿 $150 紅利，上線合夥人也拿 $150 紅利
-                    </p>
-                  </div>
-                </div>
+
+                    {(selectedApplyType === 'paid' || selectedApplyType === 'partner') && (
+                      <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 space-y-4 mt-2">
+                         <div className="space-y-1.5">
+                           <label className="text-[10px] font-black text-amber-700">匯款帳號後五碼 <span className="text-rose-500">*</span></label>
+                           <input type="text" maxLength={5} placeholder="例如: 12345" value={ambassadorFormData.last_five} onChange={e => setAmbassadorFormData({...ambassadorFormData, last_five: e.target.value.replace(/\D/g, '')})} className="w-full bg-white p-3 rounded-xl text-sm font-bold border border-amber-200 focus:border-amber-500 outline-none" />
+                         </div>
+                         <div className="space-y-1.5">
+                           <label className="text-[10px] font-black text-amber-700">匯款水單照片 (選填)</label>
+                           <label className="flex items-center justify-center gap-2 bg-white border-2 border-dashed border-amber-200 rounded-xl p-4 text-sm font-bold text-amber-600 cursor-pointer hover:border-amber-400 transition-all">
+                             <Camera className="w-4 h-4" />
+                             <span>{ambassadorFormData.remittance_photo ? '已選擇照片，點擊重新上傳' : '上傳截圖或照片'}</span>
+                             <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                               const file = e.target.files?.[0];
+                               if (file) {
+                                 const reader = new FileReader();
+                                 reader.onload = (event) => setAmbassadorFormData({...ambassadorFormData, remittance_photo: event.target?.result as string});
+                                 reader.readAsDataURL(file);
+                               }
+                             }} />
+                           </label>
+                         </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {ambassadorError && (
+                  <p className="text-xs font-bold text-rose-500 bg-rose-50 p-3 rounded-xl border border-rose-100 mb-4">{ambassadorError}</p>
+                )}
 
                 {/* 申請按鈕 */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setShowAmbassadorModal(false);
-                    router.push("/register/apply?type=ambassador_upgrade");
-                  }}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-6 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-amber-500/30 hover:shadow-amber-500/50 transition-all"
+                  onClick={checkAndSubmitAmbassador}
+                  disabled={isSubmittingAmbassador || !selectedApplyType}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-amber-500/30 hover:shadow-amber-500/50 transition-all disabled:opacity-50"
                 >
-                  <Crown className="w-4 h-4" />
-                  立即提交品牌大使申請
-                  <ArrowRight className="w-4 h-4" />
+                  {isSubmittingAmbassador ? <Loader2 className="w-4 h-4 animate-spin"/> : (
+                    <>
+                      <Crown className="w-4 h-4" />
+                      {selectedApplyType ? '確認資料並送出' : '請先選擇申請方案'}
+                    </>
+                  )}
                 </motion.button>
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 同步確認 Modal */}
+      <AnimatePresence>
+        {showSyncConfirm && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-6">
+            <motion.div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-sm shadow-2xl relative z-10 text-center"
+            >
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Activity className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 mb-2">更新個人資料確認</h3>
+              <p className="text-xs text-slate-500 font-bold leading-relaxed mb-6">
+                系統偵測到您修改了聯絡資料，請問是否要同步更新您的會員基本資料，並完成申請？
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setShowSyncConfirm(false)}
+                  disabled={isSubmittingAmbassador}
+                  className="py-3 rounded-xl bg-slate-100 text-slate-600 font-black text-xs hover:bg-slate-200 transition"
+                >
+                  上一步繼續修改
+                </button>
+                <button 
+                  onClick={() => submitAmbassadorForm(true)}
+                  disabled={isSubmittingAmbassador}
+                  className="py-3 rounded-xl bg-slate-900 text-white font-black text-xs hover:bg-slate-800 transition shadow-lg shadow-slate-900/20"
+                >
+                  {isSubmittingAmbassador ? <Loader2 className="w-4 h-4 animate-spin mx-auto"/> : '是，同步並送出'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

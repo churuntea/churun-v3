@@ -178,8 +178,17 @@ function AdminHRContent() {
 
   // 表單資料
   const [editingId, setEditingId] = useState<string | null>(null);
+  // 生成職員預設編號：CR + 年(2) + ST + 月(2) + 隨機(4)
+  const generateStaffId = () => {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const seq = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    return `CR${yy}ST${mm}${seq}`;
+  };
+
   const [formData, setFormData] = useState({
-    staff_id: "",
+    staff_id: generateStaffId(),
     name: "",
     phone: "",
     department: "營運部",
@@ -412,7 +421,7 @@ function AdminHRContent() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setFormData({
-      staff_id: "",
+      staff_id: generateStaffId(),
       name: "",
       phone: "",
       department: "營運部",
@@ -448,9 +457,9 @@ function AdminHRContent() {
       return;
     }
 
-    // 2. 員工工號標準首碼提示
-    if (!formData.staff_id.toUpperCase().startsWith("CR_ST")) {
-      const confirmCustomId = confirm("💡 溫馨提示：初潤製茶所建議員工工號以「CR_ST」為開頭格式 (例如 CR_ST005)，以維持內部編碼統一與系統安全性。確定要使用目前的自定義工號嗎？");
+    // 2. 員工工號標準首碼提示 (不再強制 CR_ST，允許 CRxxST)
+    if (!formData.staff_id.toUpperCase().startsWith("CR") || !formData.staff_id.toUpperCase().includes("ST")) {
+      const confirmCustomId = confirm("💡 溫馨提示：初潤製茶所建議員工工號以會員編排原則 (例如 CR26ST050001) 為格式，以維持內部編碼統一與系統安全性。確定要使用目前的自定義工號嗎？");
       if (!confirmCustomId) {
         return;
       }

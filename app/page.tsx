@@ -33,7 +33,10 @@ import {
   Heart,
   CheckCircle2,
   IdCard,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Crown,
+  Shield,
+  Camera
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
@@ -112,6 +115,18 @@ function DashboardContent() {
   const [activeWalletTab, setActiveWalletTab] = useState<'pending' | 'history'>('pending');
   const [pendingCommissions, setPendingCommissions] = useState<any[]>([]);
   const [isFetchingPending, setIsFetchingPending] = useState(false);
+
+  // ======== 品牌大使 / 合夥人申請系統 ========
+  const [ambassadorStatus, setAmbassadorStatus] = useState<any>(null);
+  const [ambassadorApplication, setAmbassadorApplication] = useState<any>(null);
+  const [showAmbassadorOptions, setShowAmbassadorOptions] = useState(false);
+  const [showAmbassadorConfirm, setShowAmbassadorConfirm] = useState(false);
+  const [showAmbassadorForm, setShowAmbassadorForm] = useState(false);
+  const [selectedAmbassadorType, setSelectedAmbassadorType] = useState<'paid' | 'free' | 'partner'>('paid');
+  const [ambassadorFormData, setAmbassadorFormData] = useState({ last_five: '', remittance_photo: '' });
+  const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
+  const [ambassadorError, setAmbassadorError] = useState('');
+  const [freeEligibilityScore, setFreeEligibilityScore] = useState(0);
 
   const handleOpenWalletDetails = async () => {
     setShowWalletDetailModal(true);
@@ -321,6 +336,14 @@ function DashboardContent() {
         });
         setPosterTemplates(pData || []);
 
+        // 5. 獲取品牌大使申請狀態
+        const ambassadorRes = await fetch(`/api/ambassador/status?member_id=${currentUserId}`);
+        if (ambassadorRes.ok) {
+          const ambData = await ambassadorRes.json();
+          setAmbassadorStatus(ambData.memberStatus?.ambassador_status || null);
+          setAmbassadorApplication(ambData.application || null);
+        }
+
       } catch (err) {
         console.error("[SWR Home Data Sync Error]:", err);
       } finally {
@@ -516,8 +539,66 @@ function DashboardContent() {
     );
   }
 
+  const handleOpenAmbassadorOptions = async () => {
+    // 檢查免費升級資格 (個人累計 + 直推累計 >= 300,000)
+    try {
+      const personalSpend = Number(memberInfo.lifetime_spend || 0);
+      let teamSpend = 0;
+      if (downlines && downlines.length > 0) {
+        const dIds = downlines.map(d => d.id);
+        const { data } = await supabase.from('members').select('lifetime_spend').in('id', dIds);
+        if (data) {
+          teamSpend = data.reduce((sum, m) => sum + Number(m.lifetime_spend || 0), 0);
+        }
+      }
+      const score = (personalSpend / 2) + (teamSpend / 2);
+      setFreeEligibilityScore(score);
+    } catch (e) {
+      console.error(e);
+    }
+    setShowAmbassadorOptions(true);
+  };
+
+  const handleSelectAmbassadorType = (type: 'paid' | 'free' | 'partner') => {
+    setSelectedAmbassadorType(type);
+    setShowAmbassadorOptions(false);
+    setShowAmbassadorConfirm(true);
+  };
+
+  const handleSubmitAmbassador = async () => {
+    if ((selectedAmbassadorType === 'paid' || selectedAmbassadorType === 'partner') && !ambassadorFormData.last_five) {
+      setAmbassadorError('請填寫匯款帳號後五碼');
+      return;
+    }
+    setIsSubmittingAmbassador(true);
+    setAmbassadorError('');
+    try {
+      const res = await fetch('/api/ambassador/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: currentUserId,
+          application_type: selectedAmbassadorType,
+          last_five: ambassadorFormData.last_five,
+          remittance_photo: ambassadorFormData.remittance_photo
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '申請失敗');
+      
+      setAmbassadorStatus('pending');
+      setShowAmbassadorForm(false);
+      alert('✅ 申請已送出！我們將盡快審核。');
+    } catch (e: any) {
+      setAmbassadorError(e.message);
+    } finally {
+      setIsSubmittingAmbassador(false);
+    }
+  };
+
   const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const itemVariants = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { duration: 0.8 } } };
+
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32 overflow-x-hidden">
@@ -832,6 +913,64 @@ function DashboardContent() {
                 </div>
               );
            })()}
+        </section>
+
+        {/* Brand Ambassador Section */}
+        <section className="space-y-6">
+           <div className="flex justify-between items-center px-4">
+              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">品牌大使申請</h3>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
+                 Brand Ambassador
+              </span>
+           </div>
+           <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+              
+              {ambassadorStatus === 'pending' ? (
+                <div className="relative z-10 flex flex-col items-center justify-center text-center py-6 space-y-4">
+                   <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                      <Loader2 className="w-8 h-8 text-amber-300 animate-spin" />
+                   </div>
+                   <div>
+                      <h4 className="text-xl font-black tracking-widest">申請審核中</h4>
+                      <p className="text-[10px] text-emerald-200/80 mt-2">您的品牌大使申請已經送出，請耐心等候總部核准。</p>
+                   </div>
+                </div>
+              ) : ambassadorStatus === 'active' ? (
+                <div className="relative z-10 flex flex-col items-center justify-center text-center py-6 space-y-4">
+                   <div className="w-16 h-16 bg-gradient-to-tr from-amber-400 to-amber-300 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                      <Crown className="w-8 h-8 text-emerald-950" />
+                   </div>
+                   <div>
+                      <h4 className="text-xl font-black tracking-widest text-amber-300">尊榮品牌大使</h4>
+                      <p className="text-[10px] text-emerald-100/90 mt-2 font-mono">
+                         有效期限至：{new Date(memberInfo.ambassador_expires_at).toLocaleDateString('zh-TW')}
+                      </p>
+                   </div>
+                </div>
+              ) : (
+                <div className="relative z-10 space-y-6">
+                   <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-amber-300 rounded-[1.5rem] flex items-center justify-center shadow-lg">
+                         <Crown className="w-7 h-7 text-emerald-950" />
+                      </div>
+                      <div>
+                         <h4 className="text-lg font-black tracking-widest text-amber-300">申請成為品牌大使</h4>
+                         <p className="text-[9px] text-emerald-200 mt-1 uppercase tracking-widest">Unlock Premium Benefits</p>
+                      </div>
+                   </div>
+                   <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
+                      尊享最高級別點數匯率、額外分紅加成與獨家行銷支援，現在就加入初潤品牌大使行列。
+                   </p>
+                   <button 
+                     onClick={handleOpenAmbassadorOptions}
+                     className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-emerald-950 font-black text-sm py-4 rounded-2xl shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
+                   >
+                      立即申請 <ArrowUpRight className="w-4 h-4" />
+                   </button>
+                </div>
+              )}
+           </div>
         </section>
       
 
@@ -1416,6 +1555,229 @@ function DashboardContent() {
                   className="flex-1 bg-slate-900 text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 active:scale-95 transition"
                 >
                   關閉視窗
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Ambassador Options Modal */}
+      <AnimatePresence>
+        {showAmbassadorOptions && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowAmbassadorOptions(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10"
+            >
+              <button 
+                onClick={() => setShowAmbassadorOptions(false)}
+                className="absolute top-6 right-6 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="text-center pb-6 border-b border-slate-100">
+                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Crown className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900">選擇申請方案</h3>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Select Application Type</p>
+              </div>
+
+              <div className="py-6 space-y-4">
+                {/* 方案 A: 業績免費升級 */}
+                <div 
+                  onClick={() => handleSelectAmbassadorType('free')}
+                  className={`p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                    freeEligibilityScore >= 300000 
+                      ? 'border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50' 
+                      : 'border-slate-100 bg-slate-50/50 opacity-60'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">🏆 業績免費升級</h4>
+                      <p className="text-[10px] text-slate-500 font-bold mt-1">個人及直推累計業績達標</p>
+                    </div>
+                    {freeEligibilityScore >= 300000 ? (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 font-black px-2 py-1 rounded">符合資格</span>
+                    ) : (
+                      <span className="text-[9px] bg-slate-200 text-slate-500 font-black px-2 py-1 rounded">未達標</span>
+                    )}
+                  </div>
+                  <div className="mt-3 p-3 bg-white rounded-xl border border-slate-100 text-[10px] font-mono text-slate-600">
+                    目前積分：{freeEligibilityScore.toLocaleString()} / 300,000
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-2 leading-relaxed">
+                    * 積分計算 = (個人歷史總消費 / 2) + (直推夥伴歷史總消費 / 2)
+                  </p>
+                </div>
+
+                {/* 方案 B: 付費升級 */}
+                <div 
+                  onClick={() => handleSelectAmbassadorType('paid')}
+                  className="p-5 rounded-2xl border-2 border-amber-500 bg-amber-50/50 hover:bg-amber-50 transition-all cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">💰 付費升級方案</h4>
+                      <p className="text-[10px] text-slate-500 font-bold mt-1">快速通關，即刻享有尊榮特權</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-lg font-black text-amber-600">
+                    NT$ 98,000 <span className="text-[10px] text-slate-400 font-normal">/ 兩年效期</span>
+                  </div>
+                </div>
+
+                {/* 方案 C: 合夥人 */}
+                <div 
+                  onClick={() => handleSelectAmbassadorType('partner')}
+                  className="p-5 rounded-2xl border-2 border-indigo-500 bg-indigo-50/50 hover:bg-indigo-50 transition-all cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">🤝 申請成為合夥人</h4>
+                      <p className="text-[10px] text-slate-500 font-bold mt-1">最高等級，專屬賦能</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-lg font-black text-indigo-600">
+                    NT$ 298,000 <span className="text-[10px] text-slate-400 font-normal">/ 兩年效期</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm Modal */}
+      <AnimatePresence>
+        {showAmbassadorConfirm && (
+          <div className="fixed inset-0 z-[125] flex items-center justify-center p-6">
+            <motion.div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-sm shadow-2xl relative z-10 text-center"
+            >
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 mb-2">確認申請方式</h3>
+              <p className="text-xs text-slate-500 font-bold leading-relaxed mb-6">
+                您選擇的是「{selectedAmbassadorType === 'free' ? '業績免費升級' : selectedAmbassadorType === 'paid' ? '付費升級方案' : '合夥人方案'}」，<br/>是否確定以此方式進行申請？
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setShowAmbassadorConfirm(false)}
+                  className="py-3 rounded-xl bg-slate-100 text-slate-600 font-black text-xs hover:bg-slate-200 transition"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={() => {
+                    if (selectedAmbassadorType === 'free' && freeEligibilityScore < 300000) {
+                      alert('您的積分尚未達標，無法申請免額升級。');
+                      setShowAmbassadorConfirm(false);
+                      return;
+                    }
+                    setShowAmbassadorConfirm(false);
+                    setShowAmbassadorForm(true);
+                  }}
+                  className="py-3 rounded-xl bg-slate-900 text-white font-black text-xs hover:bg-slate-800 transition shadow-lg shadow-slate-900/20"
+                >
+                  確認並填寫表單
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Application Form Modal */}
+      <AnimatePresence>
+        {showAmbassadorForm && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-6">
+            <motion.div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black text-slate-900">填寫申請資料</h3>
+                <button onClick={() => setShowAmbassadorForm(false)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><X className="w-4 h-4"/></button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase">基本資料 (自動帶入)</p>
+                  <p className="text-sm font-bold text-slate-800">姓名：{memberInfo?.name}</p>
+                  <p className="text-sm font-bold text-slate-800">電話：{memberInfo?.phone}</p>
+                  <p className="text-sm font-bold text-slate-800">編號：{memberInfo?.member_code}</p>
+                </div>
+
+                {selectedAmbassadorType !== 'free' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                        匯款帳號後五碼 <span className="text-rose-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        maxLength={5}
+                        placeholder="例如: 12345"
+                        value={ambassadorFormData.last_five}
+                        onChange={(e) => setAmbassadorFormData({...ambassadorFormData, last_five: e.target.value.replace(/\D/g, '')})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                        匯款水單照片 (選填)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="flex-1 flex items-center justify-center gap-2 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl px-4 py-8 text-sm font-bold text-slate-400 cursor-pointer hover:border-emerald-400 hover:text-emerald-500 transition-all">
+                          <Camera className="w-5 h-5" />
+                          <span>上傳截圖或照片</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => setAmbassadorFormData({...ambassadorFormData, remittance_photo: event.target?.result as string});
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </label>
+                      </div>
+                      {ambassadorFormData.remittance_photo && (
+                        <div className="mt-3 relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
+                          <img src={ambassadorFormData.remittance_photo} className="w-full h-full object-cover" />
+                          <button 
+                            onClick={() => setAmbassadorFormData({...ambassadorFormData, remittance_photo: ''})}
+                            className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center"
+                          ><X className="w-3 h-3"/></button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {ambassadorError && (
+                  <p className="text-xs font-bold text-rose-500 bg-rose-50 p-3 rounded-xl border border-rose-100">{ambassadorError}</p>
+                )}
+
+                <button 
+                  onClick={handleSubmitAmbassador}
+                  disabled={isSubmittingAmbassador}
+                  className="w-full py-4 rounded-xl bg-emerald-900 text-white font-black text-sm shadow-lg shadow-emerald-900/20 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 mt-4"
+                >
+                  {isSubmittingAmbassador ? <Loader2 className="w-5 h-5 animate-spin"/> : '送出申請'}
                 </button>
               </div>
             </motion.div>
