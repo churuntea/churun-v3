@@ -1009,7 +1009,7 @@ function OrganizationContent() {
                       <label className="text-[10px] font-black text-slate-400">身分證正面相片 <span className="text-rose-500">*</span></label>
                       {ambassadorFormData.id_card_front ? (
                         <div className="space-y-3">
-                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_front)} className="group relative w-full h-40 block">
+                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_front)} className="group relative w-full h-28 block">
                             <img src={ambassadorFormData.id_card_front} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-emerald-500 shadow-sm" />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
                               <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
@@ -1045,7 +1045,7 @@ function OrganizationContent() {
                       <label className="text-[10px] font-black text-slate-400">身分證反面相片 <span className="text-rose-500">*</span></label>
                       {ambassadorFormData.id_card_back ? (
                         <div className="space-y-3">
-                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_back)} className="group relative w-full h-40 block">
+                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_back)} className="group relative w-full h-28 block">
                             <img src={ambassadorFormData.id_card_back} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-emerald-500 shadow-sm" />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
                               <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
@@ -1087,7 +1087,7 @@ function OrganizationContent() {
                            <label className="text-[10px] font-black text-amber-700">匯款水單照片 <span className="text-rose-500">*</span></label>
                            {ambassadorFormData.remittance_photo ? (
                              <div className="space-y-3">
-                               <button type="button" onClick={() => setPreviewImage(ambassadorFormData.remittance_photo)} className="group relative w-full h-40 block">
+                               <button type="button" onClick={() => setPreviewImage(ambassadorFormData.remittance_photo)} className="group relative w-full h-28 block">
                                  <img src={ambassadorFormData.remittance_photo} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-amber-500 shadow-sm" />
                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
@@ -1145,6 +1145,40 @@ function OrganizationContent() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+
+      {/* ═══════════ Image Preview Modal ═══════════ */}
+      <AnimatePresence>
+        {previewImage && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImage(null)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-2xl"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative z-10 max-w-2xl w-full"
+            >
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-12 right-0 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition z-20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={previewImage}
+                alt="預覽圖片"
+                className="w-full rounded-2xl shadow-2xl border border-white/10 object-contain max-h-[85vh]"
+              />
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
