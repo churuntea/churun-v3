@@ -1007,78 +1007,74 @@ function OrganizationContent() {
 
                     <div className="space-y-1.5 mt-3">
                       <label className="text-[10px] font-black text-slate-400">身分證正面相片 <span className="text-rose-500">*</span></label>
-                      <div className={`flex items-center justify-center gap-2 bg-slate-50 border-2 border-dashed ${ambassadorFormData.id_card_front ? 'border-emerald-500' : 'border-slate-200'} rounded-xl p-4 text-sm font-bold transition-all relative overflow-hidden`}>
-                        {ambassadorFormData.id_card_front ? (
-                           <>
-                              <img src={ambassadorFormData.id_card_front} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-                              <div className="relative z-10 flex gap-3">
-                                <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_front)} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition">
-                                  <Eye className="w-4 h-4" /> 放大預覽
-                                </button>
-                                <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer transition">
-                                  <Camera className="w-4 h-4" /> 重新上傳
-                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const w = await applyWatermark(file);
-                                      setAmbassadorFormData({...ambassadorFormData, id_card_front: w});
-                                    }
-                                  }} />
-                                </label>
-                              </div>
-                           </>
-                        ) : (
-                           <label className="flex items-center justify-center gap-2 cursor-pointer w-full h-full text-slate-400 hover:text-emerald-500 py-2">
-                             <Camera className="w-4 h-4" />
-                             <span>上傳身分證正面</span>
-                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                               const file = e.target.files?.[0];
-                               if (file) {
-                                 const w = await applyWatermark(file);
-                                 setAmbassadorFormData({...ambassadorFormData, id_card_front: w});
-                               }
-                             }} />
-                           </label>
-                        )}
-                      </div>
+                      {ambassadorFormData.id_card_front ? (
+                        <div className="space-y-3">
+                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_front)} className="group relative w-full h-40 block">
+                            <img src={ambassadorFormData.id_card_front} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-emerald-500 shadow-sm" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
+                              <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                            </div>
+                          </button>
+                          <label className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer transition text-sm font-bold">
+                            <Camera className="w-4 h-4" /> 重新選擇正面相片
+                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const w = await applyWatermark(file);
+                                setAmbassadorFormData({...ambassadorFormData, id_card_front: w});
+                              }
+                            }} />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center gap-2 bg-slate-50 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl p-8 text-sm font-bold cursor-pointer hover:border-emerald-400 hover:text-emerald-500 transition-all">
+                          <Camera className="w-6 h-6 mb-1" />
+                          <span>點擊上傳身分證正面</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const w = await applyWatermark(file);
+                              setAmbassadorFormData({...ambassadorFormData, id_card_front: w});
+                            }
+                          }} />
+                        </label>
+                      )}
                     </div>
 
-                    <div className="space-y-1.5 mt-3">
+                    <div className="space-y-1.5 mt-4">
                       <label className="text-[10px] font-black text-slate-400">身分證反面相片 <span className="text-rose-500">*</span></label>
-                      <div className={`flex items-center justify-center gap-2 bg-slate-50 border-2 border-dashed ${ambassadorFormData.id_card_back ? 'border-emerald-500' : 'border-slate-200'} rounded-xl p-4 text-sm font-bold transition-all relative overflow-hidden`}>
-                        {ambassadorFormData.id_card_back ? (
-                           <>
-                              <img src={ambassadorFormData.id_card_back} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-                              <div className="relative z-10 flex gap-3">
-                                <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_back)} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition">
-                                  <Eye className="w-4 h-4" /> 放大預覽
-                                </button>
-                                <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer transition">
-                                  <Camera className="w-4 h-4" /> 重新上傳
-                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const w = await applyWatermark(file);
-                                      setAmbassadorFormData({...ambassadorFormData, id_card_back: w});
-                                    }
-                                  }} />
-                                </label>
-                              </div>
-                           </>
-                        ) : (
-                           <label className="flex items-center justify-center gap-2 cursor-pointer w-full h-full text-slate-400 hover:text-emerald-500 py-2">
-                             <Camera className="w-4 h-4" />
-                             <span>上傳身分證反面</span>
-                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                               const file = e.target.files?.[0];
-                               if (file) {
-                                 const w = await applyWatermark(file);
-                                 setAmbassadorFormData({...ambassadorFormData, id_card_back: w});
-                               }
-                             }} />
-                           </label>
-                        )}
-                      </div>
+                      {ambassadorFormData.id_card_back ? (
+                        <div className="space-y-3">
+                          <button type="button" onClick={() => setPreviewImage(ambassadorFormData.id_card_back)} className="group relative w-full h-40 block">
+                            <img src={ambassadorFormData.id_card_back} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-emerald-500 shadow-sm" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
+                              <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                            </div>
+                          </button>
+                          <label className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer transition text-sm font-bold">
+                            <Camera className="w-4 h-4" /> 重新選擇反面相片
+                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const w = await applyWatermark(file);
+                                setAmbassadorFormData({...ambassadorFormData, id_card_back: w});
+                              }
+                            }} />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center gap-2 bg-slate-50 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl p-8 text-sm font-bold cursor-pointer hover:border-emerald-400 hover:text-emerald-500 transition-all">
+                          <Camera className="w-6 h-6 mb-1" />
+                          <span>點擊上傳身分證反面</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const w = await applyWatermark(file);
+                              setAmbassadorFormData({...ambassadorFormData, id_card_back: w});
+                            }
+                          }} />
+                        </label>
+                      )}
                     </div>
 
                     {(selectedApplyType === 'paid' || selectedApplyType === 'partner') && (
@@ -1089,30 +1085,16 @@ function OrganizationContent() {
                          </div>
                          <div className="space-y-1.5">
                            <label className="text-[10px] font-black text-amber-700">匯款水單照片 <span className="text-rose-500">*</span></label>
-                           <div className={`flex items-center justify-center gap-2 bg-white border-2 border-dashed ${ambassadorFormData.remittance_photo ? 'border-amber-500' : 'border-amber-200'} rounded-xl p-4 text-sm font-bold transition-all relative overflow-hidden`}>
-                             {ambassadorFormData.remittance_photo ? (
-                               <>
-                                 <img src={ambassadorFormData.remittance_photo} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-                                 <div className="relative z-10 flex gap-3">
-                                   <button type="button" onClick={() => setPreviewImage(ambassadorFormData.remittance_photo)} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition">
-                                     <Eye className="w-4 h-4" /> 放大預覽
-                                   </button>
-                                   <label className="flex items-center gap-2 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 cursor-pointer transition">
-                                     <Camera className="w-4 h-4" /> 重新上傳
-                                     <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                       const file = e.target.files?.[0];
-                                       if (file) {
-                                         const w = await applyWatermark(file);
-                                         setAmbassadorFormData({...ambassadorFormData, remittance_photo: w});
-                                       }
-                                     }} />
-                                   </label>
+                           {ambassadorFormData.remittance_photo ? (
+                             <div className="space-y-3">
+                               <button type="button" onClick={() => setPreviewImage(ambassadorFormData.remittance_photo)} className="group relative w-full h-40 block">
+                                 <img src={ambassadorFormData.remittance_photo} alt="preview" className="w-full h-full object-cover rounded-2xl border-2 border-amber-500 shadow-sm" />
+                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-2xl transition-all flex items-center justify-center">
+                                   <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
                                  </div>
-                               </>
-                             ) : (
-                               <label className="flex items-center justify-center gap-2 cursor-pointer w-full h-full text-amber-500 hover:text-amber-600 py-2">
-                                 <Camera className="w-4 h-4" />
-                                 <span>上傳匯款截圖或水單</span>
+                               </button>
+                               <label className="flex items-center justify-center gap-2 w-full py-3 bg-white border border-amber-200 text-amber-600 rounded-xl hover:bg-amber-50 cursor-pointer transition text-sm font-bold">
+                                 <Camera className="w-4 h-4" /> 重新選擇水單照片
                                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                    const file = e.target.files?.[0];
                                    if (file) {
@@ -1121,8 +1103,20 @@ function OrganizationContent() {
                                    }
                                  }} />
                                </label>
-                             )}
-                           </div>
+                             </div>
+                           ) : (
+                             <label className="flex flex-col items-center justify-center gap-2 bg-white border-2 border-dashed border-amber-200 text-amber-400 rounded-2xl p-8 text-sm font-bold cursor-pointer hover:border-amber-400 hover:text-amber-500 transition-all">
+                               <Camera className="w-6 h-6 mb-1" />
+                               <span>點擊上傳匯款截圖或水單</span>
+                               <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                 const file = e.target.files?.[0];
+                                 if (file) {
+                                   const w = await applyWatermark(file);
+                                   setAmbassadorFormData({...ambassadorFormData, remittance_photo: w});
+                                 }
+                               }} />
+                             </label>
+                           )}
                          </div>
                       </div>
                     )}
