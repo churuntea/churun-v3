@@ -99,6 +99,14 @@ export default function AmbassadorAdminPage() {
   // Photo preview modal
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
+  // Member Detail Modal
+  const [memberDetail, setMemberDetail] = useState<{
+    open: boolean;
+    data: any | null;
+    downlines: any[];
+    isLoading: boolean;
+  }>({ open: false, data: null, downlines: [], isLoading: false });
+
   // ───────── Auth check ─────────
   useEffect(() => {
     const userStr = sessionStorage.getItem("churun_admin_user");
@@ -135,6 +143,25 @@ export default function AmbassadorAdminPage() {
       console.error("Fetch ambassador applications error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openMemberDetail = async (memberId: string) => {
+    setMemberDetail({ open: true, data: null, downlines: [], isLoading: true });
+    try {
+      const [memberRes, downlinesRes] = await Promise.all([
+        supabase.from("members").select("*, upline:upline_id(name, member_code)").eq("id", memberId).single(),
+        supabase.from("members").select("id, name, member_code, tier, created_at, lifetime_spend").eq("upline_id", memberId).order("created_at", { ascending: false })
+      ]);
+      setMemberDetail({
+        open: true,
+        data: memberRes.data,
+        downlines: downlinesRes.data || [],
+        isLoading: false
+      });
+    } catch (err) {
+      console.error(err);
+      setMemberDetail((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -443,7 +470,10 @@ export default function AmbassadorAdminPage() {
                         )}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-800">{member.name}</p>
+                        <button onClick={() => openMemberDetail(app.member_id)} className="text-sm font-black text-slate-800 hover:text-emerald-600 underline underline-offset-4 decoration-emerald-500/30 transition-colors text-left flex items-center gap-1.5">
+                          {member.name}
+                          <Eye className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           <span className="text-[10px] font-bold text-slate-400">{member.phone}</span>
                           {member.email && (
@@ -802,6 +832,123 @@ export default function AmbassadorAdminPage() {
                 alt="匯款截圖預覽"
                 className="w-full rounded-2xl shadow-2xl border border-white/10"
               />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════ Member Detail Modal ═══════════ */}
+      <AnimatePresence>
+        {memberDetail.open && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMemberDetail((prev) => ({ ...prev, open: false }))}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl relative z-10 border border-slate-100 flex flex-col max-h-[85vh] overflow-hidden"
+            >
+              <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
+                <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-emerald-500" /> 會員詳細資料
+                </h2>
+                <button
+                  onClick={() => setMemberDetail((prev) => ({ ...prev, open: false }))}
+                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
+                {memberDetail.isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10 space-y-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                    <p className="text-xs font-bold text-slate-400">正在讀取會員資料...</p>
+                  </div>
+                ) : memberDetail.data ? (
+                  <>
+                    {/* Basic Info */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4 mb-2">
+                        <div className="w-16 h-16 bg-slate-900 rounded-[1.2rem] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/10">
+                          {memberDetail.data.avatar_url ? (
+                            <img src={memberDetail.data.avatar_url} alt="avatar" className="w-16 h-16 rounded-[1.2rem] object-cover" />
+                          ) : (
+                            memberDetail.data.name?.slice(0, 1)
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900">{memberDetail.data.name}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-black uppercase tracking-widest">{memberDetail.data.member_code}</span>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[10px] font-black uppercase tracking-widest">{memberDetail.data.tier || '一般會員'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">聯絡電話</p>
+                          <p className="text-sm font-black text-slate-700">{memberDetail.data.phone}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">電子信箱</p>
+                          <p className="text-sm font-black text-slate-700 truncate">{memberDetail.data.email || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">註冊時間</p>
+                          <p className="text-xs font-bold text-slate-700">{formatDate(memberDetail.data.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">推薦人</p>
+                          <p className="text-xs font-bold text-slate-700">{memberDetail.data.upline?.name ? `${memberDetail.data.upline.name} (${memberDetail.data.upline.member_code})` : '無 (直屬總部)'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">歷史累積消費</p>
+                          <p className="text-sm font-black text-emerald-600">NT$ {(memberDetail.data.lifetime_spend || 0).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Team Info */}
+                    <div>
+                      <h4 className="text-sm font-black tracking-widest text-slate-800 uppercase flex items-center gap-2 mb-3">
+                        <Users className="w-4 h-4 text-indigo-500" /> 團隊直推夥伴 ({memberDetail.downlines.length})
+                      </h4>
+                      
+                      {memberDetail.downlines.length > 0 ? (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                          {memberDetail.downlines.map((d: any) => (
+                            <div key={d.id} className="bg-white border border-slate-100 rounded-xl p-3 flex justify-between items-center hover:border-indigo-100 hover:shadow-sm transition">
+                              <div>
+                                <p className="text-xs font-black text-slate-800">{d.name} <span className="text-[10px] font-bold text-slate-400 ml-1">({d.member_code})</span></p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5">註冊：{new Date(d.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-md text-[9px] font-black tracking-wider">{d.tier || '一般會員'}</span>
+                                <p className="text-[10px] font-black text-emerald-600 mt-1">累積: ${d.lifetime_spend?.toLocaleString() || 0}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-50 rounded-xl py-6 flex flex-col items-center justify-center border border-dashed border-slate-200">
+                          <p className="text-xs font-bold text-slate-400">目前尚無直推夥伴</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center text-sm font-bold text-rose-500 py-10">無法載入會員資料</p>
+                )}
+              </div>
             </motion.div>
           </div>
         )}
