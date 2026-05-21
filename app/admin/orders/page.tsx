@@ -1250,8 +1250,8 @@ function AdminOrdersContent() {
                           })()}
                         </td>
 
-<td className="p-8 text-right">
-                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition" onClick={e => e.stopPropagation()}>
+                        <td className="p-8 text-right">
+                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition" onClick={e => e.stopPropagation()}>
                               {order.status === 'pending' && (
                                 <button 
                                   onClick={() => {
@@ -1259,7 +1259,7 @@ function AdminOrdersContent() {
                                       updateOrderStatus(order.id, 'approve');
                                     }
                                   }}
-                                  className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-110 transition"
+                                  className="p-2 bg-emerald-500 text-white rounded-lg shadow-sm hover:scale-105 transition"
                                   title="核對付款並審核通過"
                                 >
                                    <CheckCircle2 className="w-4 h-4" />

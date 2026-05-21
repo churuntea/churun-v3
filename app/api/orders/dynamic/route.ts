@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { supabaseAdmin as supabase } from '../../../supabase-admin';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -83,6 +83,72 @@ async function sendLinePushNotification(toUserId: string, text: string) {
     }
   } catch (err) {
     console.error("[LINE Push Network Error] failed to push message:", err);
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function logCompensation(event: any) {
+  try {
+    await supabase.from('compensation_logs').insert(event);
+  } catch (err) {
+    console.warn('[CompLog] compensation_logs insert failed, fallback to announcements', getErrorMessage(err));
+    try {
+      await supabase.from('announcements').insert({
+        title: `[COMPENSATION] ${event.type || 'unknown'}`,
+        tag: 'COMPENSATION',
+        content: JSON.stringify(event),
+        color: 'bg-yellow-800'
+      });
+    } catch (e) {
+      console.error('[CompLog] fallback announcement failed', getErrorMessage(e));
+    }
+  }
+}
+
+async function orderNumberExists(orderNumber: string) {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('order_number', orderNumber)
+    .limit(1);
+  return !error && Array.isArray(data) && data.length > 0;
+}
+
+async function generateUniqueOrderNumber(prefix: string, dateString: string) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const startOfDay = new Date();
+    const endOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
+    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
+
+    const { count } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfDayUTC.toISOString())
+      .lte('created_at', endOfDayUTC.toISOString());
+
+    const seqStr = String((count || 0) + 1).padStart(4, '0');
+    const orderNumber = `${prefix}${dateString}A${seqStr}${attempt > 0 ? `R${attempt}` : ''}`;
+
+    if (!(await orderNumberExists(orderNumber))) {
+      return orderNumber;
+    }
+  }
+
+  return `${prefix}${dateString}A${String(Date.now() % 1000000).padStart(6, '0')}`;
+}
+
+async function cleanupIncompleteOrder(orderId: string) {
+  try {
+    await supabase.from('order_items').delete().eq('order_id', orderId);
+    await supabase.from('orders').delete().eq('id', orderId);
+  } catch (error: any) {
+    console.error('[Cleanup] Failed to remove incomplete order', orderId, error.message);
   }
 }
 
@@ -173,19 +239,7 @@ export async function POST(request: Request) {
     const dd = String(tzDate.getDate()).padStart(2, '0');
     const dateString = `${yy}${mm}${dd}`;
 
-    const startOfDay = new Date(tzDate.getFullYear(), tzDate.getMonth(), tzDate.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(tzDate.getFullYear(), tzDate.getMonth(), tzDate.getDate(), 23, 59, 59, 999);
-    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
-    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
-
-    const { count, error: countError } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', startOfDayUTC.toISOString())
-      .lte('created_at', endOfDayUTC.toISOString());
-
-    const seqStr = String((count || 0) + 1).padStart(4, '0');
-    const orderNumber = `${buyerPrefix}${dateString}A${seqStr}`;
+    const orderNumber = await generateUniqueOrderNumber(buyerPrefix, dateString);
     
     const orderData: any = {
       member_id: buyer.id,
@@ -282,69 +336,157 @@ export async function POST(request: Request) {
 
     if (orderError) throw orderError;
 
-    // 3.5 建立訂單明細
-    const orderItemsData = items.map(item => {
-      const product = products.find(p => p.id === item.id);
-      return {
-        order_id: order.id,
-        product_id: item.id,
-        name: product?.name || '未知商品',
-        quantity: item.quantity,
-        price: product?.price || 0
-      };
-    });
+    // 3.5 建立訂單明細、扣庫存、扣點與扣儲值金 — 全步驟採追蹤式補償
+    const createdPointTxIds: any[] = [];
+    const createdWalletTxIds: any[] = [];
+    const createdOrderItemIds: any[] = [];
+    const productStockBackups: Array<{ id: any; original: number }> = [];
+    const originalMemberPoints = buyer.points_balance || 0;
+    const originalMemberVirtual = buyer.virtual_balance || 0;
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItemsData);
-
-    if (itemsError) {
-      console.error('Order Items Error:', itemsError);
-    }
-
-    // 3.6 扣除庫存 (預扣)
-    for (const item of items) {
-      const product = products.find(p => p.id === item.id);
-      if (product) {
-        await supabase.from('products')
-          .update({ stock_count: Math.max(0, (product.stock_count || 0) - item.quantity) })
-          .eq('id', item.id);
-      }
-    }
-
-    // 3.7 扣減買家紅利點數與建立點數明細
-    if (pointsRedeemed > 0) {
-      await supabase
-        .from('members')
-        .update({ points_balance: Math.max(0, (buyer.points_balance || 0) - pointsRedeemed) })
-        .eq('id', buyer.id);
-
-      await supabase
-        .from('point_transactions')
-        .insert({
-          member_id: buyer.id,
+    try {
+      // 3.5 建立訂單明細
+      const orderItemsData = items.map(item => {
+        const product = products.find(p => p.id === item.id);
+        return {
           order_id: order.id,
-          amount: -pointsRedeemed,
-          transaction_type: 'redeemed'
-        });
-    }
+          product_id: item.id,
+          name: product?.name || '未知商品',
+          quantity: item.quantity,
+          price: product?.price || 0
+        };
+      });
 
-    // 3.8 扣減儲值金與建立錢包明細
-    if (balanceRedeemed > 0) {
-      await supabase
-        .from('members')
-        .update({ virtual_balance: Math.max(0, (buyer.virtual_balance || 0) - balanceRedeemed) })
-        .eq('id', buyer.id);
+      const { data: insertedItems, error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsData)
+        .select('id');
 
-      await supabase
-        .from('wallet_transactions')
-        .insert({
-          member_id: buyer.id,
-          amount: -balanceRedeemed,
-          transaction_type: 'payment',
-          status: 'completed',
-          notes: `訂單 ${orderNumber} 付款折抵`
-        });
+      if (itemsError) throw itemsError;
+      for (const it of insertedItems || []) createdOrderItemIds.push(it.id);
+
+      // 3.6 扣除庫存 (預扣) — 並記錄原始庫存
+      for (const item of items) {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          productStockBackups.push({ id: product.id, original: product.stock_count || 0 });
+          const { error: updErr } = await supabase.from('products')
+            .update({ stock_count: Math.max(0, (product.stock_count || 0) - item.quantity) })
+            .eq('id', item.id);
+          if (updErr) throw updErr;
+        }
+      }
+
+      // 3.7 扣減買家紅利點數與建立點數明細
+      if (pointsRedeemed > 0) {
+        const { error: pointsUpdateError } = await supabase
+          .from('members')
+          .update({ points_balance: Math.max(0, (buyer.points_balance || 0) - pointsRedeemed) })
+          .eq('id', buyer.id);
+
+        if (pointsUpdateError) throw pointsUpdateError;
+
+        const { data: ptTxData, error: ptTxError } = await supabase
+          .from('point_transactions')
+          .insert({
+            member_id: buyer.id,
+            order_id: order.id,
+            amount: -pointsRedeemed,
+            transaction_type: 'redeemed'
+          })
+          .select('id');
+
+        if (ptTxError) throw ptTxError;
+        for (const tx of ptTxData || []) createdPointTxIds.push(tx.id);
+      }
+
+      // 3.8 扣減儲值金與建立錢包明細
+      if (balanceRedeemed > 0) {
+        const { error: balanceUpdateError } = await supabase
+          .from('members')
+          .update({ virtual_balance: Math.max(0, (buyer.virtual_balance || 0) - balanceRedeemed) })
+          .eq('id', buyer.id);
+
+        if (balanceUpdateError) throw balanceUpdateError;
+
+        const { data: walletTxData, error: walletTxError } = await supabase
+          .from('wallet_transactions')
+          .insert({
+            member_id: buyer.id,
+            amount: -balanceRedeemed,
+            transaction_type: 'payment',
+            status: 'completed',
+            notes: `訂單 ${orderNumber} 付款折抵`
+          })
+          .select('id');
+
+        if (walletTxError) throw walletTxError;
+        for (const tx of walletTxData || []) createdWalletTxIds.push(tx.id);
+      }
+
+    } catch (stepErr: any) {
+      console.error('[Order Compensation] Error during post-order steps:', stepErr.message || stepErr);
+      await logCompensation({
+        type: 'order_creation_failure',
+        order_id: order?.id,
+        order_number: orderNumber,
+        error: (stepErr && stepErr.message) || String(stepErr),
+        createdPointTxIds,
+        createdWalletTxIds,
+        createdOrderItemIds,
+        productStockBackups,
+        timestamp: new Date().toISOString()
+      });
+      // 補償：反向刪除已建立的交易與明細
+      try {
+        if (createdPointTxIds.length > 0) {
+          await supabase.from('point_transactions').delete().in('id', createdPointTxIds);
+        }
+      } catch (e: any) {
+        console.error('[Compensate] Failed to delete point txs:', e.message);
+      }
+
+      try {
+        if (createdWalletTxIds.length > 0) {
+          await supabase.from('wallet_transactions').delete().in('id', createdWalletTxIds);
+        }
+      } catch (e: any) {
+        console.error('[Compensate] Failed to delete wallet txs:', e.message);
+      }
+
+      try {
+        if (createdOrderItemIds.length > 0) {
+          await supabase.from('order_items').delete().in('id', createdOrderItemIds);
+        }
+      } catch (e: any) {
+        console.error('[Compensate] Failed to delete order items:', e.message);
+      }
+
+      try {
+        // 還原會員點數與儲值金
+        await supabase.from('members').update({ points_balance: originalMemberPoints }).eq('id', buyer.id);
+        await supabase.from('members').update({ virtual_balance: originalMemberVirtual }).eq('id', buyer.id);
+      } catch (e: any) {
+        console.error('[Compensate] Failed to restore member balances:', e.message);
+      }
+
+      try {
+        // 還原商品庫存
+        for (const p of productStockBackups) {
+          await supabase.from('products').update({ stock_count: p.original }).eq('id', p.id);
+        }
+      } catch (e: any) {
+        console.error('[Compensate] Failed to restore product stocks:', e.message);
+      }
+
+      // 最後移除訂單
+      try {
+        await cleanupIncompleteOrder(order.id);
+      } catch (e: any) {
+        console.error('[Compensate] Failed to cleanup incomplete order:', e.message);
+      }
+
+      return NextResponse.json({ success: false, error: '訂單建立失敗，已回滾變更' }, { status: 500 });
     }
 
     let message = `訂單建立成功！待管理員確認匯款後，系統將發放點數。`;

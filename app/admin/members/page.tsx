@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,8 +22,10 @@ import {
   Award,
   Trash2
 } from "lucide-react";
-import Link from "next/link";
-import { exportToCsv } from "@/utils/exportCsv";
+import { canApplyForAmbassador, autoUpgradeEligibility } from '@/utils/eligibility';
+
+import BrandAmbassadorCard from '@/components/BrandAmbassadorCard';
+
 
 const MEMBER_TIERS_OPTIONS = [
   { val: "一般會員", label: "一般會員 (預設)" },
@@ -48,6 +51,8 @@ function AdminMembersContent() {
 
   // Modal States
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [showAmbassadorModal, setShowAmbassadorModal] = useState(false);
+  const [selectedAmbassadorMember, setSelectedAmbassadorMember] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -163,6 +168,25 @@ function AdminMembersContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const exportToCsv = (filename: string, rows: Record<string, any>[]) => {
+    if (!rows || rows.length === 0) return;
+    const header = Object.keys(rows[0]);
+    const csvContent = [
+      header.join(','),
+      ...rows.map(row => header.map(field => `"${String(row[field] ?? '').replace(/"/g, '""')}"`).join(','))
+    ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = () => {
@@ -421,7 +445,7 @@ function AdminMembersContent() {
                             <p className="text-sm font-black text-slate-800">${Number(m.team_total_sales || 0).toLocaleString()}</p>
                          </td>
                          <td className="p-6 pr-8 text-right">
-                            <button 
+                            <button
                               onClick={() => {
                                 setSelectedMember(m);
                                 setEditForm({
@@ -446,6 +470,17 @@ function AdminMembersContent() {
                             >
                                編輯帳戶 ⚙️
                             </button>
+                            {canApplyForAmbassador(m) && m.tier !== 'ambassador' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedAmbassadorMember(m);
+                                  setShowAmbassadorModal(true);
+                                }}
+                                className="ml-2 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold"
+                              >
+                                申請品牌大使
+                              </button>
+                            )}
                          </td>
                       </motion.tr>
                     ))
@@ -766,6 +801,23 @@ function AdminMembersContent() {
           </div>
         )}
       </AnimatePresence>
+            {/* Brand Ambassador Application Modal */}
+            {showAmbassadorModal && selectedAmbassadorMember && (
+              <BrandAmbassadorCard
+                member={selectedAmbassadorMember}
+                onClose={() => {
+                  setShowAmbassadorModal(false);
+                  setSelectedAmbassadorMember(null);
+                }}
+                onSuccess={() => {
+                  // Refresh members list to reflect new tier
+                  fetchMembers();
+                  setShowAmbassadorModal(false);
+                  setSelectedAmbassadorMember(null);
+                  alert('🎉 品牌大使申請成功！已更新會員職級。');
+                }}
+              />
+            )}
     </div>
   );
 }

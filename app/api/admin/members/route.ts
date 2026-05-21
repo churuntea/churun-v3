@@ -156,6 +156,19 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
     const adminTitle = searchParams.get('adminTitle');
+    // Protect special accounts (e.g., 安信) from deletion
+    const { data: targetMember, error: fetchMemberErr } = await supabase
+      .from('members')
+      .select('name')
+      .eq('id', memberId)
+      .single();
+    if (fetchMemberErr) {
+      return NextResponse.json({ success: false, error: '找不到該會員' }, { status: 404 });
+    }
+
+      if (targetMember.name === '安信') {
+      return NextResponse.json({ success: false, error: '安信帳號不可刪除' }, { status: 403 });
+    }
 
     if (adminTitle !== '總經理' && adminTitle !== '超級管理員') {
       return NextResponse.json({ success: false, error: '權限不足！只有最高管理員有權執行刪除程序。' }, { status: 403 });
@@ -165,59 +178,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
     }
 
-    // 0. 獲取會員資料以利備份記錄到刪除日誌
-    const { data: memberToBackup, error: fetchBackupError } = await supabase
-      .from('members')
-      .select('*')
-      .eq('id', memberId)
-      .single();
-
-    if (fetchBackupError || !memberToBackup) {
-      return NextResponse.json({ success: false, error: '找不到該會員的備份資料，已取消刪除程序。' }, { status: 404 });
-    }
-
-    // 寫入刪除記錄到 announcements 表 (SYSTEM 類別)
-    const backupLog = {
-      title: `[DELETED_MEMBER] ${memberToBackup.name}`,
-      tag: 'SYSTEM',
-      content: JSON.stringify({
-        id: memberToBackup.id,
-        name: memberToBackup.name,
-        phone: memberToBackup.phone,
-        referral_code: memberToBackup.referral_code,
-        member_code: memberToBackup.member_code,
-        tier: memberToBackup.tier,
-        is_b2b: memberToBackup.is_b2b,
-        points_balance: memberToBackup.points_balance,
-        virtual_balance: memberToBackup.virtual_balance,
-        initial_deposit: memberToBackup.initial_deposit,
-        lifetime_spend: memberToBackup.lifetime_spend,
-        quarterly_spend: memberToBackup.quarterly_spend,
-        referral_count: memberToBackup.referral_count,
-        bank_code: memberToBackup.bank_code,
-        bank_account: memberToBackup.bank_account,
-        email: memberToBackup.email,
-        id_card_number: memberToBackup.id_card_number,
-        address: memberToBackup.address,
-        line_id: memberToBackup.line_id,
-        beneficiary: memberToBackup.beneficiary,
-        deleted_by_name: '最高管理員',
-        deleted_by_title: adminTitle,
-        deleted_at: new Date().toISOString(),
-        original_data: memberToBackup
-      }),
-      color: 'bg-rose-600',
-      action_label: '已刪除備份',
-      action_href: '#'
-    };
-
-    const { error: logError } = await supabase
-      .from('announcements')
-      .insert(backupLog);
-
-    if (logError) {
-      console.error('Failed to write deleted member log:', logError);
-    }
+    // Direct delete without backup log (removed archival record)
 
     // 1. 刪除系統通知
     await supabase.from('notifications').delete().eq('member_id', memberId);

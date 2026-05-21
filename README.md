@@ -29,6 +29,42 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Database migration
+
+This project includes a migration file for the compensation audit log table:
+
+- `migrations/20260521_create_compensation_logs.sql`
+- `scripts/migrate-compensation.js`
+
+Copy `.env.example` to `.env.local` and fill in your own values. Do not commit `.env.local`.
+
+To run the migration locally, set your Postgres connection string and execute the script:
+
+```powershell
+$env:DATABASE_URL="<DB_URL>"
+npm run migrate:compensation
+```
+
+If you already have `.env.local` configured, simply run:
+
+```powershell
+npm run migrate:compensation
+```
+
+Alternatively, if you have `psql` installed:
+
+```powershell
+psql "<DB_URL>" -f migrations/20260521_create_compensation_logs.sql
+```
+
+Or if you use the Supabase CLI:
+
+```powershell
+type migrations/20260521_create_compensation_logs.sql | supabase db query
+```
+
+Do not expose the database URL in shared logs or source control.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

@@ -1,7 +1,30 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { supabaseAdmin as supabase } from '../../../supabase-admin';
+import { enforceAdminApiKey } from '../../route-auth';
 
-async function rollbackOrderCommissionsAndPoints(orderId: string, supabase: any) {
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function logCompensation(event: any) {
+  try {
+    await supabase.from('compensation_logs').insert(event);
+  } catch (err) {
+    console.warn('[CompLog] compensation_logs insert failed, fallback to announcements', getErrorMessage(err));
+    try {
+      await supabase.from('announcements').insert({
+        title: `[COMPENSATION] ${event.type || 'unknown'}`,
+        tag: 'COMPENSATION',
+        content: JSON.stringify(event),
+        color: 'bg-yellow-800'
+      });
+    } catch (e) {
+      console.error('[CompLog] fallback announcement failed', getErrorMessage(e));
+    }
+  }
+}
+
+async function rollbackOrderCommissionsAndPoints(orderId: string, supabase: any): Promise<boolean> {
   try {
     // 1. 取得訂單完整資料與買家資料
     const { data: order, error: orderError } = await supabase
@@ -12,11 +35,11 @@ async function rollbackOrderCommissionsAndPoints(orderId: string, supabase: any)
 
     if (orderError || !order) {
       console.error(`[Rollback] Order ${orderId} not found`);
-      return;
+      return false;
     }
 
     const buyer = order.members;
-    if (!buyer) return;
+    if (!buyer) return false;
 
     const orderNumber = order.order_number || order.id.slice(-8).toUpperCase();
 
@@ -202,13 +225,20 @@ async function rollbackOrderCommissionsAndPoints(orderId: string, supabase: any)
       }
     }
 
+      // 成功完成回滾
+      return true;
+
   } catch (err: any) {
     console.error(`[Rollback Error] Failed to rollback order ${orderId}:`, err.message);
+    return false;
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const authError = enforceAdminApiKey(request);
+    if (authError) return authError;
+
     const { order_id, action, auditor } = await request.json(); // action: 'approve', 'cancel', or 'delete'
 
     if (!order_id || !action) {
@@ -226,13 +256,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '找不到訂單' }, { status: 404 });
     }
 
+    if (order.status === 'deleted') {
+      return NextResponse.json({ success: false, error: '訂單已刪除，無法再變更' }, { status: 400 });
+    }
+
     if (action === 'approve' && order.status !== 'pending') {
       return NextResponse.json({ success: false, error: '訂單狀態不符，無法處理' }, { status: 400 });
     }
 
+    if (action === 'cancel' && order.status === 'cancelled') {
+      return NextResponse.json({ success: true, message: '訂單已取消' });
+    }
+
+    if (action === 'delete' && order.status === 'cancelled') {
+      // allow cleanup of already cancelled order
+    }
+
     if (action === 'cancel') {
       // 1. 執行點數/餘額回滾與退還
-      await rollbackOrderCommissionsAndPoints(order.id, supabase);
+      const rollbackSuccess = await rollbackOrderCommissionsAndPoints(order.id, supabase);
+      if (!rollbackSuccess) {
+        await logCompensation({ type: 'rollback_failed', order_id: order.id, action: 'cancel', error: 'rollbackOrderCommissionsAndPoints returned false', timestamp: new Date().toISOString() });
+        return NextResponse.json({ success: false, error: '回滾失敗，請稍後再試' }, { status: 500 });
+      }
 
       // 2. 取消訂單：返還庫存
       const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
@@ -264,7 +310,11 @@ export async function POST(request: Request) {
 
     if (action === 'delete') {
       // 1. 執行點數/餘額回滾與退還
-      await rollbackOrderCommissionsAndPoints(order.id, supabase);
+      const rollbackSuccess = await rollbackOrderCommissionsAndPoints(order.id, supabase);
+      if (!rollbackSuccess) {
+        await logCompensation({ type: 'rollback_failed', order_id: order.id, action: 'delete', error: 'rollbackOrderCommissionsAndPoints returned false', timestamp: new Date().toISOString() });
+        return NextResponse.json({ success: false, error: '回滾失敗，請稍後再試' }, { status: 500 });
+      }
 
       // 2. 返還庫存
       const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
@@ -357,7 +407,7 @@ export async function POST(request: Request) {
         rewardPoints = Math.floor(totalAmount / tierRate);
       }
 
-      // 2. 執行點數/餘額更新
+      // 2. 執行點數/餘額更新 — 帶有錯誤檢查與補償
       const newLifetimeSpend = (Number(buyer.lifetime_spend) || 0) + totalAmount;
       const newQuarterlySpend = (Number(buyer.quarterly_spend) || 0) + totalAmount;
 
@@ -407,23 +457,24 @@ export async function POST(request: Request) {
         updatedAvatarSettings.tier_updated_at = new Date().toISOString();
       }
 
-      if (buyer.is_b2b) {
-        // B2B: update spend & tier & avatar_settings
-        await supabase.from('members').update({ 
-          lifetime_spend: newLifetimeSpend,
-          quarterly_spend: newQuarterlySpend,
-          tier: newTier,
-          avatar_settings: updatedAvatarSettings
-        }).eq('id', buyer.id);
+      // 保存原始會員值以便必要時回滾
+      const originalMemberBackup: any = {
+        lifetime_spend: buyer.lifetime_spend,
+        quarterly_spend: buyer.quarterly_spend,
+        tier: buyer.tier,
+        avatar_settings: buyer.avatar_settings
+      };
 
-      } else {
-        // B2C: update spend & tier & avatar_settings (Do NOT issue points immediately; points are now scheduled to issue 30 days after shipment!)
-        await supabase.from('members').update({ 
-          lifetime_spend: newLifetimeSpend,
-          quarterly_spend: newQuarterlySpend,
-          tier: newTier,
-          avatar_settings: updatedAvatarSettings
-        }).eq('id', buyer.id);
+      const { error: memberUpdateError } = await supabase.from('members').update({
+        lifetime_spend: newLifetimeSpend,
+        quarterly_spend: newQuarterlySpend,
+        tier: newTier,
+        avatar_settings: updatedAvatarSettings
+      }).eq('id', buyer.id);
+
+      if (memberUpdateError) {
+        console.error('[Approve] Failed to update member data:', memberUpdateError.message);
+        return NextResponse.json({ success: false, error: '更新會員資料失敗，操作已中止' }, { status: 500 });
       }
 
       if (isUpgraded) {
@@ -456,7 +507,27 @@ export async function POST(request: Request) {
         fallbackJson.audited_at = new Date().toISOString();
         updateData.custom_logo_url = 'FALLBACK_JSON:' + JSON.stringify(fallbackJson);
       }
-      await supabase.from('orders').update(updateData).eq('id', order.id);
+      const { error: orderUpdateError } = await supabase.from('orders').update(updateData).eq('id', order.id);
+
+      if (orderUpdateError) {
+        console.error('[Approve] Failed to update order:', orderUpdateError.message);
+        // 補償：嘗試回滾會員變更
+        try {
+          await supabase.from('members').update({
+            lifetime_spend: originalMemberBackup.lifetime_spend,
+            quarterly_spend: originalMemberBackup.quarterly_spend,
+            tier: originalMemberBackup.tier,
+            avatar_settings: originalMemberBackup.avatar_settings
+          }).eq('id', buyer.id);
+        } catch (rbErr: any) {
+          console.error('[Approve][Rollback] Failed to revert member update:', rbErr.message);
+        }
+
+        return NextResponse.json({ success: false, error: '更新訂單狀態失敗，已嘗試回滾會員變更' }, { status: 500 });
+      }
+
+      // 4. 推薦獎勵改為由 Settlement Cron 於簽收滿 30 天後自動撥付。
+      //    此處僅記錄訂單已通過審核，避免與自動結算重複發放。
 
       // 5. 通知買家
       await supabase.from('notifications').insert({

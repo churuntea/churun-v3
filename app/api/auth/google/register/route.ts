@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // ======= 情況 B：新手機號碼 ➔ 建立全新 B2C 會員 ➔ 自動綁定 Google！ =======
-    const memberCode = `CR26M${Math.floor(100000 + Math.random() * 900000)}`;
+    const memberCode = `CR${String(new Date().getFullYear()).slice(-2)}M${String(new Date().getMonth() + 1).padStart(2, '0')}${String(Math.floor(1000 + Math.random() * 9000)).padStart(4, '0')}`;
     const myReferralCode = memberCode;
 
     let uplineId = null;

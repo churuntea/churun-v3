@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { supabaseAdmin as supabase } from '../../../supabase-admin';
+import { enforceCronSecret } from '../../route-auth';
 
 async function evaluateTiers() {
   try {
-    // Fetch all members
     const { data: members, error: fetchError } = await supabase
       .from('members')
       .select('id, lifetime_spend, tier');
 
     if (fetchError) throw fetchError;
 
-    // Fetch dynamic rules from database
-    const { data: dbRules } = await supabase.from('bonus_rules').select('tier_name, min_spend').order('display_order', { ascending: true });
-    
-    const tierRules = dbRules && dbRules.length > 0 
+    const { data: dbRules } = await supabase
+      .from('bonus_rules')
+      .select('tier_name, min_spend')
+      .order('display_order', { ascending: true });
+
+    const tierRules = dbRules && dbRules.length > 0
       ? dbRules.map(r => ({ name: r.tier_name, minSpend: r.min_spend }))
       : [
           { name: '初潤靈魂伴侶', minSpend: 50000 },
@@ -31,7 +33,7 @@ async function evaluateTiers() {
     for (const member of members || []) {
       const spend = Number(member.lifetime_spend);
       let targetTier = '初潤寶寶';
-      
+
       for (const rule of tierRules) {
         if (spend >= rule.minSpend) {
           targetTier = rule.name;
@@ -44,10 +46,9 @@ async function evaluateTiers() {
           .from('members')
           .update({ tier: targetTier })
           .eq('id', member.id);
-        
+
         if (!updateError) {
           updatedCount++;
-          // Optional: Add a notification for tier upgrade
           await supabase.from('notifications').insert({
             member_id: member.id,
             title: '職級晉升通知',
@@ -64,29 +65,52 @@ async function evaluateTiers() {
   }
 }
 
+function extractSettlementReferenceTime(order: any): string | null {
+  if (!order) return null;
+  if (order.delivered_at) return order.delivered_at;
+  if (order.shipped_at) return order.shipped_at;
+
+  if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
+    try {
+      const parsed = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
+      return parsed.delivered_at || parsed.shipped_at || parsed.completed_at || parsed.paid_at || null;
+    } catch (e) {
+      console.warn('[Settlement Cron] Invalid FALLBACK_JSON for order', order.id);
+    }
+  }
+
+  return order.completed_at || order.paid_at || order.created_at || null;
+}
+
+async function settlePendingWalletTransactions() {
+  const { data: pendingTx, error: fetchError } = await supabase
+    .from('wallet_transactions')
+    .select('id')
+    .eq('status', 'pending');
+
+  if (fetchError) throw fetchError;
+  if (!pendingTx || pendingTx.length === 0) return 0;
+
+  const txIds = pendingTx.map((tx: any) => tx.id);
+  const { error: updateError } = await supabase
+    .from('wallet_transactions')
+    .update({ status: 'completed' })
+    .in('id', txIds);
+
+  if (updateError) throw updateError;
+  return txIds.length;
+}
+
 async function performSettlement() {
   try {
-    // 1. Settle pending wallet transactions
-    const { data: pendingTx, error: fetchError } = await supabase
-      .from('wallet_transactions')
-      .select('id')
-      .eq('status', 'pending');
-
-    if (fetchError) throw fetchError;
-
-    if (pendingTx && pendingTx.length > 0) {
-      const txIds = pendingTx.map(tx => tx.id);
-      await supabase.from('wallet_transactions').update({ status: 'completed' }).in('id', txIds);
-    }
-
-    // 2. Evaluate tiers
+    const settledCount = await settlePendingWalletTransactions();
     const tierResult = await evaluateTiers();
 
-    // 3. 自動發放已出貨滿 30 天之訂單的紅利點數與 B2B 上線推薦佣金
     let pointsIssuedCount = 0;
     let pointsOrdersCount = 0;
     let commissionsIssuedCount = 0;
     let commissionsOrdersCount = 0;
+
     try {
       const { data: shippedOrders } = await supabase
         .from('orders')
@@ -98,6 +122,10 @@ async function performSettlement() {
           fulfillment_status,
           b2b_commission,
           created_at,
+          shipped_at,
+          delivered_at,
+          paid_at,
+          completed_at,
           members (
             id,
             name,
@@ -123,117 +151,99 @@ async function performSettlement() {
         };
 
         for (const order of shippedOrders) {
+          const referenceTime = extractSettlementReferenceTime(order);
+          if (!referenceTime) {
+            console.warn('[Settlement Cron] 無法取得訂單結算基準時間', order.id);
+            continue;
+          }
+
+          const diffTime = new Date().getTime() - new Date(referenceTime).getTime();
+          if (diffTime < 0) {
+            console.warn('[Settlement Cron] 訂單基準時間在未來，略過', order.id, referenceTime);
+            continue;
+          }
+
+          if (diffTime < 30 * 24 * 60 * 60 * 1000) {
+            continue;
+          }
+
           const buyer: any = order.members;
           if (!buyer) continue;
 
-          // 獲取 delivered_at 或 shipped_at 時間
-          let referenceTime = null;
-          if (order.custom_logo_url && order.custom_logo_url.startsWith('FALLBACK_JSON:')) {
-            try {
-              const parsed = JSON.parse(order.custom_logo_url.substring('FALLBACK_JSON:'.length));
-              referenceTime = parsed.delivered_at || parsed.shipped_at;
-            } catch (e) {}
-          }
+          if (!buyer.is_b2b) {
+            const { data: existingPts } = await supabase
+              .from('point_transactions')
+              .select('id')
+              .eq('order_id', order.id)
+              .eq('transaction_type', 'earned_from_order');
 
-          if (!referenceTime) {
-            referenceTime = order.created_at;
-          }
+            if (!existingPts || existingPts.length === 0) {
+              const rate = rateMapping[buyer.tier] || 100;
+              const rewardPoints = Math.floor(Number(order.total_amount) / rate);
 
-          if (!referenceTime) continue;
+              if (rewardPoints > 0) {
+                await supabase.from('point_transactions').insert({
+                  member_id: buyer.id,
+                  order_id: order.id,
+                  amount: rewardPoints,
+                  transaction_type: 'earned_from_order'
+                });
 
-          // 計算至今的時間天數
-          const diffTime = Math.abs(new Date().getTime() - new Date(referenceTime).getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                await supabase.from('members').update({
+                  points_balance: (buyer.points_balance || 0) + rewardPoints
+                }).eq('id', buyer.id);
 
-          // 判斷是否大於等於 30 天
-          if (diffDays >= 30) {
-            // A. 一般消費者 (B2C) 發放紅利點數
-            if (!buyer.is_b2b) {
-              // 檢查該訂單是否已經發過紅利點數
-              const { data: existingPts } = await supabase
-                .from('point_transactions')
-                .select('id')
-                .eq('order_id', order.id)
-                .eq('transaction_type', 'earned_from_order');
+                await supabase.from('notifications').insert({
+                  member_id: buyer.id,
+                  title: '🎁 紅利點數已自動入帳！',
+                  content: `您好！您的訂單已簽收取貨滿 30 天，系統已自動為您存入消費回饋之紅利點數 ${rewardPoints} 點！`,
+                  type: 'system'
+                });
 
-              if (!existingPts || existingPts.length === 0) {
-                // 計算紅利點數
-                const rate = rateMapping[buyer.tier] || 100;
-                const rewardPoints = Math.floor(Number(order.total_amount) / rate);
-
-                if (rewardPoints > 0) {
-                  // 1. 寫入積分流水
-                  await supabase.from('point_transactions').insert({
-                    member_id: buyer.id,
-                    order_id: order.id,
-                    amount: rewardPoints,
-                    transaction_type: 'earned_from_order'
-                  });
-
-                  // 2. 更新會員餘額
-                  await supabase.from('members').update({
-                    points_balance: (buyer.points_balance || 0) + rewardPoints
-                  }).eq('id', buyer.id);
-
-                  // 3. 發送系統通知
-                  await supabase.from('notifications').insert({
-                    member_id: buyer.id,
-                    title: '🎁 紅利點數已自動入帳！',
-                    content: `您好！您的訂單已簽收取貨滿 30 天，系統已自動為您存入消費回饋之紅利點數 ${rewardPoints} 點！`,
-                    type: 'system'
-                  });
-
-                  pointsIssuedCount += rewardPoints;
-                  pointsOrdersCount++;
-                }
+                pointsIssuedCount += rewardPoints;
+                pointsOrdersCount++;
               }
             }
+          }
 
-            // B. 處理上線 B2B 夥伴退傭獎金 (簽收取貨後滿 30 天發送)
-            if (buyer.upline_id && Number(order.b2b_commission) > 0) {
-              // 檢查該訂單是否已經發過推薦退傭獎金
-              const { data: existingTx } = await supabase
-                .from('wallet_transactions')
-                .select('id')
-                .eq('order_id', order.id)
-                .eq('transaction_type', 'commission_refund');
+          if (buyer.upline_id && Number(order.b2b_commission) > 0) {
+            const { data: existingTx } = await supabase
+              .from('wallet_transactions')
+              .select('id')
+              .eq('order_id', order.id)
+              .eq('transaction_type', 'commission_refund');
 
-              if (!existingTx || existingTx.length === 0) {
-                // 獲取上線資訊
-                const { data: upline } = await supabase
-                  .from('members')
-                  .select('id, name, is_b2b, virtual_balance')
-                  .eq('id', buyer.upline_id)
-                  .single();
+            if (!existingTx || existingTx.length === 0) {
+              const { data: upline } = await supabase
+                .from('members')
+                .select('id, name, is_b2b, virtual_balance')
+                .eq('id', buyer.upline_id)
+                .single();
 
-                if (upline && upline.is_b2b) {
-                  const commAmount = Number(order.b2b_commission);
+              if (upline && upline.is_b2b) {
+                const commAmount = Number(order.b2b_commission);
 
-                  // 1. 寫入推薦獎金錢包流水
-                  await supabase.from('wallet_transactions').insert({
-                    member_id: upline.id,
-                    order_id: order.id,
-                    amount: commAmount,
-                    transaction_type: 'commission_refund',
-                    status: 'completed'
-                  });
+                await supabase.from('wallet_transactions').insert({
+                  member_id: upline.id,
+                  order_id: order.id,
+                  amount: commAmount,
+                  transaction_type: 'commission_refund',
+                  status: 'completed'
+                });
 
-                  // 2. 更新上線預收帳戶餘額 (359 獎金由來)
-                  await supabase.from('members').update({
-                    virtual_balance: (Number(upline.virtual_balance) || 0) + commAmount
-                  }).eq('id', upline.id);
+                await supabase.from('members').update({
+                  virtual_balance: (Number(upline.virtual_balance) || 0) + commAmount
+                }).eq('id', upline.id);
 
-                  // 3. 發送推薦獎金入帳通知
-                  await supabase.from('notifications').insert({
-                    member_id: upline.id,
-                    title: '🎁 推薦推廣分紅已自動撥發入帳！',
-                    content: `您的下線夥伴 ${buyer.name} 的訂單已簽收取貨滿 30 天，您獲得的 $${commAmount.toLocaleString()} 推廣獎金已自動存入您的帳本！`,
-                    type: 'referral'
-                  });
+                await supabase.from('notifications').insert({
+                  member_id: upline.id,
+                  title: '🎁 推薦推廣分紅已自動撥發入帳！',
+                  content: `您的下線夥伴 ${buyer.name} 的訂單已簽收取貨滿 30 天，您獲得的 $${commAmount.toLocaleString()} 推廣獎金已自動存入您的帳本！`,
+                  type: 'referral'
+                });
 
-                  commissionsIssuedCount += commAmount;
-                  commissionsOrdersCount++;
-                }
+                commissionsIssuedCount += commAmount;
+                commissionsOrdersCount++;
               }
             }
           }
@@ -242,25 +252,19 @@ async function performSettlement() {
     } catch (ptsErr: any) {
       console.error('[Settlement Cron] Points/Commission issuance failed:', ptsErr);
     }
-    
-    return { 
-      success: true, 
-      message: `業績結算與職級考核完成！ ${tierResult.message} 📅 依據品牌新制營運規章，消費紅利與推廣獎金已改為【簽收取貨後滿 30 天自動發送】。本次共完成 ${pointsOrdersCount} 筆簽收點數發放（共 ${pointsIssuedCount} 點）與 ${commissionsOrdersCount} 筆推薦退傭獎金撥點（共 $${commissionsIssuedCount.toLocaleString()} 元）。` 
-    };
 
+    return {
+      success: true,
+      message: `業績結算與職級考核完成！ ${tierResult.message}。本次共完成 ${pointsOrdersCount} 筆簽收點數發放（共 ${pointsIssuedCount} 點）、${commissionsOrdersCount} 筆推薦退傭獎金撥點（共 $${commissionsIssuedCount.toLocaleString()} 元），並處理 ${settledCount} 筆待結算錢包異動。`
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
 export async function GET(request: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
-
-  if (!cronSecret || secret !== cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = enforceCronSecret(request);
+  if (authError) return authError;
 
   const result = await performSettlement();
   if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
@@ -268,13 +272,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
-
-  if (!cronSecret || secret !== cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = enforceCronSecret(request);
+  if (authError) return authError;
 
   const result = await performSettlement();
   if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });

@@ -231,7 +231,19 @@ function RegisterContent() {
     setIsLoading(true);
     setErrorMsg(null);
 
-    const memberCode = `CR26M${Math.floor(100000 + Math.random() * 900000)}`;
+    // 從 API 取得正確格式的會員編碼 (CR26M050001)
+    let memberCode = "";
+    try {
+      const codeRes = await fetch("/api/member/generate-code?type=member");
+      const codeData = await codeRes.json();
+      memberCode = codeData.code;
+    } catch (codeErr) {
+      // 備案：若 API 失敗則用舊格式
+      const now = new Date();
+      const yr = String(now.getFullYear()).slice(-2);
+      const mo = String(now.getMonth() + 1).padStart(2, "0");
+      memberCode = `CR${yr}M${mo}${String(Date.now()).slice(-4)}`;
+    }
     const myReferralCode = memberCode;
 
     try {

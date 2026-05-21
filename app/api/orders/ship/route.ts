@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { supabaseAdmin as supabase } from '../../../supabase-admin';
+import { enforceAdminApiKey } from '../../route-auth';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -68,6 +69,9 @@ async function sendLinePushNotification(toUserId: string, text: string) {
 
 export async function POST(request: Request) {
   try {
+    const authError = enforceAdminApiKey(request);
+    if (authError) return authError;
+
     const { orders } = await request.json();
     if (!orders || !Array.isArray(orders) || orders.length === 0) {
       return NextResponse.json({ success: false, error: '缺少訂單資料' }, { status: 400 });
@@ -119,6 +123,11 @@ export async function POST(request: Request) {
       }
 
       const updatedCustomLogo = 'FALLBACK_JSON:' + JSON.stringify(fallbackObj);
+
+      if (!['shipped', 'delivered'].includes(status)) {
+        console.warn(`[Order Ship Warning] Unsupported fulfillment status ${status} for order ${orderId}`);
+        continue;
+      }
 
       // 3. 準備物理欄位更新 payload (排除不存在的 shipped_at / delivered_at 物件欄位)
       const updatePayload: any = { 

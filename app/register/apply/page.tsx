@@ -52,14 +52,16 @@ function validateTaiwanID(id: string): boolean {
 function ApplyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawType = searchParams.get("type"); // 'partner', 'ambassador' or 'invited_team'
-  const isAmbassador = rawType === "ambassador";
+  const rawType = searchParams.get("type"); // 'partner', 'ambassador', 'ambassador_upgrade' or 'invited_team'
+  const isAmbassador = rawType === "ambassador" || rawType === "ambassador_upgrade";
+  const isAmbassadorUpgrade = rawType === "ambassador_upgrade"; // 現有會員升級為品牌大使
   const isInvitedTeam = rawType === "invited_team";
   
   const roleTitle = isAmbassador ? "品牌大使" : isInvitedTeam ? "特邀親友團" : "合夥人";
   const roleEnglish = isAmbassador ? "Brand Ambassador" : isInvitedTeam ? "Friends & Family Invited Team" : "Partner";
-  const targetTier = isAmbassador ? "初潤知己" : isInvitedTeam ? "初潤特邀團" : "初潤好朋友";
-  const minDeposit = isAmbassador ? 198000 : isInvitedTeam ? 0 : 98000; // Updated Partner to 98000!
+  const targetTier = isAmbassador ? "品牌大使" : isInvitedTeam ? "初潤特邀團" : "初潤好朋友";
+  // 品牌大使申請費 $98,000 (2026/05 更新); 合夥人 $98,000
+  const minDeposit = isAmbassador ? 98000 : isInvitedTeam ? 0 : 98000;
   const gradientColor = isAmbassador ? "from-amber-500 to-orange-600" : isInvitedTeam ? "from-purple-600 to-indigo-600" : "from-emerald-600 to-teal-600";
   const textColor = isAmbassador ? "text-amber-500" : isInvitedTeam ? "text-purple-600" : "text-emerald-600";
 
@@ -212,8 +214,22 @@ function ApplyContent() {
         return;
       }
 
-      // Generate random temporary codes
-      const memberCode = `CR26B${Math.floor(100000 + Math.random() * 900000)}`;
+      // 從 API 取得正確格式的會員編碼
+      // 品牌大使: CR26A050001, 合夥人: CR26P050001
+      let memberCode = "";
+      try {
+        const codeType = isAmbassador ? "ambassador" : "partner";
+        const codeRes = await fetch(`/api/member/generate-code?type=${codeType}`);
+        const codeData = await codeRes.json();
+        memberCode = codeData.code;
+      } catch (codeErr) {
+        // 備案
+        const now = new Date();
+        const yr = String(now.getFullYear()).slice(-2);
+        const mo = String(now.getMonth() + 1).padStart(2, "0");
+        const typeChar = isAmbassador ? "A" : "P";
+        memberCode = `CR${yr}${typeChar}${mo}${String(Date.now()).slice(-4)}`;
+      }
       const myReferralCode = memberCode;
 
       // 2. Serialize all B2B onboarding metadata into a JSON string inside the standard 'beneficiary' field
