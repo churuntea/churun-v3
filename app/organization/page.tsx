@@ -73,30 +73,21 @@ const applyWatermark = (file: File): Promise<string> => {
         ctx.drawImage(img, 0, 0);
         
         const text = "僅供初潤申請資料使用";
-        const fontSize = Math.max(24, Math.floor(canvas.width / 15));
+        const fontSize = Math.max(36, Math.floor(canvas.width / 12));
         ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)"; 
+        ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         
-        const stepX = canvas.width / 2;
-        const stepY = canvas.height / 4;
-        
         ctx.save();
-        for (let x = -canvas.width; x < canvas.width * 2; x += stepX) {
-          for (let y = -canvas.height; y < canvas.height * 2; y += stepY) {
-            ctx.save();
-            ctx.translate(x + stepX / 2, y + stepY / 2);
-            ctx.rotate((-25 * Math.PI) / 180);
-            
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
-            ctx.strokeText(text, 0, 0);
-            ctx.fillText(text, 0, 0);
-            
-            ctx.restore();
-          }
-        }
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((-15 * Math.PI) / 180);
+        
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.strokeText(text, 0, 0);
+        ctx.fillText(text, 0, 0);
+        
         ctx.restore();
         
         resolve(canvas.toDataURL("image/jpeg", 0.85));
