@@ -3,8 +3,9 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "../supabase";
-import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from '@/app/supabase';
+import { sendAmbassadorApplicationNotify } from '../api/ambassador/ambassador-notify';
+import { TAIWAN_CITIES } from './taiwan-cities';
 import { 
   Users, 
   ChevronRight, 
@@ -183,7 +184,13 @@ function OrganizationContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAmbassadorModal, setShowAmbassadorModal] = useState(false);
   const [selectedApplyType, setSelectedApplyType] = useState<'free' | 'paid' | 'partner' | null>(null);
-  const [ambassadorFormData, setAmbassadorFormData] = useState({ name: '', phone: '', email: '', last_five: '', remittance_photo: '', id_card_front: '', id_card_back: '' });
+  const [ambassadorFormData, setAmbassadorFormData] = useState({ 
+    name: '', phone: '', email: '', 
+    birthday: '', id_card_number: '', 
+    city: '', district: '', address: '', 
+    landline: '', company: '', company_phone: '', notes: '',
+    last_five: '', remittance_photo: '', id_card_front: '', id_card_back: '' 
+  });
   const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
   const [pendingApplication, setPendingApplication] = useState<any>(null);
   const [ambassadorError, setAmbassadorError] = useState("");
@@ -275,6 +282,15 @@ function OrganizationContent() {
         name: memberInfo.name || '',
         phone: memberInfo.phone || '',
         email: memberInfo.email || '',
+        birthday: memberInfo.birthday || '',
+        id_card_number: memberInfo.id_card_number || '',
+        city: memberInfo.city || '',
+        district: memberInfo.district || '',
+        address: memberInfo.address || '',
+        landline: memberInfo.landline || '',
+        company: memberInfo.company || '',
+        company_phone: memberInfo.company_phone || '',
+        notes: memberInfo.notes || '',
         last_five: '',
         remittance_photo: '',
         id_card_front: '',
@@ -289,6 +305,10 @@ function OrganizationContent() {
   const checkAndSubmitAmbassador = async () => {
     if (!selectedApplyType) {
       setAmbassadorError("請選擇申請方案");
+      return;
+    }
+    if (!ambassadorFormData.birthday || !ambassadorFormData.id_card_number || !ambassadorFormData.city || !ambassadorFormData.district || !ambassadorFormData.address) {
+      setAmbassadorError("請填寫所有必填的詳細個人資料（包含生日、身分證字號與地址）");
       return;
     }
     if (!ambassadorFormData.id_card_front || !ambassadorFormData.id_card_back) {
@@ -997,6 +1017,68 @@ function OrganizationContent() {
                     </div>
 
                     <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">出生年月日 <span className="text-rose-500">*</span></label>
+                      <input type="date" value={ambassadorFormData.birthday} onChange={e => setAmbassadorFormData({...ambassadorFormData, birthday: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                    </div>
+
+                    <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">身分證字號 <span className="text-rose-500">*</span></label>
+                      <input type="text" placeholder="例如: A123456789" value={ambassadorFormData.id_card_number} onChange={e => setAmbassadorFormData({...ambassadorFormData, id_card_number: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none uppercase" />
+                    </div>
+
+                    <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">聯絡地址 <span className="text-rose-500">*</span></label>
+                      <div className="grid grid-cols-2 gap-3 mb-2">
+                        <select 
+                          value={ambassadorFormData.city}
+                          onChange={e => setAmbassadorFormData({...ambassadorFormData, city: e.target.value, district: ''})}
+                          className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none appearance-none"
+                        >
+                          <option value="">選擇縣市</option>
+                          {Object.keys(TAIWAN_CITIES).map(city => (
+                            <option key={city} value={city}>{city}</option>
+                          ))}
+                        </select>
+                        <select 
+                          value={ambassadorFormData.district}
+                          onChange={e => setAmbassadorFormData({...ambassadorFormData, district: e.target.value})}
+                          disabled={!ambassadorFormData.city}
+                          className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none appearance-none disabled:opacity-50"
+                        >
+                          <option value="">選擇鄉鎮市區</option>
+                          {ambassadorFormData.city && TAIWAN_CITIES[ambassadorFormData.city]?.map(dist => (
+                            <option key={dist} value={dist}>{dist}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <input type="text" placeholder="請填寫詳細地址 (不能空白)" value={ambassadorFormData.address} onChange={e => setAmbassadorFormData({...ambassadorFormData, address: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                    </div>
+
+                    {/* 非必填區塊 */}
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4 mt-4 border-t border-slate-100">其他資訊 (非必填)</p>
+                    
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400">市內電話</label>
+                        <input type="text" value={ambassadorFormData.landline} onChange={e => setAmbassadorFormData({...ambassadorFormData, landline: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400">公司電話</label>
+                        <input type="text" value={ambassadorFormData.company_phone} onChange={e => setAmbassadorFormData({...ambassadorFormData, company_phone: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 mt-3">
+                      <label className="text-[10px] font-black text-slate-400">服務公司</label>
+                      <input type="text" value={ambassadorFormData.company} onChange={e => setAmbassadorFormData({...ambassadorFormData, company: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                    </div>
+
+                    <div className="space-y-1.5 mt-3 mb-6">
+                      <label className="text-[10px] font-black text-slate-400">備註</label>
+                      <textarea rows={2} value={ambassadorFormData.notes} onChange={e => setAmbassadorFormData({...ambassadorFormData, notes: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none resize-none" />
+                    </div>
+
+                    <div className="space-y-1.5 mt-6 border-t border-slate-100 pt-6">
                       <label className="text-[10px] font-black text-slate-400">身分證正面相片 <span className="text-rose-500">*</span></label>
                       {ambassadorFormData.id_card_front ? (
                         <div className="space-y-3">

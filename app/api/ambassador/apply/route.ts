@@ -5,12 +5,22 @@ import { sendAmbassadorApplicationNotify } from '../ambassador-notify';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { member_id, application_type, last_five, remittance_photo, id_card_front, id_card_back } = body;
+    const { 
+      member_id, application_type, last_five, remittance_photo, id_card_front, id_card_back,
+      birthday, id_card_number, city, district, address, landline, company, company_phone, notes, email 
+    } = body;
 
     // ── 參數驗證 ──
     if (!member_id || !application_type) {
       return NextResponse.json(
         { success: false, message: '缺少必要參數：member_id 和 application_type 為必填' },
+        { status: 400 }
+      );
+    }
+    
+    if (!id_card_number || !birthday || !city || !district || !address) {
+      return NextResponse.json(
+        { success: false, message: '詳細個人資料（生日、身分證字號、地址）為必填項目' },
         { status: 400 }
       );
     }
@@ -133,10 +143,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 更新會員狀態為 pending ──
+    // ── 更新會員狀態為 pending 及最新個人資料 ──
     const { error: updateErr } = await supabaseAdmin
       .from('members')
-      .update({ ambassador_status: 'pending' })
+      .update({ 
+        ambassador_status: 'pending',
+        birthday: birthday || null,
+        id_card_number: id_card_number || null,
+        email: email || null,
+        city: city || null,
+        district: district || null,
+        address: address || null,
+        landline: landline || null,
+        company: company || null,
+        company_phone: company_phone || null,
+        notes: notes || null
+      })
       .eq('id', member_id);
 
     if (updateErr) {

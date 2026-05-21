@@ -899,20 +899,51 @@ export default function AmbassadorAdminPage() {
                           <p className="text-sm font-black text-slate-700">{memberDetail.data.phone}</p>
                         </div>
                         <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">身分證字號</p>
+                          <p className="text-sm font-black text-slate-700 uppercase">{memberDetail.data.id_card_number || '-'}</p>
+                        </div>
+                        <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">電子信箱</p>
                           <p className="text-sm font-black text-slate-700 truncate">{memberDetail.data.email || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">註冊時間</p>
-                          <p className="text-xs font-bold text-slate-700">{formatDate(memberDetail.data.created_at)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">推薦人</p>
-                          <p className="text-xs font-bold text-slate-700">{memberDetail.data.upline?.name ? `${memberDetail.data.upline.name} (${memberDetail.data.upline.member_code})` : '無 (直屬總部)'}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">出生年月日</p>
+                          <p className="text-sm font-black text-slate-700 truncate">{memberDetail.data.birthday || '-'}</p>
                         </div>
                         <div className="col-span-2">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">歷史累積消費</p>
-                          <p className="text-sm font-black text-emerald-600">NT$ {(memberDetail.data.lifetime_spend || 0).toLocaleString()}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">聯絡地址</p>
+                          <p className="text-sm font-black text-slate-700">{memberDetail.data.city ? `${memberDetail.data.city}${memberDetail.data.district}${memberDetail.data.address}` : '-'}</p>
+                        </div>
+                        <div className="col-span-2 grid grid-cols-2 gap-4 pt-3 border-t border-slate-200">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">市內電話</p>
+                            <p className="text-xs font-bold text-slate-700">{memberDetail.data.landline || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">公司/電話</p>
+                            <p className="text-xs font-bold text-slate-700">
+                              {memberDetail.data.company || '-'}{' '}
+                              {memberDetail.data.company_phone && `(${memberDetail.data.company_phone})`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">備註</p>
+                          <p className="text-xs font-bold text-slate-700">{memberDetail.data.notes || '-'}</p>
+                        </div>
+                        <div className="col-span-2 border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">註冊時間</p>
+                            <p className="text-xs font-bold text-slate-700">{formatDate(memberDetail.data.created_at)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">推薦人</p>
+                            <p className="text-xs font-bold text-slate-700">{memberDetail.data.upline?.name ? `${memberDetail.data.upline.name} (${memberDetail.data.upline.member_code})` : '無 (直屬總部)'}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">歷史累積消費</p>
+                            <p className="text-sm font-black text-emerald-600">NT$ {(memberDetail.data.lifetime_spend || 0).toLocaleString()}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
