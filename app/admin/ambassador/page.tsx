@@ -183,7 +183,7 @@ export default function AmbassadorAdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           application_id: confirmDialog.appId,
-          action: confirmDialog.action,
+          action: confirmDialog.action === "approved" ? "approve" : "reject",
           notes: reviewNotes[confirmDialog.appId] || "",
           reviewed_by: adminUser?.name || "管理員",
         }),
@@ -193,7 +193,7 @@ export default function AmbassadorAdminPage() {
         showToast(`已成功${confirmDialog.action === "approved" ? "核准" : "駁回"}「${confirmDialog.memberName}」的申請！`, "success");
         fetchApplications();
       } else {
-        showToast(result.error || "操作失敗，請稍後再試", "error");
+        showToast(result.message || result.error || "操作失敗，請稍後再試", "error");
       }
     } catch (err: any) {
       showToast("網路錯誤：" + err.message, "error");
