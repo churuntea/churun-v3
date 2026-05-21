@@ -192,7 +192,8 @@ function OrganizationContent() {
     last_five: '', remittance_photo: '', id_card_front: '', id_card_back: '' 
   });
   const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
-  const [pendingApplication, setPendingApplication] = useState<any>(null);
+  const [pendingApplication, setPendingApplication] = useState<any | null>(null);
+  const [rejectedApplication, setRejectedApplication] = useState<any | null>(null);
   const [ambassadorError, setAmbassadorError] = useState("");
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -544,6 +545,28 @@ function OrganizationContent() {
                  <div className="absolute -left-[21px] top-1 w-3 h-3 bg-slate-200 rounded-full border-2 border-white shadow-sm ring-4 ring-slate-50"></div>
                  <p className="text-xs font-black text-slate-400 mb-0.5">⚪ 核准生效</p>
                  <p className="text-[10px] font-bold text-slate-300">等待審核結果</p>
+               </div>
+             </div>
+           </section>
+         )}
+
+         {/* 駁回通知 */}
+         {rejectedApplication && memberInfo?.ambassador_status !== 'pending' && (
+           <section className="bg-rose-50 border border-rose-100 rounded-[3rem] p-8 shadow-sm relative overflow-hidden">
+             <div className="flex items-start gap-4 relative z-10">
+               <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center shrink-0">
+                 <XCircle className="w-6 h-6 text-rose-500" />
+               </div>
+               <div>
+                 <h3 className="text-sm font-black text-rose-800 uppercase tracking-widest">您的申請已被駁回</h3>
+                 <p className="text-[10px] font-bold text-rose-400 mt-1 uppercase tracking-widest">
+                   {rejectedApplication.application_type === 'paid' ? '付費品牌大使' : rejectedApplication.application_type === 'partner' ? '合夥人' : '績效品牌大使'}
+                 </p>
+                 <div className="mt-4 bg-white rounded-2xl p-4 border border-rose-100 shadow-sm">
+                   <p className="text-xs font-black text-slate-800 mb-1">駁回理由與建議：</p>
+                   <p className="text-xs font-medium text-slate-600 whitespace-pre-line">{rejectedApplication.notes || "未提供詳細理由，請聯繫客服了解詳情。"}</p>
+                 </div>
+                 <p className="text-[10px] font-bold text-rose-500 mt-4">請參考上述原因進行改善後，點擊上方「申請品牌大使」重新提交資料。</p>
                </div>
              </div>
            </section>

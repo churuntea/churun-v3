@@ -203,6 +203,10 @@ export default function AmbassadorAdminPage() {
   // ───────── Review handler ─────────
   const handleReview = async () => {
     if (!confirmDialog) return;
+    if (confirmDialog.action === "rejected" && (!reviewNotes[confirmDialog.appId] || !reviewNotes[confirmDialog.appId].trim())) {
+      showToast("請輸入駁回理由", "error");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/ambassador/review", {
@@ -768,6 +772,18 @@ export default function AmbassadorAdminPage() {
                 </p>
                 <p className="text-[10px] font-bold text-slate-300 mt-1">此操作執行後將會立即生效</p>
               </div>
+
+              {confirmDialog.action === "rejected" && (
+                <div className="mb-6 text-left">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">駁回理由 (必填)</label>
+                  <textarea 
+                    value={reviewNotes[confirmDialog.appId] || ""}
+                    onChange={(e) => setReviewNotes({ ...reviewNotes, [confirmDialog.appId]: e.target.value })}
+                    placeholder="請說明駁回原因，讓會員知道需改善哪些東西再重新申請..."
+                    className="w-full bg-slate-50 border-none rounded-xl p-3 text-xs font-bold text-slate-700 resize-none h-24 focus:ring-2 focus:ring-rose-500/20"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
