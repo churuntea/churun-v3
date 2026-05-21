@@ -616,6 +616,23 @@ function LoginContent() {
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
                               onClick={async () => {
+                                const ua = navigator.userAgent || navigator.vendor;
+                                const isLineBrowser = ua.indexOf('Line') > -1;
+                                const isFbIgBrowser = ua.indexOf('FBAN') > -1 || ua.indexOf('FBAV') > -1 || ua.indexOf('Instagram') > -1;
+
+                                if (isLineBrowser) {
+                                  alert("⚠️ Google 安全政策不支援在 LINE 內建瀏覽器登入。\n\n系統將自動為您切換至外部瀏覽器（Safari/Chrome），跳轉後請再次點擊 Google 登入！");
+                                  const currentUrl = new URL(window.location.href);
+                                  currentUrl.searchParams.set('openExternalBrowser', '1');
+                                  window.location.href = currentUrl.toString();
+                                  return;
+                                }
+
+                                if (isFbIgBrowser) {
+                                  alert("⚠️ Google 安全政策不支援在社群軟體內建瀏覽器登入。\n\n請點擊右上角「...」，選擇「以預設瀏覽器開啟」(Safari/Chrome) 後，再次點擊 Google 登入！");
+                                  return;
+                                }
+
                                 setIsLoading(true);
                                 try {
                                   const { error } = await supabase.auth.signInWithOAuth({
