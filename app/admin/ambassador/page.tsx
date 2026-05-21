@@ -22,6 +22,7 @@ import {
   DollarSign,
   Award,
   X,
+  User,
 } from "lucide-react";
 
 // ───────── Types ─────────
@@ -39,6 +40,7 @@ interface ApplicationRow {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
+  snapshot_data: any;
   members: {
     name: string;
     phone: string;
@@ -98,6 +100,9 @@ export default function AmbassadorAdminPage() {
 
   // Photo preview modal
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+
+  // Archive modal
+  const [archiveModal, setArchiveModal] = useState<ApplicationRow | null>(null);
 
   // Member Detail Modal
   const [memberDetail, setMemberDetail] = useState<{
@@ -663,6 +668,18 @@ export default function AmbassadorAdminPage() {
                     </div>
                   )}
 
+                  {app.status === "approved" && app.snapshot_data && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => setArchiveModal(app)}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-black transition"
+                      >
+                        <Shield className="w-4 h-4" />
+                        檢視備查資料
+                      </button>
+                    </div>
+                  )}
+
                   {/* ── Action Buttons (Pending Only) ── */}
                   {app.status === "pending" && (
                     <div className="border-t border-slate-100 pt-4 space-y-3">
@@ -729,6 +746,135 @@ export default function AmbassadorAdminPage() {
       >
         <ChevronLeft className="w-5 h-5" />
       </Link>
+
+      {/* ═══════════ Archive Modal ═══════════ */}
+      <AnimatePresence>
+        {archiveModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setArchiveModal(null)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2rem] overflow-hidden shadow-2xl z-10 max-h-[85vh] flex flex-col"
+            >
+              <div className="p-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-500">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">核准備查資料</h3>
+                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">申請編號：{archiveModal.id.substring(0,8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setArchiveModal(null)}
+                  className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition"
+                >
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-8 flex-1">
+                {/* 1. 基本資料 */}
+                <section>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <User className="w-4 h-4 text-indigo-500" /> 基本資料
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                      <p className="text-[10px] font-bold text-slate-400 mb-1">姓名</p>
+                      <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.name}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                      <p className="text-[10px] font-bold text-slate-400 mb-1">生日</p>
+                      <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.birthday}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                      <p className="text-[10px] font-bold text-slate-400 mb-1">身分證字號</p>
+                      <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.id_card_number}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                      <p className="text-[10px] font-bold text-slate-400 mb-1">電話 / 信箱</p>
+                      <p className="text-xs font-bold text-slate-700">{archiveModal.snapshot_data?.phone}</p>
+                      <p className="text-xs font-bold text-slate-500">{archiveModal.snapshot_data?.email}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl col-span-2">
+                      <p className="text-[10px] font-bold text-slate-400 mb-1">通訊地址</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {archiveModal.snapshot_data?.city} {archiveModal.snapshot_data?.district} {archiveModal.snapshot_data?.address}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 2. 證件照片 */}
+                <section>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-indigo-500" /> 證件照片
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-slate-400">身分證正面</p>
+                      {archiveModal.snapshot_data?.id_card_front ? (
+                        <div className="aspect-[1.6/1] bg-slate-100 rounded-xl overflow-hidden cursor-pointer" onClick={() => setPreviewPhoto(archiveModal.snapshot_data.id_card_front)}>
+                          <img src={archiveModal.snapshot_data.id_card_front} alt="身分證正面" className="w-full h-full object-cover hover:opacity-80 transition" />
+                        </div>
+                      ) : (
+                        <div className="aspect-[1.6/1] bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-xs">無照片</div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-slate-400">身分證反面</p>
+                      {archiveModal.snapshot_data?.id_card_back ? (
+                        <div className="aspect-[1.6/1] bg-slate-100 rounded-xl overflow-hidden cursor-pointer" onClick={() => setPreviewPhoto(archiveModal.snapshot_data.id_card_back)}>
+                          <img src={archiveModal.snapshot_data.id_card_back} alt="身分證反面" className="w-full h-full object-cover hover:opacity-80 transition" />
+                        </div>
+                      ) : (
+                        <div className="aspect-[1.6/1] bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-xs">無照片</div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {/* 3. 匯款帳號資料 */}
+                <section>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-indigo-500" /> 提領帳號資訊
+                  </h4>
+                  <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">銀行代碼 / 名稱</p>
+                        <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.bank_code || '未填寫'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">分行</p>
+                        <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.bank_branch || '未填寫'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">戶名</p>
+                        <p className="text-sm font-black text-slate-800">{archiveModal.snapshot_data?.bank_account_name || '未填寫'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">帳號</p>
+                        <p className="text-sm font-black text-slate-800 tracking-wider">{archiveModal.snapshot_data?.bank_account || '未填寫'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ═══════════ Confirmation Dialog ═══════════ */}
       <AnimatePresence>

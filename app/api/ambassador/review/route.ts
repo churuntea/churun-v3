@@ -46,17 +46,59 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const reviewedAt = now.toISOString();
 
+    let snapshotData = null;
+
+    if (action === 'approve') {
+      const { data: memberData } = await supabaseAdmin
+        .from('members')
+        .select('*')
+        .eq('id', application.member_id)
+        .maybeSingle();
+
+      if (memberData) {
+        snapshotData = {
+          name: memberData.name,
+          phone: memberData.phone,
+          email: memberData.email,
+          member_code: memberData.member_code,
+          birthday: memberData.birthday,
+          id_card_number: memberData.id_card_number,
+          city: memberData.city,
+          district: memberData.district,
+          address: memberData.address,
+          landline: memberData.landline,
+          company: memberData.company,
+          company_phone: memberData.company_phone,
+          notes: memberData.notes,
+          bank_code: memberData.bank_code,
+          bank_account: memberData.bank_account,
+          bank_account_name: memberData.bank_account_name,
+          bank_branch: memberData.bank_branch,
+          bank_card_photo_url: memberData.bank_card_photo_url,
+          id_card_front: application.id_card_front, 
+          id_card_back: application.id_card_back,
+          remittance_photo: application.remittance_photo
+        };
+      }
+    }
+
     // ── 更新申請記錄 ──
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
+    const updatePayload: any = {
+      status: newStatus,
+      notes: notes || null,
+      reviewed_by: reviewed_by || null,
+      reviewed_at: reviewedAt,
+    };
+
+    if (snapshotData) {
+      updatePayload.snapshot_data = snapshotData;
+    }
+
     const { error: updateAppErr } = await supabaseAdmin
       .from('ambassador_applications')
-      .update({
-        status: newStatus,
-        notes: notes || null,
-        reviewed_by: reviewed_by || null,
-        reviewed_at: reviewedAt,
-      })
+      .update(updatePayload)
       .eq('id', application_id);
 
     if (updateAppErr) {
