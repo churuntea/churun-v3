@@ -18,7 +18,8 @@ import {
   Save,
   X,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -50,10 +51,19 @@ export default function BonusStructurePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<TierRule | null>(null);
   const [saving, setSaving] = useState(false);
+  const [adminUser, setAdminUser] = useState<any>(null);
 
   useEffect(() => {
+    const userStr = sessionStorage.getItem("churun_admin_user");
+    if (userStr) {
+      try {
+        setAdminUser(JSON.parse(userStr));
+      } catch (e) { }
+    }
     fetchRules();
   }, []);
+
+  const isSuperAdmin = adminUser?.department === '總經理室' || adminUser?.title === '總部大總管';
 
   const fetchRules = async () => {
     try {
@@ -248,12 +258,22 @@ export default function BonusStructurePage() {
                   </div>
 
                   <div className="mt-12 pt-8 border-t border-slate-100 flex justify-end gap-3 relative z-10">
-                    <button 
-                      onClick={handleEditClick}
-                      className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 active:scale-95 transition flex items-center gap-2"
-                    >
-                      <Edit3 className="w-4 h-4" /> 進入編輯模式
-                    </button>
+                    {isSuperAdmin ? (
+                      <button 
+                        onClick={handleEditClick}
+                        className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 active:scale-95 transition flex items-center gap-2"
+                      >
+                        <Edit3 className="w-4 h-4" /> 進入編輯模式
+                      </button>
+                    ) : (
+                      <button 
+                        className="px-8 py-4 bg-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed flex items-center gap-2"
+                        disabled
+                        title="僅最高權限可編輯"
+                      >
+                        <Lock className="w-4 h-4" /> 僅最高權限可編輯
+                      </button>
+                    )}
                     <button 
                       className="px-8 py-4 bg-slate-50 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 cursor-not-allowed"
                       disabled
