@@ -204,17 +204,31 @@ function OrganizationContent() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
+    fetchOrganization();
+  }, [router]);
+
+  const fetchOrganization = async () => {
+    setIsLoading(true);
+    
+    let mData = null;
+    let userId = null;
+    try {
+      const res = await fetch("/api/me/dashboard");
+      if (!res.ok) throw new Error("Fetch failed");
+      const json = await res.json();
+      mData = json.member;
+      userId = mData?.id;
+    } catch (e) {
       router.replace("/login");
       return;
     }
-    setCurrentUserId(savedId);
-  }, [router]);
 
-  const fetchOrganization = async (userId: string) => {
-    setIsLoading(true);
-    const { data: mData } = await supabase.from("members").select("*").eq("id", userId).single();
+    if (!userId || !mData) {
+      router.replace("/login");
+      return;
+    }
+
+    setCurrentUserId(userId);
     setMemberInfo(mData);
 
     if (mData?.ambassador_status === 'pending') {

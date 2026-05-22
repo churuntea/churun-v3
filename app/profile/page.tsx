@@ -185,19 +185,29 @@ function ProfileContent() {
 
   const fetchData = async (userId: string) => {
     setIsLoading(true);
-    // Load default avatars
-    const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
-    const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
-    const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
-    setMaleDefault(maleUrl);
-    setFemaleDefault(femaleUrl);
+    try {
+      const res = await fetch("/api/me/dashboard");
+      if (!res.ok) throw new Error("Fetch failed");
+      const data = await res.json();
+      
+      const maleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+      const femaleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+      setMaleDefault(maleUrl);
+      setFemaleDefault(femaleUrl);
 
-    const { data } = await supabase.from("members").select("*").eq("id", userId).single();
-    setMemberInfo(data);
-    setIsLoading(false);
+      setMemberInfo(data.member);
+    } catch (err) {
+      console.error(err);
+      setMemberInfo(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
     await supabase.auth.signOut();
     localStorage.removeItem("churun_member_id");
     router.replace("/login");
