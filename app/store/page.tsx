@@ -207,7 +207,6 @@ function StoreContent() {
   const [balanceInput, setBalanceInput] = useState<string>("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showShippingModal, setShowShippingModal] = useState(false);
   const [shippingSubStep, setShippingSubStep] = useState<'sender' | 'recipient'>('sender');
   const [shippingInfo, setShippingInfo] = useState({
@@ -221,7 +220,6 @@ function StoreContent() {
     senderAddress: '',
     senderNotes: ''
   });
-  const [showConfirmSenderModal, setShowConfirmSenderModal] = useState(false);
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [lastTotalPrice, setLastTotalPrice] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
@@ -1791,11 +1789,14 @@ function StoreContent() {
                 </div>
 
                  <button 
-                   onClick={() => setShowConfirmModal(true)}
+                   onClick={() => {
+                     setShippingSubStep('sender');
+                     setShowShippingModal(true);
+                   }}
                    disabled={cart.length === 0 || isCheckingOut}
                    className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
                  >
-                   下一步：確認訂購明細
+                   下一步：填寫寄送資訊
                  </button>
               </div>
             </motion.div>
@@ -1803,147 +1804,7 @@ function StoreContent() {
         )}
       </AnimatePresence>
       
-      {/* Step 1: Order Confirmation Modal */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowConfirmModal(false)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
-            >
-              <div className="w-16 h-16 bg-slate-50 text-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                 <ShoppingCart className="w-6 h-6" />
-              </div>
-              {/* 結帳進度條 */}
-               <div className="flex items-center justify-between mb-8 px-4 shrink-0">
-                  <div className="flex flex-col items-center">
-                     <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">1</span>
-                     <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">確認明細</span>
-                  </div>
-                  <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                  <div className="flex flex-col items-center">
-                     <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">2</span>
-                     <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">確認寄件</span>
-                  </div>
-                  <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                  <div className="flex flex-col items-center">
-                     <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
-                     <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">填寫收件</span>
-                  </div>
-                  <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                  <div className="flex flex-col items-center">
-                     <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-300 font-black text-[10px] flex items-center justify-center">4</span>
-                     <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">付款資訊</span>
-                  </div>
-               </div>
-              
-              <h3 className="text-xl font-black text-slate-900 text-center mb-6">請確認訂購品項</h3>
-              
-              <div className="space-y-4 mb-8 max-h-60 overflow-y-auto no-scrollbar pr-2">
-                 {cart.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400 text-xs font-bold">
-                       購物車內無商品，請返回修改
-                    </div>
-                 ) : (
-                    cart.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-50 gap-3">
-                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 shrink-0">
-                               <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                            </div>
-                            <span className="text-xs font-bold text-slate-600 truncate">{item.name}</span>
-                         </div>
-                         <div className="flex items-center gap-2 bg-white border border-slate-100 p-1.5 rounded-xl shadow-sm shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (item.quantity === 1) {
-                                  if (confirm(`確定要從購物車中刪除「${item.name}」嗎？`)) {
-                                    removeFromCart(item.id);
-                                  }
-                                } else {
-                                  updateQuantity(item.id, item.quantity - 1);
-                                }
-                              }}
-                              className="w-5 h-5 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition active:scale-95"
-                            >
-                               <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-xs font-black text-slate-800 min-w-[14px] text-center">{item.quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-5 h-5 rounded-md bg-slate-50 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition active:scale-95"
-                            >
-                               <Plus className="w-3 h-3" />
-                            </button>
-                         </div>
-                      </div>
-                    ))
-                 )}
-              </div>
 
-              <div className="pt-6 border-t border-slate-100 mb-8 space-y-2">
-                 <div className="flex justify-between items-center text-xs font-bold text-slate-400">
-                    <span>商品小計</span>
-                    <span>${totalPrice.toLocaleString()}</span>
-                 </div>
-                 {activeCoupon && discountAmount > 0 && (
-                    <div className="flex justify-between items-center text-xs font-bold text-rose-500">
-                       <span>優惠折抵 ({activeCoupon.name})</span>
-                       <span>-${discountAmount.toLocaleString()}</span>
-                    </div>
-                 )}
-                 {balanceDiscount > 0 && (
-                    <div className="flex justify-between items-center text-xs font-bold text-indigo-500">
-                       <span>儲值金餘額折抵</span>
-                       <span>-${balanceDiscount.toLocaleString()}</span>
-                    </div>
-                 )}
-                 {pointsDiscount > 0 && (
-                    <div className="flex justify-between items-center text-xs font-bold text-emerald-500">
-                       <span>紅利點數折抵</span>
-                       <span>-${pointsDiscount.toLocaleString()}</span>
-                    </div>
-                 )}
-                  <div className="pt-2 border-t border-dashed border-slate-100 flex justify-between items-center">
-                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">應付總額</span>
-                     <span className="text-xl font-black text-slate-900">${finalPrice.toLocaleString()}</span>
-                  </div>
-               </div>
-
-               <div className="space-y-4">
-                  <button 
-                    onClick={() => {
-                      setShowConfirmModal(false);
-                      setShippingSubStep('sender');
-                      setShowShippingModal(true);
-                    }}
-                    disabled={cart.length === 0}
-                    className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                     下一步：填寫配送收件資訊
-                  </button>
-                  <button 
-                    onClick={() => setShowConfirmModal(false)}
-                    className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
-                  >
-                     返回購物車
-                  </button>
-               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Step 2: Shipping Info Modal */}
       <AnimatePresence>
@@ -1964,26 +1825,21 @@ function StoreContent() {
             >
                {shippingSubStep === 'sender' ? (
                   <div className="space-y-6">
-                     {/* Progress Bar */}
+                     {/* Progress Bar (Simplified) */}
                      <div className="flex items-center justify-between mb-8 px-4 shrink-0">
                         <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
-                           <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認明細</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">2</span>
+                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">1</span>
                            <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">確認寄件</span>
                         </div>
                         <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
                         <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
+                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">2</span>
                            <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">填寫收件</span>
                         </div>
                         <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
                         <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-300 font-black text-[10px] flex items-center justify-center">4</span>
-                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">付款資訊</span>
+                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
+                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">最終確認</span>
                         </div>
                      </div>
 
@@ -2093,7 +1949,7 @@ function StoreContent() {
                                  address: sAddress 
                                }));
                             }
-                            setShowConfirmSenderModal(true);
+                            setShippingSubStep('recipient');
                           }}
                           className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
                         >
@@ -2102,7 +1958,6 @@ function StoreContent() {
                         <button 
                           onClick={() => {
                             setShowShippingModal(false);
-                            setShowConfirmModal(true);
                           }}
                           className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
                         >
@@ -2112,26 +1967,21 @@ function StoreContent() {
                   </div>
                ) : (
                   <div className="space-y-6">
-                     {/* Progress Bar */}
+                     {/* Progress Bar (Simplified) */}
                      <div className="flex items-center justify-between mb-8 px-4 shrink-0">
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
-                           <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認明細</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
                         <div className="flex flex-col items-center">
                            <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
                            <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認寄件</span>
                         </div>
                         <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
                         <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">3</span>
+                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">2</span>
                            <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">填寫收件</span>
                         </div>
                         <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
                         <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-300 font-black text-[10px] flex items-center justify-center">4</span>
-                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">付款資訊</span>
+                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
+                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">最終確認</span>
                         </div>
                      </div>
  
@@ -2431,7 +2281,7 @@ function StoreContent() {
                           onClick={handleRecipientNext}
                           className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
                         >
-                           確認無誤，送出訂單
+                           下一步：最終確認明細
                         </button>
                         <button 
                           onClick={() => setShippingSubStep('sender')}
@@ -2446,69 +2296,7 @@ function StoreContent() {
           </div>
         )}
       </AnimatePresence>
-      {/* Step 2.1: Double-Confirmation Modal for Sender Details */}
-      <AnimatePresence>
-        {showConfirmSenderModal && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => setShowConfirmSenderModal(false)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} 
-              animate={{ scale: 1, y: 0 }} 
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 text-center border border-slate-100"
-            >
-              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-amber-100">
-                <span className="text-2xl font-black">👤</span>
-              </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">再次確認寄件人資訊</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Please Double Confirm Sender Details</p>
-              
-              <div className="bg-slate-50 rounded-[2rem] p-6 text-left space-y-3.5 mb-8 border border-slate-100/50">
-                <div className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-200/50">
-                  <span className="font-black text-slate-400">👤 姓名</span>
-                  <span className="font-extrabold text-slate-800 text-right">{shippingInfo.senderName || memberInfo?.name || "姓名未填"}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-200/50">
-                  <span className="font-black text-slate-400">📞 電話</span>
-                  <span className="font-extrabold text-slate-800 text-right">{shippingInfo.senderPhone || memberInfo?.phone || "電話未填"}</span>
-                </div>
-                <div className="flex flex-col text-xs pb-2.5 border-b border-slate-200/50 gap-1">
-                  <span className="font-black text-slate-400">📍 地址</span>
-                  <span className="font-extrabold text-slate-700 leading-relaxed text-left break-all">{shippingInfo.senderAddress || memberInfo?.address || "無"}</span>
-                </div>
-                <div className="flex flex-col text-xs gap-1">
-                  <span className="font-black text-slate-400">💬 寄件備註</span>
-                  <span className="font-extrabold text-rose-600 leading-relaxed text-left break-all">{shippingInfo.senderNotes || "無"}</span>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <button 
-                  onClick={() => {
-                    setShowConfirmSenderModal(false);
-                    setShippingSubStep('recipient');
-                  }}
-                  className="w-full bg-emerald-950 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-950/20 active:scale-95 transition-all duration-200"
-                >
-                  確認無誤，填寫收件
-                </button>
-                <button 
-                  onClick={() => setShowConfirmSenderModal(false)}
-                  className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition"
-                >
-                  返回修改
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Step 3.5: Final Double-Confirmation Modal for Store Checkout */}
       <AnimatePresence>
