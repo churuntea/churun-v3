@@ -204,6 +204,7 @@ function ProfileContent() {
   };
 
   const getTierBenefits = (tierName: string) => {
+    if (!tierName) tierName = '初潤寶寶';
     const cleanTier = tierName.startsWith('初潤') ? tierName : `初潤${tierName}`;
     
     const BENEFITS_MAP: Record<string, string[]> = {

@@ -240,12 +240,12 @@ function OrganizationContent() {
   };
 
   const filteredDownlines = downlines.filter(d => 
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (d.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
     (d.member_code && d.member_code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const calculateProgress = (me: any, team: any[]) => {
-    const currentTierIdx = TIERS.findIndex(t => t.name === me.tier);
+    const currentTierIdx = TIERS.findIndex(t => t.name === (me?.tier || '初潤寶寶'));
     if (currentTierIdx > 0) {
       const target = TIERS[currentTierIdx - 1];
       setNextTier(target);
