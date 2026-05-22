@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     contact_person TEXT,
     phone TEXT,
     address TEXT,
+    status TEXT DEFAULT 'active',
+    category TEXT,
+    payment_terms TEXT,
+    bank_info TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
 

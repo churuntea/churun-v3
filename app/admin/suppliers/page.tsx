@@ -18,7 +18,10 @@ import {
   Trash2,
   Edit,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Tag,
+  CreditCard,
+  Briefcase
 } from "lucide-react";
 
 function AdminSuppliersContent() {
@@ -26,11 +29,14 @@ function AdminSuppliersContent() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("active");
   
   // Modal 狀態
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<"add" | "edit">("add");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"basic" | "finance" | "items">("basic");
   
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -40,12 +46,18 @@ function AdminSuppliersContent() {
     contact_person: "",
     address: "",
     notes: "",
+    status: "active",
+    category: "",
+    payment_terms: "",
+    bank_info: "",
     supplied_items: [] as any[]
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const categories = ["原料商", "包材商", "設備商", "物流商", "其他"];
 
   useEffect(() => {
     const isAdmin = sessionStorage.getItem("churun_admin_auth");
@@ -72,7 +84,7 @@ function AdminSuppliersContent() {
     setIsLoading(false);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -102,6 +114,7 @@ function AdminSuppliersContent() {
   const handleOpenAddModal = () => {
     setModalType("add");
     setEditingId(null);
+    setActiveTab("basic");
     setFormData({
       name: "",
       phone: "",
@@ -109,6 +122,10 @@ function AdminSuppliersContent() {
       contact_person: "",
       address: "",
       notes: "",
+      status: "active",
+      category: "原料商",
+      payment_terms: "",
+      bank_info: "",
       supplied_items: []
     });
     setShowModal(true);
@@ -117,6 +134,7 @@ function AdminSuppliersContent() {
   const handleOpenEditModal = (supplier: any) => {
     setModalType("edit");
     setEditingId(supplier.id);
+    setActiveTab("basic");
     setFormData({
       name: supplier.name || "",
       phone: supplier.phone || "",
@@ -124,14 +142,25 @@ function AdminSuppliersContent() {
       contact_person: supplier.contact_person || "",
       address: supplier.address || "",
       notes: supplier.notes || "",
+      status: supplier.status || "active",
+      category: supplier.category || "原料商",
+      payment_terms: supplier.payment_terms || "",
+      bank_info: supplier.bank_info || "",
       supplied_items: supplier.supplied_items || []
     });
     setShowModal(true);
   };
 
+  const validateForm = () => {
+    if (!formData.name) return "廠商名稱為必填！";
+    if (formData.tax_id && !/^\d{8}$/.test(formData.tax_id)) return "統一編號格式錯誤 (需為 8 碼數字)";
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return alert("廠商名稱為必填！");
+    const errorMsg = validateForm();
+    if (errorMsg) return alert(errorMsg);
     
     setIsSubmitting(true);
     try {
@@ -183,15 +212,16 @@ function AdminSuppliersContent() {
     setDeletingId(null);
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name?.includes(searchQuery) || 
-    s.tax_id?.includes(searchQuery) || 
-    s.contact_person?.includes(searchQuery)
-  );
+  const filteredSuppliers = suppliers.filter(s => {
+    const matchesSearch = s.name?.includes(searchQuery) || s.tax_id?.includes(searchQuery) || s.contact_person?.includes(searchQuery);
+    const matchesCategory = filterCategory === "all" || s.category === filterCategory;
+    const matchesStatus = filterStatus === "all" || s.status === filterStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   return (
     <main className="p-8 bg-[#FDFBF7] min-h-screen">
-       <div className="max-w-7xl mx-auto space-y-10">
+       <div className="max-w-7xl mx-auto space-y-8">
           
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -203,23 +233,12 @@ function AdminSuppliersContent() {
                    <ArrowLeft className="w-5 h-5 text-slate-400" />
                 </button>
                 <div>
-                   <h1 className="text-3xl font-black text-slate-800 tracking-tight">供應商資料管理</h1>
-                   <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">維護進貨廠商基本資料與聯絡資訊</p>
+                   <h1 className="text-3xl font-black text-slate-800 tracking-tight">供應商資料庫</h1>
+                   <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">維護進貨廠商基本資料與財務對帳設定</p>
                 </div>
              </div>
              
              <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className="relative flex-1 md:w-80">
-                   <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                   <input 
-                     type="text" 
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     placeholder="🔍 搜尋廠商名稱、統編或聯絡人..." 
-                     className="w-full bg-white border border-slate-200 p-4 pl-11 rounded-2xl text-xs font-bold text-slate-800 shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition outline-none"
-                   />
-                </div>
-                
                 <button 
                   onClick={handleOpenAddModal}
                   className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 shadow-lg shadow-emerald-600/20 shrink-0"
@@ -229,8 +248,41 @@ function AdminSuppliersContent() {
              </div>
           </div>
 
+          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4">
+             <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="🔍 搜尋廠商名稱、統編或聯絡人..." 
+                  className="w-full bg-slate-50 border-none p-3 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 outline-none"
+                />
+             </div>
+             <div className="flex gap-2 shrink-0">
+                <select 
+                  value={filterCategory} 
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="bg-slate-50 border-none p-3 rounded-xl text-xs font-bold text-slate-600 outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500/30"
+                >
+                  <option value="all">所有分類</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select 
+                  value={filterStatus} 
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="bg-slate-50 border-none p-3 rounded-xl text-xs font-bold text-slate-600 outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500/30"
+                >
+                  <option value="all">所有狀態</option>
+                  <option value="active">合作中</option>
+                  <option value="inactive">已終止</option>
+                </select>
+             </div>
+          </div>
+
           {/* List View */}
-          <div className="bg-white rounded-[4rem] p-12 border border-slate-50 shadow-2xl shadow-slate-200/20">
+          <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-2xl shadow-slate-200/20">
              {isLoading ? (
                 <div className="py-32 flex flex-col items-center gap-4">
                    <Loader2 className="w-12 h-12 animate-spin text-slate-200" />
@@ -241,11 +293,10 @@ function AdminSuppliersContent() {
                    <table className="w-full text-left border-collapse">
                       <thead>
                          <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            <th className="pb-4 pl-2">廠商名稱</th>
+                            <th className="pb-4 pl-2">廠商名稱 / 狀態</th>
                             <th className="pb-4">統一編號</th>
-                            <th className="pb-4">聯絡人</th>
-                            <th className="pb-4">聯絡電話</th>
-                            <th className="pb-4">通訊地址</th>
+                            <th className="pb-4">聯絡人與電話</th>
+                            <th className="pb-4">結帳/財務資訊</th>
                             <th className="pb-4">供應品項</th>
                             <th className="pb-4 text-center pr-2">操作</th>
                          </tr>
@@ -254,22 +305,39 @@ function AdminSuppliersContent() {
                          {filteredSuppliers.map((sup) => (
                             <tr key={sup.id} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
                                <td className="py-5 pl-2">
-                                  <div className="flex items-center gap-3">
-                                     <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-black text-xs">
-                                        {sup.name?.charAt(0)}
+                                  <div className="flex flex-col gap-2">
+                                     <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${sup.status === 'inactive' ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                                           {sup.name?.charAt(0)}
+                                        </div>
+                                        <span className={`font-black ${sup.status === 'inactive' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{sup.name}</span>
                                      </div>
-                                     <span className="font-black text-slate-800">{sup.name}</span>
+                                     <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-wider ${sup.status === 'inactive' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                                          {sup.status === 'inactive' ? '終止合作' : '合作中'}
+                                        </span>
+                                        {sup.category && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] uppercase tracking-wider">{sup.category}</span>}
+                                     </div>
                                   </div>
                                </td>
-                               <td className="py-5 text-slate-500 font-mono">{sup.tax_id || "—"}</td>
-                               <td className="py-5 text-slate-600">{sup.contact_person || "—"}</td>
-                               <td className="py-5 text-slate-600 font-mono">{sup.phone || "—"}</td>
-                               <td className="py-5 text-slate-500 max-w-xs truncate" title={sup.address}>{sup.address || "—"}</td>
-                               <td className="py-5 text-slate-500">
+                               <td className="py-5 text-slate-500 font-mono align-top">{sup.tax_id || "—"}</td>
+                               <td className="py-5 text-slate-600 align-top">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="font-black text-slate-700">{sup.contact_person || "—"}</span>
+                                    <span className="text-[10px] text-slate-500 font-mono">{sup.phone || "—"}</span>
+                                  </div>
+                               </td>
+                               <td className="py-5 text-slate-500 align-top">
+                                  <div className="flex flex-col gap-1 text-[10px]">
+                                    <div className="flex items-center gap-1"><Briefcase className="w-3 h-3 text-slate-400"/> {sup.payment_terms || "未設定"}</div>
+                                    <div className="flex items-center gap-1"><CreditCard className="w-3 h-3 text-slate-400"/> <span className="truncate max-w-[150px]">{sup.bank_info || "未設定"}</span></div>
+                                  </div>
+                               </td>
+                               <td className="py-5 text-slate-500 align-top">
                                   {sup.supplied_items && sup.supplied_items.length > 0 ? (
                                     <div className="flex flex-col gap-1 items-start">
                                       {sup.supplied_items.slice(0, 2).map((item: any, idx: number) => (
-                                        <span key={idx} className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-[10px] font-bold inline-block truncate max-w-[120px]">
+                                        <span key={idx} className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-[10px] font-bold inline-block truncate max-w-[120px]">
                                           {item.name}
                                         </span>
                                       ))}
@@ -281,7 +349,7 @@ function AdminSuppliersContent() {
                                     <span className="text-slate-400 italic text-[10px]">無</span>
                                   )}
                                </td>
-                               <td className="py-5 text-center pr-2">
+                               <td className="py-5 text-center pr-2 align-top">
                                   <div className="flex items-center justify-center gap-2">
                                      <button 
                                        onClick={() => handleOpenEditModal(sup)}
@@ -318,7 +386,7 @@ function AdminSuppliersContent() {
        {/* Add/Edit Modal */}
        <AnimatePresence>
           {showModal && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -330,195 +398,196 @@ function AdminSuppliersContent() {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="bg-white rounded-[3rem] w-full max-w-2xl p-10 shadow-2xl relative z-10"
+                  className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl relative z-10 flex flex-col max-h-[90vh]"
                 >
-                   <button 
-                     onClick={() => setShowModal(false)}
-                     className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition"
-                   >
-                      <X className="w-5 h-5" />
-                   </button>
-                   
-                   <div className="mb-8">
-                      <h3 className="text-xl font-black text-slate-800">
-                         {modalType === "add" ? "新增供應商資料" : "編輯供應商資料"}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">
-                         請填寫完整的廠商資料以便日後進貨與對帳
-                      </p>
+                   {/* Modal Header */}
+                   <div className="p-8 pb-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                      <div>
+                         <h3 className="text-2xl font-black text-slate-800">
+                            {modalType === "add" ? "新增供應商資料" : "編輯供應商資料"}
+                         </h3>
+                         <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">
+                            {modalType === "add" ? "建立新的廠商檔案" : `正在編輯: ${formData.name}`}
+                         </p>
+                      </div>
+                      <button 
+                        onClick={() => setShowModal(false)}
+                        className="p-2 bg-slate-50 text-slate-400 hover:text-slate-600 rounded-full transition"
+                      >
+                         <X className="w-5 h-5" />
+                      </button>
                    </div>
 
-                   <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">廠商名稱 (必填)</label>
-                            <div className="relative">
-                               <Building className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
-                               <input 
-                                 type="text" 
-                                 name="name"
-                                 value={formData.name}
-                                 onChange={handleChange}
-                                 placeholder="例: 初潤南投茶園總廠"
-                                 className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
-                                 required
-                               />
-                            </div>
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">統一編號</label>
-                            <div className="relative">
-                               <FileText className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
-                               <input 
-                                 type="text" 
-                                 name="tax_id"
-                                 value={formData.tax_id}
-                                 onChange={handleChange}
-                                 placeholder="例: 12345678"
-                                 className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
-                               />
-                            </div>
-                         </div>
-                      </div>
+                   {/* Tabs */}
+                   <div className="px-8 pt-4 flex gap-6 border-b border-slate-100 shrink-0">
+                      <button 
+                        onClick={() => setActiveTab("basic")}
+                        className={`pb-4 text-xs font-black tracking-widest uppercase transition border-b-2 ${activeTab === 'basic' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      >
+                        基本資訊
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab("finance")}
+                        className={`pb-4 text-xs font-black tracking-widest uppercase transition border-b-2 ${activeTab === 'finance' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      >
+                        財務設定
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab("items")}
+                        className={`pb-4 text-xs font-black tracking-widest uppercase transition border-b-2 ${activeTab === 'items' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      >
+                        供應品項 ({formData.supplied_items.length})
+                      </button>
+                   </div>
 
-                      <div className="grid grid-cols-2 gap-6">
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">聯絡人</label>
-                            <div className="relative">
-                               <User className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
-                               <input 
-                                 type="text" 
-                                 name="contact_person"
-                                 value={formData.contact_person}
-                                 onChange={handleChange}
-                                 placeholder="例: 王經理"
-                                 className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
-                               />
-                            </div>
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">聯絡電話</label>
-                            <div className="relative">
-                               <Phone className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
-                               <input 
-                                 type="tel" 
-                                 name="phone"
-                                 value={formData.phone}
-                                 onChange={handleChange}
-                                 placeholder="例: 049-1234567"
-                                 className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
-                               />
-                            </div>
-                         </div>
-                      </div>
-
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">通訊地址</label>
-                         <div className="relative">
-                            <MapPin className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
-                            <input 
-                              type="text" 
-                              name="address"
-                              value={formData.address}
-                              onChange={handleChange}
-                              placeholder="例: 南投縣竹山鎮..."
-                              className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
-                            />
-                         </div>
-                      </div>
-
-                      <div className="space-y-4 pt-2">
-                         <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">供應品項清單</label>
-                            <button
-                              type="button"
-                              onClick={handleAddSuppliedItem}
-                              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-[9px] font-black transition flex items-center gap-1"
-                            >
-                               <Plus className="w-3 h-3" /> 新增品項
-                            </button>
-                         </div>
+                   {/* Modal Body */}
+                   <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
+                      <form id="supplierForm" onSubmit={handleSubmit} className="space-y-6">
                          
-                         {formData.supplied_items.length === 0 ? (
-                            <div className="p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-bold">
-                               尚未建立任何品項
-                            </div>
-                         ) : (
-                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                               {formData.supplied_items.map((item, idx) => (
-                                  <div key={idx} className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-3 rounded-xl">
-                                     <input
-                                        type="text"
-                                        value={item.name || ""}
-                                        onChange={(e) => handleSuppliedItemChange(idx, "name", e.target.value)}
-                                        placeholder="品項名稱(必填)"
-                                        className="w-full md:w-auto md:flex-[2] min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
-                                        required
-                                     />
-                                     <input
-                                        type="text"
-                                        value={item.spec || ""}
-                                        onChange={(e) => handleSuppliedItemChange(idx, "spec", e.target.value)}
-                                        placeholder="規格(例:1斤)"
-                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
-                                     />
-                                     <input
-                                        type="number"
-                                        value={item.price || ""}
-                                        onChange={(e) => handleSuppliedItemChange(idx, "price", e.target.value)}
-                                        placeholder="單價"
-                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
-                                     />
-                                     <input
-                                        type="text"
-                                        value={item.unit || ""}
-                                        onChange={(e) => handleSuppliedItemChange(idx, "unit", e.target.value)}
-                                        placeholder="單位(例:包)"
-                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
-                                     />
-                                     <button
-                                        type="button"
-                                        onClick={() => handleRemoveSuppliedItem(idx)}
-                                        className="p-2 shrink-0 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                                     >
-                                        <Trash2 className="w-4 h-4" />
-                                     </button>
-                                  </div>
-                               ))}
-                            </div>
+                         {/* Basic Tab */}
+                         {activeTab === "basic" && (
+                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                             <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">廠商名稱 <span className="text-rose-500">*</span></label>
+                                   <div className="relative">
+                                      <Building className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                      <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例: 初潤南投茶園總廠" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" required />
+                                   </div>
+                                </div>
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">統一編號</label>
+                                   <div className="relative">
+                                      <FileText className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                      <input type="text" name="tax_id" value={formData.tax_id} onChange={handleChange} placeholder="8碼數字" maxLength={8} className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">聯絡人</label>
+                                   <div className="relative">
+                                      <User className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                      <input type="text" name="contact_person" value={formData.contact_person} onChange={handleChange} placeholder="例: 王經理" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                   </div>
+                                </div>
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">聯絡電話</label>
+                                   <div className="relative">
+                                      <Phone className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="例: 049-1234567" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">通訊地址</label>
+                                <div className="relative">
+                                   <MapPin className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                   <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="例: 南投縣竹山鎮..." className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                </div>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">合作狀態</label>
+                                   <select name="status" value={formData.status} onChange={handleChange} className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition">
+                                     <option value="active">合作中 (Active)</option>
+                                     <option value="inactive">終止合作 (Inactive)</option>
+                                   </select>
+                                </div>
+                                <div className="space-y-2">
+                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">廠商分類</label>
+                                   <select name="category" value={formData.category} onChange={handleChange} className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition">
+                                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                   </select>
+                                </div>
+                             </div>
+                           </motion.div>
                          )}
-                      </div>
 
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">備註說明</label>
-                         <textarea 
-                           name="notes"
-                           value={formData.notes}
-                           onChange={handleChange}
-                           placeholder="例: 主要供應茶葉原物料..."
-                           rows={3}
-                           className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition resize-none"
-                         />
-                      </div>
+                         {/* Finance Tab */}
+                         {activeTab === "finance" && (
+                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">結帳方式</label>
+                                <div className="relative">
+                                   <Briefcase className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                   <input type="text" name="payment_terms" value={formData.payment_terms} onChange={handleChange} placeholder="例: 月結30天、貨到付款" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                </div>
+                             </div>
 
-                      <div className="flex justify-end gap-3 pt-4">
-                         <button 
-                           type="button" 
-                           onClick={() => setShowModal(false)}
-                           className="px-6 py-3 bg-slate-100 text-slate-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition"
-                         >
-                            取消
-                         </button>
-                         <button 
-                           type="submit" 
-                           disabled={isSubmitting}
-                           className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-600/20"
-                         >
-                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                            {modalType === "add" ? "確認新增" : "儲存修改"}
-                         </button>
-                      </div>
-                   </form>
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">匯款銀行與帳號</label>
+                                <div className="relative">
+                                   <CreditCard className="w-4 h-4 text-slate-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                                   <input type="text" name="bank_info" value={formData.bank_info} onChange={handleChange} placeholder="例: 國泰世華(013) 123456789012" className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition" />
+                                </div>
+                             </div>
+
+                             <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">備註說明</label>
+                                <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="財務對帳提醒事項..." rows={4} className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition resize-none" />
+                             </div>
+                           </motion.div>
+                         )}
+
+                         {/* Items Tab */}
+                         {activeTab === "items" && (
+                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                             <div className="flex items-center justify-between">
+                                <p className="text-xs text-slate-400 font-bold">設定此廠商常態供應的物料或商品，方便後續叫貨</p>
+                                <button type="button" onClick={handleAddSuppliedItem} className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs font-black transition flex items-center gap-1 shrink-0">
+                                   <Plus className="w-3 h-3" /> 新增品項
+                                </button>
+                             </div>
+                             
+                             {formData.supplied_items.length === 0 ? (
+                                <div className="p-10 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
+                                   <Tag className="w-8 h-8 text-slate-300 mb-2" />
+                                   <p className="text-slate-400 text-xs font-bold">尚未建立任何品項</p>
+                                </div>
+                             ) : (
+                                <div className="space-y-3 pt-2">
+                                   {formData.supplied_items.map((item, idx) => (
+                                      <div key={idx} className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-3 rounded-xl">
+                                         <input type="text" value={item.name || ""} onChange={(e) => handleSuppliedItemChange(idx, "name", e.target.value)} placeholder="品項名稱(必填)" className="w-full md:w-auto md:flex-[2] bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 transition" required />
+                                         <input type="text" value={item.spec || ""} onChange={(e) => handleSuppliedItemChange(idx, "spec", e.target.value)} placeholder="規格(例:1斤)" className="w-full md:w-auto md:flex-1 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 transition" />
+                                         <input type="number" value={item.price || ""} onChange={(e) => handleSuppliedItemChange(idx, "price", e.target.value)} placeholder="單價" className="w-full md:w-auto md:flex-1 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 transition" />
+                                         <input type="text" value={item.unit || ""} onChange={(e) => handleSuppliedItemChange(idx, "unit", e.target.value)} placeholder="單位(例:包)" className="w-full md:w-auto md:flex-1 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 transition" />
+                                         <button type="button" onClick={() => handleRemoveSuppliedItem(idx)} className="p-2.5 shrink-0 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition" title="移除品項">
+                                            <Trash2 className="w-4 h-4" />
+                                         </button>
+                                      </div>
+                                   ))}
+                                </div>
+                             )}
+                           </motion.div>
+                         )}
+
+                      </form>
+                   </div>
+
+                   {/* Modal Footer */}
+                   <div className="p-6 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-slate-50/50 rounded-b-[2.5rem]">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowModal(false)}
+                        className="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition shadow-sm"
+                      >
+                         取消
+                      </button>
+                      <button 
+                        form="supplierForm"
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-600/20"
+                      >
+                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                         {modalType === "add" ? "確認新增" : "儲存修改"}
+                      </button>
+                   </div>
                 </motion.div>
              </div>
           )}
