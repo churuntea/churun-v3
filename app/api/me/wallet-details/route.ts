@@ -10,22 +10,28 @@ export async function GET() {
     }
     const currentUserId = session.memberId;
 
-    // 1. Fetch ledger history
-    const { data: txData, error: txError } = await supabaseAdmin
-      .from('wallet_transactions')
-      .select('*')
-      .eq('member_id', currentUserId)
-      .order('created_at', { ascending: false });
-      
+    // 使用 Promise.all 並行執行個人帳本與下線名單的查詢
+    const [
+      { data: txData, error: txError },
+      { data: downlineMembers }
+    ] = await Promise.all([
+      // 1. Fetch ledger history
+      supabaseAdmin
+        .from('wallet_transactions')
+        .select('*')
+        .eq('member_id', currentUserId)
+        .order('created_at', { ascending: false }),
+        
+      // 2. Fetch pending B2B commissions (downline members)
+      supabaseAdmin
+        .from('members')
+        .select('id, name')
+        .eq('upline_id', currentUserId)
+    ]);
+
     if (txError) {
       return NextResponse.json({ error: txError.message }, { status: 500 });
     }
-
-    // 2. Fetch pending B2B commissions (downline orders not yet settled)
-    const { data: downlineMembers } = await supabaseAdmin
-      .from('members')
-      .select('id, name')
-      .eq('upline_id', currentUserId);
 
     let pendingCommissions: any[] = [];
 

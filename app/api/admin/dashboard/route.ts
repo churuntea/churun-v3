@@ -7,38 +7,31 @@ export async function GET(request: Request) {
     // ideally should use next-auth or verify JWT, but we'll trust the request for this refactor MVP)
     // NOTE: In production, enforce JWT validation here.
     
-    // 1. Fetch total members count
-    const { count: totalMembers, error: membersError } = await supabase
-      .from('members')
-      .select('*', { count: 'exact', head: true });
-
-    // 2. Fetch total orders count
-    const { count: totalOrders, error: ordersError } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true });
-
-    // 3. Fetch total revenue (sum of completed orders total_amount)
-    // Note: To sum in supabase JS, we can just fetch the column and reduce, 
-    // or use RPC. Let's fetch completed orders amount and reduce for now.
-    const { data: completedOrders, error: revError } = await supabase
-      .from('orders')
-      .select('total_amount')
-      .eq('status', 'completed');
+    // 使用 Promise.all 並行執行 5 支獨立的資料庫查詢
+    const [
+      { count: totalMembers, error: membersError },
+      { count: totalOrders, error: ordersError },
+      { data: completedOrders, error: revError },
+      { count: pendingWithdrawals, error: withdrawError },
+      { data: lowInventoryProducts, error: inventoryError }
+    ] = await Promise.all([
+      // 1. Fetch total members count
+      supabase.from('members').select('*', { count: 'exact', head: true }),
       
+      // 2. Fetch total orders count
+      supabase.from('orders').select('*', { count: 'exact', head: true }),
+      
+      // 3. Fetch total revenue (sum of completed orders total_amount)
+      supabase.from('orders').select('total_amount').eq('status', 'completed'),
+      
+      // 4. Fetch pending withdrawals count
+      supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      
+      // 5. Fetch low inventory products
+      supabase.from('products').select('id, name, stock').lt('stock', 10).limit(5)
+    ]);
+
     const totalRevenue = completedOrders ? completedOrders.reduce((acc, curr) => acc + (Number(curr.total_amount) || 0), 0) : 0;
-
-    // 4. Fetch pending withdrawals count
-    const { count: pendingWithdrawals, error: withdrawError } = await supabase
-      .from('withdrawals')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-
-    // 5. Fetch low inventory products
-    const { data: lowInventoryProducts, error: inventoryError } = await supabase
-      .from('products')
-      .select('id, name, stock')
-      .lt('stock', 10)
-      .limit(5);
 
     if (membersError || ordersError || revError || withdrawError || inventoryError) {
       throw new Error("Failed to fetch dashboard metrics");
