@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     const { data: recentOrders } = await supabase
       .from("orders")
-      .select("id, member_id, total_amount, status, created_at, shipping_info, custom_logo_url")
+      .select("id, member_id, total_amount, status, created_at, shipping_info, custom_logo_url, members(is_b2b)")
       .gte("created_at", sixMonthsAgo.toISOString())
       .order("created_at", { ascending: true });
 
