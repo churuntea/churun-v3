@@ -31,7 +31,10 @@ export async function POST(request: Request) {
     // 6. Return the response to the client with the same status and headers
     const resHeaders = new Headers();
     response.headers.forEach((value, key) => {
-      resHeaders.set(key, value);
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== 'content-encoding' && lowerKey !== 'content-length' && lowerKey !== 'transfer-encoding') {
+        resHeaders.set(key, value);
+      }
     });
 
     return new NextResponse(data, {
