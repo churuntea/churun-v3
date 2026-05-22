@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     // 4. Forward the request to Supabase
     const response = await fetch(url, {
       ...options,
-      headers
+      headers,
+      cache: 'no-store'
     });
 
     // 5. Read the response body
