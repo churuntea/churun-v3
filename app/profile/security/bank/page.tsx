@@ -196,7 +196,7 @@ export default function BankSettingsPage() {
               <div className="space-y-1">
                  <h2 className="font-black text-sm uppercase tracking-widest">提款帳戶安全保護</h2>
                  <p className="text-[10px] text-white/60 leading-relaxed">
-                    請務必確認填寫的匯款帳號與「戶名」相符。此帳戶將用於您的分紅提領，設定後如需修改需再次進行身份驗證。
+                    請務必確認填寫的匯款帳號與「戶名」相符。此帳戶將用於您的帳戶提領，設定後如需修改需再次進行身份驗證。
                  </p>
               </div>
            </div>
@@ -205,14 +205,13 @@ export default function BankSettingsPage() {
         {/* Bank Form */}
         <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-6">
            <div className="space-y-2">
-              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼與名稱 (例: 國泰 013)</label>
+              <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest ml-2">銀行代碼與名稱 (依規定限國泰世華銀行)</label>
               <div className="flex gap-4">
                  <input 
-                    type="text" value={bankCode} onChange={e => setBankCode(e.target.value)} maxLength={3}
-                    className="w-24 bg-slate-50 border-none rounded-2xl p-5 text-sm font-black text-slate-800 text-center focus:ring-2 focus:ring-emerald-500/20"
-                    placeholder="013"
+                    type="text" value="013" readOnly
+                    className="w-24 bg-slate-100 border-none rounded-2xl p-5 text-sm font-black text-slate-400 text-center cursor-not-allowed"
                  />
-                 <div className="flex-1 bg-slate-100 rounded-2xl p-5 text-xs font-black text-emerald-900 flex items-center">{BANK_MAP[bankCode] || "自定義/未驗證銀行"}</div>
+                 <div className="flex-1 bg-emerald-50 rounded-2xl p-5 text-xs font-black text-emerald-900 flex items-center">國泰世華商業銀行</div>
               </div>
            </div>
 

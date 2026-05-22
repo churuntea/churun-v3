@@ -765,7 +765,7 @@ function AdminOrdersContent() {
       "⚠️ 警告：您即將進行「物理刪除」訂單！\n\n" +
       "此操作將會：\n" +
       "1. 扣回該訂單發放給買家的一切購物紅利點數。\n" +
-      "2. 扣回該訂單發放給其直屬上線的推薦分紅儲值金。\n" +
+      "2. 扣回該訂單發放給其直屬上線的推薦回饋儲值金。\n" +
       "3. 退還買家該訂單所折抵扣除的紅利點數與儲值金。\n" +
       "4. 返還商品的庫存數量。\n" +
       "5. 從資料庫中「永久物理刪除」該訂單與其明細。\n\n" +
@@ -1202,11 +1202,11 @@ function AdminOrdersContent() {
                           )}
                         </td>
 
-                        {/* 預計回饋 (B2B 分紅 / B2C 點數) */}
+                        {/* 預計回饋 (B2B 回饋 / B2C 點數) */}
                         <td className="p-8 text-right font-bold text-xs text-slate-600">
                           {order.members?.is_b2b ? (
-                            <span className="text-amber-600 font-mono font-black" title="B2B 上線推薦分紅">
-                              分紅: ${order.b2b_commission || 0}
+                            <span className="text-amber-600 font-mono font-black" title="B2B 上線推薦回饋">
+                              回饋: ${order.b2b_commission || 0}
                             </span>
                           ) : (
                             <span className="text-indigo-600 font-mono font-black" title="B2C 積分紅利">
@@ -1295,7 +1295,7 @@ function AdminOrdersContent() {
                               {order.status === 'completed' && order.fulfillment_status === 'shipped' && (
                                  <button 
                                    onClick={() => {
-                                     if (confirm("確認此訂單已順利簽收或取貨完成？\n確認後將啟動 30 天鑑賞期計時，屆滿後自動撥發分紅與點數。")) {
+                                     if (confirm("確認此訂單已順利簽收或取貨完成？\n確認後將啟動 30 天鑑賞期計時，屆滿後自動撥發回饋與點數。")) {
                                        updateFulfillment(order.id, 'delivered', order.tracking_number);
                                      }
                                    }}

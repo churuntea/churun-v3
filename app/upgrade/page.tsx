@@ -124,7 +124,7 @@ function UpgradeContent() {
               {[
                 { title: "專屬推薦分潤", desc: "每一筆經由您推薦產生的訂單，皆可獲得高額退傭。", icon: Zap },
                 { title: "團隊管理權限", icon: Users, desc: "查看下線團隊發展，領取組織培育獎金。" },
-                { title: "季度業績分紅", icon: Award, desc: "達成指定門檻，參與總部年度紅利分配。" }
+                { title: "季度業績回饋", icon: Award, desc: "達成指定門檻，參與總部年度紅利分配。" }
               ].map((b, i) => (
                 <div key={i} className="bg-white rounded-[2.5rem] p-8 border border-slate-50 shadow-sm flex items-start gap-6">
                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center flex-shrink-0">

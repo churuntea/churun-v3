@@ -207,7 +207,7 @@ function mapUserTextToCommand(text: string): string {
   }
 
   // Case "6": 帳本最新明細
-  if (["帳本", "明細", "交易記錄", "交易明細", "提領紀錄", "分紅", "退傭", "錢包明細", "流動明細"].some(kw => norm.includes(kw))) {
+  if (["帳本", "明細", "交易記錄", "交易明細", "提領紀錄", "退傭", "錢包明細", "流動明細"].some(kw => norm.includes(kw))) {
     return "6";
   }
 
@@ -261,7 +261,7 @@ async function handleLinkedUserFlow(replyToken: string, userId: string, member: 
 ━━━━━━━━━━━━━━━━━━
 ✨ 專屬特權福利：
 - 商品採購可享 ${member.is_b2b ? "B2B 批發優惠折扣" : "B2C 會員積點回饋"}
-- 解鎖直推、團隊分紅利益與資產提領權限
+- 解鎖直推、團隊回饋利益與資產提領權限
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
       break;
@@ -454,7 +454,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 ● 當前創業狀態：👔 創業創辦人 (B2B特許)
 ━━━━━━━━━━━━━━━━━━
 📈 組織發展攻略：
-- 直推合夥人數達 10 人即可申請晉升更高級別，解鎖更高批發分紅比例！
+- 直推合夥人數達 10 人即可申請晉升更高級別，解鎖更高批發回饋比例！
 - 讓我們攜手開創初潤茶產業，實現共創雙贏！
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
@@ -493,7 +493,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
             const typeMap: { [key: string]: string } = {
               deposit: "📥 帳戶儲值",
               order_deduction: "📤 採購折抵",
-              commission_refund: "💰 夥伴分紅",
+              commission_refund: "💰 夥伴回饋",
               withdrawal: "💸 預收提領",
             };
             const txType = typeMap[tx.transaction_type] || tx.transaction_type;
@@ -507,7 +507,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
 
           replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
-您最近 ${txs.length} 筆虛擬錢包 / 退傭分紅流動明細：
+您最近 ${txs.length} 筆虛擬錢包 / 退傭流動明細：
 
 ${listStr}━━━━━━━━━━━━━━━━━━
 💡 溫馨提醒：
@@ -517,7 +517,7 @@ ${listStr}━━━━━━━━━━━━━━━━━━
         } else {
           replyMsg = `📋 【資產明細賬本 · TRANSCRIPT】
 ━━━━━━━━━━━━━━━━━━
-您目前尚未有任何虛擬錢包或退傭分紅的資金異動明細。
+您目前尚未有任何虛擬錢包或退傭的資金異動明細。
 
 💡 提示：點擊下方快捷按鈕即可查詢其他項目！`;
         }

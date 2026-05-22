@@ -77,7 +77,7 @@ export default function CommissionHistory() {
              <div className="relative z-10 flex justify-between items-start mb-6">
                 <div className="space-y-1">
                    <p className="text-[10px] font-black tracking-[0.3em] uppercase text-emerald-400">Available Commission</p>
-                   <p className="text-sm font-bold text-white/50">目前累積可提領分紅</p>
+                   <p className="text-sm font-bold text-white/50">目前累積可提領餘額</p>
                 </div>
                 <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-1.5">
                    <Sparkles className="w-3 h-3 text-amber-300" />
@@ -92,7 +92,7 @@ export default function CommissionHistory() {
              <div className="mt-8 flex justify-between items-center relative z-10 pt-6 border-t border-white/10">
                 <div className="flex items-center gap-2">
                    <Coins className="w-4 h-4 text-emerald-400" />
-                   <span className="text-xs font-black text-slate-300">分紅帳戶</span>
+                   <span className="text-xs font-black text-slate-300">提領帳戶</span>
                 </div>
                 <button onClick={() => router.push("/withdraw")} className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1 hover:opacity-80 transition">
                    申請提領 <ArrowUpRight className="w-3.5 h-3.5" />

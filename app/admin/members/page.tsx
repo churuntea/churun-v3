@@ -202,7 +202,7 @@ function AdminMembersContent() {
       '電話': m.phone,
       '信箱': m.email || '',
       '職級': m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' ? '合夥人' :
-             m.tier === 'ambassador' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '品牌大使' :
+             m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '品牌大使' :
              m.tier === 'invited_team' || m.tier === '初潤特邀團' ? '初潤特邀團' : '一般會員',
       '實際職級': m.tier || '一般會員',
       '可用餘額': m.virtual_balance || 0,
@@ -423,7 +423,7 @@ function AdminMembersContent() {
                                {(m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') && <Crown className="w-3 h-3" />}
                                {
                                  (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') ? '合夥人' :
-                                 (m.tier === 'ambassador' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '品牌大使' :
+                                 (m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '品牌大使' :
                                  (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? '初潤特邀團' : '一般會員'
                                }
                             </span>

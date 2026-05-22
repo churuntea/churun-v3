@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 export const dynamic = 'force-dynamic';
 
@@ -967,7 +968,7 @@ function StoreContent() {
   const handleExecuteRedeem = async (itemName: string, points: number) => {
     if (!memberInfo) return;
     if (memberInfo.is_b2b) {
-      alert("⚠️ 創業合夥人專享 30% 退傭分紅！點數商城僅限一般零售會員兌換。");
+      alert("⚠️ 創業合夥人專享 30% 退傭！點數商城僅限一般零售會員兌換。");
       return;
     }
     if (Number(memberInfo.points_balance) < points) {
@@ -3739,28 +3740,7 @@ function StoreContent() {
       {/* Global Image Preview Modal */}
       <AnimatePresence>
         {previewImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
-            onClick={() => setPreviewImage(null)}
-          >
-            <motion.img
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              src={previewImage}
-              className="max-w-full max-h-full object-contain rounded-2xl"
-              alt="Preview"
-            />
-            <button
-              onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
-              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </motion.div>
+          <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
         )}
       </AnimatePresence>
     </div>

@@ -289,7 +289,7 @@ function ApplyContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4 md:p-6 relative overflow-hidden pb-16">
+    <div className="min-h-screen bg-[#FDFBF7] flex justify-center items-start pt-12 p-4 md:p-6 relative overflow-x-hidden pb-24">
       
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">

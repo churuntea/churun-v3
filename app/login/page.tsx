@@ -277,86 +277,50 @@ function LoginContent() {
     setIsLoading(true);
     setError(null);
 
-    // Try selecting with pattern_code first
-    let { data, error: fetchError }: { data: any, error: any } = await supabase
-      .from("members")
-      .select("id, name, password, pattern_code, status")
-      .or(`phone.eq.${effectivePhone},member_code.eq.${effectivePhone}`)
-      .single();
-
-    // Fallback if column missing
-    if (fetchError && (fetchError.message.includes("pattern_code") || fetchError.message.includes("SCHEMA CACHE"))) {
-      console.warn("pattern_code column missing, falling back to basic select");
-      const fallback = await supabase
-        .from("members")
-        .select("id, name, password, status")
-        .or(`phone.eq.${effectivePhone},member_code.eq.${effectivePhone}`)
-        .single();
-      data = fallback.data;
-      fetchError = fallback.error;
-    }
-
-    if (fetchError || !data) {
-      alert("查無此會員，請確認手機號碼 或 會員帳號是否正確");
-      setIsLoading(false);
-      return;
-    }
-
-    // Check account status for B2B pending reviews
-    if (data.status && data.status !== 'active') {
-      if (data.status === 'pending_accounting') {
-        alert("⏳ 您的 B2B 創業申請正由「總部會計核對匯款金額」，審核通過前暫時無法登入。");
-      } else if (data.status === 'pending_manager') {
-        alert("⏳ 您的 B2B 創業申請「已通過會計核對」，目前正送交「業務主管進行最終審查」，審核通過後即可登入系統！");
-      } else {
-        alert(`⚠️ 您的帳號狀態目前為「${data.status}」，暫時無法登入。`);
-      }
-      setIsLoading(false);
-      return;
-    }
-
-    if (loginMode === 'password') {
-      if (data.password !== password) {
-        alert("密碼錯誤，請重新輸入");
-        setIsLoading(false);
-        return;
-      }
-    } else {
-      // Check for pattern in DB first, then fallback to local
-      const effectivePattern = data.pattern_code || localStorage.getItem(`churun_local_pattern_${data.id}`);
-
-      if (!effectivePattern) {
-        alert("您尚未設定圖形鎖，請先使用密碼登入並前往安全中心設定");
-        setLoginMode('password');
-        setIsLoading(false);
-        return;
-      }
-      if (effectivePattern !== patternCode) {
-        setError("圖形解鎖失敗");
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    localStorage.setItem("churun_member_id", data.id);
-    localStorage.setItem("churun_member_name", data.name);
-    localStorage.setItem("churun_last_phone", effectivePhone);
-    
-    // 更新最後登入時間
+    // Instead of direct DB query, we call our new /api/auth/login route
     try {
-      await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.id);
-    } catch (err) {
-      console.warn("更新最後登入時間失敗", err);
-    }
-    
-    if (rememberPhone) {
-      localStorage.setItem("churun_remembered_phone", effectivePhone);
-    } else {
-      localStorage.removeItem("churun_remembered_phone");
-    }
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: effectivePhone,
+          password: password,
+          patternCode: patternCode,
+          loginMode: loginMode
+        })
+      });
+      const data = await res.json();
 
-    router.push("/");
-    setIsLoading(false);
+      if (!data.success) {
+        if (data.status === 'pending_accounting') {
+          alert("⏳ 您的 B2B 創業申請正由「總部會計核對匯款金額」，審核通過前暫時無法登入。");
+        } else if (data.status === 'pending_manager') {
+          alert("⏳ 您的 B2B 創業申請「已通過會計核對」，目前正送交「業務主管進行最終審查」，審核通過後即可登入系統！");
+        } else {
+          alert(data.error || "登入失敗");
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // 儲存基本資訊至 localStorage 供前端顯示使用，真正的 auth 在 HttpOnly Cookie 中
+      localStorage.setItem("churun_member_id", data.memberId);
+      localStorage.setItem("churun_member_name", data.memberName);
+      localStorage.setItem("churun_last_phone", effectivePhone);
+      
+      if (rememberPhone) {
+        localStorage.setItem("churun_remembered_phone", effectivePhone);
+      } else {
+        localStorage.removeItem("churun_remembered_phone");
+      }
+
+      router.push("/");
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("連線異常，請稍後再試");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

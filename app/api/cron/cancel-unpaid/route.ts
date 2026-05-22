@@ -65,7 +65,7 @@ function getWorkingDaysDiff(startDateStr: string, endDate: Date): number {
 }
 
 // =========================================================================
-// 3. 點數、儲值金與分紅推薦金安全回滾函數
+// 3. 點數、儲值金與推薦回饋金安全回滾函數
 // =========================================================================
 async function rollbackOrderCommissionsAndPoints(orderId: string) {
   try {
@@ -128,7 +128,7 @@ async function rollbackOrderCommissionsAndPoints(orderId: string) {
       }
     }
 
-    // B. 回滾已發放的 B2B 上線推薦分紅
+    // B. 回滾已發放的 B2B 上線推薦回饋
     const { data: commissionTxs } = await supabase
       .from('wallet_transactions')
       .select('*')
@@ -163,8 +163,8 @@ async function rollbackOrderCommissionsAndPoints(orderId: string) {
 
           await supabase.from('notifications').insert({
             member_id: tx.member_id,
-            title: '⚠️ 推薦分紅獎金已扣回',
-            content: `您的下線夥伴 ${buyer.name} 的訂單 ${orderNumber} 已無效/刪除，系統已扣回原撥發之推廣分紅 $${tx.amount} 元。`,
+            title: '⚠️ 推薦回饋獎金已扣回',
+            content: `您的下線夥伴 ${buyer.name} 的訂單 ${orderNumber} 已無效/刪除，系統已扣回原撥發之推廣回饋 $${tx.amount} 元。`,
             type: 'referral'
           });
           console.log(`[Rollback] Deducted $${tx.amount} commission from Member ${tx.member_id}`);

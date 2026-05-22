@@ -568,7 +568,7 @@ function OrdersContent() {
                            ) : (
                               <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 block">
                                  {Number(order.b2b_commission || 0) > 0 ? (
-                                    `分紅返還 +NT$ ${Number(order.b2b_commission).toLocaleString()}`
+                                    `回饋返還 +NT$ ${Number(order.b2b_commission).toLocaleString()}`
                                  ) : (
                                     `獲得積分 +${Number(order.reward_points || Math.floor(order.total_amount / 100)).toLocaleString()} P`
                                  )}

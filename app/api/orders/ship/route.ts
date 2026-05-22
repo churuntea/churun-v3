@@ -254,7 +254,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
           await supabase.from('notifications').insert({
             member_id: buyer.id,
             title: '訂單已簽收/已取貨 🎉',
-            content: `您的訂單 #${(orderData.order_number || orderData.id).slice(0, 8)} 已簽收/已取貨！依品牌規章新制，消費回饋與推廣分紅將於簽收後滿 30 天由系統自動撥點發送。`,
+            content: `您的訂單 #${(orderData.order_number || orderData.id).slice(0, 8)} 已簽收/已取貨！依品牌規章新制，消費回饋與推廣回饋將於簽收後滿 30 天由系統自動撥點發送。`,
             type: 'order'
           });
 
@@ -269,7 +269,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 ━━━━━━━━━━━━━━━━━━
 🍵 購買商品明細：
 ${itemsList}━━━━━━━━━━━━━━━━━━
-💡 溫馨提示：依據品牌規章新制，消費回饋紅利與推廣分紅將於「簽收取貨滿 30 天」自動發送存入您的帳戶，感謝您的支持與愛護！`;
+💡 溫馨提示：依據品牌規章新制，消費回饋紅利與推廣回饋將於「簽收取貨滿 30 天」自動發送存入您的帳戶，感謝您的支持與愛護！`;
 
             const pushResult = await sendLinePushNotification(buyer.line_id, pushText);
             if (pushResult && pushResult.success) {

@@ -77,9 +77,14 @@ function InventoryDashboard() {
     setIsLoading(true);
     try {
       if (orderId) {
-        const { data: ord } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (ord) {
-          setSelectedOrder(ord);
+        const res = await fetch("/api/admin/inventory-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get_order", payload: { orderId } })
+        });
+        const result = await res.json();
+        if (result.success && result.data) {
+          setSelectedOrder(result.data);
           setShowOrderModal(true);
           setIsLoading(false);
           return;
@@ -195,44 +200,35 @@ function InventoryDashboard() {
         startDateStr = new Date(now.setDate(now.getDate() - 30)).toISOString();
       }
 
-      // 1. 獲取商品列表
-      const { data: prods } = await supabase.from("products").select("*").order("created_at", { ascending: false });
+      // 透過後端 API 取得所有原始數據
+      const res = await fetch(`/api/admin/inventory-raw?startDateStr=${startDateStr}`);
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+
+      const { prods, whs, whInv, sups, realLogs, filteredItems } = result.data;
       const safeProds = prods || [];
 
       // 1.2 獲取倉庫列表與庫存
-      const { data: whs } = await supabase.from("warehouses").select("*");
       setWarehousesList(whs || []);
-
-      const { data: whInv } = await supabase.from("warehouse_inventory").select("*");
       const safeWhInv = whInv || [];
 
       // 合併庫存數據到商品列表
-      const mergedProds = safeProds.map(p => {
-         const daan = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 1)?.stock || 0;
-         const xinzhuang = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 2)?.stock || 0;
-         const caotun = safeWhInv.find(i => i.product_id === p.id && i.warehouse_id === 3)?.stock || 0;
+      const mergedProds = safeProds.map((p: any) => {
+         const daan = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 1)?.stock || 0;
+         const xinzhuang = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 2)?.stock || 0;
+         const caotun = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 3)?.stock || 0;
          const total = daan + xinzhuang + caotun;
          return { ...p, stock_daan: daan, stock_xinzhuang: xinzhuang, stock_caotun: caotun, stock: total };
       });
       setProducts(mergedProds);
 
       // 1.5 獲取供應商列表
-      try {
-        const { data: sups } = await supabase.from("suppliers").select("name");
-        setSuppliersList(sups || []);
-      } catch (e) {
-        console.warn("Fetch suppliers error:", e);
-      }
+      setSuppliersList(sups || []);
 
       // 2. 獲取真實進貨與盤點紀錄 (inventory_logs)
-      let inboundQuery = supabase.from("inventory_logs").select("*").order("created_at", { ascending: false });
-      if (startDateStr) inboundQuery = inboundQuery.gte("created_at", startDateStr);
-      
-      const { data: realLogs, error: logError } = await inboundQuery;
-      
-      if (logError && logError.code === "42P01") {
+      if (realLogs?.fallback) {
          // Fallback to mock data if table doesn't exist yet
-         let mockInbound = safeProds.map((p, idx) => ({
+         let mockInbound = safeProds.map((p: any, idx: number) => ({
            id: `INB-${1000 + idx}`,
            product_name: p.name,
            category: p.category || "極萃系列",
@@ -243,22 +239,11 @@ function InventoryDashboard() {
            status: "已入庫"
          }));
          if (startDateStr) {
-           mockInbound = mockInbound.filter(m => new Date(m.created_at) >= new Date(startDateStr));
+           mockInbound = mockInbound.filter((m: any) => new Date(m.created_at) >= new Date(startDateStr));
          }
          setInboundRecords(mockInbound);
       } else {
          setInboundRecords(realLogs || []);
-      }
-
-      // 3. 獲取銷售出貨紀錄
-      let orderQuery = supabase.from("order_items").select("name, quantity, price, order_id");
-      const { data: items } = await orderQuery;
-      
-      let filteredItems = items || [];
-      if (startDateStr) {
-         const { data: orders } = await supabase.from("orders").select("id, created_at").gte("created_at", startDateStr);
-         const validOrderIds = new Set((orders || []).map(o => o.id));
-         filteredItems = filteredItems.filter((it: any) => validOrderIds.has(it.order_id));
       }
 
       const salesStatsMap: Record<string, any> = {};
@@ -310,65 +295,76 @@ function InventoryDashboard() {
 
       if (modalType === "new_product") {
         // 1. 建立新品建檔
-        const { data: insertData, error: insErr } = await supabase.from("products").insert({
-          name: newProductName,
-          price: Number(newProductPrice),
-          category: newProductCategory || "極萃系列",
-          stock: qty,
-          min_stock: 10
-        }).select().single();
-
-        if (insErr) throw insErr;
+        const res = await fetch("/api/admin/inventory-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: "create_product", 
+            payload: { name: newProductName, price: Number(newProductPrice), category: newProductCategory || "極萃系列", stock: qty, min_stock: 10 } 
+          })
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error);
+        
         targetProdName = newProductName;
         targetProdCategory = newProductCategory || "極萃系列";
         finalStock = qty;
+        
+        // 更新倉庫庫存 (新品預設加在指定倉庫)
+        await fetch("/api/admin/inventory-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: "update_stock", 
+            payload: { productId: result.data.id, warehouseId: Number(selectedWarehouseId), qty, isNewProduct: true, type: "inbound" } 
+          })
+        });
+
         alert(`🎉 成功建檔新品「${newProductName}」並完成首批進貨 ${qty} 件！`);
-      } else if (modalType === "inbound") {
+      } else if (modalType === "inbound" || modalType === "stock") {
         // 更新庫存
         const targetProd = products.find(p => p.id === selectedProductId);
         targetProdName = targetProd?.name;
         targetProdCategory = targetProd?.category || "極萃系列";
         minStock = targetProd?.min_stock || 10;
         
-        // 獲取該倉庫目前的庫存
-        const { data: currentInv } = await supabase
-          .from("warehouse_inventory")
-          .select("stock")
-          .eq("product_id", selectedProductId)
-          .eq("warehouse_id", Number(selectedWarehouseId))
-          .single();
-          
-        const currentStock = Number(currentInv?.stock || 0);
-        
-        if (modalType === "inbound" || modalType === "new_product") {
-          finalStock = currentStock + qty;
+        const res = await fetch("/api/admin/inventory-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: "update_stock", 
+            payload: { productId: selectedProductId, warehouseId: Number(selectedWarehouseId), qty, isNewProduct: false, type: modalType === "inbound" ? "inbound" : "stock" } 
+          })
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error);
+        finalStock = result.finalStock;
+
+        if (modalType === "inbound") {
           alert(`🎉 成功進貨入庫！商品「${targetProd?.name}」在指定倉庫的庫存更新為 ${finalStock} 件。`);
         } else {
-          finalStock = qty;
           logType = "stock_check";
           alert(`🎯 庫存盤點完成！商品「${targetProd?.name}」在指定倉庫的庫存校正為 ${finalStock} 件。`);
         }
-        
-        // 更新倉庫庫存
-        await supabase
-          .from("warehouse_inventory")
-          .upsert({ 
-            product_id: selectedProductId, 
-            warehouse_id: Number(selectedWarehouseId), 
-            stock: finalStock 
-          });
       }
 
       // 嘗試寫入真實日誌
       try {
-        await supabase.from("inventory_logs").insert({
-          product_name: targetProdName,
-          category: targetProdCategory,
-          quantity: modalType === "stock" ? finalStock : qty,
-          unit_cost: Number(unitCost || 0),
-          supplier: supplier || "未指定",
-          type: logType,
-          notes: origin ? `[產地: ${origin}] ${notes}` : notes
+        await fetch("/api/admin/inventory-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: "log_inventory", 
+            payload: { 
+              productName: targetProdName, 
+              category: targetProdCategory, 
+              quantity: modalType === "stock" ? finalStock : qty, 
+              unitCost: Number(unitCost || 0), 
+              supplier: supplier || "未指定", 
+              type: logType, 
+              notes: origin ? `[產地: ${origin}] ${notes}` : notes 
+            } 
+          })
         });
       } catch (logErr) {
         console.warn("未能寫入 inventory_logs", logErr);
@@ -405,7 +401,14 @@ function InventoryDashboard() {
     setIsLoading(true);
     try {
       const ids = Array.from(selectedRowIds);
-      await supabase.from('products').delete().in('id', ids);
+      const res = await fetch("/api/admin/inventory-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_products", payload: { ids } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
       alert(`已成功刪除 ${ids.length} 項商品。`);
       setSelectedRowIds(new Set());
       fetchData();

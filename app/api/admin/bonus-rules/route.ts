@@ -6,8 +6,8 @@ const DEFAULT_RULES = [
     tier_name: '初潤靈魂伴侶', 
     min_spend: 50000, 
     reward_rate: 30, 
-    description: '品牌核心領袖級別，享有最高分紅比例與專屬權益。',
-    privileges: ['專屬客服', '新品預購優先權', '最高級別分紅'],
+    description: '品牌核心領袖級別，享有最高回饋比例與專屬權益。',
+    privileges: ['專屬客服', '新品預購優先權', '最高級別回饋'],
     display_order: 0,
     color_theme: 'from-indigo-600 to-indigo-900'
   },
@@ -16,7 +16,7 @@ const DEFAULT_RULES = [
     min_spend: 25000, 
     reward_rate: 40, 
     description: '核心支持者，穩定參與品牌活動。',
-    privileges: ['生日禮金', '活動受邀權', '進階級別分紅'],
+    privileges: ['生日禮金', '活動受邀權', '進階級別回饋'],
     display_order: 1,
     color_theme: 'from-emerald-600 to-emerald-900'
   },

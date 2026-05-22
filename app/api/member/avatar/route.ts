@@ -5,7 +5,7 @@ import { sendSecurityNotification } from '@/app/api/notify-helper';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { memberId, avatarBase64, avatarSettings, motto, address } = body;
+    const { memberId, avatarBase64, avatarSettings, motto, address, birthday, city, district } = body;
 
     if (!memberId) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     if (avatarSettings) updateData.avatar_settings = avatarSettings;
     if (motto !== undefined) updateData.motto = motto;
     if (address !== undefined) updateData.address = address;
+    if (birthday !== undefined) updateData.birthday = birthday;
+    if (city !== undefined) updateData.city = city;
+    if (district !== undefined) updateData.district = district;
 
     if (Object.keys(updateData).length > 0) {
       const { error: dbError } = await supabase

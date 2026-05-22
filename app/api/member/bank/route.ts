@@ -15,6 +15,9 @@ export async function POST(request: Request) {
       bank_card_photo_url,
       bank_remark 
     } = body;
+    
+    // 強制鎖定國泰世華銀行 013
+    const enforcedBankCode = '013';
 
     if (!memberId) {
       return NextResponse.json({ success: false, error: '缺少會員 ID' }, { status: 400 });
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
       const { error: firstError } = await supabase
         .from('members')
         .update({
-          bank_code,
+          bank_code: enforcedBankCode,
           bank_account,
           bank_account_name: bank_account_name || '',
           bank_branch: bank_branch || '',
@@ -85,7 +88,7 @@ export async function POST(request: Request) {
         const { error: fallbackError } = await supabase
           .from('members')
           .update({
-            bank_code,
+            bank_code: enforcedBankCode,
             bank_account,
             beneficiary: combinedBeneficiary
           })
@@ -107,7 +110,7 @@ export async function POST(request: Request) {
     await sendSecurityNotification({
       memberId,
       actionName: "銀行帳戶設定變更",
-      details: `您已將提領收款帳戶更新為：${bank_code} - ${bank_account} (${bank_account_name || '未填寫戶名'})`,
+      details: `您已將提領收款帳戶更新為：${enforcedBankCode} - ${bank_account} (${bank_account_name || '未填寫戶名'})`,
     });
 
     return NextResponse.json({ 

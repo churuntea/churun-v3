@@ -80,7 +80,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤靈魂伴侶', 
     privileges: [
-      '專屬匯率：30元 = 1點', 
       '累積消費滿 $50,000 晉升', 
       '每月保級：消費 $1,000 或 直推 3 人', 
       '未達標降級至 初潤知己'
@@ -91,7 +90,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤知己', 
     privileges: [
-      '專屬匯率：40元 = 1點', 
       '累積消費滿 $25,000 晉升', 
       '每月保級：消費 $600 或 直推 2 人', 
       '未達標降級至 初潤閨蜜'
@@ -102,7 +100,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤閨蜜', 
     privileges: [
-      '專屬匯率：50元 = 1點', 
       '累積滿 $12,000 (或儲值 1 萬直升)', 
       '每季保級：消費 $1,200 或 直推 2 人', 
       '未達標降級至 初潤好朋友'
@@ -113,7 +110,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤好朋友', 
     privileges: [
-      '專屬匯率：60元 = 1點', 
       '累積消費滿 $6,000 晉升', 
       '每季保級：消費 $600 或 直推 1 人', 
       '未達標降級至 初潤青少年'
@@ -124,7 +120,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤青少年', 
     privileges: [
-      '專屬匯率：70元 = 1點', 
       '累積消費滿 $3,000 晉升', 
       '無保級壓力'
     ],
@@ -134,7 +129,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤小朋友', 
     privileges: [
-      '專屬匯率：80元 = 1點', 
       '累積消費滿 $1,500 晉升', 
       '無保級壓力'
     ],
@@ -144,7 +138,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤幼兒園', 
     privileges: [
-      '專屬匯率：90元 = 1點', 
       '完成首次消費即可晉升', 
       '無保級壓力'
     ],
@@ -154,7 +147,6 @@ const DEFAULT_TIERS_CONFIG = [
   { 
     name: '初潤寶寶', 
     privileges: [
-      '專屬匯率：100元 = 1點', 
       '加入 LINE@ 註冊即可獲得', 
       '無保級壓力'
     ],

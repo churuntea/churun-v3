@@ -35,9 +35,17 @@ const pointsRateMapping: Record<string, number> = {
   '初潤靈魂伴侶': 30,
 };
 
+import { getSession } from '@/lib/auth';
+
 export async function POST(request: Request) {
   try {
-    const { buyer_id, quantity, custom_logo_url } = await request.json();
+    const session = await getSession();
+    if (!session || !session.memberId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: 請先登入' }, { status: 401 });
+    }
+
+    const { quantity, custom_logo_url } = await request.json();
+    const buyer_id = session.memberId; // 鎖定為當前登入者，防止身分偽造
 
     if (!buyer_id || !quantity) {
       return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });

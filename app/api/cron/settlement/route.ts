@@ -237,7 +237,7 @@ async function performSettlement() {
 
                 await supabase.from('notifications').insert({
                   member_id: upline.id,
-                  title: '🎁 推薦推廣分紅已自動撥發入帳！',
+                  title: '🎁 推薦推廣回饋已自動撥發入帳！',
                   content: `您的下線夥伴 ${buyer.name} 的訂單已簽收取貨滿 30 天，您獲得的 $${commAmount.toLocaleString()} 推廣獎金已自動存入您的帳本！`,
                   type: 'referral'
                 });

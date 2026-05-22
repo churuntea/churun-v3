@@ -208,45 +208,37 @@ function ProfileContent() {
     
     const BENEFITS_MAP: Record<string, string[]> = {
       '初潤靈魂伴侶': [
-        '專屬匯率：30元 = 1點', 
         '累積消費滿 $50,000 晉升', 
         '每月保級：消費 $1,000 或 直推 3 人', 
-        '季度分紅特權與專屬行銷海報'
+        '季度特權與專屬行銷海報'
       ],
       '初潤知己': [
-        '專屬匯率：40元 = 1點', 
         '累積消費滿 $25,000 晉升', 
         '每月保級：消費 $600 或 直推 2 人', 
         '組織管理與分潤特權'
       ],
       '初潤閨蜜': [
-        '專屬匯率：50元 = 1點', 
         '累積滿 $12,000 (或儲值 1 萬直升)', 
         '每季保級：消費 $1,200 或 直推 2 人', 
         '消費點數回饋'
       ],
       '初潤好朋友': [
-        '專屬匯率：60元 = 1點', 
         '累積消費滿 $6,000 晉升', 
         '每季保級：消費 $600 或 直推 1 人'
       ],
       '初潤青少年': [
-        '專屬匯率：70元 = 1點', 
         '累積消費滿 $3,000 晉升', 
         '無保級壓力'
       ],
       '初潤小朋友': [
-        '專屬匯率：80元 = 1點', 
         '累積消費滿 $1,500 晉升', 
         '無保級壓力'
       ],
       '初潤幼兒園': [
-        '專屬匯率：90元 = 1點', 
         '完成首次消費即可晉升', 
         '無保級壓力'
       ],
       '初潤寶寶': [
-        '專屬匯率：100元 = 1點', 
         '加入 LINE@ 註冊即可獲得', 
         '無保級壓力'
       ]
@@ -261,23 +253,23 @@ function ProfileContent() {
     const t = tier || "初潤寶寶";
     switch (t) {
       case "初潤寶寶":
-        return { percent: "0%", desc: "一般購物返點及代理佣金基礎版", fee: "15 元", badge: "基礎級" };
+        return { percent: "0%", desc: "一般購物返點及代理佣金基礎版", fee: "無", badge: "基礎級" };
       case "初潤青少年":
-        return { percent: "1.0%", desc: "享提領手續費減免與零售額外回饋", fee: "10 元", badge: "新星級" };
+        return { percent: "1.0%", desc: "享零售額外回饋", fee: "無", badge: "新星級" };
       case "初潤好朋友":
-        return { percent: "1.2%", desc: "享二級經銷合夥 1.2% 加碼分紅", fee: "10 元", badge: "好朋友級" };
+        return { percent: "1.2%", desc: "享二級經銷合夥 1.2% 加碼回饋", fee: "無", badge: "好朋友級" };
       case "初潤中產階級":
-        return { percent: "1.5%", desc: "享有下線組織儲值 1.5% 額外分紅", fee: "10 元", badge: "中堅級" };
+        return { percent: "1.5%", desc: "享有下線組織儲值 1.5% 額外回饋", fee: "無", badge: "中堅級" };
       case "初潤社會支柱":
-        return { percent: "2.0%", desc: "享有下線組織儲值 2.0% 額外分紅", fee: "5 元", badge: "支柱級" };
+        return { percent: "2.0%", desc: "享有下線組織儲值 2.0% 額外回饋", fee: "無", badge: "支柱級" };
       case "初潤中流砥柱":
-        return { percent: "2.5%", desc: "享下線儲值 2.5% 分紅，尊榮提領免手續費", fee: "免手續費 (0元)", badge: "中流砥柱" };
+        return { percent: "2.5%", desc: "享下線儲值回饋，尊榮提領服務", fee: "無", badge: "中流砥柱" };
       case "初潤意見領袖":
-        return { percent: "3.0%", desc: "享下線儲值 3.0% 額外佣金，提領免手續費", fee: "免手續費 (0元)", badge: "意見領袖" };
+        return { percent: "3.0%", desc: "享下線儲值 3.0% 額外佣金，提領服務", fee: "無", badge: "意見領袖" };
       case "初潤靈魂伴侶":
-        return { percent: "5.0%", desc: "終身最頂級 5.0% 佣金加成，提領免手續費", fee: "免手續費 (0元)", badge: "靈魂伴侶 (終身)" };
+        return { percent: "5.0%", desc: "終身最頂級 5.0% 佣金加成，提領服務", fee: "無", badge: "靈魂伴侶 (終身)" };
       default:
-        return { percent: "0%", desc: "基礎會員特權", fee: "15 元", badge: "一般會員" };
+        return { percent: "0%", desc: "基礎會員特權", fee: "無", badge: "一般會員" };
     }
   };
 
@@ -339,18 +331,14 @@ function ProfileContent() {
 
                   {/* 中間：直觀特權指標與權益說明 */}
                   <div className="relative z-10 space-y-2 my-auto py-3">
-                     <div className="grid grid-cols-2 gap-3">
+                     <div className="grid grid-cols-1 gap-3">
                         <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center text-left">
-                           <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">進貨/返點分紅</span>
-                           <span className="text-xl font-mono font-black text-amber-300">{getTierPerks(memberInfo.tier).percent}</span>
-                        </div>
-                        <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex flex-col justify-center text-left">
-                           <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">提現手續費</span>
-                           <span className="text-base font-mono font-black text-emerald-300">{getTierPerks(memberInfo.tier).fee}</span>
+                           <span className="text-[8px] font-black text-white/60 block uppercase tracking-wider mb-0.5">專屬福利</span>
+                           <span className="text-base font-black text-amber-300">{getTierBenefits(memberInfo.tier)[0]}</span>
                         </div>
                      </div>
 
-                     {/* 權益說明區塊 (專屬匯率上行、保級標準下行且完整呈現) */}
+                     {/* 權益說明區塊 (保級標準下行且完整呈現) */}
                      <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10 text-left space-y-2.5">
                         {/* 特權直顯 */}
                         <div>
@@ -363,12 +351,6 @@ function ProfileContent() {
                                  <span className="text-amber-400">★</span> 每年生日禮券買一送一
                               </p>
                            </div>
-                        </div>
-
-                        {/* 專屬匯率上行 */}
-                        <div className="pt-2 border-t border-white/10 flex justify-between items-center">
-                           <span className="text-[9px] font-black text-amber-300">💎 專屬點數匯率</span>
-                           <span className="text-[10px] font-mono font-black text-white">{getTierBenefits(memberInfo.tier)[0]}</span>
                         </div>
 
                         {/* 保級標準下行，且完整展開說明 */}
@@ -420,7 +402,7 @@ function ProfileContent() {
               </div>
               <div className="space-y-1">
                  <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                    {memberInfo.is_b2b ? "預估分紅與可用餘額 💡 點選明細" : "可用儲值金"}
+                    {memberInfo.is_b2b ? "可用餘額 💡 點選明細" : "可用儲值金"}
                  </p>
                  <h3 className="text-xl font-black text-slate-800 tracking-tight">
                     NT$ {Number(memberInfo.virtual_balance || 0).toLocaleString()}
@@ -514,7 +496,7 @@ function ProfileContent() {
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <CreditCard className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-black text-slate-900">分紅帳本與交易明細</h3>
+                <h3 className="text-lg font-black text-slate-900">交易明細</h3>
                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Virtual Ledger & Referral Rewards</p>
               </div>
 
@@ -547,7 +529,7 @@ function ProfileContent() {
                   <div className="space-y-4">
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
                       💡 <strong>預估撥發說明：</strong><br />
-                      依據初潤品牌營運規章，下線夥伴消費所產生的推廣分紅，均需在該筆訂單<strong>【簽收取貨滿 30 天】</strong>後，且無退換貨等異常時，由系統自動考核並撥發至您的可用餘額中。
+                      依據初潤品牌營運規章，下線夥伴消費所產生的推廣回饋，均需在該筆訂單<strong>【簽收取貨滿 30 天】</strong>後，且無退換貨等異常時，由系統自動考核並撥發至您的可用餘額中。
                     </p>
 
                     {isFetchingPending ? (
@@ -557,7 +539,7 @@ function ProfileContent() {
                     ) : pendingCommissions.length === 0 ? (
                       <div className="text-center py-10 bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
                         <span className="text-2xl">🍃</span>
-                        <p className="text-xs font-black text-slate-400 mt-2">目前尚無預估撥發中的分紅</p>
+                        <p className="text-xs font-black text-slate-400 mt-2">目前尚無預估撥發中的回饋</p>
                         <p className="text-[9px] text-slate-400/80 mt-1 px-6">當您的下線團隊夥伴完成消費後，將在此顯示倒數明細。</p>
                       </div>
                     ) : (
@@ -584,7 +566,7 @@ function ProfileContent() {
                                 <span className="text-xs font-mono font-black text-emerald-600">
                                   +${item.commissionAmount.toLocaleString()}
                                 </span>
-                                <p className="text-[7px] text-slate-400 font-black mt-0.5">預估分紅</p>
+                                <p className="text-[7px] text-slate-400 font-black mt-0.5">預估回饋</p>
                               </div>
                             </div>
                           ))}
@@ -596,7 +578,7 @@ function ProfileContent() {
                   <div className="space-y-4">
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">
                       💡 <strong>可用餘額說明：</strong><br />
-                      此處顯示您已正式入帳的可用預收貨款與分紅歷史紀錄，您可用於批貨消費扣款、儲值充值或申請提領。
+                      此處顯示您已正式入帳的可用預收貨款與歷史紀錄，您可用於批貨消費扣款、儲值充值或申請提領。
                     </p>
 
                     {isFetchingWalletTx ? (
@@ -622,7 +604,7 @@ function ProfileContent() {
                               txLabel = "📥 儲值預收金";
                               txDesc = txDesc || "加盟儲值款";
                             } else if (tx.transaction_type === 'commission_refund') {
-                              txLabel = "🎁 推薦分紅獎金";
+                              txLabel = "🎁 推薦回饋獎金";
                               txDesc = txDesc || `下線訂單對帳 (滿30天自動撥發)`;
                             } else if (tx.transaction_type === 'order_deduction') {
                               txLabel = "💸 批貨消費扣款";

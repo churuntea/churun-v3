@@ -70,6 +70,14 @@ function WithdrawalHistoryContent() {
     .filter(w => w.status === 'completed')
     .reduce((sum, w) => sum + Math.abs(Number(w.amount)), 0);
 
+   const isB2B = memberInfo?.tier === '初潤品牌大使' || 
+                 memberInfo?.tier === '初潤知己' || 
+                 memberInfo?.tier === '初潤靈魂伴侶' || 
+                 memberInfo?.tier === 'ambassador' ||
+                 memberInfo?.tier === 'partner' || 
+                 memberInfo?.tier === '初潤好朋友' || 
+                 memberInfo?.tier === '初潤閨蜜';
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-20">
       
@@ -105,9 +113,11 @@ function WithdrawalHistoryContent() {
                    {withdrawals.filter(w => w.status === 'pending').length} 筆審核中
                  </span>
               </div>
-              <Link href="/withdraw" className="text-[10px] font-black uppercase tracking-widest bg-white text-emerald-900 px-4 py-2 rounded-full">
-                 我要提領
-              </Link>
+              {isB2B && (
+                 <Link href="/withdraw" className="text-[10px] font-black uppercase tracking-widest bg-white text-emerald-900 px-4 py-2 rounded-full">
+                    我要提領
+                 </Link>
+              )}
            </div>
         </div>
 
@@ -195,7 +205,7 @@ function WithdrawalHistoryContent() {
            <div className="space-y-2">
               <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">提領須知</h5>
               <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
-                 提領手續費為每筆 15 元。若對提領紀錄有異議，請聯繫您的上線輔導員或品牌官方客服。
+                 若對提領紀錄有異議，請聯繫您的上線輔導員或品牌官方客服。
               </p>
            </div>
         </div>

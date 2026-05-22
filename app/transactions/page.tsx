@@ -52,12 +52,15 @@ function TransactionContent() {
   const [queryEndDate, setQueryEndDate] = useState("");
   const [queryResults, setQueryResults] = useState<any[]>([]);
   const [isQuerying, setIsQuerying] = useState(false);
+  
+  // 權利義務設定
+  const [tierPerksText, setTierPerksText] = useState<string>("");
 
   const getTransactionLabel = (type: string, isWallet: boolean) => {
     if (isWallet) {
       switch (type) {
-        case "commission_refund": return { label: "B2B 分紅折讓", desc: "推廣夥伴消費分紅撥發", color: "text-emerald-600 bg-emerald-50" };
-        case "commission_rollback": return { label: "⚠️ 分紅折讓扣回", desc: "相關訂單取消，扣回推廣分紅", color: "text-rose-600 bg-rose-50 border border-rose-100" };
+        case "commission_refund": return { label: "B2B 回饋折讓", desc: "推廣夥伴消費回饋撥發", color: "text-emerald-600 bg-emerald-50" };
+        case "commission_rollback": return { label: "⚠️ 回饋折讓扣回", desc: "相關訂單取消，扣回推廣回饋", color: "text-rose-600 bg-rose-50 border border-rose-100" };
         case "withdrawal": return { label: "帳戶資金提領", desc: "提款至綁定銀行帳戶", color: "text-rose-600 bg-rose-50" };
         case "purchase": 
         case "payment":
@@ -106,24 +109,24 @@ function TransactionContent() {
   const getTierPerks = (tier: string) => {
     const t = tier || "初潤寶寶";
     switch (t) {
-      case "初潤寶寶":
-        return { percent: "0%", desc: "一般購物返點及代理佣金基礎版", fee: "15 元", badge: "基礎級" };
-      case "初潤青少年":
-        return { percent: "1.0%", desc: "享提領手續費減免與零售額外回饋", fee: "10 元", badge: "新星級" };
-      case "初潤好朋友":
-        return { percent: "1.2%", desc: "享二級經銷合夥 1.2% 加碼分紅", fee: "10 元", badge: "好朋友級" };
-      case "初潤中產階級":
-        return { percent: "1.5%", desc: "享有下線組織儲值 1.5% 額外分紅", fee: "10 元", badge: "中堅級" };
-      case "初潤社會支柱":
-        return { percent: "2.0%", desc: "享有下線組織儲值 2.0% 額外分紅", fee: "5 元", badge: "支柱級" };
-      case "初潤中流砥柱":
-        return { percent: "2.5%", desc: "享下線儲值 2.5% 分紅，尊榮提領免手續費", fee: "免手續費 (0元)", badge: "中流砥柱" };
-      case "初潤意見領袖":
-        return { percent: "3.0%", desc: "享下線儲值 3.0% 額外佣金，提領免手續費", fee: "免手續費 (0元)", badge: "意見領袖" };
+      case "初潤最高階合夥人":
+        return { percent: "25%", desc: "合夥人專屬權利", fee: "無", badge: "合夥人" };
       case "初潤靈魂伴侶":
-        return { percent: "5.0%", desc: "終身最頂級 5.0% 佣金加成，提領免手續費", fee: "免手續費 (0元)", badge: "靈魂伴侶 (終身)" };
+        return { percent: "20%", desc: "靈魂伴侶專屬權利", fee: "無", badge: "靈魂伴侶" };
+      case "初潤知己":
+        return { percent: "15%", desc: "知己專屬權利", fee: "無", badge: "知己" };
+      case "初潤閨蜜":
+        return { percent: "12%", desc: "閨蜜專屬權利", fee: "無", badge: "閨蜜" };
+      case "初潤好朋友":
+        return { percent: "10%", desc: "好朋友專屬權利", fee: "無", badge: "好朋友" };
+      case "初潤青少年":
+        return { percent: "8%", desc: "青少年專屬權利", fee: "無", badge: "青少年" };
+      case "初潤小朋友":
+        return { percent: "5%", desc: "小朋友專屬權利", fee: "無", badge: "小朋友" };
+      case "初潤幼兒園":
+        return { percent: "3%", desc: "幼兒園專屬權利", fee: "無", badge: "幼兒園" };
       default:
-        return { percent: "0%", desc: "基礎會員特權", fee: "15 元", badge: "一般會員" };
+        return { percent: "0%", desc: "基礎會員", fee: "無", badge: "一般會員" };
     }
   };
 
@@ -157,6 +160,19 @@ function TransactionContent() {
     } else {
       const { data } = await supabase.from("point_transactions").select("*").eq("member_id", userId).order("created_at", { ascending: false }).limit(30);
       setTransactions(data || []);
+    }
+
+    // 取得自定義權利義務說明
+    const { data: settingsData } = await supabase
+      .from("announcements")
+      .select("content")
+      .eq("tag", "TIER_PERKS_SETTING")
+      .single();
+    
+    if (settingsData && settingsData.content) {
+      setTierPerksText(settingsData.content);
+    } else {
+      setTierPerksText("下單結帳（給自己）\n訂單金額 * 15%\n上線合夥人獲利\n訂單金額 * 15%\n例如結帳 $1,000 ，你拿 $150 紅利，上線合夥人也拿 $150 紅利");
     }
     setIsLoading(false);
   };
@@ -246,7 +262,7 @@ function TransactionContent() {
   const handleExecuteRedeem = async (itemName: string, points: number) => {
     if (!memberInfo) return;
     if (memberInfo.is_b2b) {
-      setToast({ show: true, message: "⚠️ 創業合夥人專享 30% 退傭分紅！點數商城僅限一般零售會員兌換。", type: "info" });
+      setToast({ show: true, message: "⚠️ 創業合夥人專享 30% 退傭！點數商城僅限一般零售會員兌換。", type: "info" });
       return;
     }
     if (Number(memberInfo.points_balance) < points) {
@@ -359,12 +375,14 @@ function TransactionContent() {
             >
                <CreditCard className="w-4 h-4" /> 💳 申請儲值
             </button>
-            <button
-               onClick={() => router.push("/withdraw")}
-               className="flex-1 py-4.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-slate-900/10 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
-            >
-               <ArrowUpRight className="w-4 h-4" /> 🏦 申請提領
-            </button>
+            {(memberInfo?.tier === '初潤品牌大使' || memberInfo?.tier === '初潤知己' || memberInfo?.tier === '初潤靈魂伴侶' || memberInfo?.tier === 'ambassador' || memberInfo?.tier === 'partner' || memberInfo?.tier === '初潤好朋友' || memberInfo?.tier === '初潤閨蜜') && (
+              <button
+                 onClick={() => router.push("/withdraw")}
+                 className="flex-1 py-4.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-slate-900/10 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                 <ArrowUpRight className="w-4 h-4" /> 🏦 申請提領
+              </button>
+            )}
          </div>
 
         {/* 📋 近五筆儲值與異動狀況 (對帳核心直顯區塊) */}
@@ -480,7 +498,7 @@ function TransactionContent() {
                         </span>
                      </div>
                      <div className="p-3 bg-emerald-50/50 border border-emerald-100/10 rounded-xl">
-                        <span className="text-[8px] font-black text-emerald-600 block uppercase tracking-wider mb-0.5">累計合夥分紅</span>
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase tracking-wider mb-0.5">累計合夥回饋</span>
                         <span className="text-[11px] font-mono font-black text-emerald-700">
                            NT$ {(() => {
                               const comms = transactions
@@ -507,7 +525,7 @@ function TransactionContent() {
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                      <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 創業合夥財務建議：</span>
                      <p className="text-[9px] font-black text-slate-700 leading-relaxed">
-                        📊 數據顯示，您的組織二級分紅比例極其健康（佔總投入的 25%）。高度建議保留當期佣金，直接用於下個月【初潤冷泡翠玉系列】之批量團購，預估能獲得高達 1.8 倍的資本複利轉化效應！
+                        📊 數據顯示，您的組織二級回饋比例極其健康（佔總投入的 25%）。高度建議保留當期佣金，直接用於下個月【初潤冷泡翠玉系列】之批量團購，預估能獲得高達 1.8 倍的資本複利轉化效應！
                      </p>
                   </div>
                </div>
@@ -531,18 +549,19 @@ function TransactionContent() {
 
                <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="p-4 bg-slate-50 border border-slate-100/50 rounded-2xl flex flex-col justify-between">
-                     <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-2">加碼進貨/返點分紅</span>
+                     <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-2">加碼進貨/返點回饋</span>
                      <span className="text-2xl font-mono font-black text-slate-900 leading-none">{getTierPerks(memberInfo.tier).percent}</span>
                   </div>
                   <div className="p-4 bg-slate-50 border border-slate-100/50 rounded-2xl flex flex-col justify-between">
-                     <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-2">提款提現手續費</span>
+                     <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider mb-2">提款提現</span>
                      <span className="text-2xl font-mono font-black text-slate-900 leading-none">{getTierPerks(memberInfo.tier).fee}</span>
                   </div>
                </div>
 
-               <p className="text-[10px] font-bold text-slate-500 bg-slate-50 p-4 border border-slate-100/30 rounded-2xl leading-relaxed">
-                  📢 <span className="text-indigo-600 font-black">【{memberInfo.tier}】權益明細：</span>{getTierPerks(memberInfo.tier).desc}。您的累計消費與裂變規模正在持續加碼中，提升階級可享受更高的財務折讓空間！
-               </p>
+               <div className="text-[10px] font-bold text-slate-500 bg-slate-50 p-4 border border-slate-100/30 rounded-2xl leading-relaxed whitespace-pre-wrap">
+                  📢 <span className="text-indigo-600 font-black mb-2 block">【{memberInfo.tier}】權益明細與義務：</span>
+                  {tierPerksText}
+               </div>
             </div>
          )}
 

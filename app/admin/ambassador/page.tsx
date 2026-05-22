@@ -137,13 +137,14 @@ export default function AmbassadorAdminPage() {
   const fetchApplications = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("ambassador_applications")
-        .select("*, members!inner(name, phone, email, member_code, tier, avatar_url)")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setApplications((data as unknown as ApplicationRow[]) || []);
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_applications", payload: {} })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      setApplications((result.data as unknown as ApplicationRow[]) || []);
     } catch (err) {
       console.error("Fetch ambassador applications error:", err);
     } finally {
@@ -154,10 +155,15 @@ export default function AmbassadorAdminPage() {
   const openMemberDetail = async (memberId: string) => {
     setMemberDetail({ open: true, data: null, downlines: [], isLoading: true });
     try {
-      const [memberRes, downlinesRes] = await Promise.all([
-        supabase.from("members").select("*, upline:upline_id(name, member_code)").eq("id", memberId).single(),
-        supabase.from("members").select("id, name, member_code, tier, created_at, lifetime_spend").eq("upline_id", memberId).order("created_at", { ascending: false })
-      ]);
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "open_member_detail", payload: { memberId } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error();
+      const memberRes = { data: result.data };
+      const downlinesRes = { data: result.downlines };
       setMemberDetail({
         open: true,
         data: memberRes.data,

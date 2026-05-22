@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/app/supabase-admin';
+import { createSession } from '@/lib/auth';
 
 // Memory seed fallback list for HR staff in case DB table is not set up
 const fallbackStaffList = [
@@ -215,6 +216,15 @@ export async function POST(request: Request) {
       const fallbackEntry = { id: logId, ...logEntry };
       fallbackAuditLogs.push(fallbackEntry);
     }
+
+    // 5. Create HttpOnly Cookie Session
+    await createSession({
+      memberId: staffUser.id,
+      memberName: staffUser.name,
+      isAdmin: true,
+      title: staffUser.title,
+      permissions: staffUser.permissions
+    });
 
     // Return profile & session ID
     return NextResponse.json({

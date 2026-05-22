@@ -469,7 +469,7 @@ function OrganizationContent() {
                        <p className="text-2xl font-black text-white">{progress}%</p>
                     </div>
                     {/* 品牌大使申請按鈕：初潤知己(含)以上才顯示，且狀態不能是待審核 */}
-                    {memberInfo && AMBASSADOR_ELIGIBLE_TIERS.has(memberInfo.tier) && memberInfo.ambassador_status !== 'pending' && (
+                    {memberInfo && AMBASSADOR_ELIGIBLE_TIERS.has(memberInfo.tier) && memberInfo.ambassador_status !== 'pending' && memberInfo.ambassador_status !== 'active' && (
                       <motion.button
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
@@ -900,7 +900,7 @@ function OrganizationContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] bg-slate-900/70 backdrop-blur-2xl flex items-end justify-center"
+            className="fixed inset-0 z-[120] bg-slate-900/70 backdrop-blur-2xl flex items-end sm:items-center justify-center sm:p-4 overflow-hidden"
             onClick={() => setShowAmbassadorModal(false)}
           >
             <motion.div
@@ -908,7 +908,7 @@ function OrganizationContent() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white w-full max-w-lg rounded-t-[3.5rem] p-10 shadow-2xl relative overflow-hidden"
+              className="bg-white w-full max-w-lg rounded-t-[3.5rem] sm:rounded-[3.5rem] p-6 md:p-10 shadow-2xl relative overflow-y-auto max-h-[90vh] custom-scrollbar pb-32 sm:pb-10"
               onClick={e => e.stopPropagation()}
             >
               {/* 金色光暈背景 */}

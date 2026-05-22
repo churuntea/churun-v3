@@ -24,6 +24,30 @@ const isVideoUrl = (url: string) => {
          (url.includes("/materials/material_") && (url.toLowerCase().endsWith(".mp4") || url.toLowerCase().endsWith(".mov") || url.toLowerCase().endsWith(".webm")));
 };
 
+const TAIWAN_CITIES: Record<string, string[]> = {
+  "台北市": ["中正區", "萬華區", "大同區", "中山區", "松山區", "大安區", "信義區", "內湖區", "南港區", "士林區", "北投區", "文山區"],
+  "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "汐止區", "樹林區", "淡水區", "五股區", "泰山區", "林口區", "三峽區", "鶯歌區", "八里區", "瑞芳區"],
+  "桃園市": ["桃園區", "中壢區", "平鎮區", "八德區", "楊梅區", "蘆竹區", "大溪區", "龍潭區", "龜山區", "大園區"],
+  "台中市": ["中區", "東區", "南區", "西區", "北區", "北屯區", "西屯區", "南屯區", "太平區", "大里區", "霧峰區", "烏日區", "豐原區", "后里區", "潭子區", "大雅區", "沙鹿區", "清水區", "大甲區"],
+  "台南市": ["中西區", "東區", "南區", "北區", "安平區", "安南區", "永康區", "歸仁區", "新化區", "麻豆區", "佳里區", "新營區", "白河區", "善化區"],
+  "高雄市": ["新興區", "前金區", "苓雅區", "鹽埕區", "鼓山區", "前鎮區", "三民區", "楠梓區", "小港區", "左營區", "鳳山區", "大寮區", "林園區", "岡山區", "路竹區", "旗山區", "美濃區"],
+  "基隆市": ["仁愛區", "信義區", "中正區", "中山區", "安樂區", "暖暖區", "七堵區"],
+  "新竹市": ["東區", "北區", "香山區"],
+  "新竹縣": ["竹北市", "竹東鎮", "新埔鎮", "關西鎮", "湖口鄉", "新豐鄉", "芎林鄉", "寶山鄉"],
+  "苗栗縣": ["苗栗市", "頭份市", "竹南鎮", "後龍鎮", "通霄鎮", "苑裡鎮", "公館鄉", "三義鄉"],
+  "彰化縣": ["彰化市", "鹿港鎮", "和美鎮", "員林市", "溪湖鎮", "田中鎮", "二林鎮", "北斗鎮", "花壇鄉", "大村鄉"],
+  "南投縣": ["南投市", "埔里鎮", "草屯鎮", "竹山鎮", "集集鎮", "名間鄉", "鹿谷鄉", "魚池鄉", "國姓鄉"],
+  "雲林縣": ["斗六市", "斗南鎮", "虎尾鎮", "西螺鎮", "土庫鎮", "北港鎮", "麥寮鄉", "古坑鄉"],
+  "嘉義市": ["東區", "西區"],
+  "嘉義縣": ["太保市", "朴子市", "民雄鄉", "新港鄉", "水上鄉", "中埔鄉", "竹崎鄉", "梅山鄉", "阿里山鄉"],
+  "屏東縣": ["屏東市", "潮州鎮", "東港鎮", "恆春鎮", "萬丹鄉", "長治鄉", "內埔鄉", "枋寮鄉", "琉球鄉"],
+  "宜蘭縣": ["宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉", "冬山鄉", "五結鄉", "三星鄉"],
+  "花蓮縣": ["花蓮市", "鳳林鎮", "玉里鎮", "新城鄉", "吉安鄉", "壽豐鄉", "光復鄉", "瑞穗鄉"],
+  "台東縣": ["台東市", "成功鎮", "關山鎮", "卑南鄉", "太麻里鄉", "鹿野鄉", "池上鄉", "綠島鄉", "蘭嶼鄉"],
+  "澎湖縣": ["馬公市", "湖西鄉", "白沙鄉", "西嶼鄉"],
+  "金門縣": ["金城鎮", "金湖鎮", "金沙鎮", "金寧鄉"],
+  "連江縣": ["南竿鄉", "北竿鄉", "莒光鄉", "東引鄉"]
+};
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
@@ -36,6 +60,9 @@ export default function ProfileSettingsPage() {
   const [maleDefault, setMaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [femaleDefault, setFemaleDefault] = useState("https://i.ibb.co/6R2M5X1/churun-baby.png");
   const [memberMotto, setMemberMotto] = useState("以初心、致潤澤");
+  const [memberBirthday, setMemberBirthday] = useState("");
+  const [memberCity, setMemberCity] = useState("台北市");
+  const [memberDistrict, setMemberDistrict] = useState("中正區");
   const [memberAddress, setMemberAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -78,6 +105,9 @@ export default function ProfileSettingsPage() {
       setMemberGender(data.avatar_settings.gender || "男");
     }
     if (data?.motto) setMemberMotto(data.motto);
+    if (data?.birthday) setMemberBirthday(data.birthday);
+    if (data?.city) setMemberCity(data.city);
+    if (data?.district) setMemberDistrict(data.district);
     if (data?.address) setMemberAddress(data.address);
     setIsLoading(false);
   };
@@ -124,6 +154,9 @@ export default function ProfileSettingsPage() {
           avatarBase64: isNewUpload ? memberAvatar : null,
           avatarSettings: { zoom: avatarZoom, offset: avatarOffset, gender: memberGender },
           motto: memberMotto,
+          birthday: memberBirthday,
+          city: memberCity,
+          district: memberDistrict,
           address: memberAddress,
         }),
       });
@@ -135,6 +168,9 @@ export default function ProfileSettingsPage() {
           avatar_url: result.avatarUrl || prev.avatar_url,
           avatar_settings: { zoom: avatarZoom, offset: avatarOffset, gender: memberGender },
           motto: memberMotto,
+          birthday: memberBirthday,
+          city: memberCity,
+          district: memberDistrict,
           address: memberAddress,
         }));
         setSaved(true);
@@ -318,6 +354,25 @@ export default function ProfileSettingsPage() {
           <p className="text-[8px] text-slate-300 font-bold text-right tracking-widest">{memberMotto.length}/40</p>
         </div>
 
+        {/* Birthday */}
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
+          <div className="flex justify-between items-center px-2 mb-2">
+            <div>
+              <h2 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">個人生日設定</h2>
+              <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1">Birthday</p>
+            </div>
+            <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center border border-rose-100">
+              <Sparkles className="w-4 h-4" />
+            </div>
+          </div>
+          <input
+            type="date"
+            value={memberBirthday}
+            onChange={e => setMemberBirthday(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-900/15 focus:bg-white transition-all duration-300"
+          />
+        </div>
+
         {/* Address */}
         <div className="bg-white rounded-[3rem] p-8 border border-slate-50 shadow-sm space-y-4">
           <div className="flex justify-between items-center px-2 mb-2">
@@ -329,12 +384,35 @@ export default function ProfileSettingsPage() {
               <MapPin className="w-4 h-4" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <select
+              value={memberCity}
+              onChange={(e) => {
+                setMemberCity(e.target.value);
+                setMemberDistrict(TAIWAN_CITIES[e.target.value]?.[0] || "");
+              }}
+              className="w-full bg-slate-50 border border-slate-100 px-4 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-900/15 focus:bg-white transition-all duration-300"
+            >
+              {Object.keys(TAIWAN_CITIES).map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+            <select
+              value={memberDistrict}
+              onChange={(e) => setMemberDistrict(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-100 px-4 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-900/15 focus:bg-white transition-all duration-300"
+            >
+              {(TAIWAN_CITIES[memberCity] || []).map(dist => (
+                <option key={dist} value={dist}>{dist}</option>
+              ))}
+            </select>
+          </div>
           <input
             type="text"
             value={memberAddress}
             onChange={e => setMemberAddress(e.target.value)}
             className="w-full bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-900/15 focus:bg-white transition-all duration-300"
-            placeholder="請輸入常用收件/通訊地址..."
+            placeholder="請輸入詳細街道與門牌號碼..."
           />
         </div>
 

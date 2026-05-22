@@ -71,7 +71,7 @@ function WithdrawContent() {
     }
     const fee = getWithdrawalFee(memberInfo.tier);
     if (Number(amount) <= fee) {
-      setToast({ show: true, message: `提領金額必須大於等級手續費 $${fee} 元`, type: "error" });
+      setToast({ show: true, message: `提領金額未達標準`, type: "error" });
       return;
     }
     if (Number(amount) > Number(memberInfo.virtual_balance)) {
@@ -139,6 +139,35 @@ function WithdrawContent() {
 
   if (isLoading || !memberInfo) return (
     <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>
+  );
+
+  const isB2B = memberInfo.tier === '初潤品牌大使' || 
+                memberInfo.tier === '初潤知己' || 
+                memberInfo.tier === '初潤靈魂伴侶' || 
+                memberInfo.tier === 'ambassador' ||
+                memberInfo.tier === 'partner' || 
+                memberInfo.tier === '初潤好朋友' || 
+                memberInfo.tier === '初潤閨蜜';
+
+  if (!isB2B) return (
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-8 text-center space-y-8 pb-20">
+       <div className="w-24 h-24 bg-amber-50 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-10 h-10 text-amber-500" />
+       </div>
+       <div className="space-y-4 max-w-sm mx-auto">
+          <h2 className="text-2xl font-black text-slate-800">僅限創業夥伴使用</h2>
+          <p className="text-sm text-slate-500 leading-relaxed font-bold">
+             一般會員僅可使用紅利點數折抵消費。<br/><br/>
+             若欲開啟現金提領功能，請升級為<span className="text-emerald-600">品牌大使</span>或<span className="text-indigo-600">合夥人</span>。
+          </p>
+       </div>
+       <button 
+         onClick={() => router.back()}
+         className="w-full max-w-xs bg-slate-100 text-slate-600 py-4 rounded-2xl font-black text-xs tracking-widest hover:bg-slate-200 transition"
+       >
+          返回上一頁
+       </button>
+    </div>
   );
 
   if (step === "success") return (
@@ -217,7 +246,7 @@ function WithdrawContent() {
               </div>
             </div>
 
-            {/* 實時提領手續費與到帳金額試算 */}
+            {/* 實時到帳金額試算 */}
             {amount && Number(amount) > 0 && (
                <motion.div 
                  initial={{ opacity: 0, y: -10 }}
@@ -230,10 +259,10 @@ function WithdrawContent() {
                   </div>
                   <div className="flex justify-between items-center text-slate-500 font-bold">
                      <span className="flex items-center gap-1">
-                        👑 會員職級 ({memberInfo.tier || '初潤寶寶'}) 手續費
+                        
                      </span>
                      <span className="font-mono text-rose-500">
-                        {getWithdrawalFee(memberInfo.tier) > 0 ? `-$${getWithdrawalFee(memberInfo.tier)} 元` : "免手續費 ($0)"}
+                        {getWithdrawalFee(memberInfo.tier) > 0 ? `-$${getWithdrawalFee(memberInfo.tier)} 元` : "無"}
                      </span>
                   </div>
                   <div className="flex justify-between items-center border-t border-emerald-100 pt-3 text-slate-800 font-black">
@@ -270,7 +299,7 @@ function WithdrawContent() {
          <div className="bg-amber-50 rounded-[2rem] p-6 flex items-start gap-4 border border-amber-100">
             <Info className="w-5 h-5 text-amber-500 shrink-0 mt-1" />
             <p className="text-[10px] font-medium text-amber-700 leading-relaxed">
-               * 您的會員職級為「{memberInfo.tier || "初潤寶寶"}」，提領手續費為 {getWithdrawalFee(memberInfo.tier)} 元，將從撥款金額中扣除。<br/>
+               * 您的會員職級為「{memberInfo.tier || "初潤寶寶"}」，提領<br/>
                * 每月 10 日及 25 日為統一撥款日，請耐心等候。
             </p>
          </div>

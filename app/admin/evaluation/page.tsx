@@ -170,14 +170,15 @@ function EvaluationContent() {
 
   const fetchGlobalStats = async () => {
     try {
-      const { data: mData, error } = await supabase
-        .from("members")
-        .select("tier")
-        .eq("status", "active");
-        
-      if (mData) {
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_global_stats", payload: {} })
+      });
+      const result = await res.json();
+      if (result.success && result.data) {
         const counts: Record<string, number> = {};
-        mData.forEach(m => {
+        result.data.forEach((m: any) => {
           const t = m.tier || "初潤寶寶";
           counts[t] = (counts[t] || 0) + 1;
         });
@@ -191,58 +192,36 @@ function EvaluationContent() {
   const fetchAudits = async () => {
     setLoadingAudits(true);
     try {
-      // 1. Fetch pending accounting applicants
-      const { data: accountingData } = await supabase
-        .from("members")
-        .select("*")
-        .eq("is_b2b", true)
-        .eq("status", "pending_accounting")
-        .order("created_at", { ascending: false });
-
-      if (accountingData) {
-        setPendingAccountingList(accountingData as Member[]);
-      }
-
-      // 2. Fetch pending manager applicants
-      const { data: managerData } = await supabase
-        .from("members")
-        .select("*")
-        .eq("is_b2b", true)
-        .eq("status", "pending_manager")
-        .order("created_at", { ascending: false });
-
-      if (managerData) {
-        setPendingManagerList(managerData as Member[]);
-      }
-
-      // 3. Fetch pending exit members
-      const { data: exitData } = await supabase
-        .from("members")
-        .select("*")
-        .eq("status", "exit_pending")
-        .order("created_at", { ascending: false });
-
-      if (exitData) {
-        setPendingExitList(exitData as Member[]);
-        
-        // Fetch simulation calculations in parallel
-        const simulatedMap: Record<string, any> = {};
-        await Promise.all(exitData.map(async (candidate) => {
-          try {
-            const res = await fetch('/api/b2b/exit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ member_id: candidate.id, action: 'simulate' })
-            });
-            const result = await res.json();
-            if (result.success) {
-              simulatedMap[candidate.id] = result.details;
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_audits", payload: {} })
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        if (result.accountingData) setPendingAccountingList(result.accountingData);
+        if (result.managerData) setPendingManagerList(result.managerData);
+        if (result.exitData) {
+          setPendingExitList(result.exitData);
+          const simulatedMap: Record<string, any> = {};
+          await Promise.all(result.exitData.map(async (candidate: any) => {
+            try {
+              const simRes = await fetch('/api/b2b/exit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: candidate.id, action: 'simulate' })
+              });
+              const simResult = await simRes.json();
+              if (simResult.success) {
+                simulatedMap[candidate.id] = simResult.details;
+              }
+            } catch (e) {
+              console.error("Simulation error for member " + candidate.id, e);
             }
-          } catch (e) {
-            console.error("Simulation error for member " + candidate.id, e);
-          }
-        }));
-        setExitSimulations(simulatedMap);
+          }));
+          setExitSimulations(simulatedMap);
+        }
       }
     } catch (err) {
       console.error("Error fetching B2B audits:", err);
@@ -277,12 +256,14 @@ function EvaluationContent() {
     if (!confirm("確定要「駁回」此 B2B 夥伴的退出申請，並將其狀態恢復為活躍 B2B 資格嗎？")) return;
 
     try {
-      const { error } = await supabase
-        .from("members")
-        .update({ status: "active" })
-        .eq("id", memberId);
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject_exit", payload: { memberId } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-      if (error) throw error;
       alert("✅ 已駁回此退出申請，該夥伴狀態已恢復為活躍 B2B。");
       fetchAudits();
     } catch (err: any) {
@@ -302,15 +283,15 @@ function EvaluationContent() {
     setSearchTerm("");
 
     try {
-      const { data, error } = await supabase
-        .from("members")
-        .select("*")
-        .eq("tier", rankName)
-        .eq("status", "active")
-        .order("lifetime_spend", { ascending: false });
-
-      if (data) {
-        setMembers(data as Member[]);
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_rank_members", payload: { rankName } })
+      });
+      const result = await res.json();
+      
+      if (result.success && result.data) {
+        setMembers(result.data);
       } else {
         setMembers([]);
       }
@@ -351,49 +332,18 @@ function EvaluationContent() {
     if (!confirm(approve ? "確定要「核准金額無誤」並送交業務主管進行最後審查嗎？" : "確定要「駁回」此申請案嗎？")) return;
 
     try {
-      // 取得原本的 beneficiary 以便更新 JSONB metadata
-      const { data: mData } = await supabase
-        .from("members")
-        .select("beneficiary")
-        .eq("id", memberId)
-        .single();
-
-      let updatedBeneficiary = mData?.beneficiary || "";
       const adminName = getAuditorName();
-
-      if (updatedBeneficiary.startsWith("B2B_JSON_V1|")) {
-        try {
-          const jsonStr = updatedBeneficiary.substring("B2B_JSON_V1|".length);
-          const data = JSON.parse(jsonStr);
-          data.audited_by_accountant = adminName;
-          data.accountant_audited_at = new Date().toISOString();
-          updatedBeneficiary = "B2B_JSON_V1|" + JSON.stringify(data);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accountant_audit", payload: { memberId, approve, adminName } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
       if (approve) {
-        const { error } = await supabase
-          .from("members")
-          .update({ 
-            status: "pending_manager",
-            beneficiary: updatedBeneficiary
-          })
-          .eq("id", memberId);
-
-        if (error) throw error;
         alert("✅ 金額核對成功！已將此案件送交「業務主管」做最後審查。");
       } else {
-        const { error } = await supabase
-          .from("members")
-          .update({ 
-            status: "rejected",
-            beneficiary: updatedBeneficiary
-          })
-          .eq("id", memberId);
-
-        if (error) throw error;
         alert("❌ 已駁回此 B2B 加入申請案。");
       }
       fetchAudits();
@@ -407,90 +357,18 @@ function EvaluationContent() {
     if (!confirm(approve ? `確定要「最終核准開通」此 B2B 帳號嗎？\n系統將自動設定職級為【${member.tier}】並儲值首筆預收款 $${Number(member.initial_deposit || 0).toLocaleString()} 元！` : "確定要「駁回」此申請案嗎？")) return;
 
     try {
-      let updatedBeneficiary = member.beneficiary || "";
       const adminName = getAuditorName();
-
-      if (updatedBeneficiary.startsWith("B2B_JSON_V1|")) {
-        try {
-          const jsonStr = updatedBeneficiary.substring("B2B_JSON_V1|".length);
-          const data = JSON.parse(jsonStr);
-          data.audited_by_manager = adminName;
-          data.manager_audited_at = new Date().toISOString();
-          updatedBeneficiary = "B2B_JSON_V1|" + JSON.stringify(data);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      const res = await fetch("/api/admin/evaluation-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manager_audit", payload: { member, approve, adminName } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
       if (approve) {
-        // 1. Update member record to active, set initial virtual wallet balance equal to initial deposit
-        const { error: memberErr } = await supabase
-          .from("members")
-          .update({ 
-            status: "active",
-            virtual_balance: member.initial_deposit || 0,
-            initial_deposit: member.initial_deposit || 0,
-            beneficiary: updatedBeneficiary
-          })
-          .eq("id", member.id);
-
-        if (memberErr) throw memberErr;
-
-        // 2. Insert initial wallet transaction record
-        const { error: txErr } = await supabase
-          .from("wallet_transactions")
-          .insert({
-            member_id: member.id,
-            amount: member.initial_deposit || 0,
-            transaction_type: "deposit",
-            status: "completed",
-            metadata: {
-              auditor: adminName,
-              audited_at: new Date().toISOString(),
-              note: "B2B 創始首筆預收儲值"
-            }
-          });
-
-        if (txErr) console.warn("Failed to create wallet transaction history record:", txErr);
-
-        // 3. Automatically grant WELCOME100 coupon on approval
-        try {
-          const { data: welcomeCoupon } = await supabase
-            .from("coupons")
-            .select("id")
-            .eq("code", "WELCOME100")
-            .maybeSingle();
-
-          if (welcomeCoupon) {
-            await supabase.from("member_coupons").insert({
-              member_id: member.id,
-              coupon_id: welcomeCoupon.id,
-              is_used: false
-            });
-
-            // Send notification about receiving the coupon
-            await supabase.from("notifications").insert({
-              member_id: member.id,
-              title: "🎁 獲得註冊迎新折價券！",
-              content: "恭喜您獲得一張【新會員迎新折價券】！滿 $500 現折 $100，已存入您的個人券包，快到商城下單體驗吧！",
-              type: "system"
-            });
-          }
-        } catch (couponErr) {
-          console.error("自動發送迎新券失敗:", couponErr);
-        }
-
         alert(`👑 審核開通成功！\n創業夥伴【${member.name}】已正式加入，首筆預收款已自動匯入，迎新禮優惠券已發放。`);
       } else {
-        const { error } = await supabase
-          .from("members")
-          .update({ 
-            status: "rejected",
-            beneficiary: updatedBeneficiary
-          })
-          .eq("id", member.id);
-
-        if (error) throw error;
         alert("❌ 已駁回此 B2B 主管審查案件。");
       }
       fetchAudits();

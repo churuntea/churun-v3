@@ -364,7 +364,7 @@ export default function BonusStructurePage() {
                     onChange={(e) => setEditingRule({ ...editingRule, privileges: e.target.value.split('\n').filter(p => p.trim() !== '') })}
                     rows={4}
                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
-                    placeholder="專屬匯率：30元 = 1點&#10;累積消費滿 $50,000 晉升..."
+                    placeholder="專屬特權&#10;累積消費滿 $50,000 晉升..."
                   />
                 </div>
 

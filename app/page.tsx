@@ -41,6 +41,7 @@ import {
 import NotificationBell from "@/components/NotificationBell";
 import { QRCodeCanvas } from "qrcode.react";
 import { dbCache, fetchWithSWR } from "@/utils/dbCache";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 const CR_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjMwIiBmaWxsPSIjMDY0ZTMiLz48dGV4dCB4PSI1MCIgeT0iNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0NSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUjwvdGV4dD48L3N2Zz4=";
 
@@ -132,99 +133,19 @@ function DashboardContent() {
 
   const handleOpenWalletDetails = async () => {
     setShowWalletDetailModal(true);
-    const savedId = currentUserId || localStorage.getItem("churun_member_id");
-    if (!savedId) return;
+    if (!currentUserId) return;
     setIsFetchingWalletTx(true);
     setIsFetchingPending(true);
     try {
-      // 1. Fetch ledger history
-      const { data: txData, error: txError } = await supabase
-        .from('wallet_transactions')
-        .select('*')
-        .eq('member_id', savedId)
-        .order('created_at', { ascending: false });
-      if (!txError && txData) {
-        setWalletTransactions(txData);
-      }
-
-      // 2. Fetch pending B2B commissions (downline orders not yet settled)
-      const { data: downlineMembers } = await supabase
-        .from('members')
-        .select('id, name')
-        .eq('upline_id', savedId);
-
-      if (downlineMembers && downlineMembers.length > 0) {
-        const downlineIds = downlineMembers.map(m => m.id);
-        const downlineNameMap = new Map(downlineMembers.map(m => [m.id, m.name]));
-
-        // Fetch completed orders of these downlines that have b2b_commission > 0
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('id, member_id, total_amount, b2b_commission, custom_logo_url, created_at, status, fulfillment_status')
-          .in('member_id', downlineIds)
-          .eq('status', 'completed')
-          .gt('b2b_commission', 0);
-
-        if (orders && orders.length > 0) {
-          // Fetch existing settled commissions for these orders
-          const orderIds = orders.map(o => o.id);
-          const { data: existingTx } = await supabase
-            .from('wallet_transactions')
-            .select('order_id')
-            .eq('transaction_type', 'commission_refund')
-            .in('order_id', orderIds);
-
-          const settledOrderIds = new Set(existingTx?.map(tx => tx.order_id) || []);
-
-          // Filter out orders that are already settled
-          const pending = orders
-            .filter(o => !settledOrderIds.has(o.id))
-            .map(o => {
-              // Parse delivered_at or shipped_at from custom_logo_url fallback JSON
-              let refTime = null;
-              if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
-                try {
-                  const parsed = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
-                  refTime = parsed.delivered_at || parsed.shipped_at;
-                } catch (e) {}
-              }
-              if (!refTime) {
-                refTime = o.created_at;
-              }
-
-              // Calculate countdown relative to 30 days cooling period
-              let countdownText = "待發送";
-              let daysRemaining = 30;
-              if (refTime) {
-                const diffTime = new Date().getTime() - new Date(refTime).getTime();
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                daysRemaining = Math.max(0, 30 - diffDays);
-                if (daysRemaining > 0) {
-                  countdownText = `約剩餘 ${daysRemaining} 天撥發`;
-                } else {
-                  countdownText = "將於下次對帳撥發";
-                }
-              }
-
-              return {
-                orderId: o.id,
-                buyerName: downlineNameMap.get(o.member_id) || '下線夥伴',
-                orderAmount: Number(o.total_amount),
-                commissionAmount: Number(o.b2b_commission),
-                refTime: refTime,
-                daysRemaining: daysRemaining,
-                countdownText: countdownText,
-                status: o.fulfillment_status
-              };
-            })
-            // Sort so the ones closest to settlement show first
-            .sort((a, b) => (a.daysRemaining || 0) - (b.daysRemaining || 0));
-
-          setPendingCommissions(pending);
-        } else {
-          setPendingCommissions([]);
-        }
+      const res = await fetch("/api/me/wallet-details");
+      const data = await res.json();
+      
+      if (res.ok) {
+        setWalletTransactions(data.transactions || []);
+        setPendingCommissions(data.pendingCommissions || []);
       } else {
+        console.error("Fetch wallet details failed:", data.error);
+        setWalletTransactions([]);
         setPendingCommissions([]);
       }
     } catch (err) {
@@ -257,86 +178,31 @@ function DashboardContent() {
       setIsLoading(true);
 
       try {
-        // 0. 系統預設頭像載入
-        const { data: defaultAvatars } = await supabase.from("materials").select("title, url").eq("category", "系統預設頭像");
-        const maleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
-        const femaleUrl = defaultAvatars?.find(m => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+        const res = await fetch("/api/me/dashboard");
+        if (!res.ok) throw new Error("Failed to fetch dashboard data");
+        const data = await res.json();
+
+        const maleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
+        const femaleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
         setMaleDefault(maleUrl);
         setFemaleDefault(femaleUrl);
-        // 1. 智慧會員個人資料快取 (SWR 緩存 30 秒，本地持久化)
-        const memberKey = `churun_cache:member:${currentUserId}`;
-        const mData = await fetchWithSWR(memberKey, async () => {
-          const { data, error } = await supabase.from("members").select("*").eq("id", currentUserId).single();
-          if (error) throw error;
-          return data;
-        }, { 
-          ttl: 30000, 
-          useLocal: true, 
-          onBackgroundUpdate: (fresh) => {
-            setMemberInfo(fresh);
-            if (fresh) {
-              setMemberAvatar((fresh?.avatar_url && fresh.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png") ? `${fresh.avatar_url}?t=${Date.now()}` : (fresh?.avatar_settings?.gender === "女" ? femaleUrl : maleUrl));
-            }
-            if (fresh?.avatar_settings) {
-              setAvatarZoom(fresh.avatar_settings.zoom || 1);
-              setAvatarOffset(fresh.avatar_settings.offset || 0);
-            }
-            setMemberMotto(fresh?.motto || "以初心、致潤澤");
-          }
-        });
-
-        setMemberInfo(mData);
-        if (true) {
-          const resolved = (mData?.avatar_url && mData.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png")
-            ? `${mData.avatar_url}?t=${Date.now()}`
-            : (mData?.avatar_settings?.gender === "女" ? femaleUrl : maleUrl);
+        
+        setMemberInfo(data.member);
+        if (data.member) {
+          const resolved = (data.member.avatar_url && data.member.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png")
+            ? `${data.member.avatar_url}?t=${Date.now()}`
+            : (data.member.avatar_settings?.gender === "女" ? femaleUrl : maleUrl);
           setMemberAvatar(resolved);
+          if (data.member.avatar_settings) {
+            setAvatarZoom(data.member.avatar_settings.zoom || 1);
+            setAvatarOffset(data.member.avatar_settings.offset || 0);
+          }
+          setMemberMotto(data.member.motto || "以初心、致潤澤");
         }
-        if (mData?.avatar_settings) {
-          setAvatarZoom(mData.avatar_settings.zoom || 1);
-          setAvatarOffset(mData.avatar_settings.offset || 0);
-        }
-        setMemberMotto(mData?.motto || "以初心、致潤澤");
 
-        // 2. 智慧直推夥伴快取 (SWR 緩存 60 秒，本地持久化)
-        const downlinesKey = `churun_cache:downlines:${currentUserId}`;
-        const dData = await fetchWithSWR(downlinesKey, async () => {
-          const { data, error } = await supabase.from("members").select("id").eq("upline_id", currentUserId);
-          if (error) throw error;
-          return data || [];
-        }, { 
-          ttl: 60000, 
-          useLocal: true, 
-          onBackgroundUpdate: (fresh) => setDownlines(fresh) 
-        });
-        setDownlines(dData || []);
-
-        // 3. 系統快訊公告快取 (SWR 緩存 5 分鐘，本地持久化，減少全域不變數據重複查詢)
-        const announcementsKey = "churun_cache:announcements_latest";
-        const aData = await fetchWithSWR(announcementsKey, async () => {
-          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-          const { data, error } = await supabase.from("announcements").select("*").neq("tag", "SYSTEM").neq("tag", "DELETED").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(5);
-          if (error) throw error;
-          return data || [];
-        }, { 
-          ttl: 300000, 
-          useLocal: true, 
-          onBackgroundUpdate: (fresh) => setAnnouncements(fresh) 
-        });
-        setAnnouncements(aData || []);
-
-        // 4. 精美海報排版素材快取 (SWR 緩存 10 分鐘，本地持久化)
-        const postersKey = "churun_cache:posters_active";
-        const pData = await fetchWithSWR(postersKey, async () => {
-          const { data, error } = await supabase.from("poster_templates").select("*").eq("is_active", true).order("created_at", { ascending: false });
-          if (error) throw error;
-          return data || [];
-        }, { 
-          ttl: 600000, 
-          useLocal: true, 
-          onBackgroundUpdate: (fresh) => setPosterTemplates(fresh) 
-        });
-        setPosterTemplates(pData || []);
+        setDownlines(data.downlines || []);
+        setAnnouncements(data.announcements || []);
+        setPosterTemplates(data.posterTemplates || []);
 
         // 5. 獲取品牌大使申請狀態
         const ambassadorRes = await fetch(`/api/ambassador/status?member_id=${currentUserId}`);
@@ -490,10 +356,11 @@ function DashboardContent() {
     try {
       setMemberMotto(newMotto);
       if (currentUserId) {
-        await supabase
-          .from("members")
-          .update({ motto: newMotto })
-          .eq("id", currentUserId);
+        await fetch("/api/me/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motto: newMotto })
+        });
         
         // Update local SWR cache smoothly so page transitions keep it intact
         const memberKey = `churun_cache:member:${currentUserId}`;
@@ -542,19 +409,12 @@ function DashboardContent() {
   }
 
   const handleOpenAmbassadorOptions = async () => {
-    // 檢查免費升級資格 (個人累計 + 直推累計 >= 300,000)
     try {
-      const personalSpend = Number(memberInfo.lifetime_spend || 0);
-      let teamSpend = 0;
-      if (downlines && downlines.length > 0) {
-        const dIds = downlines.map(d => d.id);
-        const { data } = await supabase.from('members').select('lifetime_spend').in('id', dIds);
-        if (data) {
-          teamSpend = data.reduce((sum, m) => sum + Number(m.lifetime_spend || 0), 0);
-        }
+      const res = await fetch("/api/me/ambassador-eligibility");
+      if (res.ok) {
+        const data = await res.json();
+        setFreeEligibilityScore(data.score || 0);
       }
-      const score = (personalSpend / 2) + (teamSpend / 2);
-      setFreeEligibilityScore(score);
     } catch (e) {
       console.error(e);
     }
@@ -772,7 +632,7 @@ function DashboardContent() {
                                    <span className="text-amber-400 font-black text-[10px] animate-bounce">🔥</span>
                                 </div>
                                 <p className="text-[10px] font-bold text-white/85 leading-relaxed">
-                                   還差 <span className="text-amber-300 font-black">{remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬匯率：<span className="text-emerald-400 font-black">{nextTier.rate}元 = 1點</span>
+                                   還差 <span className="text-amber-300 font-black">{remainingAmount.toLocaleString()}</span> 即可升級！解鎖專屬特權
                                 </p>
                              </div>
                            )}
@@ -918,62 +778,52 @@ function DashboardContent() {
         </section>
 
         {/* Brand Ambassador Section */}
-        <section className="space-y-6">
-           <div className="flex justify-between items-center px-4">
-              <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">品牌大使申請</h3>
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
-                 Brand Ambassador
-              </span>
-           </div>
-           <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-              
-              {ambassadorStatus === 'pending' ? (
-                <div className="relative z-10 flex flex-col items-center justify-center text-center py-6 space-y-4">
-                   <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
-                      <Loader2 className="w-8 h-8 text-amber-300 animate-spin" />
-                   </div>
-                   <div>
-                      <h4 className="text-xl font-black tracking-widest">申請審核中</h4>
-                      <p className="text-[10px] text-emerald-200/80 mt-2">您的品牌大使申請已經送出，請耐心等候總部核准。</p>
-                   </div>
-                </div>
-              ) : ambassadorStatus === 'active' ? (
-                <div className="relative z-10 flex flex-col items-center justify-center text-center py-6 space-y-4">
-                   <div className="w-16 h-16 bg-gradient-to-tr from-amber-400 to-amber-300 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                      <Crown className="w-8 h-8 text-emerald-950" />
-                   </div>
-                   <div>
-                      <h4 className="text-xl font-black tracking-widest text-amber-300">尊榮品牌大使</h4>
-                      <p className="text-[10px] text-emerald-100/90 mt-2 font-mono">
-                         有效期限至：{new Date(memberInfo.ambassador_expires_at).toLocaleDateString('zh-TW')}
-                      </p>
-                   </div>
-                </div>
-              ) : (
-                <div className="relative z-10 space-y-6">
-                   <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-amber-300 rounded-[1.5rem] flex items-center justify-center shadow-lg">
-                         <Crown className="w-7 h-7 text-emerald-950" />
-                      </div>
-                      <div>
-                         <h4 className="text-lg font-black tracking-widest text-amber-300">申請成為品牌大使</h4>
-                         <p className="text-[9px] text-emerald-200 mt-1 uppercase tracking-widest">Unlock Premium Benefits</p>
-                      </div>
-                   </div>
-                   <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
-                      尊享最高級別點數匯率、額外分紅加成與獨家行銷支援，現在就加入初潤品牌大使行列。
-                   </p>
-                   <button 
-                     onClick={handleOpenAmbassadorOptions}
-                     className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-emerald-950 font-black text-sm py-4 rounded-2xl shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
-                   >
-                      立即申請 <ArrowUpRight className="w-4 h-4" />
-                   </button>
-                </div>
-              )}
-           </div>
-        </section>
+        {ambassadorStatus !== 'active' && (
+          <section className="space-y-6">
+             <div className="flex justify-between items-center px-4">
+                <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase">品牌大使申請</h3>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
+                   Brand Ambassador
+                </span>
+             </div>
+             <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+                
+                {ambassadorStatus === 'pending' ? (
+                  <div className="relative z-10 flex flex-col items-center justify-center text-center py-6 space-y-4">
+                     <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                        <Loader2 className="w-8 h-8 text-amber-300 animate-spin" />
+                     </div>
+                     <div>
+                        <h4 className="text-xl font-black tracking-widest">申請審核中</h4>
+                        <p className="text-[10px] text-emerald-200/80 mt-2">您的品牌大使申請已經送出，請耐心等候總部核准。</p>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="relative z-10 space-y-6">
+                     <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-amber-300 rounded-[1.5rem] flex items-center justify-center shadow-lg">
+                           <Crown className="w-7 h-7 text-emerald-950" />
+                        </div>
+                        <div>
+                           <h4 className="text-lg font-black tracking-widest text-amber-300">申請成為品牌大使</h4>
+                           <p className="text-[9px] text-emerald-200 mt-1 uppercase tracking-widest">Unlock Premium Benefits</p>
+                        </div>
+                     </div>
+                     <p className="text-xs text-emerald-100/90 leading-relaxed font-medium">
+                        尊享最高級別點數匯率、額外回饋加成與獨家行銷支援，現在就加入初潤品牌大使行列。
+                     </p>
+                     <button 
+                       onClick={handleOpenAmbassadorOptions}
+                       className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-emerald-950 font-black text-sm py-4 rounded-2xl shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
+                     >
+                        立即申請 <ArrowUpRight className="w-4 h-4" />
+                     </button>
+                  </div>
+                )}
+             </div>
+          </section>
+        )}
       
 
         {/* Announcements */}
@@ -1419,7 +1269,7 @@ function DashboardContent() {
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <CreditCard className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-black text-slate-900">分紅帳本與交易明細</h3>
+                <h3 className="text-lg font-black text-slate-900">交易明細</h3>
                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Virtual Ledger & Referral Rewards</p>
               </div>
 
@@ -1452,7 +1302,7 @@ function DashboardContent() {
                   <div className="space-y-4">
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
                       💡 <strong>預估撥發說明：</strong><br />
-                      依據初潤品牌營運規章，下線夥伴消費所產生的推廣分紅，均需在該筆訂單<strong>【簽收取貨滿 30 天】</strong>後，且無退換貨等異常時，由系統自動考核並撥發至您的可用餘額中。
+                      依據初潤品牌營運規章，下線夥伴消費所產生的推廣回饋，均需在該筆訂單<strong>【簽收取貨滿 30 天】</strong>後，且無退換貨等異常時，由系統自動考核並撥發至您的可用餘額中。
                     </p>
 
                     {isFetchingPending ? (
@@ -1462,7 +1312,7 @@ function DashboardContent() {
                     ) : pendingCommissions.length === 0 ? (
                       <div className="text-center py-10 bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
                         <span className="text-2xl">🍃</span>
-                        <p className="text-xs font-black text-slate-400 mt-2">目前尚無預估撥發中的分紅</p>
+                        <p className="text-xs font-black text-slate-400 mt-2">目前尚無預估撥發中的回饋</p>
                         <p className="text-[9px] text-slate-400/80 mt-1 px-6">當您的下線團隊夥伴完成消費後，將在此顯示倒數明細。</p>
                       </div>
                     ) : (
@@ -1489,7 +1339,7 @@ function DashboardContent() {
                                 <span className="text-xs font-mono font-black text-emerald-600">
                                   +${item.commissionAmount.toLocaleString()}
                                 </span>
-                                <p className="text-[7px] text-slate-400 font-black mt-0.5">預估分紅</p>
+                                <p className="text-[7px] text-slate-400 font-black mt-0.5">預估回饋</p>
                               </div>
                             </div>
                           ))}
@@ -1501,7 +1351,7 @@ function DashboardContent() {
                   <div className="space-y-4">
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">
                       💡 <strong>可用餘額說明：</strong><br />
-                      此處顯示您已正式入帳的可用預收貨款與分紅歷史紀錄，您可用於批貨消費扣款、儲值充值或申請提領。
+                      此處顯示您已正式入帳的可用預收貨款與歷史紀錄，您可用於批貨消費扣款、儲值充值或申請提領。
                     </p>
 
                     {isFetchingWalletTx ? (
@@ -1527,7 +1377,7 @@ function DashboardContent() {
                               txLabel = "📥 儲值預收金";
                               txDesc = txDesc || "加盟儲值款";
                             } else if (tx.transaction_type === 'commission_refund') {
-                              txLabel = "🎁 推薦分紅獎金";
+                              txLabel = "🎁 推薦回饋獎金";
                               txDesc = txDesc || `下線訂單對帳 (滿30天自動撥發)`;
                             } else if (tx.transaction_type === 'order_deduction') {
                               txLabel = "💸 批貨消費扣款";
@@ -1580,7 +1430,7 @@ function DashboardContent() {
             />
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10"
+              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <button 
                 onClick={() => setShowAmbassadorOptions(false)}
@@ -1786,6 +1636,9 @@ function DashboardContent() {
                 >
                   {isSubmittingAmbassador ? <Loader2 className="w-5 h-5 animate-spin"/> : '送出申請'}
                 </button>
+                <div className="text-center text-slate-200 text-[10px] mt-6 pointer-events-none select-none font-bold uppercase tracking-widest">
+                  初潤製茶所 Churun Tea House
+                </div>
               </div>
             </motion.div>
           </div>
@@ -1803,23 +1656,11 @@ function DashboardContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
-            onClick={() => setPreviewImage(null)}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+            onClick={() => { setPreviewImage(null); setAvatarZoom(1); }} // Reuse avatarZoom state for this locally or create a new one, but for simplicity let's use a local state. Wait, I can't use useState inside here easily without creating a new component. Let's just create an ImagePreview component or use a wrapper.
           >
-            <motion.img
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              src={previewImage}
-              className="max-w-full max-h-full object-contain rounded-2xl"
-              alt="Preview"
-            />
-            <button
-              onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
-              className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {/* Wrapper to handle state */}
+            <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
           </motion.div>
         )}
       </AnimatePresence>

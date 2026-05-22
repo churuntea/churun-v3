@@ -198,7 +198,7 @@ function ExitContent() {
                     transition={{ delay: 0.2 }}
                     className="flex justify-between items-center text-rose-400"
                   >
-                     <span className="text-xs font-bold text-slate-400">2. 需扣回之推廣分紅 (B)</span>
+                     <span className="text-xs font-bold text-slate-400">2. 需扣回之推廣回饋 (B)</span>
                      <span className="font-mono font-bold">-${Number(simulation.totalCommissionReceived).toLocaleString()}</span>
                   </motion.div>
                   
@@ -208,7 +208,7 @@ function ExitContent() {
                     transition={{ delay: 0.3 }}
                     className="flex justify-between items-center text-rose-400"
                   >
-                     <span className="text-xs font-bold text-slate-400">3. 創業解除行政手續費 (C)</span>
+                     <span className="text-xs font-bold text-slate-400">3. 創業解除行政費 (C)</span>
                      <span className="font-mono font-bold">-${Number(simulation.adminFee).toLocaleString()}</span>
                   </motion.div>
                   

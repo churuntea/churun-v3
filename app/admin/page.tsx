@@ -31,7 +31,11 @@ import {
   AlertTriangle,
   Ticket,
   Image as ImageIcon,
-  FileText
+  FileText,
+  AlertCircle,
+  Lock,
+  Cloud,
+  Download
 } from "lucide-react";
 import { 
   AreaChart, 
@@ -102,7 +106,8 @@ function AdminDashboardContent() {
     hr: true,
     backup: true,
     marketing_ai: true,
-    ambassador: true
+    ambassador: true,
+    settings: true
   });
 
   const toggleSection = (key: string) => {
@@ -121,6 +126,8 @@ function AdminDashboardContent() {
   const [confirmText, setConfirmText] = useState("");
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreLogs, setRestoreLogs] = useState<string[]>([]);
+  const [autoBackups, setAutoBackups] = useState<any[]>([]);
+  const [isFetchingAutoBackups, setIsFetchingAutoBackups] = useState(false);
 
   const fetchAuditLogs = async () => {
     if (!adminUser) return;
@@ -161,7 +168,24 @@ function AdminDashboardContent() {
     if (backupTab === "features" && showBackupModal) {
       fetchSystemFeatures();
     }
+    if (backupTab === "full" && showBackupModal) {
+      fetchAutoBackups();
+    }
   }, [backupTab, showBackupModal]);
+
+  const fetchAutoBackups = async () => {
+    setIsFetchingAutoBackups(true);
+    try {
+      const res = await fetch("/api/admin/auto-backups");
+      const result = await res.json();
+      if (result.success) {
+        setAutoBackups(result.files);
+      }
+    } catch (err) {
+      console.error("Failed to fetch auto backups:", err);
+    }
+    setIsFetchingAutoBackups(false);
+  };
 
   const handleGenerateBackup = async (timeframe: string) => {
     setIsGeneratingBackup(true);
@@ -289,20 +313,29 @@ function AdminDashboardContent() {
   };
 
   useEffect(() => {
-    const userStr = sessionStorage.getItem("churun_admin_user");
-    if (userStr) {
+    const checkAuth = async () => {
       try {
-        const parsedUser = JSON.parse(userStr);
-        setAdminUser(parsedUser);
-        setIsAdmin(true);
-        fetchStats();
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        
+        if (data.authenticated && data.user?.isAdmin) {
+          // If valid admin session cookie, set it
+          setAdminUser(data.user);
+          setIsAdmin(true);
+          fetchStats();
+        } else {
+          // If not authenticated or not admin, clear any old state
+          sessionStorage.removeItem("churun_admin_user");
+          sessionStorage.removeItem("churun_admin_log_id");
+          setIsAdmin(false);
+        }
       } catch (e) {
-        sessionStorage.removeItem("churun_admin_user");
+        console.error("Auth check failed:", e);
+      } finally {
         setIsLoading(false);
       }
-    } else {
-      setIsLoading(false);
-    }
+    };
+    checkAuth();
   }, []);
 
   useEffect(() => {
@@ -349,7 +382,7 @@ function AdminDashboardContent() {
     }
     await logFeatureAccess(label);
     if (action.includes('/api/')) {
-      if (!confirm(`確定要執行 ${label} 嗎？此動作將發放分紅並扣除相關帳戶餘額！`)) return;
+      if (!confirm(`確定要執行 ${label} 嗎？此動作將發放回饋並扣除相關帳戶餘額！`)) return;
       const res = await fetch(action, { method: 'POST' });
       const d = await res.json();
       alert(d.message || d.error);
@@ -361,23 +394,13 @@ function AdminDashboardContent() {
   const fetchStats = async () => {
     setIsLoading(true);
     try {
-      // 1. 基礎計數與待處理提領
-      const { count: mCount } = await supabase.from("members").select("*", { count: "exact", head: true });
-      const { count: bCount } = await supabase.from("members").select("*", { count: "exact", head: true }).eq("is_b2b", true);
-      const { data: wData } = await supabase.from("wallet_transactions").select("amount").eq("status", "pending");
-      const pendingSum = wData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+      const res = await fetch("/api/admin/dashboard-raw");
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-      // 2. 撈取最近 180 天內的所有訂單，用於動態圖表與今日/本月業績計算
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-      sixMonthsAgo.setDate(1);
-      sixMonthsAgo.setHours(0, 0, 0, 0);
+      const { mCount, bCount, wData, recentOrders, topB2B, itemsData } = result.data;
 
-      const { data: recentOrders } = await supabase
-        .from("orders")
-        .select("id, total_amount, status, created_at, shipping_info, custom_logo_url")
-        .gte("created_at", sixMonthsAgo.toISOString())
-        .order("created_at", { ascending: true });
+      const pendingSum = wData?.reduce((acc: any, curr: any) => acc + Number(curr.amount), 0) || 0;
 
       const safeOrders = recentOrders || [];
 
@@ -413,7 +436,7 @@ function AdminDashboardContent() {
       let statusCounts = { pending: 0, paid: 0, shipped: 0, completed: 0, cancelled: 0, refunded: 0 };
       let pickupPointsPopularity: Record<string, { name: string; count: number; revenue: number }> = {};
 
-      processedOrders.forEach(o => {
+      processedOrders.forEach((o: any) => {
         const status = o.status || "pending";
         // 累積訂單狀態
         if (status === "pending") statusCounts.pending++;
@@ -496,20 +519,9 @@ function AdminDashboardContent() {
       setPickupStats(sortedPickupPoints);
 
       // 3. 獲取前 3 名合夥人業績排行榜
-      const { data: topB2B } = await supabase
-        .from("members")
-        .select("name, member_code, tier, team_total_sales")
-        .eq("is_b2b", true)
-        .order("team_total_sales", { ascending: false })
-        .limit(3);
-      
       setTopPartners(topB2B || []);
 
       // 4. 獲取銷售量前 3 名商品排行榜
-      const { data: itemsData } = await supabase
-        .from("order_items")
-        .select("product_id, name, quantity, price");
-
       const prodMap: Record<string, { name: string; quantity: number; revenue: number }> = {};
       if (itemsData) {
         (itemsData as any[]).forEach(item => {
@@ -899,7 +911,12 @@ function AdminDashboardContent() {
     setIsLoading(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error(e);
+    }
     sessionStorage.removeItem("churun_admin_user");
     sessionStorage.removeItem("churun_admin_log_id");
     sessionStorage.removeItem("churun_admin_auth");
@@ -1186,7 +1203,7 @@ function AdminDashboardContent() {
                                  key={act.label}
                                  onClick={async () => {
                                     if (act.action.includes('/api/')) {
-                                       if (!confirm("確定要執行全體獎金發放與業績結算嗎？此動作將發放分紅並扣除相關帳戶餘額！")) return;
+                                       if (!confirm("確定要執行全體獎金發放與業績結算嗎？此動作將發放回饋並扣除相關帳戶餘額！")) return;
                                        const res = await fetch(act.action, { method: 'POST' });
                                        const d = await res.json();
                                        alert(d.message || d.error);
@@ -1410,6 +1427,53 @@ function AdminDashboardContent() {
                               <div className="flex items-center gap-3">
                                  <Settings className="w-4 h-4 text-slate-400 group-hover:text-white" />
                                  <span className="text-xs font-bold text-slate-700 group-hover:text-white">功能總覽</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+                           </button>
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
+               </div>
+
+               {/* Zone 5: 系統參數設定 */}
+               <div className="bg-white rounded-[3rem] p-7 border border-slate-100 shadow-sm space-y-4 transition-all">
+                  <div 
+                     onClick={() => toggleSection('settings')}
+                     className="flex items-center justify-between border-b border-slate-50 pb-3 cursor-pointer group"
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center font-bold">⚙️</div>
+                        <div>
+                           <h4 className="text-sm font-black text-slate-800">系統參數設定</h4>
+                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-0.5">System Settings</p>
+                        </div>
+                     </div>
+                     <button className="text-slate-400 group-hover:text-slate-700 transition">
+                        {collapsedSections.settings ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                     </button>
+                  </div>
+
+                  <AnimatePresence>
+                     {!collapsedSections.settings && (
+                        <motion.div 
+                           initial={{ opacity: 0, height: 0 }}
+                           animate={{ opacity: 1, height: 'auto' }}
+                           exit={{ opacity: 0, height: 0 }}
+                           className="space-y-2 overflow-hidden"
+                        >
+                           <button 
+                              onClick={() => {
+                                 if (adminUser && adminUser.name !== '最高權限管理員' && adminUser.id !== 'admin') {
+                                    alert("🔒 權限不足！只有最高權限管理員可變更系統參數。");
+                                    return;
+                                 }
+                                 router.push('/admin/settings');
+                              }}
+                              className="w-full flex items-center justify-between p-3.5 bg-slate-50 rounded-xl hover:bg-slate-900 hover:text-white transition group"
+                           >
+                              <div className="flex items-center gap-3">
+                                 <Settings className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                 <span className="text-xs font-bold text-slate-700 group-hover:text-white">會員權利義務文案設定</span>
                               </div>
                               <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
                            </button>
@@ -1915,7 +1979,7 @@ function AdminDashboardContent() {
                      <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider block mb-1">💡 實時 AI 通路行銷戰術：</span>
                      <p className="text-[10px] font-black text-slate-800 leading-relaxed">
                         {b2bVsB2cShare.b2bRev >= b2bVsB2cShare.b2cRev ? (
-                          "📢 創業合夥人與大額批發是您的生命線！建議常態舉辦「合夥人年終分紅表彰大會」，並推出推薦新代理人的加碼分紅，建立極具凝聚力的批發分銷鐵三角！"
+                          "📢 創業合夥人與大額批發是您的生命線！建議常態舉辦「合夥人年終表彰大會」，並推出推薦新代理人的加碼回饋，建立極具凝聚力的批發分銷鐵三角！"
                         ) : (
                           "📢 B2C 零售散客下單極其踴躍，證明初潤在日常消費端知名度極高！建議加強 LINE 官方自動化客服引導與社群口碑行銷，推動「好友分享送回購券」以刺激粉絲裂變！"
                         )}
@@ -2021,7 +2085,7 @@ function AdminDashboardContent() {
                           if (maxVal === 0) return "暫無足夠訂單金額數據，建議主推 NT$ 499 免運常規包裝組合。";
                           if (maxVal === orderTiers.tier2) return "「日常常備 (NT$ 300-999)」佔比最高！高度推薦在此區間推出「5入奢華分享裝」或「茶包常備家庭組」，精準卡位客戶的核心消費慣性！";
                           if (maxVal === orderTiers.tier1) return "「輕量嚐鮮 (NT$ 1-299)」客群最多！建議舉辦「滿 $499 享免運」或「多加 $99 獲升級高山冷泡特選」，拉高平均客單價（AOV）！";
-                          return "「送禮/商用/大宗」高單價客戶極多！高度建議針對批發與送禮重點包裝「初潤典藏高規大禮盒」或「商用免運直達」，能獲得更高的毛利與回扣分紅！";
+                          return "「送禮/商用/大宗」高單價客戶極多！高度建議針對批發與送禮重點包裝「初潤典藏高規大禮盒」或「商用免運直達」，能獲得更高的毛利與回饋！";
                         })()}
                      </p>
                   </div>
@@ -2349,6 +2413,64 @@ function AdminDashboardContent() {
                           </button>
                        </div>
                     )}
+
+                     {/* 自動備份清單 */}
+                     <div className="mt-8 pt-8 border-t border-slate-100">
+                        <div className="flex items-center justify-between mb-4">
+                           <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                              <Cloud className="w-4 h-4 text-indigo-500" /> 自動備份封存庫 (Auto-Backup Archives)
+                           </h4>
+                           <button onClick={fetchAutoBackups} className="text-slate-400 hover:text-indigo-500 transition">
+                              <RefreshCcw className={`w-4 h-4 ${isFetchingAutoBackups ? 'animate-spin' : ''}`} />
+                           </button>
+                        </div>
+                        {isFetchingAutoBackups && autoBackups.length === 0 ? (
+                           <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
+                        ) : autoBackups.length > 0 ? (
+                           <div className="grid gap-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                              {autoBackups.map((file, idx) => (
+                                 <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex justify-between items-center group hover:border-indigo-100 transition">
+                                    <div className="flex items-center gap-4">
+                                       <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center text-indigo-500">
+                                          <Database className="w-4 h-4" />
+                                       </div>
+                                       <div>
+                                          <p className="text-xs font-black text-slate-700">{file.name}</p>
+                                          <p className="text-[9px] font-black text-slate-400 uppercase mt-0.5">{(file.metadata?.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.created_at).toLocaleString()}</p>
+                                       </div>
+                                    </div>
+                                    <button 
+                                       onClick={async () => {
+                                          try {
+                                             const res = await fetch(`/api/admin/auto-backups/download?file=${encodeURIComponent(file.name)}`);
+                                             const { url, success } = await res.json();
+                                             if (success && url) {
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = file.name;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                             } else {
+                                                alert("下載連結取得失敗");
+                                             }
+                                          } catch(e) {
+                                             alert("下載異常");
+                                          }
+                                       }}
+                                       className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm"
+                                    >
+                                       <Download className="w-3.5 h-3.5" />
+                                    </button>
+                                 </div>
+                              ))}
+                           </div>
+                        ) : (
+                           <div className="py-8 text-center bg-slate-50 border border-slate-100 border-dashed rounded-3xl">
+                              <p className="text-xs font-bold text-slate-400">目前尚無自動備份紀錄</p>
+                           </div>
+                        )}
+                     </div>
                  </div>
                )}
 

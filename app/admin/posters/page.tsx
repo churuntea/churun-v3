@@ -37,11 +37,17 @@ export default function AdminPosters() {
 
   const fetchTemplates = async () => {
     setIsLoading(true);
-    const { data } = await supabase
-      .from('poster_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setTemplates(data || []);
+    try {
+      const res = await fetch('/api/admin/posters-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch_templates', payload: {} })
+      });
+      const result = await res.json();
+      setTemplates(result.data || []);
+    } catch (err) {
+      console.error(err);
+    }
     setIsLoading(false);
   };
 
@@ -75,18 +81,16 @@ export default function AdminPosters() {
         is_active: editingTemplate.is_active
       };
 
-      if (editingTemplate.id) {
-        const { error } = await supabase
-          .from('poster_templates')
-          .update(savePayload)
-          .eq('id', editingTemplate.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('poster_templates')
-          .insert([savePayload]);
-        if (error) throw error;
-      }
+      const res = await fetch('/api/admin/posters-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_template',
+          payload: { id: editingTemplate.id, savePayload }
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
       
       setEditingTemplate(null);
@@ -101,20 +105,31 @@ export default function AdminPosters() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此樣板嗎？')) return;
-    const { error } = await supabase.from('poster_templates').delete().eq('id', id);
-    if (error) alert('刪除失敗');
-    else fetchTemplates();
+    try {
+      const res = await fetch('/api/admin/posters-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_template', payload: { id } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error();
+      fetchTemplates();
+    } catch {
+      alert('刪除失敗');
+    }
   };
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     try {
       const newStatus = !currentStatus;
-      const { error } = await supabase
-        .from('poster_templates')
-        .update({ is_active: newStatus })
-        .eq('id', id);
-        
-      if (error) throw error;
+      const res = await fetch('/api/admin/posters-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_active', payload: { id, newStatus } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+
       
       // Update local state instantly
       setTemplates(prev => prev.map(t => t.id === id ? { ...t, is_active: newStatus } : t));

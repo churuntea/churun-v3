@@ -112,14 +112,18 @@ export default function CouponsAdminPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const { data: couponsData, error: couponsError } = await supabase
-        .from("coupons")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (couponsError) throw couponsError;
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_data", payload: {} })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
-      const processedCoupons = (couponsData || []).map(c => {
+      const couponsData = result.data.coupons || [];
+      const membersData = result.data.members || [];
+
+      const processedCoupons = couponsData.map((c: any) => {
         let expDate = "2026-12-31";
         let desc = c.description || "";
         if (desc.includes("[EXP:")) {
@@ -135,13 +139,7 @@ export default function CouponsAdminPage() {
         setSelectedCouponId(processedCoupons[0].id);
       }
 
-      const { data: membersData, error: membersError } = await supabase
-        .from("members")
-        .select("id, name, phone, tier, is_b2b")
-        .order("name");
-      
-      if (membersError) throw membersError;
-      setMembers(membersData || []);
+      setMembers(membersData);
 
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -162,19 +160,23 @@ export default function CouponsAdminPage() {
       const baseDesc = newCoupon.description.trim();
       const finalDesc = newCoupon.is_active ? `${expStr}${baseDesc}` : `[UNPUBLISHED] ${expStr}${baseDesc}`;
 
-      const { data, error } = await supabase
-        .from("coupons")
-        .insert({
-          code: newCoupon.code.trim().toUpperCase(),
-          name: newCoupon.name.trim(),
-          discount_type: newCoupon.discount_type,
-          value: Number(newCoupon.value),
-          min_spend: Number(newCoupon.min_spend),
-          description: finalDesc
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_coupon",
+          payload: {
+            code: newCoupon.code,
+            name: newCoupon.name,
+            discount_type: newCoupon.discount_type,
+            value: newCoupon.value,
+            min_spend: newCoupon.min_spend,
+            description: finalDesc
+          }
         })
-        .select();
-
-      if (error) throw error;
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
       showFeedback("success", `優惠券 【${newCoupon.name}】 (使用期限至 ${newCoupon.valid_until}) 建立成功！`);
       setNewCoupon({
@@ -244,21 +246,23 @@ export default function CouponsAdminPage() {
         is_used: false
       }));
 
-      const { error: insertError } = await supabase
-        .from("member_coupons")
-        .insert(insertRows);
-
-      if (insertError) throw insertError;
-
       const notificationRows = targetMembers.map(m => ({
         member_id: m.id,
-        title: "🎁 獲得專屬優惠券！",
-        content: `總部向您發放了一張【${couponObj.name}】(${couponObj.discount_type === 'fixed' ? `$${couponObj.value}` : `${100 - couponObj.value}折`})！使用期限至 ${couponObj.valid_until || "2026/12/31"}，快去使用吧！`,
-        type: "system",
-        is_read: false
+        title: "🎁 專屬優惠券發送通知",
+        content: `恭喜您！系統已發送【${couponObj.name}】至您的帳戶，請至會員中心的「優惠券與紅利點數」查看。`,
+        type: "system"
       }));
 
-      await supabase.from("notifications").insert(notificationRows);
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "deliver_coupon",
+          payload: { insertRows, notificationRows }
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
 
       showFeedback("success", `成功將優惠券 【${couponObj.name}】 派發給 ${targetMembers.length} 位符合資格的對象！`);
     } catch (err: any) {
@@ -272,8 +276,14 @@ export default function CouponsAdminPage() {
     if (!confirm(`確定要刪除優惠券【${name}】嗎？此動作將一併收回所有會員庫存中未使用的此券！`)) return;
 
     try {
-      const { error } = await supabase.from("coupons").delete().eq("id", id);
-      if (error) throw error;
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_coupon", payload: { id } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
       showFeedback("success", `已刪除優惠券 【${name}】`);
       fetchData();
     } catch (err: any) {
@@ -293,12 +303,13 @@ export default function CouponsAdminPage() {
     }
     
     try {
-      const { error } = await supabase
-        .from("coupons")
-        .update({ description: newDescription })
-        .eq("id", coupon.id);
-        
-      if (error) throw error;
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_coupon_description", payload: { id: coupon.id, description: newDescription } })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
       
       showFeedback("success", `優惠券 【${coupon.name}】 ${isCurrentlyActive ? '已下架停用' : '已重新上架啟用'}！`);
       fetchData();
@@ -314,18 +325,23 @@ export default function CouponsAdminPage() {
     
     setIsSavingEdit(true);
     try {
-      const { error } = await supabase
-        .from("coupons")
-        .update({
-          name: editingCoupon.name.trim(),
-          discount_type: editingCoupon.discount_type,
-          value: Number(editingCoupon.value),
-          min_spend: Number(editingCoupon.min_spend),
-          description: editingCoupon.description?.trim() || ""
+      const res = await fetch("/api/admin/coupons-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_coupon",
+          payload: {
+            id: editingCoupon.id,
+            name: editingCoupon.name,
+            discount_type: editingCoupon.discount_type,
+            value: editingCoupon.value,
+            min_spend: editingCoupon.min_spend,
+            description: editingCoupon.description
+          }
         })
-        .eq("id", editingCoupon.id);
-        
-      if (error) throw error;
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
       
       showFeedback("success", `優惠券 【${editingCoupon.name}】 更新成功！`);
       setEditingCoupon(null);
