@@ -330,7 +330,7 @@ function ProfileContent() {
                          {(() => {
                              const hasCustomAvatar = memberInfo.avatar_url && memberInfo.avatar_url !== "https://i.ibb.co/6R2M5X1/churun-baby.png";
                              const resolvedSrc = hasCustomAvatar 
-                                ? memberInfo.avatar_url 
+                                ? `${memberInfo.avatar_url}?t=${Date.now()}`
                                 : (memberInfo.avatar_settings?.gender === "女" ? femaleDefault : maleDefault);
                              const isVid = isVideoUrl(resolvedSrc);
                              return (
@@ -345,11 +345,11 @@ function ProfileContent() {
                           })()}
                         <div>
                            <p className="text-[10px] font-black tracking-[0.4em] uppercase text-emerald-300/80 mb-0.5">Member Account</p>
-                           <h2 className="text-2xl font-black tracking-tight">{memberInfo.name}</h2>
+                           <h2 className="text-2xl font-black tracking-tight">{memberInfo.name || '初潤會員'}</h2>
                         </div>
                      </div>
                      <span className="text-[9px] font-black text-emerald-300 bg-white/10 px-3 py-1.5 rounded-full uppercase tracking-widest font-mono border border-white/10 backdrop-blur-md">
-                        {memberInfo.tier}
+                        {memberInfo.tier || '初潤寶寶'}
                      </span>
                   </div>
 

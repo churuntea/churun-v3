@@ -499,9 +499,9 @@ function DashboardContent() {
                       <div className="space-y-3">
                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-fit">
                             <Sparkles className="w-3 h-3 text-amber-300" />
-                            <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier}</span>
+                            <span className="text-[10px] font-black tracking-widest uppercase">{memberInfo.tier || '初潤寶寶'}</span>
                          </div>
-                         <h2 className="text-4xl font-black tracking-tight">{memberInfo.name}</h2>
+                         <h2 className="text-4xl font-black tracking-tight">{memberInfo.name || '初潤會員'}</h2>
                           <div className="flex items-center gap-2 mt-3 overflow-hidden max-w-[200px] sm:max-w-none select-none">
                              <div className="w-3 h-[1px] bg-white/20 shrink-0"></div>
                              <p 
