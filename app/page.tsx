@@ -164,27 +164,26 @@ function DashboardContent() {
       window.location.reload();
       return;
     }
-    fetch("/api/me/profile").then(res => res.json()).then(data => {
-      if (data.member?.id) {
-        setCurrentUserId(data.member.id);
-      } else {
-        router.replace("/login");
-      }
-    }).catch(() => router.replace("/login"));
-  }, [router]);
 
-  useEffect(() => {
     const fetchData = async () => {
-      if (!currentUserId) {
-        setIsLoading(false);
-        return;
-      }
       setIsLoading(true);
-
       try {
         const res = await fetch("/api/me/dashboard");
-        if (!res.ok) throw new Error("Failed to fetch dashboard data");
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.replace("/login");
+            return;
+          }
+          throw new Error("Failed to fetch dashboard data");
+        }
         const data = await res.json();
+
+        if (data.member?.id) {
+          setCurrentUserId(data.member.id);
+        } else {
+          router.replace("/login");
+          return;
+        }
 
         const maleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 男生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
         const femaleUrl = data.defaultAvatars?.find((m: any) => m.title === "預設頭像 - 女生潤寶")?.url || "https://i.ibb.co/6R2M5X1/churun-baby.png";
@@ -208,22 +207,19 @@ function DashboardContent() {
         setAnnouncements(data.announcements || []);
         setPosterTemplates(data.posterTemplates || []);
 
-        // 5. 獲取品牌大使申請狀態
-        const ambassadorRes = await fetch(`/api/ambassador/status?member_id=${currentUserId}`);
-        if (ambassadorRes.ok) {
-          const ambData = await ambassadorRes.json();
-          setAmbassadorStatus(ambData.memberStatus?.ambassador_status || null);
-          setAmbassadorApplication(ambData.application || null);
-        }
+        // 5. 獲取品牌大使申請狀態 (已整合在 dashboard API)
+        setAmbassadorStatus(data.ambassadorStatus || null);
+        setAmbassadorApplication(data.ambassadorApplication || null);
 
       } catch (err) {
         console.error("[SWR Home Data Sync Error]:", err);
+        router.replace("/login");
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [currentUserId]);
+  }, [router]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
