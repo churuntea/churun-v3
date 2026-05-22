@@ -169,12 +169,13 @@ function WholesaleContent() {
   }, [showShippingModal]);
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
-    fetchData(savedId);
+    fetch("/api/me/profile").then(res => res.json()).then(data => {
+      if (data.member?.id) {
+        fetchData(data.member.id);
+      } else {
+        router.replace("/login");
+      }
+    }).catch(() => router.replace("/login"));
   }, [router]);
 
   const fetchData = async (userId: string) => {
@@ -250,7 +251,7 @@ function WholesaleContent() {
   };
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (savedId) {
       const localSaved = localStorage.getItem(`churun_saved_addresses_${savedId}`);
       if (localSaved) {
@@ -282,7 +283,7 @@ function WholesaleContent() {
     
     const updated = [...savedAddresses, newAddr];
     setSavedAddresses(updated);
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (savedId) {
       localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
     }
@@ -342,7 +343,7 @@ function WholesaleContent() {
     
     const updated = [...savedAddresses, newAddr];
     setSavedAddresses(updated);
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (savedId) {
       localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
     }
@@ -354,7 +355,7 @@ function WholesaleContent() {
     if (!confirm("確定要刪除此常用地址嗎？")) return;
     const updated = savedAddresses.filter(item => item.id !== id);
     setSavedAddresses(updated);
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (savedId) {
       localStorage.setItem(`churun_saved_addresses_${savedId}`, JSON.stringify(updated));
     }

@@ -293,7 +293,7 @@ function OrganizationContent() {
   };
 
   useEffect(() => {
-    if (currentUserId) fetchOrganization(currentUserId);
+    if (currentUserId) fetchOrganization();
   }, [currentUserId]);
 
   const openAmbassadorModal = () => {

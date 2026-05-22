@@ -48,14 +48,15 @@ function MaterialsContent() {
   const [selectedPosterCategory, setSelectedPosterCategory] = useState("茶葉");
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
-    setCurrentUserId(savedId);
-    fetchMaterials();
-    fetchPosterData(savedId);
+    fetch("/api/me/profile").then(res => res.json()).then(data => {
+      if (data.member?.id) {
+        setCurrentUserId(data.member.id);
+        fetchMaterials();
+        fetchPosterData(data.member.id);
+      } else {
+        router.replace("/login");
+      }
+    }).catch(() => router.replace("/login"));
   }, [router]);
 
   useEffect(() => {

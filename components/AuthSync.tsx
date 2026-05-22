@@ -19,16 +19,16 @@ export default function AuthSync() {
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated && data.user?.memberId) {
-            const currentId = localStorage.getItem("churun_member_id");
+            const currentId = data.user.memberId;
             if (currentId !== data.user.memberId) {
-              localStorage.setItem("churun_member_id", data.user.memberId);
+              // localStorage set removed
               // Force reload so all client-side queries use the correct ID
-              window.location.reload();
+              // reload removed
             }
           } else {
             // Not authenticated on server, clear local and redirect
-            if (localStorage.getItem("churun_member_id")) {
-              localStorage.removeItem("churun_member_id");
+            if (data.user.memberId) {
+              // localStorage remove removed
               router.replace("/login");
             }
           }

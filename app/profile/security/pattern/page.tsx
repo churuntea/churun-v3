@@ -24,12 +24,13 @@ export default function PatternSetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
-    setCurrentUserId(savedId);
+    fetch("/api/me/profile").then(res => res.json()).then(data => {
+      if (data.member?.id) {
+        setCurrentUserId(data.member.id);
+      } else {
+        router.replace("/login");
+      }
+    }).catch(() => router.replace("/login"));
   }, [router]);
 
   const handlePatternComplete = async (pattern: string) => {

@@ -27,13 +27,14 @@ export default function PhoneVerificationPage() {
   const [timer, setTimer] = useState(0);
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
-    setCurrentUserId(savedId);
-    fetchMember(savedId);
+    fetch("/api/me/profile").then(res => res.json()).then(data => {
+      if (data.member?.id) {
+        setCurrentUserId(data.member.id);
+        fetchMember(data.member.id);
+      } else {
+        router.replace("/login");
+      }
+    }).catch(() => router.replace("/login"));
   }, [router]);
 
   useEffect(() => {

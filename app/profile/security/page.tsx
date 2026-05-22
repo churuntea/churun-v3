@@ -51,12 +51,13 @@ export default function SecurityPage() {
   };
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
-    if (!savedId) {
-      router.replace("/login");
-      return;
-    }
-    fetchData(savedId);
+    fetch("/api/me/profile").then(res => res.json()).then(data => {
+      if (data.member?.id) {
+        fetchData(data.member.id);
+      } else {
+        router.replace("/login");
+      }
+    }).catch(() => router.replace("/login"));
   }, [router]);
 
   const fetchData = async (userId: string) => {

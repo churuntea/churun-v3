@@ -23,7 +23,7 @@ export default function CommissionHistory() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (!savedId) {
       router.replace("/");
       return;

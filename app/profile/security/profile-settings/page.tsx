@@ -80,7 +80,7 @@ export default function ProfileSettingsPage() {
   };
 
   useEffect(() => {
-    const savedId = localStorage.getItem("churun_member_id");
+    const savedId = null /* removed */;
     if (!savedId) { router.replace("/login"); return; }
     currentUserIdRef.current = savedId;
     fetchData(savedId);
