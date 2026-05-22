@@ -20,6 +20,7 @@ export const viewport = {
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import { CartProvider } from "./context/CartContext";
+import AuthSync from "@/components/AuthSync";
 
 export default function RootLayout({
   children,
@@ -38,6 +39,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-[#FDFBF7] font-sans overflow-x-hidden w-full">
         <CartProvider>
+          <AuthSync />
           <PageTransition>
             {children}
           </PageTransition>
