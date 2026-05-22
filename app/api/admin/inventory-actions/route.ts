@@ -31,16 +31,15 @@ export async function POST(request: Request) {
 
     if (action === 'update_stock') {
       const { productId, warehouseId, qty, isNewProduct, type } = payload;
-      // qty is the delta or absolute depending on isNewProduct/type
       
-      const { data: currentInv } = await supabase
-        .from("warehouse_inventory")
-        .select("stock")
-        .eq("product_id", productId)
-        .eq("warehouse_id", warehouseId)
+      // We sync this directly to products.stock_count to maintain a single source of truth
+      const { data: prod } = await supabase
+        .from("products")
+        .select("stock_count")
+        .eq("id", productId)
         .single();
         
-      const currentStock = Number(currentInv?.stock || 0);
+      const currentStock = Number(prod?.stock_count || 0);
       let finalStock = 0;
       
       if (type === 'inbound' || isNewProduct) {
@@ -50,15 +49,12 @@ export async function POST(request: Request) {
         finalStock = qty;
       }
       
-      const { error: upsertErr } = await supabase
-        .from("warehouse_inventory")
-        .upsert({ 
-          product_id: productId, 
-          warehouse_id: warehouseId, 
-          stock: finalStock 
-        });
+      const { error: updateErr } = await supabase
+        .from("products")
+        .update({ stock_count: finalStock })
+        .eq("id", productId);
         
-      if (upsertErr) throw upsertErr;
+      if (updateErr) throw updateErr;
       
       return NextResponse.json({ success: true, finalStock });
     }

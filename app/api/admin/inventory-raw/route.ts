@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const startDateStr = searchParams.get('startDateStr') || '';
 
     // 1. Fetch products
-    const { data: prods } = await supabase.from("products").select("*").order("created_at", { ascending: false });
+    const { data: prods } = await supabase.from("products").select("*").eq('status', 'active').order("created_at", { ascending: false });
 
     // 2. Fetch warehouses and inventory
     const { data: whs } = await supabase.from("warehouses").select("*");

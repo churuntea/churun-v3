@@ -11,10 +11,10 @@ export async function GET() {
 
     if (error) throw error;
 
-    // 智慧型庫存資料全面補正引擎：若 DB 欄位缺失或小於等於 10，全域動態充實為 500
+    // 智慧型庫存資料全面補正引擎：保留原本庫存數量，不再強制補正為 500
     const correctedProducts = (data || []).map(p => ({
       ...p,
-      stock_count: (p.stock_count === undefined || p.stock_count === null || isNaN(Number(p.stock_count)) || Number(p.stock_count) <= 10) ? 500 : Number(p.stock_count)
+      stock_count: Number(p.stock_count || 0)
     }));
 
     return NextResponse.json({ success: true, products: correctedProducts });

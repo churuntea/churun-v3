@@ -27,7 +27,7 @@ export async function GET() {
       .select('id, name')
       .eq('upline_id', currentUserId);
 
-    let pendingCommissions = [];
+    let pendingCommissions: any[] = [];
 
     if (downlineMembers && downlineMembers.length > 0) {
       const downlineIds = downlineMembers.map(m => m.id);

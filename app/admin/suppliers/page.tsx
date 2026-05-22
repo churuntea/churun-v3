@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../supabase";
 import { 
+  ArrowLeft,
   Plus, 
   Search, 
   Loader2, 
@@ -38,7 +39,8 @@ function AdminSuppliersContent() {
     tax_id: "",
     contact_person: "",
     address: "",
-    notes: ""
+    notes: "",
+    supplied_items: [] as any[]
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +77,28 @@ function AdminSuppliersContent() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAddSuppliedItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      supplied_items: [...prev.supplied_items, { name: "", spec: "", price: "", unit: "" }]
+    }));
+  };
+
+  const handleRemoveSuppliedItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      supplied_items: prev.supplied_items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSuppliedItemChange = (index: number, field: string, value: string) => {
+    setFormData(prev => {
+      const newItems = [...prev.supplied_items];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return { ...prev, supplied_items: newItems };
+    });
+  };
+
   const handleOpenAddModal = () => {
     setModalType("add");
     setEditingId(null);
@@ -84,7 +108,8 @@ function AdminSuppliersContent() {
       tax_id: "",
       contact_person: "",
       address: "",
-      notes: ""
+      notes: "",
+      supplied_items: []
     });
     setShowModal(true);
   };
@@ -98,7 +123,8 @@ function AdminSuppliersContent() {
       tax_id: supplier.tax_id || "",
       contact_person: supplier.contact_person || "",
       address: supplier.address || "",
-      notes: supplier.notes || ""
+      notes: supplier.notes || "",
+      supplied_items: supplier.supplied_items || []
     });
     setShowModal(true);
   };
@@ -169,9 +195,17 @@ function AdminSuppliersContent() {
           
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-             <div>
-                <h1 className="text-3xl font-black text-slate-800 tracking-tight">供應商資料管理</h1>
-                <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">維護進貨廠商基本資料與聯絡資訊</p>
+             <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => router.push("/admin/inventory")} 
+                  className="w-10 h-10 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl flex items-center justify-center transition shadow-sm"
+                >
+                   <ArrowLeft className="w-5 h-5 text-slate-400" />
+                </button>
+                <div>
+                   <h1 className="text-3xl font-black text-slate-800 tracking-tight">供應商資料管理</h1>
+                   <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">維護進貨廠商基本資料與聯絡資訊</p>
+                </div>
              </div>
              
              <div className="flex items-center gap-3 w-full md:w-auto">
@@ -212,6 +246,7 @@ function AdminSuppliersContent() {
                             <th className="pb-4">聯絡人</th>
                             <th className="pb-4">聯絡電話</th>
                             <th className="pb-4">通訊地址</th>
+                            <th className="pb-4">供應品項</th>
                             <th className="pb-4 text-center pr-2">操作</th>
                          </tr>
                       </thead>
@@ -230,6 +265,22 @@ function AdminSuppliersContent() {
                                <td className="py-5 text-slate-600">{sup.contact_person || "—"}</td>
                                <td className="py-5 text-slate-600 font-mono">{sup.phone || "—"}</td>
                                <td className="py-5 text-slate-500 max-w-xs truncate" title={sup.address}>{sup.address || "—"}</td>
+                               <td className="py-5 text-slate-500">
+                                  {sup.supplied_items && sup.supplied_items.length > 0 ? (
+                                    <div className="flex flex-col gap-1 items-start">
+                                      {sup.supplied_items.slice(0, 2).map((item: any, idx: number) => (
+                                        <span key={idx} className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-[10px] font-bold inline-block truncate max-w-[120px]">
+                                          {item.name}
+                                        </span>
+                                      ))}
+                                      {sup.supplied_items.length > 2 && (
+                                        <span className="text-[9px] text-slate-400 font-bold ml-1">+{sup.supplied_items.length - 2} 個品項</span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 italic text-[10px]">無</span>
+                                  )}
+                               </td>
                                <td className="py-5 text-center pr-2">
                                   <div className="flex items-center justify-center gap-2">
                                      <button 
@@ -374,6 +425,68 @@ function AdminSuppliersContent() {
                               className="w-full bg-slate-50 border-none p-4 pl-11 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/30 transition"
                             />
                          </div>
+                      </div>
+
+                      <div className="space-y-4 pt-2">
+                         <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">供應品項清單</label>
+                            <button
+                              type="button"
+                              onClick={handleAddSuppliedItem}
+                              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-[9px] font-black transition flex items-center gap-1"
+                            >
+                               <Plus className="w-3 h-3" /> 新增品項
+                            </button>
+                         </div>
+                         
+                         {formData.supplied_items.length === 0 ? (
+                            <div className="p-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-bold">
+                               尚未建立任何品項
+                            </div>
+                         ) : (
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                               {formData.supplied_items.map((item, idx) => (
+                                  <div key={idx} className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-3 rounded-xl">
+                                     <input
+                                        type="text"
+                                        value={item.name || ""}
+                                        onChange={(e) => handleSuppliedItemChange(idx, "name", e.target.value)}
+                                        placeholder="品項名稱(必填)"
+                                        className="w-full md:w-auto md:flex-[2] min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
+                                        required
+                                     />
+                                     <input
+                                        type="text"
+                                        value={item.spec || ""}
+                                        onChange={(e) => handleSuppliedItemChange(idx, "spec", e.target.value)}
+                                        placeholder="規格(例:1斤)"
+                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
+                                     />
+                                     <input
+                                        type="number"
+                                        value={item.price || ""}
+                                        onChange={(e) => handleSuppliedItemChange(idx, "price", e.target.value)}
+                                        placeholder="單價"
+                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
+                                     />
+                                     <input
+                                        type="text"
+                                        value={item.unit || ""}
+                                        onChange={(e) => handleSuppliedItemChange(idx, "unit", e.target.value)}
+                                        placeholder="單位(例:包)"
+                                        className="w-full md:w-auto md:flex-1 min-w-0 bg-white border border-slate-200 p-2.5 rounded-lg text-xs font-bold focus:outline-none focus:border-emerald-500 transition"
+                                     />
+                                     <button
+                                        type="button"
+                                        onClick={() => handleRemoveSuppliedItem(idx)}
+                                        className="p-2 shrink-0 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                                     >
+                                        <Trash2 className="w-4 h-4" />
+                                     </button>
+                                  </div>
+                               ))}
+                            </div>
+                         )}
                       </div>
 
                       <div className="space-y-2">

@@ -217,7 +217,7 @@ function InventoryDashboard() {
          const daan = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 1)?.stock || 0;
          const xinzhuang = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 2)?.stock || 0;
          const caotun = safeWhInv.find((i: any) => i.product_id === p.id && i.warehouse_id === 3)?.stock || 0;
-         const total = daan + xinzhuang + caotun;
+         const total = Number(p.stock_count || 0);
          return { ...p, stock_daan: daan, stock_xinzhuang: xinzhuang, stock_caotun: caotun, stock: total };
       });
       setProducts(mergedProds);
@@ -562,6 +562,12 @@ function InventoryDashboard() {
             </div>
          </div>
          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.push('/admin/suppliers')}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition flex items-center gap-1 shadow-lg shadow-emerald-600/20"
+            >
+               廠商名錄管理
+            </button>
             <button 
               onClick={downloadCsv}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition flex items-center gap-1 shadow-lg shadow-indigo-600/20"

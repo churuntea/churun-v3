@@ -524,7 +524,7 @@ function AdminDashboardContent() {
       // 4. 獲取銷售量前 3 名商品排行榜
       const prodMap: Record<string, { name: string; quantity: number; revenue: number }> = {};
       if (itemsData) {
-        (itemsData as any[]).forEach(item => {
+        (itemsData as any[]).forEach((item: any) => {
           const name = item.name || "其他商品";
           const qty = Number(item.quantity) || 0;
           const price = Number(item.price) || 0;
@@ -546,7 +546,7 @@ function AdminDashboardContent() {
       
       // A. 下單黃金時段統計
       let peakCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-      processedOrders.forEach(o => {
+      processedOrders.forEach((o: any) => {
         const orderDate = new Date(o.created_at);
         const hour = orderDate.getHours();
         if (hour >= 6 && hour < 12) peakCounts.morning++;
@@ -558,7 +558,7 @@ function AdminDashboardContent() {
 
       // B. 會員回購率與新舊客貢獻額
       const memberOrderHistory: Record<string, { count: number; totalRevenue: number }> = {};
-      processedOrders.forEach(o => {
+      processedOrders.forEach((o: any) => {
         if (o.status !== "cancelled" && o.status !== "refunded") {
           const mid = o.member_id || "guest";
           const amt = Number(o.total_amount) || 0;
@@ -602,7 +602,7 @@ function AdminDashboardContent() {
         .select("id, name, category");
 
       const prodCategories: Record<string, string> = {};
-      (allProds || []).forEach(p => {
+      (allProds || []).forEach((p: any) => {
         let cat = p.category || "極萃系列";
         if (!p.category && p.name && p.name.startsWith("[")) {
           const match = p.name.match(/^\[(.*?)\]\s*(.*)$/);
@@ -618,7 +618,7 @@ function AdminDashboardContent() {
 
       const catSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
       if (itemsData) {
-        (itemsData as any[]).forEach(item => {
+        (itemsData as any[]).forEach((item: any) => {
           const name = item.name || "其他商品";
           const qty = Number(item.quantity) || 0;
           const price = Number(item.price) || 0;
@@ -645,7 +645,7 @@ function AdminDashboardContent() {
       let tier3Count = 0; // NT$ 1000 - 2999
       let tier4Count = 0; // NT$ 3000+
 
-      processedOrders.forEach(o => {
+      processedOrders.forEach((o: any) => {
         if (o.status !== "cancelled" && o.status !== "refunded") {
           const amt = Number(o.total_amount) || 0;
           
@@ -673,7 +673,7 @@ function AdminDashboardContent() {
       
       if (itemsData && processedOrders) {
         const orderMemberMap: Record<string, string> = {};
-        processedOrders.forEach(o => {
+        processedOrders.forEach((o: any) => {
           if (o.status !== "cancelled" && o.status !== "refunded") {
             orderMemberMap[o.id] = o.member_id || "guest";
           }
@@ -681,7 +681,7 @@ function AdminDashboardContent() {
 
         const memberProdOrders: Record<string, Record<string, Set<string>>> = {};
 
-        (itemsData as any[]).forEach(item => {
+        (itemsData as any[]).forEach((item: any) => {
           const orderId = item.order_id;
           const memberId = orderMemberMap[orderId];
           const name = item.name || "其他商品";
@@ -768,7 +768,7 @@ function AdminDashboardContent() {
         monthStats[key] = { label, revenue: 0, ordersCount: 0 };
       }
 
-      orders.forEach(o => {
+      orders.forEach((o: any) => {
         if (o.status !== 'cancelled' && o.status !== 'refunded') {
           const orderDate = new Date(o.created_at);
           const oYM = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, "0")}`;
@@ -805,7 +805,7 @@ function AdminDashboardContent() {
         dayStats[key] = { label, revenue: 0, ordersCount: 0 };
       }
 
-      orders.forEach(o => {
+      orders.forEach((o: any) => {
         if (o.status !== 'cancelled' && o.status !== 'refunded') {
           const orderDate = new Date(o.created_at);
           const oYMD = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, "0")}-${String(orderDate.getDate()).padStart(2, "0")}`;

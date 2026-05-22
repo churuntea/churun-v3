@@ -10,10 +10,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "缺少帳號參數" }, { status: 400 });
     }
 
+    const cleanIdentifier = identifier.trim();
+
     const { data: member, error } = await supabaseAdmin
       .from("members")
-      .select("id, name, password, pattern_code, status")
-      .or(`phone.eq.${identifier},member_code.eq.${identifier}`)
+      .select("*")
+      .or(`phone.eq.${cleanIdentifier},member_code.eq.${cleanIdentifier}`)
       .single();
 
     if (error || !member) {
@@ -25,7 +27,8 @@ export async function POST(request: Request) {
     }
 
     if (loginMode === 'password') {
-      if (member.password !== password) {
+      const cleanPassword = password.trim();
+      if (member.password !== cleanPassword) {
         return NextResponse.json({ success: false, error: "密碼錯誤" }, { status: 401 });
       }
     } else {

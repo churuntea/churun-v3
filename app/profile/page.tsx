@@ -273,7 +273,30 @@ function ProfileContent() {
     }
   };
 
-  if (isLoading || !memberInfo) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
+  if (isLoading) {
+    return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-emerald-900" /></div>;
+  }
+
+  if (!memberInfo) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-6">
+          <X className="w-6 h-6" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 mb-2">載入會員資料失敗</h2>
+        <p className="text-sm text-slate-500 mb-6">可能連線逾時或認證失效，請重新登入</p>
+        <button 
+          onClick={() => {
+            localStorage.removeItem("churun_member_id");
+            router.replace("/login");
+          }}
+          className="bg-emerald-900 text-white px-6 py-3 rounded-full font-bold text-sm"
+        >
+          重新登入
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] pb-32">

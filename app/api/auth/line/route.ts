@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { createSession } from '@/lib/auth';
 
 const LINE_CHANNEL_ID = '2010007687';
 const LINE_CHANNEL_SECRET = '38f880ec5930b4bf02fbb236878f1558';
@@ -75,6 +76,8 @@ export async function POST(request: Request) {
           .update({ avatar_url: pictureUrl })
           .eq('id', member.id);
       }
+
+      await createSession({ memberId: member.id, memberName: member.name });
 
       return NextResponse.json({
         success: true,

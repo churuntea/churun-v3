@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/app/supabase-admin';
+import { createSession } from '@/lib/auth';
 
 const DEFAULT_UPLINE_NAME = '洪召安';
 
@@ -43,6 +44,8 @@ export async function POST(request: Request) {
         console.error('更新 Google ID 失敗:', updateError);
         return NextResponse.json({ success: false, error: '綁定 Google 帳戶失敗' }, { status: 500 });
       }
+
+      await createSession({ memberId: existingMember.id, memberName: existingMember.name });
 
       return NextResponse.json({
         success: true,
@@ -151,6 +154,8 @@ export async function POST(request: Request) {
     } catch (couponErr) {
       console.error('自動發送迎新券失敗:', couponErr);
     }
+
+    await createSession({ memberId: newMember.id, memberName: newMember.name });
 
     return NextResponse.json({
       success: true,

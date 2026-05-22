@@ -110,34 +110,37 @@ function LoginContent() {
       if (session) {
         setIsLoading(true);
         try {
-          const user = session.user;
-          const email = user.email;
-          const providerId = user.id;
+          const res = await fetch("/api/auth/google/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ access_token: session.access_token })
+          });
+          const data = await res.json();
 
-          // 尋找是否有對應的會員 (透過 email 或 google_id)
-          const { data: member, error } = await supabase
-            .from("members")
-            .select("id, name")
-            .or(`email.eq."${email}",google_id.eq."${providerId}"`)
-            .maybeSingle();
+          if (!data.success) {
+            alert(data.error || "Google 登入驗證失敗");
+            setIsLoading(false);
+            return;
+          }
 
-          if (member) {
+          if (data.status === "success") {
             // 登入成功，儲存資訊並跳轉
-            localStorage.setItem("churun_member_id", member.id);
-            localStorage.setItem("churun_member_name", member.name);
+            localStorage.setItem("churun_member_id", data.memberId);
+            localStorage.setItem("churun_member_name", data.memberName);
             
             // 更新最後登入時間
             try {
-              await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", member.id);
+              await supabase.from("members").update({ last_login: new Date().toISOString() }).eq("id", data.memberId);
             } catch (err) {
               console.warn("更新最後登入時間失敗", err);
             }
             
             router.push("/profile");
-          } else {
+          } else if (data.status === "new_user") {
+            const user = data.user;
             // 找不到會員，開啟手機號碼補填 (複用 LINE 的註冊表單)
             setLineUser({
-              userId: "google_" + providerId,
+              userId: "google_" + user.id,
               displayName: user.user_metadata?.full_name || "Google 用戶",
               pictureUrl: user.user_metadata?.avatar_url || "https://i.ibb.co/6R2M5X1/churun-baby.png"
             });
@@ -252,12 +255,10 @@ function LoginContent() {
   };
 
   useEffect(() => {
-    const savedPhone = localStorage.getItem("churun_remembered_phone") || localStorage.getItem("churun_last_phone");
-    if (savedPhone) {
-      setIdentifier(savedPhone);
-      if (localStorage.getItem("churun_remembered_phone")) {
-        setRememberPhone(true);
-      }
+    const rememberedPhone = localStorage.getItem("churun_remembered_phone");
+    if (rememberedPhone) {
+      setIdentifier(rememberedPhone);
+      setRememberPhone(true);
     }
   }, []);
 
@@ -435,7 +436,8 @@ function LoginContent() {
 
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
+                        await supabase.auth.signOut();
                         setLineUser(null);
                         router.replace("/login");
                       }}
