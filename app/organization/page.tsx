@@ -123,10 +123,13 @@ const TIER_SORT_ORDER: Record<string, number> = {
 };
 
 function TeamPerformanceChart({ data }: { data: any[] }) {
-  const chartData = data.slice(0, 5).map(m => ({
-    name: m.name.length > 4 ? m.name.substring(0, 4) + '...' : m.name,
-    amount: Number(m.lifetime_spend) || 0
-  }));
+  const chartData = data.slice(0, 5).map(m => {
+    const safeName = m.name || '初潤會員';
+    return {
+      name: safeName.length > 4 ? safeName.substring(0, 4) + '...' : safeName,
+      amount: Number(m.lifetime_spend) || 0
+    };
+  });
 
   if (chartData.length === 0) return null;
 

@@ -84,11 +84,11 @@ function MemberNode({ member, level }: MemberNodeProps) {
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
           member.is_b2b ? 'bg-indigo-500 text-white' : 'bg-emerald-700 text-white'
         }`}>
-          {member.name.charAt(0)}
+          {(member.name || '會').charAt(0)}
         </div>
         
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-black truncate">{member.name}</h4>
+          <h4 className="text-sm font-black truncate">{member.name || '初潤會員'}</h4>
           <div className="flex items-center gap-2">
              <Award className={`w-3 h-3 ${isExpanded ? 'text-amber-400' : 'text-slate-300'}`} />
              <span className={`text-[8px] font-black uppercase tracking-widest ${isExpanded ? 'text-white/40' : 'text-slate-300'}`}>
