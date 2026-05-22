@@ -157,8 +157,13 @@ export async function POST(request: Request) {
     const { buyer_id, memberId, items, discountAmount = 0, pointsRedeemed = 0, balanceRedeemed = 0, shippingInfo } = await request.json();
     const effectiveBuyerId = buyer_id || memberId;
 
-    if (!effectiveBuyerId || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ success: false, error: '缺少必要參數' }, { status: 400 });
+    if (!effectiveBuyerId) {
+      console.error('[Order API] Missing effectiveBuyerId:', { buyer_id, memberId });
+      return NextResponse.json({ success: false, error: '缺少買家 ID，請重新登入' }, { status: 400 });
+    }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error('[Order API] Missing or empty items:', { items });
+      return NextResponse.json({ success: false, error: '您的購物車似乎沒有商品，請重新加入' }, { status: 400 });
     }
 
     // 1. 取得買家資料
