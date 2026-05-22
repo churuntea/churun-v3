@@ -130,36 +130,6 @@ export async function POST(request: NextRequest) {
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
       }
 
-      // 產生新的經銷商編號
-      const typeCode = application.application_type === 'partner' ? 'P' : 'A';
-      const yearCode = String(new Date().getFullYear()).slice(-2);
-      const monthCode = String(new Date().getMonth() + 1).padStart(2, '0');
-      const prefix = `CR${yearCode}${typeCode}${monthCode}`;
-      
-      const { data: codeData, error: codeError } = await supabaseAdmin
-        .from('members')
-        .select('member_code')
-        .like('member_code', `${prefix}%`);
-      
-      let nextSeq = 1;
-      if (!codeError && codeData && codeData.length > 0) {
-        let maxSeq = 0;
-        for (const row of codeData) {
-          const code = row.member_code || '';
-          if (code.startsWith(prefix)) {
-            const seqStr = code.slice(prefix.length);
-            const seq = parseInt(seqStr, 10);
-            if (!isNaN(seq) && seq > maxSeq) {
-              maxSeq = seq;
-            }
-          }
-        }
-        nextSeq = maxSeq + 1;
-      }
-      
-      const newMemberCode = `${prefix}${String(nextSeq).padStart(4, '0')}`;
-      const newReferralCode = newMemberCode; // 通常 referral_code 同 member_code
-      
       const { error: updateMemberErr } = await supabaseAdmin
         .from('members')
         .update({
@@ -167,9 +137,7 @@ export async function POST(request: NextRequest) {
           ambassador_type: ambassadorType,
           ambassador_since: reviewedAt,
           ambassador_expires_at: expiresAt.toISOString(),
-          tier: '初潤品牌大使',
-          member_code: newMemberCode,
-          referral_code: newReferralCode
+          tier: '初潤品牌大使'
         })
         .eq('id', application.member_id);
 
