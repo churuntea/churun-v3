@@ -250,6 +250,9 @@ function StoreContent() {
   const [cvsBrand, setCvsBrand] = useState("7-11");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showBankInfoModal, setShowBankInfoModal] = useState(false);
+  const [reportingOrderId, setReportingOrderId] = useState<string | null>(null);
+  const [reportDigits, setReportDigits] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
   const [cvsStoreName, setCvsStoreName] = useState("");
   const [cvsStoreCode, setCvsStoreCode] = useState("");
   const [selectedCity, setSelectedCity] = useState("台北市");
