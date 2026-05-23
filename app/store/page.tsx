@@ -2016,14 +2016,13 @@ function StoreContent() {
                               <label className="text-[9px] font-black text-slate-400 ml-1 mb-1.5 uppercase tracking-widest flex items-center justify-between">
                                 <span>超商門市名稱</span>
                                 <a 
-                                  href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    window.open(`/api/ecpay/map?brand=${cvsBrand}`, 'ecpayMap', 'width=1000,height=700,status=no,scrollbars=yes');
-                                  }}
-                                  className="text-blue-500 hover:text-blue-700 underline flex items-center gap-1 cursor-pointer"
+                                  href={cvsBrand === '7-11' ? 'https://emap.pcsc.com.tw/' : 'https://www.famiport.com.tw/Web_Famiport/page/ShopQuery.aspx'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:text-emerald-700 bg-emerald-50/50 px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
                                 >
-                                  開啟電子地圖 ↗
+                                  <Search className="w-3 h-3" />
+                                  <span>查詢{cvsBrand === '7-11' ? ' 7-11 ' : '全家'}店代號</span>
                                 </a>
                               </label>
                               <input 
