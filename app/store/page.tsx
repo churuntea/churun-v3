@@ -557,17 +557,6 @@ function StoreContent() {
     fetch("/api/me/profile").then(res => res.json()).then(data => {
       if (data.member?.id) {
         fetchData(data.member.id);
-        setShippingInfo({
-          name: data.member.name || '',
-          phone: data.member.phone || '',
-          address: data.member.address || '',
-          notes: data.member?.member_code ? `[會員編號: ${data.member.member_code}]` : '',
-          method: '自取',
-          senderName: data.member.name || '',
-          senderPhone: data.member.phone || '',
-          senderAddress: data.member.address || '',
-          senderNotes: data.member?.member_code ? `[會員編號: ${data.member.member_code}]` : ''
-        });
       } else {
         router.replace("/login");
       }
@@ -646,12 +635,12 @@ function StoreContent() {
           name: mData.name || lastRecipient?.name || '',
           phone: mData.phone || lastRecipient?.phone || '',
           address: mData.address || lastRecipient?.address || '',
-          notes: '',
+          notes: mData.member_code ? `[會員編號: ${mData.member_code}] ` : '',
           method: lastRecipient?.method || '自取',
           senderName: mData.name || lastSender?.name || '',
           senderPhone: mData.phone || lastSender?.phone || '',
           senderAddress: mData.address || lastSender?.address || '',
-          senderNotes: ''
+          senderNotes: mData.member_code ? `[會員編號: ${mData.member_code}] ` : ''
         });
       }
 
