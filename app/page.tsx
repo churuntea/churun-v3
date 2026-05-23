@@ -86,6 +86,7 @@ function DashboardContent() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [newProducts, setNewProducts] = useState<any[]>([]);
   const [downlines, setDownlines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -205,6 +206,7 @@ function DashboardContent() {
 
         setDownlines(data.downlines || []);
         setAnnouncements(data.announcements || []);
+        setNewProducts(data.newProducts || []);
         setPosterTemplates(data.posterTemplates || []);
 
         // 5. 獲取品牌大使申請狀態 (已整合在 dashboard API)
@@ -825,6 +827,44 @@ function DashboardContent() {
           </section>
         )}
       
+
+        {/* New Product Announcements */}
+        {newProducts.length > 0 && (
+          <section className="space-y-6">
+             <div className="flex justify-between items-center px-4">
+                <h3 className="text-sm font-black tracking-[0.2em] text-slate-800 uppercase flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                  新品上市公告
+                </h3>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-2.5 py-1 rounded-full">
+                   New Arrivals
+                </span>
+             </div>
+             
+             <div className="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-slate-200/40 border border-slate-100 mx-2">
+                <ul className="space-y-2">
+                   {newProducts.map((prod, idx) => (
+                     <li key={prod.id}>
+                        <Link href={`/store`} className="group flex items-center justify-between hover:bg-slate-50 p-3 -mx-3 rounded-2xl transition">
+                           <div className="flex items-center gap-4">
+                              <span className="text-xs font-black text-slate-300 w-4">{idx + 1}.</span>
+                              <div>
+                                 <h4 className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition">
+                                    【新品上架】{prod.name}
+                                 </h4>
+                                 <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                                    發布時間：{new Date(prod.created_at).toLocaleDateString('zh-TW')}
+                                 </p>
+                              </div>
+                           </div>
+                           <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 group-hover:scale-110 transition" />
+                        </Link>
+                     </li>
+                   ))}
+                </ul>
+             </div>
+          </section>
+        )}
 
         {/* Announcements */}
         <section id="brand-news" className="space-y-6">

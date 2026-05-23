@@ -19,7 +19,8 @@ export async function GET() {
       { data: announcements },
       { data: posterTemplates },
       { data: ambassadorStatusData },
-      { data: ambassadorApp }
+      { data: ambassadorApp },
+      { data: newProducts }
     ] = await Promise.all([
       // 0. 系統預設頭像載入
       supabaseAdmin.from("materials").select("title, url").eq("category", "系統預設頭像"),
@@ -49,7 +50,14 @@ export async function GET() {
       supabaseAdmin.from("members").select("ambassador_status").eq("id", currentUserId).single(),
 
       // 6. 具體大使申請書
-      supabaseAdmin.from("ambassador_applications").select("*").eq("member_id", currentUserId).order("created_at", { ascending: false }).limit(1).single()
+      supabaseAdmin.from("ambassador_applications").select("*").eq("member_id", currentUserId).order("created_at", { ascending: false }).limit(1).single(),
+
+      // 7. 新品上市 (過去30天內建立的商品)
+      supabaseAdmin.from("products")
+        .select("id, name, created_at, price")
+        .gte("created_at", thirtyDaysAgo)
+        .order("created_at", { ascending: false })
+        .limit(5)
     ]);
 
     if (memberError) {
@@ -63,7 +71,8 @@ export async function GET() {
       announcements: announcements || [],
       posterTemplates: posterTemplates || [],
       ambassadorStatus: ambassadorStatusData?.ambassador_status || null,
-      ambassadorApplication: ambassadorApp || null
+      ambassadorApplication: ambassadorApp || null,
+      newProducts: newProducts || []
     });
 
   } catch (error: any) {
