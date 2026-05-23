@@ -422,10 +422,10 @@ export async function POST(request: Request) {
           .from('wallet_transactions')
           .insert({
             member_id: buyer.id,
+            order_id: order.id,
             amount: -balanceRedeemed,
             transaction_type: 'payment',
-            status: 'completed',
-            notes: `訂單 ${orderNumber} 付款折抵`
+            status: 'completed'
           })
           .select('id');
 
