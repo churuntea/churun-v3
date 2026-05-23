@@ -1822,7 +1822,13 @@ function StoreContent() {
                   </div>
                   <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-sm font-black text-slate-800 uppercase tracking-widest">總計金額</span>
-                    <span className="text-2xl font-black text-slate-900">${(finalPrice + ((shippingInfo.method || '宅配到府') === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()}</span>
+                    <span className="text-2xl font-black text-slate-900">
+                      {isLoading ? (
+                        <span className="text-sm text-slate-400 animate-pulse">計算優惠中...</span>
+                      ) : (
+                        `$${(finalPrice + ((shippingInfo.method || '宅配到府') === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()}`
+                      )}
+                    </span>
                   </div>
                 </div>
 
@@ -1831,10 +1837,10 @@ function StoreContent() {
                      setShippingSubStep('sender');
                      setShowShippingModal(true);
                    }}
-                   disabled={cart.length === 0 || isCheckingOut}
+                   disabled={cart.length === 0 || isCheckingOut || isLoading}
                    className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm hover:bg-emerald-900 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 disabled:opacity-50 disabled:bg-slate-400"
                  >
-                   下一步：填寫寄送資訊
+                   {isLoading ? '資料載入中...' : '下一步：填寫寄送資訊'}
                  </button>
               </div>
             </motion.div>
@@ -1989,7 +1995,17 @@ function StoreContent() {
 
                         <div className="grid grid-cols-2 gap-4 mt-4">
                            <div>
-                              <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">超商門市名稱</label>
+                              <label className="text-[9px] font-black text-slate-400 ml-1 mb-1.5 uppercase tracking-widest flex items-center justify-between">
+                                <span>超商門市名稱</span>
+                                <a 
+                                  href={cvsBrand === '7-11' ? 'https://emap.pcsc.com.tw/' : 'https://www.famiport.com.tw/Web_Famiport/page/ShopQuery.aspx'} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                                >
+                                  查詢門市 ↗
+                                </a>
+                              </label>
                               <input 
                                  type="text" 
                                  placeholder="例：草屯門市" 
