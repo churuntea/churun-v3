@@ -28,7 +28,8 @@ import {
   MessageCircle,
   Package,
   Clock,
-  Gift
+  Gift,
+  Building
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { AnimatePresence } from "framer-motion";
@@ -248,6 +249,7 @@ function StoreContent() {
 
   const [cvsBrand, setCvsBrand] = useState("7-11");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showBankInfoModal, setShowBankInfoModal] = useState(false);
   const [cvsStoreName, setCvsStoreName] = useState("");
   const [cvsStoreCode, setCvsStoreCode] = useState("");
   const [selectedCity, setSelectedCity] = useState("台北市");
@@ -2642,6 +2644,65 @@ function StoreContent() {
         )}
       </AnimatePresence>
 
+      {/* 匯款資訊 Modal (Bank Info) */}
+      <AnimatePresence>
+        {showBankInfoModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowBankInfoModal(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[250] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-900 text-white rounded-[2rem] p-6 space-y-4 shadow-2xl border border-white/10 w-full max-w-sm relative"
+            >
+              <button 
+                onClick={() => setShowBankInfoModal(false)} 
+                className="absolute top-4 right-4 w-8 h-8 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+              
+              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                <Building className="w-4 h-4" /> 專屬匯款轉帳帳號
+              </p>
+              <div className="space-y-3 text-xs pt-2">
+                 <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span className="text-white/60 font-bold">銀行代碼</span>
+                    <span className="font-extrabold text-white">國泰世華銀行 (013)</span>
+                 </div>
+                 <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span className="text-white/60 font-bold">戶名</span>
+                    <span className="font-extrabold text-white">安信商業有限公司</span>
+                 </div>
+                 <div className="flex justify-between items-center bg-white/10 p-3 rounded-xl border border-emerald-500/30 shadow-inner">
+                    <span className="text-white/60 font-bold">匯款帳號</span>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-emerald-300 tracking-wider text-sm">214-03-500450-5</span>
+                       <button 
+                         type="button"
+                         onClick={() => {
+                           navigator.clipboard.writeText("214-03-500450-5");
+                           setCopied(true);
+                           setTimeout(() => setCopied(false), 2000);
+                         }}
+                         className="px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 active:scale-95 text-[9px] font-black rounded-lg transition"
+                       >
+                          {copied ? "已複製" : "複製"}
+                       </button>
+                    </div>
+                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 訂購清單 Modal (Order History Modal) */}
       <AnimatePresence>
         {showOrderListModal && (
@@ -2660,15 +2721,23 @@ function StoreContent() {
               className="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-50 flex flex-col max-h-[85vh]"
             >
               <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                     📋 我的訂購清單 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">已購紀錄</span>
-                  </h3>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                       📋 我的訂購清單 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold hidden sm:inline-block">已購紀錄</span>
+                    </h3>
+                    <button 
+                      onClick={() => setShowBankInfoModal(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-black hover:bg-amber-200 active:scale-95 transition-all"
+                    >
+                      🏦 匯款帳號
+                    </button>
+                  </div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                      ORDER HISTORY & LOGISTICS
                   </p>
                 </div>
-                <button onClick={() => setShowOrderListModal(false)} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition">
+                <button onClick={() => setShowOrderListModal(false)} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 shadow-sm border border-slate-100 transition shrink-0 ml-2">
                   <X className="w-5 h-5" />
                 </button>
               </div>
