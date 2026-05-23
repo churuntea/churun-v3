@@ -880,16 +880,23 @@ function StoreContent() {
   };
 
   const submitAndShowPayment = async (info?: any) => {
-    const currentShippingInfo = info || shippingInfo;
-    if (currentShippingInfo.method === '自取' && !currentShippingInfo.address) {
+    let finalShippingInfo = { ...(info || shippingInfo) };
+    
+    if (!memberInfo?.is_b2b) {
+       finalShippingInfo.senderName = "初潤總部";
+       finalShippingInfo.senderPhone = "049-2391033";
+       finalShippingInfo.senderAddress = "南投縣草屯鎮中正路1039號";
+    }
+
+    if (finalShippingInfo.method === '自取' && !finalShippingInfo.address) {
        alert("請在上方門市卡片中，點擊選擇您的自取門市");
        return;
     }
-    if (!currentShippingInfo.name?.trim() || !currentShippingInfo.phone?.trim() || !currentShippingInfo.address?.trim()) {
+    if (!finalShippingInfo.name?.trim() || !finalShippingInfo.phone?.trim() || !finalShippingInfo.address?.trim()) {
        alert("請填寫完整的收件資訊 (收件人姓名、電話及地址皆為必填)");
        return;
     }
-    if (!currentShippingInfo.senderName?.trim() || !currentShippingInfo.senderPhone?.trim()) {
+    if (!finalShippingInfo.senderName?.trim() || !finalShippingInfo.senderPhone?.trim()) {
        alert("請填寫完整的寄件資訊 (寄件人姓名及電話皆為必填)");
        return;
     }
@@ -897,7 +904,7 @@ function StoreContent() {
     setIsCheckingOut(true);
     setOrderItems([...cart]);
     setLastTotalPrice(totalPrice);
-    const fee = currentShippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
+    const fee = finalShippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
     setLastShippingFee(fee);
     setLastOrderAmount(finalPrice + fee);
     setIsOrderCreated(false);
@@ -910,17 +917,17 @@ function StoreContent() {
         await supabase
           .from("members")
           .update({
-            name: currentShippingInfo.name,
-            phone: currentShippingInfo.phone,
-            address: currentShippingInfo.address
+            name: finalShippingInfo.name,
+            phone: finalShippingInfo.phone,
+            address: finalShippingInfo.address
           })
           .eq("id", memberInfo.id);
         
         setMemberInfo((prev: any) => ({
           ...prev,
-          name: currentShippingInfo.name,
-          phone: currentShippingInfo.phone,
-          address: currentShippingInfo.address
+          name: finalShippingInfo.name,
+          phone: finalShippingInfo.phone,
+          address: finalShippingInfo.address
         }));
       }
 
@@ -952,10 +959,10 @@ function StoreContent() {
           pointsRedeemed: pointsDiscount,
           couponCode: activeCoupon ? activeCoupon.code : null,
           shippingInfo: {
-            ...currentShippingInfo,
+            ...finalShippingInfo,
             notes: appliedDeal 
-                    ? `${currentShippingInfo.notes || ''} [套組優惠: ${appliedDeal.name}]`.trim() 
-                    : currentShippingInfo.notes
+                    ? `${finalShippingInfo.notes || ''} [套組優惠: ${appliedDeal.name}]`.trim() 
+                    : finalShippingInfo.notes
           }
         })
       });
