@@ -369,7 +369,21 @@ function StoreContent() {
   }, [showShippingModal, memberInfo?.id]);
 
   const handleSaveAddress = () => {
-    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address) {
+    let finalAddress = shippingInfo.address;
+    if (['超商取貨', '7-11', '全家'].includes(shippingInfo.method)) {
+      if (!cvsStoreName || !cvsStoreCode) {
+        alert("請輸入超商門市名稱與店號再儲存");
+        return;
+      }
+      finalAddress = `[${cvsBrand}] ${cvsStoreName} (店號: ${cvsStoreCode})`;
+    } else if (shippingInfo.method === '自取') {
+      if (!shippingInfo.address) {
+         alert("請在上方選擇您的自取門市");
+         return;
+      }
+    }
+
+    if (!shippingInfo.name || !shippingInfo.phone || !finalAddress) {
       alert("請先填寫完整的姓名、電話及地址");
       return;
     }
@@ -382,7 +396,7 @@ function StoreContent() {
       alias: cleanAlias,
       name: shippingInfo.name,
       phone: shippingInfo.phone,
-      address: shippingInfo.address
+      address: finalAddress
     };
     
     const updated = [...savedAddresses, newAddr];
@@ -2108,10 +2122,29 @@ function StoreContent() {
                                    placeholder="請輸入寄件人地址"
                                  />
                               </div>
+                              <div className="flex justify-end pt-2">
+                                 <button
+                                   type="button"
+                                   onClick={handleSaveSenderAddress}
+                                   className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                                 >
+                                   <span>💾</span> 儲存為常用寄件人
+                                 </button>
+                              </div>
                            </div>
                         </details>
                      </div>
                   )}
+
+                  <div className="flex justify-end pt-2 px-2">
+                     <button
+                       type="button"
+                       onClick={handleSaveAddress}
+                       className="text-xs font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-emerald-100/50"
+                     >
+                       <span>💾</span> 儲存目前填寫資訊為【常用收件簿】
+                     </button>
+                  </div>
 
                   {/* Order Submit Section */}
                   <div className="bg-emerald-900 text-white rounded-[2rem] p-6 shadow-xl shadow-emerald-900/20 mt-8">
