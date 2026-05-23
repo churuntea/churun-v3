@@ -280,6 +280,24 @@ function StoreContent() {
   }, []);
 
   useEffect(() => {
+    const handleMapMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'ECPAY_MAP_RESULT') {
+        const { CVSStoreID, CVSStoreName, CVSAddress } = event.data;
+        if (CVSStoreID) setCvsStoreCode(CVSStoreID);
+        if (CVSStoreName) setCvsStoreName(CVSStoreName);
+        if (CVSAddress) {
+           setShippingInfo(prev => ({
+             ...prev,
+             address: `[${cvsBrand}] ${CVSStoreName} (店號: ${CVSStoreID})`
+           }));
+        }
+      }
+    };
+    window.addEventListener('message', handleMapMessage);
+    return () => window.removeEventListener('message', handleMapMessage);
+  }, [cvsBrand]);
+
+  useEffect(() => {
     const fetchDynamicPickupPoints = async () => {
       try {
         const { data, error } = await supabase
@@ -1998,12 +2016,14 @@ function StoreContent() {
                               <label className="text-[9px] font-black text-slate-400 ml-1 mb-1.5 uppercase tracking-widest flex items-center justify-between">
                                 <span>超商門市名稱</span>
                                 <a 
-                                  href={cvsBrand === '7-11' ? 'https://emap.pcsc.com.tw/' : 'https://www.famiport.com.tw/Web_Famiport/page/ShopQuery.aspx'} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="text-blue-500 hover:text-blue-700 underline flex items-center gap-1"
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    window.open(`/api/ecpay/map?brand=${cvsBrand}`, 'ecpayMap', 'width=1000,height=700,status=no,scrollbars=yes');
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700 underline flex items-center gap-1 cursor-pointer"
                                 >
-                                  查詢門市 ↗
+                                  開啟電子地圖 ↗
                                 </a>
                               </label>
                               <input 
