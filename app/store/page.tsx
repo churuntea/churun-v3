@@ -1767,9 +1767,9 @@ function StoreContent() {
                     <span>商品小計</span>
                     <span>${totalPrice.toLocaleString()}</span>
                   </div>
-                  {activeCoupon && discountAmount > 0 && (
+                  {discountAmount > 0 && (
                     <div className="flex justify-between items-center text-xs font-bold text-rose-500 uppercase tracking-widest">
-                      <span>優惠折抵 ({activeCoupon.name})</span>
+                      <span>{activeCoupon ? `優惠折抵 (${activeCoupon.name})` : '套組與活動折抵'}</span>
                       <span>-${discountAmount.toLocaleString()}</span>
                     </div>
                   )}
