@@ -499,7 +499,7 @@ function StoreContent() {
       let totalNormalPrice = 0;
       
       items.forEach((ruleItem: any) => {
-        const itemInCart = cart.find(it => it.id === ruleItem.id);
+        const itemInCart = cart.find(it => String(it.id) === String(ruleItem.id));
         if (!itemInCart || itemInCart.quantity < ruleItem.quantity) {
           allFound = false;
         } else {
@@ -1170,7 +1170,7 @@ function StoreContent() {
         )}
 
         {/* 組合套組特惠區塊 */}
-        {bundleDeals.map(deal => {
+        {!isLoading && bundleDeals.map(deal => {
           // 檢查身份限制
           if (deal.tier_restriction && memberInfo?.tier !== deal.tier_restriction) return null;
           
