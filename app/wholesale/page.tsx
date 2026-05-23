@@ -434,7 +434,7 @@ function WholesaleContent() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        memberId: memberInfo.id,
+        memberId: memberInfo?.id,
         items: Object.entries(cart).map(([id, qty]) => ({ id, quantity: qty })),
         discountAmount: discountAmount,
         couponCode: activeCoupon ? activeCoupon.code : null,

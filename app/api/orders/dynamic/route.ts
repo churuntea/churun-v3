@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '../../../supabase-admin';
+import { getSession } from '@/lib/auth';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -154,11 +155,12 @@ async function cleanupIncompleteOrder(orderId: string) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
     const { buyer_id, memberId, items, discountAmount = 0, pointsRedeemed = 0, balanceRedeemed = 0, shippingInfo } = await request.json();
-    const effectiveBuyerId = buyer_id || memberId;
+    const effectiveBuyerId = buyer_id || memberId || session?.memberId;
 
     if (!effectiveBuyerId) {
-      console.error('[Order API] Missing effectiveBuyerId:', { buyer_id, memberId });
+      console.error('[Order API] Missing effectiveBuyerId:', { buyer_id, memberId, sessionMemberId: session?.memberId });
       return NextResponse.json({ success: false, error: '缺少買家 ID，請重新登入' }, { status: 400 });
     }
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -215,13 +217,15 @@ export async function POST(request: Request) {
     }
 
     // 3. 計算扣除折抵後的商品實付淨額
-    const finalAmount = Math.max(0, totalAmount - discountAmount - balanceRedeemed - pointsRedeemed);
+    const subtotalAfterDiscount = Math.max(0, totalAmount - discountAmount);
+    const finalAmount = Math.max(0, subtotalAfterDiscount - balanceRedeemed - pointsRedeemed);
 
     // B2C 點數回饋改為依據「扣除折抵後的商品實付淨額」計算（運費絕對不計入回饋點數）
     const tierRate = TIER_RATES[buyer.tier] || 100;
     totalB2CPoints = Math.floor(finalAmount / tierRate);
     
     // 計算運費邏輯：自取為 $0，超商取貨或宅配到府若金額 999 內收 $70，1000 以上免運
+    // 運費免運門檻以扣除優惠券/套組折扣後的金額為準，不扣除紅利點數與儲值金
     let shippingFee = 0;
     if (shippingInfo && shippingInfo.method !== '自取') {
       shippingFee = finalAmount >= 1000 ? 0 : 70;

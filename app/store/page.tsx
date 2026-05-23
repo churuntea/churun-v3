@@ -222,6 +222,7 @@ function StoreContent() {
   });
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [lastTotalPrice, setLastTotalPrice] = useState(0);
+  const [lastShippingFee, setLastShippingFee] = useState(0);
   const [isOrderCreated, setIsOrderCreated] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
@@ -556,6 +557,17 @@ function StoreContent() {
     fetch("/api/me/profile").then(res => res.json()).then(data => {
       if (data.member?.id) {
         fetchData(data.member.id);
+        setShippingInfo({
+          name: data.member.name || '',
+          phone: data.member.phone || '',
+          address: data.member.address || '',
+          notes: data.member?.member_code ? `[會員編號: ${data.member.member_code}]` : '',
+          method: '自取',
+          senderName: data.member.name || '',
+          senderPhone: data.member.phone || '',
+          senderAddress: data.member.address || '',
+          senderNotes: data.member?.member_code ? `[會員編號: ${data.member.member_code}]` : ''
+        });
       } else {
         router.replace("/login");
       }
@@ -886,6 +898,7 @@ function StoreContent() {
     setOrderItems([...cart]);
     setLastTotalPrice(totalPrice);
     const fee = currentShippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70);
+    setLastShippingFee(fee);
     setLastOrderAmount(finalPrice + fee);
     setIsOrderCreated(false);
     setShowShippingModal(false);
@@ -1777,6 +1790,23 @@ function StoreContent() {
                     </div>
                   )}
                   <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <span>物流方式</span>
+                    <select
+                      value={shippingInfo.method || '宅配到府'}
+                      onChange={(e) => setShippingInfo({ ...shippingInfo, method: e.target.value })}
+                      className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    >
+                      <option value="宅配到府">宅配到府</option>
+                      <option value="自取">自取 (免運)</option>
+                      <option value="7-11">7-11</option>
+                      <option value="全家">全家</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <span>預估運費 ({shippingInfo.method || '宅配到府'})</span>
+                    <span>{(shippingInfo.method || '宅配到府') === '自取' ? '$0 (自取免運)' : (finalPrice >= 1000 ? '$0 (滿千免運)' : '$70')}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
                     <span>預計回饋紅利</span>
                     <span className="text-emerald-600">
                       +{memberInfo ? Math.floor(finalPrice / (TIER_RATES[memberInfo.tier] || 100)) : 0} pts
@@ -1784,7 +1814,7 @@ function StoreContent() {
                   </div>
                   <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-sm font-black text-slate-800 uppercase tracking-widest">總計金額</span>
-                    <span className="text-2xl font-black text-slate-900">${finalPrice.toLocaleString()}</span>
+                    <span className="text-2xl font-black text-slate-900">${(finalPrice + ((shippingInfo.method || '宅配到府') === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -1806,7 +1836,7 @@ function StoreContent() {
       
 
 
-      {/* Step 2: Shipping Info Modal */}
+      {/* Single Page Checkout Modal */}
       <AnimatePresence>
         {showShippingModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -1821,88 +1851,210 @@ function StoreContent() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto no-scrollbar"
             >
-               {shippingSubStep === 'sender' ? (
-                  <div className="space-y-6">
-                     {/* Progress Bar (Simplified) */}
-                     <div className="flex items-center justify-between mb-8 px-4 shrink-0">
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">1</span>
-                           <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">確認寄件</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">2</span>
-                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">填寫收件</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
-                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">最終確認</span>
+               <div className="flex justify-between items-center mb-6 px-2 border-b border-slate-100 pb-4">
+                  <div>
+                     <h3 className="text-xl font-black text-slate-900">填寫收件資訊</h3>
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Checkout & Shipping</p>
+                  </div>
+                  <button onClick={() => setShowShippingModal(false)} className="w-10 h-10 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full flex items-center justify-center transition">
+                     ✕
+                  </button>
+               </div>
+
+               <div className="space-y-6 px-2">
+                  {/* Address Book Quick Select */}
+                  <div className="flex flex-wrap gap-2">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         if (memberInfo) {
+                           setShippingInfo(prev => ({
+                             ...prev,
+                             name: memberInfo.name || '',
+                             phone: memberInfo.phone || '',
+                             address: shippingInfo.method === '宅配到府' ? (memberInfo.address || '') : prev.address
+                           }));
+                         }
+                       }}
+                       className="flex-1 bg-emerald-50 text-emerald-700 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-100 transition shadow-sm border border-emerald-100/50 flex items-center justify-center gap-1.5"
+                     >
+                       <span className="text-sm">👤</span> 代入本人資料
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setAddressBookTarget('recipient');
+                         setShowAddressBookModal(true);
+                       }}
+                       className="flex-1 bg-indigo-50 text-indigo-700 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-100 transition shadow-sm border border-indigo-100/50 flex items-center justify-center gap-1.5"
+                     >
+                       <span className="text-sm">📖</span> 常用收件簿
+                     </button>
+                  </div>
+
+                  {/* Recipient Form */}
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">收件人姓名</label>
+                        <input 
+                          type="text" 
+                          value={shippingInfo.name}
+                          onChange={e => setShippingInfo({...shippingInfo, name: e.target.value})}
+                          className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                          placeholder="請輸入收件人姓名"
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">聯絡電話</label>
+                        <input 
+                          type="text" 
+                          value={shippingInfo.phone}
+                          onChange={e => setShippingInfo({...shippingInfo, phone: e.target.value})}
+                          className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                          placeholder="請輸入收件電話"
+                        />
+                     </div>
+                  </div>
+
+                  {/* Address / Pickup point */}
+                  {shippingInfo.method === '自取' ? (
+                     <div className="space-y-4 pt-2">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">選擇自取門市</label>
+                        <div className="grid grid-cols-2 gap-3">
+                           {dynamicPickupPoints.map(store => {
+                              const isSelected = shippingInfo.address.startsWith(store.name);
+                              return (
+                                 <div 
+                                   key={store.name}
+                                   onClick={() => {
+                                      setShippingInfo({
+                                        ...shippingInfo,
+                                        address: `${store.name} (${store.address})`
+                                      });
+                                   }}
+                                   className={`p-4 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1 ${
+                                      isSelected 
+                                        ? "bg-white border-emerald-900 shadow-xl scale-[1.02]" 
+                                        : "bg-slate-50/50 border-slate-100 hover:bg-white"
+                                   }`}
+                                 >
+                                    <div className="flex justify-between items-center">
+                                       <span className={`text-xs font-black ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{store.name}</span>
+                                       {isSelected && <span className="w-4 h-4 rounded-full bg-emerald-900 text-white flex items-center justify-center text-[8px] font-bold">✓</span>}
+                                    </div>
+                                    <p className="text-[9px] font-bold text-slate-400 leading-relaxed truncate">{store.address}</p>
+                                 </div>
+                              );
+                           })}
                         </div>
                      </div>
+                  ) : shippingInfo.method === '超商取貨' ? (
+                     <div className="space-y-4 pt-2">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">超商物流設定</label>
+                        <div className="grid grid-cols-2 gap-3">
+                           {[
+                              { brand: "7-11", label: "7-ELEVEN 超商", desc: "統一超商門市取貨" },
+                              { brand: "全家", label: "FamilyMart 全家", desc: "全家便利商店取貨" }
+                           ].map(item => {
+                              const isSelected = cvsBrand === item.brand;
+                              return (
+                                 <div 
+                                   key={item.brand}
+                                   onClick={() => setCvsBrand(item.brand)}
+                                   className={`p-4 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1 ${
+                                      isSelected 
+                                        ? "bg-white border-emerald-900 shadow-xl scale-[1.02]" 
+                                        : "bg-slate-50/50 border-slate-100 hover:bg-white"
+                                   }`}
+                                 >
+                                    <div className="flex justify-between items-center">
+                                       <span className={`text-xs font-black ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{item.label}</span>
+                                       {isSelected && <span className="w-4 h-4 rounded-full bg-emerald-900 text-white flex items-center justify-center text-[8px] font-bold">✓</span>}
+                                    </div>
+                                    <p className="text-[9px] font-bold text-slate-400">{item.desc}</p>
+                                 </div>
+                              );
+                           })}
+                        </div>
 
-                     <div className="flex justify-between items-center mb-6">
-                        <div>
-                           <h3 className="text-xl font-black text-slate-900">確認寄件</h3>
-                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Sender Information</p>
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                           <div>
+                              <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">超商門市名稱</label>
+                              <input 
+                                 type="text" 
+                                 placeholder="例：草屯門市" 
+                                 value={cvsStoreName}
+                                 onChange={e => setCvsStoreName(e.target.value)}
+                                 className="w-full bg-slate-50 border-none p-3 rounded-xl text-sm font-bold focus:ring-1 focus:ring-emerald-500/20 text-slate-800"
+                              />
+                           </div>
+                           <div>
+                              <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">門市店號</label>
+                              <input 
+                                 type="text" 
+                                 placeholder="例：123456" 
+                                 value={cvsStoreCode}
+                                 onChange={e => setCvsStoreCode(e.target.value)}
+                                 className="w-full bg-slate-50 border-none p-3 rounded-xl text-sm font-bold focus:ring-1 focus:ring-emerald-500/20 text-slate-800"
+                              />
+                           </div>
                         </div>
                      </div>
+                  ) : (
+                     <div>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄送詳細地址</label>
+                        <textarea 
+                          value={shippingInfo.address}
+                          onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
+                          className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
+                          placeholder="請輸入完整收件地址"
+                        />
+                     </div>
+                  )}
 
-                     <div className="space-y-5">
-                        <div className="flex gap-2 mb-2">
-                           <button
-                             type="button"
-                             onClick={() => {
-                               if (memberInfo) {
-                                 setShippingInfo(prev => ({
-                                   ...prev,
-                                   senderName: memberInfo.name || '',
-                                   senderPhone: memberInfo.phone || '',
-                                   senderAddress: memberInfo.address || '',
-                                   senderNotes: ''
-                                 }));
-                               }
-                             }}
-                             className="flex-1 bg-emerald-50 text-emerald-700 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-100 transition shadow-sm border border-emerald-100/50 flex items-center justify-center gap-1.5"
-                           >
-                             <span className="text-sm">👤</span> 代入本人資料
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => {
-                               setAddressBookTarget('sender');
-                               setShowAddressBookModal(true);
-                             }}
-                             className="flex-1 bg-indigo-50 text-indigo-700 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-100 transition shadow-sm border border-indigo-100/50 flex items-center justify-center gap-1.5"
-                           >
-                             <span className="text-sm">📖</span> 常用寄件簿
-                           </button>
-                        </div>
+                  <div>
+                     <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">備註 (選填)</label>
+                     <textarea 
+                       value={shippingInfo.notes}
+                       onChange={e => setShippingInfo({...shippingInfo, notes: e.target.value})}
+                       className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-16 resize-none focus:ring-2 focus:ring-emerald-500/20"
+                       placeholder="有什麼特別需求嗎？"
+                     />
+                  </div>
 
-                              <div>
-                                 <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄件人姓名</label>
-                                 <input 
-                                   type="text" 
-                                   value={shippingInfo.senderName}
-                                   onChange={e => setShippingInfo({...shippingInfo, senderName: e.target.value})}
-                                   className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                   placeholder="請輸入寄件人姓名"
-                                 />
+                  {/* Sender form only for B2B */}
+                  {memberInfo?.is_b2b && (
+                     <div className="pt-4 border-t border-slate-100">
+                        <details className="group">
+                           <summary className="text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer list-none flex justify-between items-center bg-slate-50 p-4 rounded-2xl hover:bg-slate-100 transition">
+                              <span>代發貨寄件人設定 (選填)</span>
+                              <span className="group-open:rotate-180 transition-transform text-slate-400">▼</span>
+                           </summary>
+                           <div className="mt-4 space-y-4 px-2">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄件人姓名</label>
+                                    <input 
+                                      type="text" 
+                                      value={shippingInfo.senderName}
+                                      onChange={e => setShippingInfo({...shippingInfo, senderName: e.target.value})}
+                                      className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                                      placeholder="請輸入寄件人姓名"
+                                    />
+                                 </div>
+                                 <div>
+                                    <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄件人電話</label>
+                                    <input 
+                                      type="text" 
+                                      value={shippingInfo.senderPhone}
+                                      onChange={e => setShippingInfo({...shippingInfo, senderPhone: e.target.value})}
+                                      className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                                      placeholder="請輸入寄件人電話"
+                                    />
+                                 </div>
                               </div>
-
-                              <div>
-                                 <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄件人電話</label>
-                                 <input 
-                                   type="text" 
-                                   value={shippingInfo.senderPhone}
-                                   onChange={e => setShippingInfo({...shippingInfo, senderPhone: e.target.value})}
-                                   className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                   placeholder="請輸入寄件人電話"
-                                 />
-                              </div>
-
                               <div>
                                  <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">寄件人地址 (選填)</label>
                                  <input 
@@ -1910,592 +2062,56 @@ function StoreContent() {
                                    value={shippingInfo.senderAddress}
                                    onChange={e => setShippingInfo({...shippingInfo, senderAddress: e.target.value})}
                                    className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                   placeholder="請輸入寄件人地址 (選填)"
-                                 />
-                              </div>
-
-                              <div>
-                                 <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">備註 (選填)</label>
-                                 <input 
-                                   type="text" 
-                                   value={shippingInfo.senderNotes}
-                                   onChange={e => setShippingInfo({...shippingInfo, senderNotes: e.target.value})}
-                                   className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                   placeholder="請輸入備註 (選填)"
+                                   placeholder="請輸入寄件人地址"
                                  />
                               </div>
                            </div>
-
-                     <div className="space-y-4 pt-4">
-                        <button 
-                          onClick={() => {
-                            const sName = shippingInfo.senderName || memberInfo?.name || '';
-                            const sPhone = shippingInfo.senderPhone || memberInfo?.phone || '';
-                            const sAddress = shippingInfo.senderAddress || memberInfo?.address || '';
-                            if (!sName.trim() || !sPhone.trim()) {
-                               alert("請填寫完整的寄件資訊 (寄件人姓名及電話皆為必填)");
-                               return;
-                            }
-                            setShippingInfo(prev => ({
-                              ...prev,
-                              senderName: sName,
-                              senderPhone: sPhone,
-                              senderAddress: sAddress
-                            }));
-                            if (memberInfo?.id) {
-                               localStorage.setItem(`churun_last_sender_${memberInfo.id}`, JSON.stringify({ 
-                                 name: sName, 
-                                 phone: sPhone, 
-                                 address: sAddress 
-                               }));
-                            }
-                            setShippingSubStep('recipient');
-                          }}
-                          className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20"
-                        >
-                           下一步：填寫收件
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setShowShippingModal(false);
-                          }}
-                          className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
-                        >
-                           上一步 (修改明細)
-                        </button>
+                        </details>
                      </div>
+                  )}
+
+                  {/* Order Submit Section */}
+                  <div className="bg-emerald-900 text-white rounded-[2rem] p-6 shadow-xl shadow-emerald-900/20 mt-8">
+                     <div className="flex justify-between items-center mb-4 border-b border-emerald-800/50 pb-4">
+                        <span className="text-[11px] font-black text-emerald-100/80 uppercase tracking-widest">採購應付總額<br/><span className="text-[8px] text-emerald-200/60 font-bold">(含預估運費 {shippingInfo.method})</span></span>
+                        <span className="text-2xl font-black text-white">${(finalPrice + ((shippingInfo.method || '宅配到府') === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元</span>
+                     </div>
+                     <button 
+                       onClick={() => {
+                          const sName = shippingInfo.name || '';
+                          const sPhone = shippingInfo.phone || '';
+                          const sAddress = shippingInfo.address || '';
+                          if (!sName.trim() || !sPhone.trim()) {
+                             alert("請填寫完整的收件資訊 (收件人姓名及電話皆為必填)");
+                             return;
+                          }
+                          if (shippingInfo.method === '超商取貨') {
+                             if (!cvsStoreName.trim() || !cvsStoreCode.trim()) {
+                                alert("請輸入超商門市名稱與店號");
+                                return;
+                             }
+                          } else {
+                             if (!sAddress.trim()) {
+                                alert("請填寫完整的寄送地址或選擇自取門市");
+                                return;
+                             }
+                          }
+                          
+                          let finalAddress = sAddress;
+                          if (shippingInfo.method === '超商取貨') {
+                             finalAddress = `[${cvsBrand}] ${cvsStoreName} (店號: ${cvsStoreCode})`;
+                             setShippingInfo(prev => ({...prev, address: finalAddress}));
+                          }
+                          
+                          submitAndShowPayment({ ...shippingInfo, address: finalAddress });
+                       }}
+                       disabled={isCheckingOut}
+                       className="w-full bg-white text-emerald-950 py-5 rounded-2xl font-black text-sm hover:bg-emerald-50 transition-all flex justify-center items-center gap-2 disabled:opacity-50 active:scale-95 shadow-md"
+                     >
+                        {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : "確認無誤，送出訂單"}
+                     </button>
                   </div>
-               ) : (
-                  <div className="space-y-6">
-                     {/* Progress Bar (Simplified) */}
-                     <div className="flex items-center justify-between mb-8 px-4 shrink-0">
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center">✓</span>
-                           <span className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-wider">確認寄件</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-emerald-900/30 mx-2"></div>
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-emerald-900 text-white font-black text-[10px] flex items-center justify-center shadow-lg shadow-emerald-900/20">2</span>
-                           <span className="text-[8px] font-black text-emerald-900 mt-1 uppercase tracking-wider">填寫收件</span>
-                        </div>
-                        <div className="flex-1 h-[2px] bg-slate-100 mx-2"></div>
-                        <div className="flex flex-col items-center">
-                           <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 font-black text-[10px] flex items-center justify-center">3</span>
-                           <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-wider">最終確認</span>
-                        </div>
-                     </div>
- 
-                     <div className="flex justify-between items-center mb-6">
-                        <div>
-                           <h3 className="text-xl font-black text-slate-900">填寫收件</h3>
-                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Recipient Information</p>
-                        </div>
-                     </div>
-
-                     <div className="space-y-5">
-                        <div className="flex flex-wrap gap-2 mb-2">
-                           <button
-                             type="button"
-                             onClick={() => {
-                               if (memberInfo) {
-                                 setShippingInfo(prev => ({
-                                   ...prev,
-                                   name: memberInfo.name || '',
-                                   phone: memberInfo.phone || '',
-                                   address: memberInfo.address || ''
-                                 }));
-                               }
-                             }}
-                             className="flex-1 min-w-[30%] bg-emerald-50 text-emerald-700 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-100 transition shadow-sm border border-emerald-100/50 flex items-center justify-center gap-1.5"
-                           >
-                             <span className="text-sm">👤</span> 代入本人資料
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => {
-                               setShippingInfo(prev => ({
-                                 ...prev,
-                                 name: prev.senderName || '',
-                                 phone: prev.senderPhone || '',
-                                 address: prev.senderAddress || ''
-                               }));
-                             }}
-                             className="flex-1 min-w-[30%] bg-amber-50 text-amber-700 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-amber-100 transition shadow-sm border border-amber-100/50 flex items-center justify-center gap-1.5"
-                           >
-                             <span className="text-sm">📦</span> 同寄件人資料
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => {
-                               setAddressBookTarget('recipient');
-                               setShowAddressBookModal(true);
-                             }}
-                             className="flex-1 min-w-[30%] bg-indigo-50 text-indigo-700 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-100 transition shadow-sm border border-indigo-100/50 flex items-center justify-center gap-1.5"
-                           >
-                             <span className="text-sm">📖</span> 常用收件簿
-                           </button>
-                        </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                 <div>
-                                    <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">收件人姓名</label>
-                                    <input 
-                                      type="text" 
-                                      value={shippingInfo.name}
-                                      onChange={e => setShippingInfo({...shippingInfo, name: e.target.value})}
-                                      className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                      placeholder="請輸入收件人姓名"
-                                    />
-                                 </div>
-
-                                 <div>
-                                    <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">聯絡電話</label>
-                                    <input 
-                                      type="text" 
-                                      value={shippingInfo.phone}
-                                      onChange={e => setShippingInfo({...shippingInfo, phone: e.target.value})}
-                                      className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
-                                      placeholder="請輸入收件電話"
-                                    />
-                                 </div>
-                              </div>
-
-                        {/* Logistics selections */}
-                        <div className="space-y-3">
-                           <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">物流方式</label>
-                           <div className="grid grid-cols-3 gap-2">
-                              {['自取', '超商取貨', '宅配到府'].map(m => {
-                                 const isSelected = shippingInfo.method === m;
-                                 return (
-                                    <button
-                                      key={m}
-                                      type="button"
-                                      onClick={() => {
-                                        setShippingInfo({
-                                          ...shippingInfo,
-                                          method: m,
-                                          address: m === '自取' ? '' : (memberInfo?.address || '')
-                                        });
-                                      }}
-                                      className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all duration-350 ${
-                                        isSelected 
-                                          ? "bg-slate-900 text-white shadow-xl shadow-slate-900/15 scale-[1.03]" 
-                                          : "bg-slate-50 text-slate-400 hover:bg-slate-100/70"
-                                      }`}
-                                    >
-                                       {m}
-                                    </button>
-                                 );
-                              })}
-                           </div>
-                        </div>
-
-                        {shippingInfo.method === '自取' ? (
-                           <div className="space-y-4 pt-2">
-                              <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">選擇自取門市</label>
-                              <div className="grid grid-cols-2 gap-3">
-                                 {dynamicPickupPoints.map(store => {
-                                    const isSelected = shippingInfo.address.startsWith(store.name);
-                                    return (
-                                       <div 
-                                         key={store.name}
-                                         onClick={() => {
-                                            setShippingInfo({
-                                              ...shippingInfo,
-                                              address: `${store.name} (${store.address})`
-                                            });
-                                         }}
-                                         className={`p-4 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1 ${
-                                            isSelected 
-                                              ? "bg-white border-emerald-900 shadow-xl scale-[1.02]" 
-                                              : "bg-slate-50/50 border-slate-100 hover:bg-white"
-                                         }`}
-                                       >
-                                          <div className="flex justify-between items-center">
-                                             <span className={`text-xs font-black ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>{store.name}</span>
-                                             {isSelected && <span className="w-4 h-4 rounded-full bg-emerald-900 text-white flex items-center justify-center text-[8px] font-bold">✓</span>}
-                                          </div>
-                                          <p className="text-[9px] font-bold text-slate-400 leading-relaxed truncate">{store.address}</p>
-                                       </div>
-                                    );
-                                 })}
-                              </div>
-                           </div>
-                        ) : shippingInfo.method === '超商取貨' ? (
-                           <div className="space-y-4 pt-2">
-                              <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">超商物流設定</label>
-                              <div className="grid grid-cols-2 gap-3">
-                                 {[
-                                    { brand: "7-11", label: "7-ELEVEN 超商", desc: "統一超商門市取貨" },
-                                    { brand: "全家", label: "FamilyMart 全家", desc: "全家便利商店取貨" }
-                                 ].map(item => {
-                                    const isSelected = cvsBrand === item.brand;
-                                    return (
-                                       <div
-                                         key={item.brand}
-                                         onClick={() => setCvsBrand(item.brand)}
-                                         className={`p-4 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-1.5 ${
-                                            isSelected 
-                                              ? `bg-white ${item.brand === '7-11' ? 'border-[#FF6600]' : 'border-[#0080FF]'} shadow-xl` 
-                                              : 'bg-white/50 border-slate-100 hover:bg-white'
-                                         }`}
-                                       >
-                                          <div className="flex justify-between items-center w-full">
-                                             <span className={`text-xs font-black ${isSelected ? (item.brand === '7-11' ? 'text-[#FF6600]' : 'text-[#0080FF]') : 'text-slate-800'}`}>
-                                                {item.label}
-                                             </span>
-                                             {isSelected && (
-                                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${item.brand === '7-11' ? 'bg-[#FF6600]' : 'bg-[#0080FF]'}`}>
-                                                   ✓
-                                                </span>
-                                             )}
-                                          </div>
-                                          <p className="text-[9px] font-bold text-slate-400">{item.desc}</p>
-                                       </div>
-                                    );
-                                 })}
-                              </div>
-
-                              {/* 縣市與鄉鎮區選擇器 */}
-                              <div className="grid grid-cols-2 gap-3">
-                                 <div>
-                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">選擇縣市</label>
-                                    <select 
-                                       value={selectedCity}
-                                       onChange={e => {
-                                          const city = e.target.value;
-                                          setSelectedCity(city);
-                                          setSelectedDist(TAIWAN_CVS_DATA[city][0]);
-                                       }}
-                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800 focus:outline-none cursor-pointer"
-                                    >
-                                       {Object.keys(TAIWAN_CVS_DATA).map(city => (
-                                          <option key={city} value={city}>{city}</option>
-                                       ))}
-                                    </select>
-                                 </div>
-                                 <div>
-                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">選擇鄉鎮區</label>
-                                    <select 
-                                       value={selectedDist}
-                                       onChange={e => setSelectedDist(e.target.value)}
-                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800 focus:outline-none cursor-pointer"
-                                    >
-                                       {(TAIWAN_CVS_DATA[selectedCity] || []).map(dist => (
-                                          <option key={dist} value={dist}>{dist}</option>
-                                       ))}
-                                    </select>
-                                 </div>
-                              </div>
-
-                              {/* 推薦門市快速點選 */}
-                              <div className="space-y-2">
-                                 <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1 uppercase tracking-widest">💡 點選快速自動填入門市</label>
-                                 <div className="grid grid-cols-3 gap-2">
-                                    {generateCvsStores(cvsBrand, selectedCity, selectedDist).map(store => {
-                                       const isThisStore = cvsStoreName === store.name && cvsStoreCode === store.code;
-                                       return (
-                                          <button
-                                             key={store.code}
-                                             type="button"
-                                             onClick={() => {
-                                                setCvsStoreName(store.name);
-                                                setCvsStoreCode(store.code);
-                                             }}
-                                             className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 focus:outline-none ${
-                                                isThisStore 
-                                                   ? (cvsBrand === '7-11' ? 'bg-[#FF6600]/5 border-[#FF6600]' : 'bg-[#0080FF]/5 border-[#0080FF]')
-                                                   : 'bg-slate-50 border-slate-100 hover:bg-slate-100/60'
-                                             }`}
-                                          >
-                                             <span className={`text-[10px] font-black ${isThisStore ? (cvsBrand === '7-11' ? 'text-[#FF6600]' : 'text-[#0080FF]') : 'text-slate-800'}`}>
-                                                {store.name}
-                                             </span>
-                                             <span className="text-[8px] font-bold text-slate-400 font-mono">
-                                                店號: {store.code}
-                                             </span>
-                                          </button>
-                                       );
-                                    })}
-                                 </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                 <div>
-                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">門市名稱</label>
-                                    <input 
-                                       type="text" 
-                                       placeholder="例：新建國門市" 
-                                       value={cvsStoreName}
-                                       onChange={e => setCvsStoreName(e.target.value)}
-                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800"
-                                    />
-                                 </div>
-                                 <div>
-                                    <label className="text-[9px] font-black text-slate-400 ml-1 block mb-1.5 uppercase tracking-widest">門市店號</label>
-                                    <input 
-                                       type="text" 
-                                       placeholder="例：123456" 
-                                       value={cvsStoreCode}
-                                       onChange={e => setCvsStoreCode(e.target.value)}
-                                       className="w-full bg-white border border-slate-100/80 p-3 rounded-xl text-xs font-bold focus:ring-1 focus:ring-emerald-500/10 text-slate-800"
-                                    />
-                                 </div>
-                              </div>
-
-                              <div className="bg-slate-100/40 rounded-xl p-3 text-left border border-slate-100/60">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">門市設定預覽</p>
-                                 <p className="text-xs font-black text-slate-700 mt-2 flex items-center gap-1.5">
-                                    🏪 [{cvsBrand}] {cvsStoreName || "請輸入門市"} {cvsStoreCode ? `(店號: ${cvsStoreCode})` : "(請輸入店號)"}
-                                 </p>
-                              </div>
-                           </div>
-                        ) : (
-                               <div>
-                              <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">
-                                 {shippingInfo.method === '宅配到府' ? '寄送地址' : '詳細地址'}
-                              </label>
-                              <textarea 
-                                value={shippingInfo.address}
-                                onChange={e => setShippingInfo({...shippingInfo, address: e.target.value})}
-                                
-                                className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-24 resize-none focus:ring-2 focus:ring-emerald-500/20"
-                                placeholder={shippingInfo.method === '宅配到府' ? '請輸入完整收件地址' : '請輸入詳細地址'}
-                              />
-                           </div>
-                        )}
-
-                        <div>
-                           <label className="text-[10px] font-black text-slate-400 ml-2 block mb-2 uppercase tracking-widest">備註 (選填)</label>
-                           <textarea 
-                             value={shippingInfo.notes}
-                             onChange={e => setShippingInfo({...shippingInfo, notes: e.target.value})}
-                             className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold h-20 resize-none focus:ring-2 focus:ring-emerald-500/20"
-                             placeholder="有什麼特別需求嗎？"
-                           />
-                        </div>
-                     </div>
-
-                     <div className="space-y-4 pt-4">
-                        <button 
-                          onClick={handleRecipientNext}
-                          className="w-full bg-emerald-900 text-white py-6 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20"
-                        >
-                           下一步：最終確認明細
-                        </button>
-                        <button 
-                          onClick={() => setShippingSubStep('sender')}
-                          className="w-full text-[10px] font-black text-slate-300 uppercase tracking-widest text-center"
-                        >
-                           上一步 (修改確認寄件)
-                        </button>
-                     </div>
-                  </div>
-               )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-
-      {/* Step 3.5: Final Double-Confirmation Modal for Store Checkout */}
-      <AnimatePresence>
-        {showFinalDoubleConfirmModal && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => setShowFinalDoubleConfirmModal(false)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} 
-              animate={{ scale: 1, y: 0 }} 
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-8 w-full max-w-md shadow-2xl relative z-10 border border-slate-100 max-h-[90vh] overflow-y-auto no-scrollbar"
-            >
-              <div className="w-14 h-14 bg-emerald-50 text-emerald-950 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-                <span className="text-xl">📝</span>
-              </div>
-              <h3 className="text-lg font-black text-slate-900 text-center mb-1">訂單最終全面核對</h3>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center mb-6">Please Double Confirm Order Details</p>
-
-              <div className="space-y-4">
-                {/* 1. 訂購商品明細 */}
-                <div className="bg-slate-50/70 border border-slate-100/50 p-5 rounded-3xl text-left space-y-3.5">
-                   <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
-                      <span className="text-xs">📦</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">訂購商品明細</span>
-                   </div>
-                   <div className="space-y-2.5 max-h-32 overflow-y-auto no-scrollbar pr-1">
-                      {cart.map((item) => (
-                         <div key={item.id} className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-slate-600 truncate max-w-[200px]">{item.name}</span>
-                            <span className="font-black text-slate-800 shrink-0">x {item.quantity} (${(item.price * item.quantity).toLocaleString()})</span>
-                         </div>
-                      ))}
-                   </div>
-
-                   <div className="border-t border-slate-200/60 pt-3 space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center text-slate-500 font-bold">
-                         <span>商品小計</span>
-                         <span>${totalPrice.toLocaleString()}</span>
-                      </div>
-                      {discountAmount > 0 && (
-                         <div className="flex justify-between items-center text-rose-500 font-bold">
-                            <span>優惠折抵</span>
-                            <span>-${discountAmount.toLocaleString()}</span>
-                         </div>
-                      )}
-                      <div className="flex justify-between items-center text-slate-500 font-bold">
-                         <span>運費小計 ({shippingInfo.method})</span>
-                         <span>{shippingInfo.method === '自取' ? "免運 ($0)" : (finalPrice >= 1000 ? "免運 ($0)" : "$70")}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-t border-slate-200/60 pt-2.5 text-slate-800 font-black">
-                         <span className="text-xs font-black text-slate-900">採購應付總額</span>
-                         <span className="text-base text-emerald-900 font-black">
-                            ${(finalPrice + (shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元
-                         </span>
-                      </div>
-
-                      {/* 此次訂購的點數回饋 */}
-                      {(() => {
-                         const pointsRateMapping: Record<string, number> = {
-                            '初潤寶寶': 100,
-                            '初潤幼兒園': 90,
-                            '初潤小朋友': 80,
-                            '初潤青少年': 70,
-                            '初潤好朋友': 60,
-                            '初潤閨蜜': 50,
-                            '初潤知己': 40,
-                            '初潤靈魂伴侶': 30,
-                         };
-                         const rate = pointsRateMapping[memberInfo?.tier || '初潤寶寶'] || 100;
-                         const earnedPoints = Math.floor(finalPrice / rate);
-
-                         if (memberInfo?.is_b2b) {
-                            return (
-                               <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 bg-slate-100/50 rounded-2xl px-4 py-2.5 mt-2 border border-slate-100/80">
-                                  <span>💡 本次訂單點數回饋</span>
-                                  <span className="font-extrabold text-slate-500">B2B 批發帳號不計點數回饋</span>
-                               </div>
-                            );
-                         }
-
-                         return (
-                            <div className="flex justify-between items-center text-xs font-black text-emerald-700 bg-emerald-50/50 rounded-2xl px-4 py-2.5 mt-2 border border-emerald-100/40">
-                               <span className="flex items-center gap-1.5">🎁 本次預計點數回饋</span>
-                               <span className="font-mono font-black text-emerald-600">+{earnedPoints} 點 ({memberInfo?.tier || '會員'})</span>
-                            </div>
-                         );
-                      })()}
-                   </div>
-                </div>
-
-                {/* 2. 寄件與收件人資訊 */}
-                <div className="bg-slate-50/70 border border-slate-100/50 p-5 rounded-3xl text-left space-y-3">
-                   <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
-                      <span className="text-xs">👤</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">物流配送資訊</span>
-                   </div>
-                   
-                   <div className="space-y-2 text-xs">
-                       <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
-                          <span className="font-black text-slate-400">🆔 會員編號</span>
-                          <span className="col-span-2 font-black text-emerald-800 text-right">
-                             {memberInfo?.member_code || "---"}
-                          </span>
-                       </div>
-                       <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
-                          <span className="font-black text-slate-400">👤 寄件人</span>
-                         <span className="col-span-2 font-bold text-slate-800 text-right">
-                            {shippingInfo.senderName || memberInfo?.name} ({shippingInfo.senderPhone || memberInfo?.phone})
-                         </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
-                         <span className="font-black text-slate-400">👤 收件人</span>
-                         <span className="col-span-2 font-bold text-slate-800 text-right">
-                            {shippingInfo.name} ({shippingInfo.phone})
-                         </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100">
-                         <span className="font-black text-slate-400">📍 收件地址</span>
-                         <span className="col-span-2 font-extrabold text-slate-700 leading-relaxed text-right break-all">
-                            {shippingInfo.address}
-                         </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                         <span className="font-black text-slate-400">💬 備註</span>
-                         <span className="col-span-2 font-bold text-slate-600 text-right break-all">
-                            {shippingInfo.notes || "無"}
-                         </span>
-                      </div>
-                   </div>
-                </div>
-
-                {/* 3. 匯款資訊預覽 */}
-                <div className="bg-emerald-50/50 border border-emerald-100/60 p-5 rounded-3xl text-left space-y-3">
-                   <div className="flex items-center gap-1.5 pb-1 border-b border-emerald-100/40">
-                      <span className="text-xs">🏦</span>
-                      <span className="text-[10px] font-black text-emerald-900/60 uppercase tracking-wider">預定匯款帳戶資訊</span>
-                   </div>
-                   <div className="space-y-1.5 text-xs font-bold text-slate-700">
-                      <div className="flex justify-between">
-                         <span className="text-emerald-900/60">匯款銀行</span>
-                         <span className="text-slate-800">國泰世華銀行 (013)</span>
-                      </div>
-                      <div className="flex justify-between">
-                         <span className="text-emerald-900/60">帳戶名稱</span>
-                         <span className="text-slate-800">安信商業有限公司</span>
-                      </div>
-                      <div className="flex justify-between">
-                         <span className="text-emerald-900/60">匯款帳號</span>
-                         <span className="text-slate-800 select-all font-mono">214-03-500450-5</span>
-                      </div>
-                      <div className="flex justify-between border-t border-emerald-100/40 pt-2 mt-1">
-                         <span className="text-emerald-950 font-black">匯款總金額</span>
-                         <span className="text-sm font-black text-emerald-900">
-                            ${(finalPrice + (shippingInfo.method === '自取' ? 0 : (finalPrice >= 1000 ? 0 : 70))).toLocaleString()} 元
-                         </span>
-                      </div>
-                   </div>
-                </div>
-
-                {/* 注意事項 */}
-                <div className="bg-amber-50/40 border border-amber-900/10 p-4 rounded-2xl text-left">
-                   <p className="text-[9px] font-black text-amber-800 leading-relaxed">
-                      ⚠️ 提示：請確實核對上述商品、配送及匯款資料。確認無誤後點擊「送出訂單」，系統將為您保留庫存並建立訂單，您可以於稍後完成轉帳。
-                   </p>
-                </div>
-              </div>
-
-              <div className="space-y-3.5 pt-6">
-                <button 
-                  onClick={() => {
-                     submitAndShowPayment(shippingInfo);
-                  }}
-                  disabled={isCheckingOut}
-                  className="w-full bg-emerald-900 hover:bg-emerald-850 disabled:opacity-50 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/20 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                   {isCheckingOut ? (
-                      <>
-                         <Loader2 className="w-4 h-4 animate-spin" />
-                         <span>訂單建立中...</span>
-                      </>
-                   ) : "確認無誤，送出訂單"}
-                </button>
-                <button 
-                  onClick={() => {
-                     setShowFinalDoubleConfirmModal(false);
-                     setShowShippingModal(true);
-                     setShippingSubStep('recipient');
-                  }}
-                  className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition text-center"
-                >
-                  返回修改收件資訊
-                </button>
-              </div>
+               </div>
             </motion.div>
           </div>
         )}
@@ -2775,7 +2391,7 @@ function StoreContent() {
                          )}
                          <div className="flex justify-between items-center text-slate-400 font-bold">
                             <span>運費 ({shippingInfo.method})</span>
-                            <span>{shippingInfo.method === '自取' ? '$0 (自取免運)' : ((Math.max(0, lastTotalPrice - discountAmount)) >= 1000 ? '$0 (滿千免運)' : '$70')}</span>
+                            <span>{shippingInfo.method === '自取' ? '$0 (自取免運)' : (lastShippingFee === 0 ? '$0 (滿千免運)' : '$70')}</span>
                          </div>
                          <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2.5 text-slate-900 font-black">
                             <span className="text-xs">應付總金額</span>
