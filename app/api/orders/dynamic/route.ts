@@ -382,13 +382,7 @@ export async function POST(request: Request) {
           const { error: updErr } = await supabase.from('products')
             .update({ stock_count: Math.max(0, (product.stock_count || 0) - item.quantity) })
             .eq('id', item.id);
-          if (updErr) {
-             if (updErr.message.includes('stock_count')) {
-                console.warn('[Order] Ignored missing stock_count column in products');
-             } else {
-                throw updErr;
-             }
-          }
+          if (updErr) throw updErr;
         }
       }
 
