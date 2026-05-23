@@ -617,7 +617,7 @@ function StoreContent() {
     try {
       const { data: oData } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at, custom_logo_url")
+        .select("id, total_amount, status, created_at, custom_logo_url, payment_last_five")
         .eq("member_id", userId)
         .order("created_at", { ascending: false });
 
@@ -645,6 +645,36 @@ function StoreContent() {
       }
     } catch (oErr) {
       console.error("載入歷史訂單失敗:", oErr);
+    }
+  };
+
+  const handleReportPayment = async (orderId: string) => {
+    if (!reportDigits || reportDigits.length !== 5) {
+      alert("請輸入完整的匯款帳號末五碼！");
+      return;
+    }
+    setIsReporting(true);
+    try {
+      const res = await fetch('/api/orders/report-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, paymentLastFive: reportDigits })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to report payment');
+
+      alert("回報成功！我們會盡快為您核對並安排出貨。");
+      setReportingOrderId(null);
+      setReportDigits("");
+      
+      setUserOrders(prev => prev.map(o => 
+        o.id === orderId ? { ...o, payment_last_five: reportDigits } : o
+      ));
+    } catch (err: any) {
+      console.error(err);
+      alert("回報失敗：" + err.message);
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -2737,6 +2767,58 @@ function StoreContent() {
                                 </div>
                               )}
                             </div>
+
+                            {/* 回報匯款區塊 (僅在處理中顯示) */}
+                            {order.status === 'pending' && (
+                              <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-[10px] font-black text-emerald-800 flex items-center gap-1.5">
+                                    <span>💰</span> 匯款確認
+                                  </span>
+                                  {order.payment_last_five && (
+                                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                      已回報：{order.payment_last_five}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {!order.payment_last_five && reportingOrderId !== order.id && (
+                                  <button
+                                    onClick={() => setReportingOrderId(order.id)}
+                                    className="w-full bg-white border border-emerald-200 text-emerald-700 py-2 rounded-xl text-[10px] font-black hover:bg-emerald-50 hover:border-emerald-300 transition shadow-sm"
+                                  >
+                                    回報匯款帳號末五碼
+                                  </button>
+                                )}
+
+                                {reportingOrderId === order.id && (
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      maxLength={5}
+                                      placeholder="請輸入末 5 碼"
+                                      value={reportDigits}
+                                      onChange={(e) => setReportDigits(e.target.value.replace(/\D/g, ''))}
+                                      className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 text-slate-800 text-center tracking-widest"
+                                    />
+                                    <button
+                                      onClick={() => handleReportPayment(order.id)}
+                                      disabled={isReporting}
+                                      className="bg-emerald-600 text-white px-4 rounded-xl text-[10px] font-black hover:bg-emerald-700 transition disabled:opacity-50"
+                                    >
+                                      {isReporting ? "送出中..." : "送出"}
+                                    </button>
+                                    <button
+                                      onClick={() => { setReportingOrderId(null); setReportDigits(""); }}
+                                      className="bg-slate-100 text-slate-500 px-3 rounded-xl text-[10px] font-black hover:bg-slate-200 transition"
+                                    >
+                                      取消
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                           </div>
                         );
                       })}
@@ -2841,6 +2923,58 @@ function StoreContent() {
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* 回報匯款區塊 (僅在處理中顯示) */}
+                                  {order.status === 'pending' && (
+                                    <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50">
+                                      <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-black text-emerald-800 flex items-center gap-1.5">
+                                          <span>💰</span> 匯款確認
+                                        </span>
+                                        {order.payment_last_five && (
+                                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                            已回報：{order.payment_last_five}
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      {!order.payment_last_five && reportingOrderId !== order.id && (
+                                        <button
+                                          onClick={() => setReportingOrderId(order.id)}
+                                          className="w-full bg-white border border-emerald-200 text-emerald-700 py-2 rounded-xl text-[10px] font-black hover:bg-emerald-50 hover:border-emerald-300 transition shadow-sm"
+                                        >
+                                          回報匯款帳號末五碼
+                                        </button>
+                                      )}
+
+                                      {reportingOrderId === order.id && (
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            maxLength={5}
+                                            placeholder="請輸入末 5 碼"
+                                            value={reportDigits}
+                                            onChange={(e) => setReportDigits(e.target.value.replace(/\D/g, ''))}
+                                            className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 text-slate-800 text-center tracking-widest"
+                                          />
+                                          <button
+                                            onClick={() => handleReportPayment(order.id)}
+                                            disabled={isReporting}
+                                            className="bg-emerald-600 text-white px-4 rounded-xl text-[10px] font-black hover:bg-emerald-700 transition disabled:opacity-50"
+                                          >
+                                            {isReporting ? "送出中..." : "送出"}
+                                          </button>
+                                          <button
+                                            onClick={() => { setReportingOrderId(null); setReportDigits(""); }}
+                                            className="bg-slate-100 text-slate-500 px-3 rounded-xl text-[10px] font-black hover:bg-slate-200 transition"
+                                          >
+                                            取消
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
                                 </div>
                               );
                             })}
