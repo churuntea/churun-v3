@@ -556,7 +556,7 @@ function StoreContent() {
 
     fetch("/api/me/profile").then(res => res.json()).then(data => {
       if (data.member?.id) {
-        fetchData(data.member.id);
+        fetchData(data.member.id, data.member);
       } else {
         router.replace("/login");
       }
@@ -616,10 +616,9 @@ function StoreContent() {
     }
   };
 
-  const fetchData = async (userId: string) => {
+  const fetchData = async (userId: string, mData: any) => {
     setIsLoading(true);
     try {
-      const { data: mData } = await supabase.from("members").select("*").eq("id", userId).single();
       setMemberInfo(mData);
       if (mData) {
         let lastSender: any = null;
