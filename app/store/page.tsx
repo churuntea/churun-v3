@@ -616,9 +616,13 @@ function StoreContent() {
     }
   };
 
-  const fetchData = async (userId: string, mData: any) => {
+  const fetchData = async (userId: string, mData?: any) => {
     setIsLoading(true);
     try {
+      if (!mData) {
+        const { data } = await supabase.from("members").select("*").eq("id", userId).single();
+        mData = data;
+      }
       setMemberInfo(mData);
       if (mData) {
         let lastSender: any = null;
