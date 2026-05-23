@@ -21,10 +21,13 @@ ADD COLUMN IF NOT EXISTS shipping_info jsonb;
 CREATE TABLE IF NOT EXISTS public.warehouses (
     id serial PRIMARY KEY,
     name text NOT NULL,
-    location text,
-    manager text,
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
+
+-- 確保 warehouses 擁有必要的擴充欄位
+ALTER TABLE public.warehouses 
+ADD COLUMN IF NOT EXISTS location text,
+ADD COLUMN IF NOT EXISTS manager text;
 
 -- 插入預設倉庫資料
 INSERT INTO public.warehouses (id, name, location, manager)
@@ -32,18 +35,21 @@ VALUES
     (1, '大安旗艦店', '台北市大安區', '系統預設'),
     (2, '新莊總部', '新北市新莊區', '系統預設'),
     (3, '草屯茶園總廠', '南投縣草屯鎮', '系統預設')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET location = EXCLUDED.location, manager = EXCLUDED.manager;
 
 -- 4. 建立 ERP 專用資料表：Suppliers (廠商管理)
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id serial PRIMARY KEY,
     name text NOT NULL,
-    contact_person text,
-    phone text,
-    address text,
-    status text DEFAULT 'active',
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
+
+-- 確保 suppliers 擁有必要的擴充欄位
+ALTER TABLE public.suppliers 
+ADD COLUMN IF NOT EXISTS contact_person text,
+ADD COLUMN IF NOT EXISTS phone text,
+ADD COLUMN IF NOT EXISTS address text,
+ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
 
 -- 插入預設廠商資料
 INSERT INTO public.suppliers (id, name, contact_person)
@@ -57,24 +63,30 @@ CREATE TABLE IF NOT EXISTS public.warehouse_inventory (
     id serial PRIMARY KEY,
     warehouse_id integer REFERENCES public.warehouses(id) ON DELETE CASCADE,
     product_id uuid REFERENCES public.products(id) ON DELETE CASCADE,
-    stock integer DEFAULT 0,
-    min_stock integer DEFAULT 10,
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
     UNIQUE(warehouse_id, product_id)
 );
 
+-- 確保 warehouse_inventory 擁有必要的擴充欄位
+ALTER TABLE public.warehouse_inventory 
+ADD COLUMN IF NOT EXISTS stock integer DEFAULT 0,
+ADD COLUMN IF NOT EXISTS min_stock integer DEFAULT 10;
+
 -- 6. 建立 ERP 專用資料表：Inventory Logs (進銷存異動日誌)
 CREATE TABLE IF NOT EXISTS public.inventory_logs (
     id serial PRIMARY KEY,
-    product_name text,
-    category text,
-    quantity integer DEFAULT 0,
-    unit_cost numeric DEFAULT 0,
-    supplier text,
-    type text, -- inbound(進貨), outbound(出貨), stock_check(盤點)
-    notes text,
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
+
+-- 因為原始設計 id 可能是 uuid，為了相容，我們先嘗試建立文字欄位
+ALTER TABLE public.inventory_logs 
+ADD COLUMN IF NOT EXISTS product_name text,
+ADD COLUMN IF NOT EXISTS category text,
+ADD COLUMN IF NOT EXISTS quantity integer DEFAULT 0,
+ADD COLUMN IF NOT EXISTS unit_cost numeric DEFAULT 0,
+ADD COLUMN IF NOT EXISTS supplier text,
+ADD COLUMN IF NOT EXISTS type text,
+ADD COLUMN IF NOT EXISTS notes text;
 
 -- ==========================================
 -- 執行完畢後，您的資料庫將具備完整的 ERP 運作能力！
