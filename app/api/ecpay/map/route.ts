@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   const brand = searchParams.get('brand'); 
   
   const LogisticsSubType = brand === '全家' ? 'FAMI' : 'UNIMART';
-  const MerchantID = '2000132'; 
+  const MerchantID = '2000933'; 
   const host = new URL(request.url).origin;
   const ServerReplyURL = `${host}/api/ecpay/map-callback`;
 
