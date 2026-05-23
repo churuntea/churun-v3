@@ -643,14 +643,14 @@ function StoreContent() {
         } catch (e) {}
 
         setShippingInfo({
-          name: lastRecipient?.name || mData.name || '',
-          phone: lastRecipient?.phone || mData.phone || '',
-          address: lastRecipient?.address || '',
+          name: mData.name || lastRecipient?.name || '',
+          phone: mData.phone || lastRecipient?.phone || '',
+          address: mData.address || lastRecipient?.address || '',
           notes: '',
           method: lastRecipient?.method || '自取',
-          senderName: lastSender?.name || mData.name || '',
-          senderPhone: lastSender?.phone || mData.phone || '',
-          senderAddress: lastSender?.address || mData.address || '',
+          senderName: mData.name || lastSender?.name || '',
+          senderPhone: mData.phone || lastSender?.phone || '',
+          senderAddress: mData.address || lastSender?.address || '',
           senderNotes: ''
         });
       }
