@@ -29,14 +29,6 @@ ALTER TABLE public.warehouses
 ADD COLUMN IF NOT EXISTS location text,
 ADD COLUMN IF NOT EXISTS manager text;
 
--- 插入預設倉庫資料
-INSERT INTO public.warehouses (id, name, location, manager)
-VALUES 
-    (1, '大安旗艦店', '台北市大安區', '系統預設'),
-    (2, '新莊總部', '新北市新莊區', '系統預設'),
-    (3, '草屯茶園總廠', '南投縣草屯鎮', '系統預設')
-ON CONFLICT (id) DO UPDATE SET location = EXCLUDED.location, manager = EXCLUDED.manager;
-
 -- 4. 建立 ERP 專用資料表：Suppliers (廠商管理)
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id serial PRIMARY KEY,
@@ -51,12 +43,7 @@ ADD COLUMN IF NOT EXISTS phone text,
 ADD COLUMN IF NOT EXISTS address text,
 ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
 
--- 插入預設廠商資料
-INSERT INTO public.suppliers (id, name, contact_person)
-VALUES 
-    (1, '初潤南投茶園總廠', '製茶廠長'),
-    (2, '極萃生技研發中心', '研發部')
-ON CONFLICT (id) DO NOTHING;
+-- 插入預設廠商與倉庫請至後台系統操作，此處略過以避免 id 型別衝突 (uuid vs integer)
 
 -- 5. 建立 ERP 專用資料表：Warehouse Inventory (各倉獨立庫存)
 CREATE TABLE IF NOT EXISTS public.warehouse_inventory (
