@@ -304,7 +304,7 @@ function StoreContent() {
   }, []);
 
   useEffect(() => {
-    if (shippingInfo.method === '超商取貨') {
+    if (['超商取貨', '7-11', '全家'].includes(shippingInfo.method)) {
       const compiledAddress = `[${cvsBrand}] 門市:${cvsStoreName || ''} (店號:${cvsStoreCode || ''})`;
       setShippingInfo(prev => ({
         ...prev,
@@ -314,7 +314,7 @@ function StoreContent() {
   }, [cvsBrand, cvsStoreName, cvsStoreCode, shippingInfo.method]);
 
   useEffect(() => {
-    if (showShippingModal && shippingInfo.method === '超商取貨' && shippingInfo.address) {
+    if (showShippingModal && ['超商取貨', '7-11', '全家'].includes(shippingInfo.method) && shippingInfo.address) {
       const brandMatch = shippingInfo.address.match(/^\[(7-11|全家)\]/);
       const storeMatch = shippingInfo.address.match(/門市:([^\s]+)/);
       const codeMatch = shippingInfo.address.match(/店號:([^\s\)]+)/);
@@ -382,7 +382,7 @@ function StoreContent() {
     const finalAddress = shippingInfo.address || (shippingInfo.method !== '自取' ? (memberInfo?.address || '') : '');
 
     let computedAddress = finalAddress;
-    if (shippingInfo.method === '超商取貨') {
+    if (['超商取貨', '7-11', '全家'].includes(shippingInfo.method)) {
       if (!cvsStoreName || !cvsStoreCode) {
         alert("請輸入超商門市名稱與店號");
         return;
@@ -620,10 +620,13 @@ function StoreContent() {
     setIsLoading(true);
     try {
       if (!mData) {
-        const { data } = await supabase.from("members").select("*").eq("id", userId).single();
-        mData = data;
+        const profileRes = await fetch("/api/me/profile");
+        const profileData = await profileRes.json();
+        if (profileData.member) {
+          mData = profileData.member;
+        }
       }
-      setMemberInfo(mData);
+      setMemberInfo(mData || null);
       if (mData) {
         let lastSender: any = null;
         let lastRecipient: any = null;
@@ -1792,7 +1795,13 @@ function StoreContent() {
                     <span>物流方式</span>
                     <select
                       value={shippingInfo.method || '宅配到府'}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, method: e.target.value })}
+                      onChange={(e) => {
+                        const method = e.target.value;
+                        setShippingInfo({ ...shippingInfo, method });
+                        if (method === '7-11' || method === '全家') {
+                          setCvsBrand(method);
+                        }
+                      }}
                       className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
                     >
                       <option value="宅配到府">宅配到府</option>
@@ -1949,7 +1958,7 @@ function StoreContent() {
                            })}
                         </div>
                      </div>
-                  ) : shippingInfo.method === '超商取貨' ? (
+                  ) : ['超商取貨', '7-11', '全家'].includes(shippingInfo.method) ? (
                      <div className="space-y-4 pt-2">
                         <label className="text-[10px] font-black text-slate-400 ml-2 block uppercase tracking-widest">超商物流設定</label>
                         <div className="grid grid-cols-2 gap-3">
@@ -2084,7 +2093,7 @@ function StoreContent() {
                              alert("請填寫完整的收件資訊 (收件人姓名及電話皆為必填)");
                              return;
                           }
-                          if (shippingInfo.method === '超商取貨') {
+                          if (['超商取貨', '7-11', '全家'].includes(shippingInfo.method)) {
                              if (!cvsStoreName.trim() || !cvsStoreCode.trim()) {
                                 alert("請輸入超商門市名稱與店號");
                                 return;
@@ -2097,7 +2106,7 @@ function StoreContent() {
                           }
                           
                           let finalAddress = sAddress;
-                          if (shippingInfo.method === '超商取貨') {
+                          if (['超商取貨', '7-11', '全家'].includes(shippingInfo.method)) {
                              finalAddress = `[${cvsBrand}] ${cvsStoreName} (店號: ${cvsStoreCode})`;
                              setShippingInfo(prev => ({...prev, address: finalAddress}));
                           }
@@ -2354,7 +2363,7 @@ function StoreContent() {
                             請於完成匯款後，前往個人中心回報匯款人姓名、銀行及帳號末五碼，管理員將第一時間安排您至【{shippingInfo.address.split('(')[0]}】取貨！
                          </p>
                       </div>
-                   ) : shippingInfo.method === '超商取貨' ? (
+                   ) : ['超商取貨', '7-11', '全家'].includes(shippingInfo.method) ? (
                       <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl space-y-1">
                          <p className="text-[10px] font-black text-blue-800 flex items-center gap-1.5">
                             🏪 超商門市取件
