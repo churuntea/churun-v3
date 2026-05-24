@@ -118,14 +118,14 @@ export default function Rewards() {
         if (data.success && Array.isArray(data.data)) {
           const updatedTiers = TIERS.map(staticTier => {
             const matched = data.data.find((r: any) => r.tier_name === staticTier.name);
-            if (matched) {
-              return { 
-                ...staticTier, 
-                privileges: matched.privileges || staticTier.privileges,
-                // 如果 DB 有描述也可以動態替換
-              };
-            }
-            return staticTier;
+            const basePrivileges = matched ? (matched.privileges || staticTier.privileges) : staticTier.privileges;
+            const universalPerks = ['新品上市嚐鮮價點數加倍送', '每年生日禮券買一送一'];
+            // Filter out any existing duplicates of these universal perks, then append them
+            const filteredPrivileges = basePrivileges.filter((p: string) => !universalPerks.includes(p));
+            return { 
+              ...staticTier, 
+              privileges: [...filteredPrivileges, ...universalPerks],
+            };
           });
           setTiers(updatedTiers);
         }

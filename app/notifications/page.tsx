@@ -27,7 +27,7 @@ function NotificationsContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedId = sessionStorage.getItem("memberId");
+    const savedId = localStorage.getItem("churun_member_id");
     if (!savedId) {
       router.replace("/login");
       return;
@@ -97,7 +97,7 @@ function NotificationsContent() {
         
         <div className="flex justify-between items-center px-4">
            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">最近消息 ({notifications.length})</h3>
-           <button onClick={() => fetchNotifications(null /* removed */!)} className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">重新整理</button>
+           <button onClick={() => fetchNotifications(localStorage.getItem("churun_member_id")!)} className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">重新整理</button>
         </div>
 
         <div className="space-y-4">

@@ -559,10 +559,6 @@ function TransactionContent() {
                   </div>
                </div>
 
-               <div className="text-[10px] font-bold text-slate-500 bg-slate-50 p-4 border border-slate-100/30 rounded-2xl leading-relaxed whitespace-pre-wrap">
-                  📢 <span className="text-indigo-600 font-black mb-2 block">【{memberInfo.tier}】權益明細與義務：</span>
-                  {tierPerksText}
-               </div>
             </div>
          )}
 
