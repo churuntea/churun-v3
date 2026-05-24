@@ -622,7 +622,7 @@ function StoreContent() {
     try {
       const { data: oData } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at, custom_logo_url, payment_last_five")
+        .select("id, total_amount, status, created_at, custom_logo_url, bank_last_five")
         .eq("member_id", userId)
         .order("created_at", { ascending: false });
 
@@ -634,11 +634,11 @@ function StoreContent() {
           .in("order_id", orderIds);
 
         const mappedOrders = oData.map((o: any) => {
-          let orderObj = { ...o };
+          let orderObj = { ...o, payment_last_five: o.bank_last_five };
           if (o.custom_logo_url && o.custom_logo_url.startsWith('FALLBACK_JSON:')) {
             try {
               const fallback = JSON.parse(o.custom_logo_url.substring('FALLBACK_JSON:'.length));
-              orderObj = { ...o, ...fallback };
+              orderObj = { ...o, ...fallback, payment_last_five: o.bank_last_five || fallback.bank_last_five };
             } catch (e) {}
           }
           const items = allItems ? allItems.filter((it: any) => it.order_id === o.id) : [];
