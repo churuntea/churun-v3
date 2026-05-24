@@ -129,13 +129,14 @@ function WholesaleContent() {
           .from("announcements")
           .select("*")
           .eq("title", "[SYSTEM_PICKUP_POINTS]")
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
         if (error) throw error;
 
-        if (data && data.content) {
-          const parsed = JSON.parse(data.content);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+        if (data && data.length > 0 && data[0].content) {
+          const parsed = JSON.parse(data[0].content);
+          if (Array.isArray(parsed)) {
             setDynamicPickupPoints(parsed);
           }
         }
