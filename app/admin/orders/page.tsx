@@ -255,12 +255,14 @@ function AdminOrdersContent() {
         updatedPoints.push(newPoint);
       }
 
-      const { error } = await supabase
-        .from("announcements")
-        .update({ content: JSON.stringify(updatedPoints) })
-        .eq("title", "[SYSTEM_PICKUP_POINTS]");
+      const res = await fetch('/api/admin/pickup-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updatedPoints })
+      });
+      const data = await res.json();
 
-      if (error) throw error;
+      if (!data.success) throw new Error(data.error || '刪除失敗');
 
       setPickupPoints(updatedPoints);
       setPickupForm({ name: "", contact_person: "", phone: "", address: "", notes: "" });
@@ -279,13 +281,14 @@ function AdminOrdersContent() {
     setIsSavingPickupPoint(true);
     try {
       const updatedPoints = pickupPoints.filter(pt => pt.id !== id);
-      const { error } = await supabase
-        .from("announcements")
-        .update({ content: JSON.stringify(updatedPoints) })
-        .eq("title", "[SYSTEM_PICKUP_POINTS]");
+      const res = await fetch('/api/admin/pickup-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updatedPoints })
+      });
+      const data = await res.json();
 
-      if (error) throw error;
-
+      if (!data.success) throw new Error(data.error || '刪除失敗');
       setPickupPoints(updatedPoints);
       alert("🎉 自取地點刪除成功！");
     } catch (err: any) {
