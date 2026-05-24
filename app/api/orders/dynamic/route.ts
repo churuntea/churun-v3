@@ -122,22 +122,23 @@ async function generateUniqueOrderNumber() {
   const tzDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
   const yy = String(tzDate.getFullYear()).slice(-2);
   const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(tzDate.getDate()).padStart(2, '0');
   
   for (let attempt = 0; attempt < 10; attempt++) {
     const { count } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .like('order_number', `CR${yy}${mm}AAA%`);
+      .like('order_number', `O${yy}${mm}${dd}AA%`);
 
-    const seqStr = String((count || 0) + 1 + attempt).padStart(3, '0');
-    const orderNumber = `CR${yy}${mm}AAA${seqStr}`;
+    const seqStr = String((count || 0) + 1 + attempt).padStart(2, '0');
+    const orderNumber = `O${yy}${mm}${dd}AA${seqStr}`;
 
     if (!(await orderNumberExists(orderNumber))) {
       return orderNumber;
     }
   }
 
-  return `CR${yy}${mm}AAA${String(Date.now() % 1000).padStart(3, '0')}`;
+  return `O${yy}${mm}${dd}AA${String(Date.now() % 100).padStart(2, '0')}`;
 }
 
 async function cleanupIncompleteOrder(orderId: string) {
