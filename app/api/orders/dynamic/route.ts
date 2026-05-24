@@ -118,30 +118,26 @@ async function orderNumberExists(orderNumber: string) {
   return !error && Array.isArray(data) && data.length > 0;
 }
 
-async function generateUniqueOrderNumber(prefix: string, dateString: string) {
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const startOfDay = new Date();
-    const endOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    endOfDay.setHours(23, 59, 59, 999);
-    const startOfDayUTC = new Date(startOfDay.getTime() - (8 * 60 * 60 * 1000));
-    const endOfDayUTC = new Date(endOfDay.getTime() - (8 * 60 * 60 * 1000));
-
+async function generateUniqueOrderNumber() {
+  const tzDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const yy = String(tzDate.getFullYear()).slice(-2);
+  const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+  
+  for (let attempt = 0; attempt < 10; attempt++) {
     const { count } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .gte('created_at', startOfDayUTC.toISOString())
-      .lte('created_at', endOfDayUTC.toISOString());
+      .like('order_number', `CR${yy}${mm}AAA%`);
 
-    const seqStr = String((count || 0) + 1).padStart(4, '0');
-    const orderNumber = `${prefix}${dateString}A${seqStr}${attempt > 0 ? `R${attempt}` : ''}`;
+    const seqStr = String((count || 0) + 1 + attempt).padStart(3, '0');
+    const orderNumber = `CR${yy}${mm}AAA${seqStr}`;
 
     if (!(await orderNumberExists(orderNumber))) {
       return orderNumber;
     }
   }
 
-  return `${prefix}${dateString}A${String(Date.now() % 1000000).padStart(6, '0')}`;
+  return `CR${yy}${mm}AAA${String(Date.now() % 1000).padStart(3, '0')}`;
 }
 
 async function cleanupIncompleteOrder(orderId: string) {
@@ -241,14 +237,7 @@ export async function POST(request: Request) {
         buyerPrefix = 'P';
       }
     }
-    const date = new Date();
-    const tzDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-    const yy = String(tzDate.getFullYear()).slice(-2);
-    const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(tzDate.getDate()).padStart(2, '0');
-    const dateString = `${yy}${mm}${dd}`;
-
-    const orderNumber = await generateUniqueOrderNumber(buyerPrefix, dateString);
+    const orderNumber = await generateUniqueOrderNumber();
     
     const orderData: any = {
       member_id: buyer.id,
