@@ -65,7 +65,7 @@ function ProfileContent() {
 
   const handleOpenWalletDetails = async () => {
     setShowWalletDetailModal(true);
-    const savedId = null /* removed */;
+    const savedId = sessionStorage.getItem("memberId");
     if (!savedId) return;
     setIsFetchingWalletTx(true);
     setIsFetchingPending(true);

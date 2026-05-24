@@ -121,7 +121,7 @@ function StoreContent() {
   const [favorites, setFavorites] = useState<string[]>([]);
 
   const toggleFavorite = (productId: string) => {
-    const savedId = null /* removed */;
+    const savedId = sessionStorage.getItem("memberId");
     if (!savedId) return;
     setFavorites(prev => {
       const updated = prev.includes(productId)

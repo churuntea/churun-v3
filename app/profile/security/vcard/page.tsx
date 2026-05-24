@@ -27,7 +27,7 @@ export default function VCardPage() {
   const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const savedId = null /* removed */;
+    const savedId = sessionStorage.getItem("memberId");
     if (!savedId) { router.replace("/login"); return; }
     currentUserIdRef.current = savedId;
     fetchData(savedId);

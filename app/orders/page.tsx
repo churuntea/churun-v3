@@ -221,7 +221,7 @@ function OrdersContent() {
   };
 
   useEffect(() => {
-    const savedId = null /* removed */;
+    const savedId = sessionStorage.getItem("memberId");
     if (!savedId) {
       router.replace("/login");
       return;
@@ -434,7 +434,7 @@ function OrdersContent() {
       
       if (data.success) {
         alert("匯款資訊回報成功！我們將會盡速為您核對對帳。");
-        const savedId = null /* removed */;
+        const savedId = sessionStorage.getItem("memberId");
         if (savedId) await fetchOrders(savedId);
         setIsEditingRemittance(prev => ({ ...prev, [orderId]: false }));
       } else {

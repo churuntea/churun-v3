@@ -27,7 +27,7 @@ function NotificationsContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedId = null /* removed */;
+    const savedId = sessionStorage.getItem("memberId");
     if (!savedId) {
       router.replace("/login");
       return;
