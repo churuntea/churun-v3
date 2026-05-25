@@ -123,21 +123,49 @@ function InventoryDashboard() {
   }, [activeTab, dateRange]);
 
   const handleSmartOrderClick = () => {
-    const lowStockProds = products.filter(p => Number(p.stock || 0) < Number(p.min_stock || 10));
-    if (lowStockProds.length === 0) {
-       alert("🎉 目前沒有任何庫存低於安全水位的商品，無需補貨！");
+    let targetProds = [];
+    
+    if (activeTab === "stock" && selectedRowIds.size > 0) {
+       // 如果有勾選商品，就直接對勾選的商品建立採購單
+       targetProds = products.filter(p => selectedRowIds.has(p.id));
+    } else {
+       // 否則自動篩選低庫存商品（需扣除已經建立進貨草稿的數量）
+       targetProds = products.filter(p => {
+          const orderedQty = inboundRecords
+             .filter((log: any) => log.product_name === p.name && log.status === '待入庫' && log.type === 'inbound')
+             .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
+          
+          return (Number(p.stock || 0) + orderedQty) < Number(p.min_stock || 10);
+       });
+    }
+
+    if (targetProds.length === 0) {
+       alert("🎉 目前沒有任何庫存低於安全水位的商品（或皆已在採購單中），無需補貨！");
        return;
     }
-    const items = lowStockProds.map(p => ({
-       id: p.id,
-       name: p.name,
-       category: p.category,
-       stock: Number(p.stock || 0),
-       min_stock: Number(p.min_stock || 10),
-       suggested_qty: Math.max(10, (Number(p.min_stock || 10) * 2) - Number(p.stock || 0)),
-       cost_price: Number(p.price || 0) * 0.4,
-       supplier: "初潤南投茶園總廠"
-    }));
+
+    const items = targetProds.map(p => {
+       const orderedQty = inboundRecords
+          .filter((log: any) => log.product_name === p.name && log.status === '待入庫' && log.type === 'inbound')
+          .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
+          
+       const currentStock = Number(p.stock || 0);
+       const minStock = Number(p.min_stock || 10);
+       // 建議補貨量 = 安全水位 * 2 - (現有庫存 + 已訂貨)
+       let suggested = Math.max(10, (minStock * 2) - (currentStock + orderedQty));
+       
+       return {
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          stock: currentStock,
+          min_stock: minStock,
+          suggested_qty: suggested,
+          cost_price: Number(p.price || 0) * 0.4,
+          supplier: "初潤南投茶園總廠"
+       };
+    });
+    
     setSmartOrderItems(items);
     setShowSmartOrderModal(true);
   };
