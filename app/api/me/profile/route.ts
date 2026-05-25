@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/app/supabase-admin';
 import { getSession } from '@/lib/auth';
 
+export const runtime = 'edge';
+
 export async function GET(request: Request) {
   try {
     const session = await getSession();
