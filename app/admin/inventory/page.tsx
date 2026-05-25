@@ -63,6 +63,15 @@ function InventoryDashboard() {
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductCategory, setNewProductCategory] = useState("極萃系列");
+  const [newProductMinStock, setNewProductMinStock] = useState("30");
+
+  useEffect(() => {
+    if (newProductCategory === '精品茶具' || newProductCategory === '包裝及材料') {
+      setNewProductMinStock("50");
+    } else {
+      setNewProductMinStock("30");
+    }
+  }, [newProductCategory]);
 
   // 關聯訂單詳情 Modal
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -300,7 +309,7 @@ function InventoryDashboard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             action: "create_product", 
-            payload: { name: newProductName, price: Number(newProductPrice), category: newProductCategory || "極萃系列", stock: qty, min_stock: 10 } 
+            payload: { name: newProductName, price: Number(newProductPrice), category: newProductCategory || "極萃系列", stock: qty, min_stock: Number(newProductMinStock) || 30 } 
           })
         });
         const result = await res.json();
@@ -1044,7 +1053,7 @@ function InventoryDashboard() {
                               required
                            />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                            <div className="space-y-1">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">建議售價 (NT$)</label>
                               <input 
@@ -1068,6 +1077,17 @@ function InventoryDashboard() {
                                  <option value="冷泡茶飲">冷泡茶飲</option>
                                  <option value="典藏禮盒">典藏禮盒</option>
                               </select>
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">安全庫存量</label>
+                              <input 
+                                 type="number" 
+                                 placeholder="如: 30" 
+                                 value={newProductMinStock}
+                                 onChange={e => setNewProductMinStock(e.target.value)}
+                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/30 transition"
+                                 required
+                              />
                            </div>
                         </div>
                      </>
