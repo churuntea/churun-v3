@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/app/supabase';
+import { supabaseAdmin } from '@/app/supabase-admin';
 
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     // 1. 建立草稿狀態的進貨單 (inventory_logs)
     const logPromises = items.map((item: any) => {
-      return supabase.from("inventory_logs").insert({
+      return supabaseAdmin.from("inventory_logs").insert({
         product_name: item.name,
         category: item.category || "極萃系列",
         quantity: item.suggested_qty,
@@ -80,7 +80,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
     let adminIds = process.env.ADMIN_LINE_IDS ? process.env.ADMIN_LINE_IDS.split(',') : ["U8881a77ac132ebe336d41182ddd370ae", "Uc3cd7b2d60c48866bc20bb5077c66b35"];
     
     // 動態去資料庫抓取 0939734771 的 line_id 並加入推播名單
-    const { data: member } = await supabase.from('members').select('line_id').eq('phone', '0939734771').maybeSingle();
+    const { data: member } = await supabaseAdmin.from('members').select('line_id').eq('phone', '0939734771').maybeSingle();
     if (member && member.line_id && !adminIds.includes(member.line_id)) {
       adminIds.push(member.line_id);
     }
