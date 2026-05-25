@@ -283,7 +283,7 @@ function AdminProductsContent() {
   };
 
   const processFile = (file: File) => {
-    if (file.size > 10 * 1024 * 1024) return alert("檔案太大 (請小於 10MB)");
+    if (file.size > 3 * 1024 * 1024) return alert("檔案太大 (為配合主機限制，請將圖片壓縮至 3MB 以內)");
     const reader = new FileReader();
     reader.onload = (e) => setFormData(prev => ({ ...prev, image_url: e.target?.result as string }));
     reader.readAsDataURL(file);
@@ -409,7 +409,20 @@ function AdminProductsContent() {
           stock_count: Number(formData.stock_count)
         })
       });
-      const data = await res.json();
+      
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error("圖片檔案太大 (Request Entity Too Large)，請壓縮圖片後再上傳！");
+          }
+          throw new Error(`伺服器回應錯誤 (狀態碼: ${res.status})，請稍後再試。`);
+        }
+        throw parseError;
+      }
+
       if (data.success) {
         // 主動使商品與分類列表快取失效，確保管理員送出即看見最新資料
         dbCache.invalidate("churun_cache:products_admin");
@@ -584,7 +597,7 @@ function AdminProductsContent() {
                                        <Upload className="w-6 h-6 text-slate-300" />
                                     </div>
                                     <p className="text-xs font-bold text-slate-400">拖曳或點擊上傳商品圖檔</p>
-                                    <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 10MB 以內)</span>
+                                    <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 3MB 以內)</span>
                                  </div>
                                )}
                             </div>
