@@ -1487,7 +1487,14 @@ function StoreContent() {
                            )}
 
                            <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">數量</span>
+                              <div className="flex flex-col ml-4">
+                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">數量</span>
+                                 {product.stock_count !== undefined && (
+                                    <span className="text-[10px] font-bold text-emerald-600 mt-0.5 tracking-wider">
+                                      可訂購: {product.stock_count > 99 ? '99↑' : product.stock_count}
+                                    </span>
+                                 )}
+                              </div>
                               <div className="flex items-center gap-4">
                                  <button 
                                    onClick={() => updateProductQty(product.id, -1)}
