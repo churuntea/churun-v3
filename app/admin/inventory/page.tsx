@@ -132,7 +132,7 @@ function InventoryDashboard() {
        // 否則自動篩選低庫存商品（需扣除已經建立進貨草稿的數量）
        targetProds = products.filter(p => {
           const orderedQty = inboundRecords
-             .filter((log: any) => log.product_name === p.name && log.status === '待入庫' && log.type === 'inbound')
+             .filter((log: any) => log.product_name === p.name && log.notes && log.notes.includes('草稿待入庫') && log.type === 'inbound')
              .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
           
           return (Number(p.stock || 0) + orderedQty) < Number(p.min_stock || 10);
@@ -146,7 +146,7 @@ function InventoryDashboard() {
 
     const items = targetProds.map(p => {
        const orderedQty = inboundRecords
-          .filter((log: any) => log.product_name === p.name && log.status === '待入庫' && log.type === 'inbound')
+          .filter((log: any) => log.product_name === p.name && log.notes && log.notes.includes('草稿待入庫') && log.type === 'inbound')
           .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
           
        const currentStock = Number(p.stock || 0);
@@ -872,8 +872,8 @@ function InventoryDashboard() {
                                  <td className="py-4 text-right font-mono text-slate-800">NT$ {row.unit_cost.toLocaleString()}</td>
                                  <td className="py-4 text-center text-slate-400 font-mono text-[11px]">{row.created_at}</td>
                                  <td className="py-4 text-center pr-2">
-                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-100">
-                                       {row.status}
+                                    <span className={`px-3 py-1 text-[10px] font-black rounded-full border ${row.notes && row.notes.includes('草稿待入庫') ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                       {row.notes && row.notes.includes('草稿待入庫') ? '待入庫' : '已入庫'}
                                     </span>
                                  </td>
                               </tr>
@@ -958,7 +958,7 @@ function InventoryDashboard() {
                               const minStock = Number(p.min_stock || 10);
                               const isLow = stock < minStock;
                               const orderedQuantity = inboundRecords
-                                 .filter((log: any) => log.product_name === p.name && log.status === '待入庫' && log.type === 'inbound')
+                                 .filter((log: any) => log.product_name === p.name && log.notes && log.notes.includes('草稿待入庫') && log.type === 'inbound')
                                  .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
                               return (
                                  <tr key={idx} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">

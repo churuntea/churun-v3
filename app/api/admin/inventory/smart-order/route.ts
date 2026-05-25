@@ -64,8 +64,7 @@ export async function POST(request: Request) {
         unit_cost: item.cost_price || 0,
         supplier: item.supplier || "未指定",
         type: "inbound", // 代表進貨單
-        notes: `一鍵智慧採購單 (${orderId}) - 草稿待入庫`,
-        status: "待入庫"
+        notes: `一鍵智慧採購單 (${orderId}) - 草稿待入庫`
       });
     });
 
