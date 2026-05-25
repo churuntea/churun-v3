@@ -80,6 +80,7 @@ function AdminDashboardContent() {
   const [showTableBreakdown, setShowTableBreakdown] = useState(false);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [reorderRate, setReorderRate] = useState(0);
   const [newVsOldRevenue, setNewVsOldRevenue] = useState({ newCustRev: 0, oldCustRev: 0 });
   const [peakHoursData, setPeakHoursData] = useState({ morning: 0, afternoon: 0, evening: 0, night: 0 });
@@ -332,6 +333,7 @@ function AdminDashboardContent() {
       } catch (e) {
         console.error("Auth check failed:", e);
       } finally {
+        setIsCheckingAuth(false);
         setIsLoading(false);
       }
     };
@@ -924,7 +926,7 @@ function AdminDashboardContent() {
     setIsAdmin(false);
   };
 
-  if (isLoading && isAdmin) return (
+  if (isCheckingAuth || (isLoading && isAdmin)) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
       <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
     </div>
