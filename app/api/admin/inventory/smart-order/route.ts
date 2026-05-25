@@ -77,7 +77,14 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 ⚡ 系統提示：以上進貨草稿單已建立，請廠商到貨後進入 ERP 系統確認入庫！`;
 
     // 3. 推播給系統管理員 (Option C)
-    const adminIds = process.env.ADMIN_LINE_IDS ? process.env.ADMIN_LINE_IDS.split(',') : ["U8881a77ac132ebe336d41182ddd370ae", "Uc3cd7b2d60c48866bc20bb5077c66b35"];
+    let adminIds = process.env.ADMIN_LINE_IDS ? process.env.ADMIN_LINE_IDS.split(',') : ["U8881a77ac132ebe336d41182ddd370ae", "Uc3cd7b2d60c48866bc20bb5077c66b35"];
+    
+    // 動態去資料庫抓取 0939734771 的 line_id 並加入推播名單
+    const { data: member } = await supabase.from('members').select('line_id').eq('phone', '0939734771').maybeSingle();
+    if (member && member.line_id && !adminIds.includes(member.line_id)) {
+      adminIds.push(member.line_id);
+    }
+
     for (const adminId of adminIds) {
       if (adminId && adminId.trim()) {
         await sendLinePushNotification(adminId.trim(), adminPushText);
