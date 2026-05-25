@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/app/supabase-admin';
 
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+let cachedLineToken: string | null = null;
 
-async function sendLinePushNotification(toUserId: string, text: string) {
-  if (!LINE_CHANNEL_ACCESS_TOKEN || !toUserId) {
+async function getLineToken() {
+  if (process.env.LINE_CHANNEL_ACCESS_TOKEN) return process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (cachedLineToken) return cachedLineToken;
+  
+  const { data } = await supabaseAdmin.from('announcements').select('content').eq('title', '[SYSTEM_LINE_TOKEN]').maybeSingle();
+  if (data && data.content) {
+    cachedLineToken = data.content;
+    return data.content;
+  }
+  return null;
+}
+
+async function sendLinePushNotification(toUserId: string, text: string, lineToken: string | null) {
+  if (!lineToken || !toUserId) {
     console.warn("Missing LINE credentials or target User ID for Push Message.");
     return false;
   }
@@ -13,7 +25,7 @@ async function sendLinePushNotification(toUserId: string, text: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+        "Authorization": `Bearer ${lineToken}`
       },
       body: JSON.stringify({
         to: toUserId,
@@ -85,8 +97,10 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
       adminIds.push(member.line_id);
     }
 
+    const actualLineToken = await getLineToken();
+
     let debugInfo = {
-      lineTokenExists: !!LINE_CHANNEL_ACCESS_TOKEN,
+      lineTokenExists: !!actualLineToken,
       adminIdsChecked: adminIds,
       memberLineIdFound: member?.line_id || null,
       pushResults: [] as any[]
@@ -94,7 +108,7 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
 
     for (const adminId of adminIds) {
       if (adminId && adminId.trim()) {
-        const success = await sendLinePushNotification(adminId.trim(), adminPushText);
+        const success = await sendLinePushNotification(adminId.trim(), adminPushText, actualLineToken);
         debugInfo.pushResults.push({ id: adminId, success });
       }
     }
