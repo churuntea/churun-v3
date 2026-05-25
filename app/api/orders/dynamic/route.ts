@@ -219,7 +219,60 @@ export async function POST(request: Request) {
 
     // B2C 點數回饋改為依據「扣除折抵後的商品實付淨額」計算（運費絕對不計入回饋點數）
     const tierRate = TIER_RATES[buyer.tier] || 100;
-    totalB2CPoints = Math.floor(finalAmount / tierRate);
+    
+    const TIER_NEW_ARRIVAL_QUOTA: Record<string, number> = {
+      '初潤靈魂伴侶': 8,
+      '初潤知己': 7,
+      '初潤閨蜜': 6,
+      '初潤好朋友': 5,
+      '初潤青少年': 4,
+      '初潤小朋友': 3,
+      '初潤幼兒園': 2,
+      '初潤寶寶': 1
+    };
+    const newArrivalQuota = TIER_NEW_ARRIVAL_QUOTA[buyer.tier] || 1;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime();
+
+    // 先取得該會員過去所有非取消的訂單ID，用於後續檢查購買次數
+    const { data: userOrders } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('member_id', buyer.id)
+      .neq('status', 'cancelled');
+    const userOrderIds = (userOrders || []).map((o: any) => o.id);
+
+    totalB2CPoints = 0;
+    for (const item of items) {
+      const product = products.find(p => p.id === item.id);
+      if (!product) continue;
+
+      const itemSubtotal = product.price * item.quantity;
+      const itemShare = totalAmount > 0 ? (itemSubtotal / totalAmount) : 0;
+      const itemFinalAmount = finalAmount * itemShare;
+      
+      let itemPoints = itemFinalAmount / tierRate;
+
+      const productCreatedAt = new Date(product.created_at).getTime();
+      if (productCreatedAt >= thirtyDaysAgo) {
+        let pastCount = 0;
+        if (userOrderIds.length > 0) {
+          const { data: userPastItems } = await supabase
+            .from('order_items')
+            .select('id')
+            .eq('product_id', product.id)
+            .in('order_id', userOrderIds);
+          pastCount = userPastItems ? userPastItems.length : 0;
+        }
+        
+        if (pastCount < newArrivalQuota) {
+          itemPoints *= 2; // 該筆新品實付金額雙倍點數！
+        }
+      }
+
+      totalB2CPoints += itemPoints;
+    }
+
+    totalB2CPoints = Math.floor(totalB2CPoints);
     
     // 計算運費邏輯：自取為 $0，超商取貨或宅配到府若金額 999 內收 $70，1000 以上免運
     // 運費免運門檻以扣除優惠券/套組折扣後的金額為準，不扣除紅利點數與儲值金
