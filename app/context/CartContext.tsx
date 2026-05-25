@@ -10,6 +10,7 @@ interface CartItem {
   image_url?: string;
   b2c_reward_percent?: number;
   b2b_commission_percent?: number;
+  stock_count?: number;
 }
 
 interface CartContextType {
@@ -48,9 +49,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
+        if (product.stock_count !== undefined && existing.quantity >= product.stock_count) {
+          alert('庫存不足，無法加入更多數量！');
+          return prev;
+        }
         return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + 1, stock_count: product.stock_count } : item
         );
+      }
+      if (product.stock_count !== undefined && product.stock_count <= 0) {
+        alert('該商品已售完！');
+        return prev;
       }
       return [...prev, { 
         id: product.id, 
@@ -59,7 +68,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         quantity: 1,
         image_url: product.image_url,
         b2c_reward_percent: product.b2c_reward_percent,
-        b2b_commission_percent: product.b2b_commission_percent
+        b2b_commission_percent: product.b2b_commission_percent,
+        stock_count: product.stock_count
       }];
     });
   };
@@ -73,9 +83,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    setCart(prev => prev.map(item => 
-      item.id === productId ? { ...item, quantity } : item
-    ));
+    setCart(prev => prev.map(item => {
+      if (item.id === productId) {
+        if (item.stock_count !== undefined && quantity > item.stock_count) {
+          alert('庫存不足，無法加入更多數量！');
+          return item;
+        }
+        return { ...item, quantity };
+      }
+      return item;
+    }));
   };
 
   const clearCart = () => setCart([]);

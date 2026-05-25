@@ -204,6 +204,10 @@ export async function POST(request: Request) {
       const product = products.find(p => p.id === item.id);
       if (!product) continue;
       
+      if ((product.stock_count || 0) < item.quantity) {
+        return NextResponse.json({ success: false, error: `商品「${product.name}」庫存不足，剩餘數量：${product.stock_count || 0}` }, { status: 400 });
+      }
+      
       const itemSubtotal = product.price * item.quantity;
       totalAmount += itemSubtotal;
       
@@ -421,11 +425,26 @@ export async function POST(request: Request) {
       for (const item of items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
-          productStockBackups.push({ id: product.id, original: product.stock_count || 0 });
+          const originalStock = product.stock_count || 0;
+          const newStock = Math.max(0, originalStock - item.quantity);
+          productStockBackups.push({ id: product.id, original: originalStock });
+          
           const { error: updErr } = await supabase.from('products')
-            .update({ stock_count: Math.max(0, (product.stock_count || 0) - item.quantity) })
+            .update({ stock_count: newStock })
             .eq('id', item.id);
           if (updErr) throw updErr;
+
+          // 低庫存警告 (從 >=30 跌破 30 時觸發)
+          if (originalStock >= 30 && newStock < 30) {
+            const adminIds = process.env.ADMIN_LINE_IDS ? process.env.ADMIN_LINE_IDS.split(',') : ["U8881a77ac132ebe336d41182ddd370ae", "Uc3cd7b2d60c48866bc20bb5077c66b35"];
+            const alertText = `⚠️ 【系統自動偵測】安全庫存警告 ⚠️\n━━━━━━━━━━━━━━━━━━\n商品名稱：${product.name}\n目前剩餘庫存：${newStock} 件\n\n此商品庫存已低於 30 件的安全水位，請盡速安排補貨！`;
+            for (const adminId of adminIds) {
+              if (adminId && adminId.trim()) {
+                // 不 await blocking 主流程，背景執行即可，加上 catch 防範網路錯誤
+                sendLinePushNotification(adminId.trim(), alertText).catch(e => console.error("Low stock alert push failed:", e));
+              }
+            }
+          }
         }
       }
 

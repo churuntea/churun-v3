@@ -591,11 +591,16 @@ function StoreContent() {
   const finalPrice = Math.max(0, totalPrice - discountAmount - balanceDiscount - pointsDiscount);
 
   const getProductQty = (id: string) => productQuantities[id] || 1;
-  const updateProductQty = (id: string, delta: number) => {
-    setProductQuantities(prev => ({
-      ...prev,
-      [id]: Math.max(1, (prev[id] || 1) + delta)
-    }));
+  const updateProductQty = (id: string, delta: number, maxStock?: number) => {
+    setProductQuantities(prev => {
+      const current = prev[id] || 1;
+      let next = Math.max(1, current + delta);
+      if (maxStock !== undefined && next > maxStock) {
+        alert('已達該商品庫存上限！');
+        next = maxStock;
+      }
+      return { ...prev, [id]: next };
+    });
   };
 
   useEffect(() => {
@@ -1501,14 +1506,16 @@ function StoreContent() {
                            </div>
                            <button 
                              onClick={() => {
+                               if (product.stock_count !== undefined && product.stock_count <= 0) return;
                                for (let i = 0; i < getProductQty(product.id); i++) {
                                  addToCart(product);
                                }
                                setProductQuantities(prev => ({ ...prev, [product.id]: 1 }));
                              }}
-                             className="w-full bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900 transition-all flex items-center justify-center gap-2 active:scale-95"
+                             disabled={product.stock_count !== undefined && product.stock_count <= 0}
+                             className={`w-full text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95 ${product.stock_count !== undefined && product.stock_count <= 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-slate-900 hover:bg-emerald-900'}`}
                            >
-                              加入購物車 <Plus className="w-3 h-3" />
+                              {product.stock_count !== undefined && product.stock_count <= 0 ? '已售完' : <>加入購物車 <Plus className="w-3 h-3" /></>}
                            </button>
 
 
