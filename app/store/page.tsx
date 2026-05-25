@@ -631,8 +631,13 @@ function StoreContent() {
       base = base.filter(p => p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
     }
 
+    const targetProductId = searchParams?.get("productId");
+    if (targetProductId) {
+      base = base.filter(p => String(p.id) === targetProductId);
+    }
+
     setFilteredProducts(base);
-  }, [selectedCategory, products, favorites, searchQuery]);
+  }, [selectedCategory, products, favorites, searchQuery, searchParams]);
 
   const fetchUserOrders = async (userId: string) => {
     try {
