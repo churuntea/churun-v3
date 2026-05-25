@@ -23,9 +23,9 @@ async function sendLinePushNotification(toUserId: string, text: string) {
     if (!res.ok) {
       const errTxt = await res.text();
       console.error(`LINE Push API Error (to: ${toUserId}):`, errTxt);
-      return false;
+      return errTxt;
     }
-    return true;
+    return "OK";
   } catch (error) {
     console.error("sendLinePushNotification Error:", error);
     return false;
@@ -85,13 +85,21 @@ ${itemsList}━━━━━━━━━━━━━━━━━━
       adminIds.push(member.line_id);
     }
 
+    let debugInfo = {
+      lineTokenExists: !!LINE_CHANNEL_ACCESS_TOKEN,
+      adminIdsChecked: adminIds,
+      memberLineIdFound: member?.line_id || null,
+      pushResults: [] as any[]
+    };
+
     for (const adminId of adminIds) {
       if (adminId && adminId.trim()) {
-        await sendLinePushNotification(adminId.trim(), adminPushText);
+        const success = await sendLinePushNotification(adminId.trim(), adminPushText);
+        debugInfo.pushResults.push({ id: adminId, success });
       }
     }
 
-    return NextResponse.json({ success: true, orderId });
+    return NextResponse.json({ success: true, orderId, debugInfo });
   } catch (error: any) {
     console.error("Smart Order Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
