@@ -327,6 +327,27 @@ function InventoryDashboard() {
         targetProdName = targetProd?.name;
         targetProdCategory = targetProd?.category || "極萃系列";
         minStock = targetProd?.min_stock || 10;
+
+        if (modalType === "stock" && targetProd) {
+          const daan = Number(targetProd.stock_daan || 0);
+          const xinzhuang = Number(targetProd.stock_xinzhuang || 0);
+          const caotun = Number(targetProd.stock_caotun || 0);
+          const totalStock = Number(targetProd.stock || 0);
+          const allocatable = totalStock - (daan + xinzhuang + caotun);
+          
+          let currentWarehouseStock = 0;
+          if (selectedWarehouseId === "1") currentWarehouseStock = daan;
+          else if (selectedWarehouseId === "2") currentWarehouseStock = xinzhuang;
+          else if (selectedWarehouseId === "3") currentWarehouseStock = caotun;
+          
+          const maxAllowed = currentWarehouseStock + Math.max(0, allocatable);
+          
+          if (qty > maxAllowed) {
+            alert(`⚠️ 超過可調配庫存上限！\n\n該倉庫目前庫存：${currentWarehouseStock}\n目前剩餘可調配庫存：${Math.max(0, allocatable)}\n因此您最高只能將此倉庫校正為：${maxAllowed} 件`);
+            setIsLoading(false);
+            return;
+          }
+        }
         
         const res = await fetch("/api/admin/inventory-actions", {
           method: "POST",
@@ -883,6 +904,7 @@ function InventoryDashboard() {
                               <th className="pb-4 text-right">大安庫存</th>
                               <th className="pb-4 text-right">新莊庫存</th>
                               <th className="pb-4 text-right">草屯庫存</th>
+                              <th className="pb-4 text-right text-indigo-600">可調配庫存</th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('stock')}>總庫存量<SortIcon sortKey="stock" /></th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('min_stock')}>安全預警水位<SortIcon sortKey="min_stock" /></th>
                               <th className="pb-4 text-right cursor-pointer hover:text-indigo-600 transition" onClick={() => handleSort('price')}>零售售價<SortIcon sortKey="price" /></th>
@@ -892,6 +914,10 @@ function InventoryDashboard() {
                         <tbody>
                            {paginatedProducts.map((p, idx) => {
                               const stock = Number(p.stock || 0);
+                              const daan = Number(p.stock_daan || 0);
+                              const xinzhuang = Number(p.stock_xinzhuang || 0);
+                              const caotun = Number(p.stock_caotun || 0);
+                              const allocatable = stock - (daan + xinzhuang + caotun);
                               const minStock = Number(p.min_stock || 10);
                               const isLow = stock < minStock;
                               return (
@@ -911,9 +937,10 @@ function InventoryDashboard() {
                                     <td className="py-4 pl-2 font-mono font-black text-slate-400 text-[10px]">{p.id?.substring(0,8)}</td>
                                     <td className="py-4 text-slate-900 font-black">{p.name}</td>
                                     <td className="py-4 text-slate-500">{p.category || "極萃系列"}</td>
-                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_daan || 0)} 件</td>
-                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_xinzhuang || 0)} 件</td>
-                                    <td className="py-4 text-right font-mono text-slate-600">{Number(p.stock_caotun || 0)} 件</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{daan} 件</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{xinzhuang} 件</td>
+                                    <td className="py-4 text-right font-mono text-slate-600">{caotun} 件</td>
+                                    <td className="py-4 text-right font-mono text-indigo-600 font-black">{Math.max(0, allocatable)} 件</td>
                                     <td className={`py-4 text-right font-mono font-black ${isLow ? 'text-rose-600 text-sm' : 'text-slate-800'}`}>{stock} 件</td>
                                     <td className="py-4 text-right font-mono text-slate-400">{minStock} 件</td>
                                     <td className="py-4 text-right font-mono text-slate-800 font-black">NT$ {Number(p.price || 0).toLocaleString()}</td>
