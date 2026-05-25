@@ -124,15 +124,25 @@ const TIERS = [
 export default function Rewards() {
   const [tiers, setTiers] = useState<any[]>(TIERS);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTierName, setCurrentTierName] = useState<string>('初潤寶寶');
+  const [selectedDropdownTier, setSelectedDropdownTier] = useState<string>('');
 
   useEffect(() => {
-    const fetchTiersPrivileges = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/admin/bonus-rules");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
+        const [rulesRes, profileRes] = await Promise.all([
+          fetch("/api/admin/bonus-rules"),
+          fetch("/api/me/profile")
+        ]);
+        const rulesData = await rulesRes.json();
+        const profileData = await profileRes.json();
+
+        if (profileData.member && profileData.member.tier) {
+          setCurrentTierName(profileData.member.tier);
+        }
+
+        if (rulesData.success && Array.isArray(rulesData.data)) {
           const updatedTiers = TIERS.map(staticTier => {
-            const matched = data.data.find((r: any) => r.tier_name === staticTier.name);
             const basePrivileges = staticTier.privileges;
             const universalPerks = ['新品上市嚐鮮價點數加倍送', '每年生日禮券買一送一'];
             // Filter out any existing duplicates of these universal perks, then append them
@@ -150,7 +160,7 @@ export default function Rewards() {
         setIsLoading(false);
       }
     };
-    fetchTiersPrivileges();
+    fetchData();
   }, []);
   const router = useRouter();
 
@@ -201,53 +211,129 @@ export default function Rewards() {
            </p>
         </motion.section>
 
-        {/* Tiers List */}
-        <section className="space-y-8">
-           {tiers.map((tier, i) => (
-             <motion.div 
-               key={i} 
-               variants={itemVariants}
-               className="relative group"
-             >
-                <div className={`absolute inset-0 bg-gradient-to-r ${tier.color} rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-10 transition duration-500`}></div>
-                <div className="relative bg-white rounded-[3rem] p-10 border border-slate-50 shadow-sm overflow-hidden">
-                   
-                   <div className="flex justify-between items-start mb-10">
-                      <div className="flex items-center gap-6">
-                         <div className={`w-16 h-16 bg-gradient-to-br ${tier.color} rounded-3xl flex items-center justify-center text-white shadow-lg`}>
-                            <tier.icon className="w-8 h-8" />
-                         </div>
-                         <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">{tier.name}</h3>
-                            <div className="flex items-center gap-2">
-                               <TrendingUp className="w-3 h-3 text-emerald-500" />
-                               <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Premium Level</span>
-                            </div>
-                         </div>
-                      </div>
-                      {tier.locked && (
-                        <div className="bg-slate-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-slate-100">
-                           <Lock className="w-3 h-3 text-slate-300" />
-                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Locked</span>
-                        </div>
-                      )}
-                   </div>
-
-                   <div className="space-y-4">
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-4">解鎖特權內容</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         {tier.privileges.map((priv: string, j: number) => (
-                           <div key={j} className="flex items-center gap-3">
-                              <CheckCircle2 className={`w-4 h-4 ${tier.locked ? 'text-slate-200' : 'text-emerald-500'}`} />
-                              <span className={`text-sm font-bold ${tier.locked ? 'text-slate-300' : 'text-slate-600'}`}>{priv}</span>
+        {/* Tiers Display */}
+        <section className="space-y-12">
+           
+           {/* Current Tier */}
+           <div className="space-y-6">
+              <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                <Crown className="w-6 h-6 text-amber-500" />
+                您目前的專屬職級
+              </h3>
+              {(() => {
+                const currentTier = tiers.find(t => t.name === currentTierName) || tiers[tiers.length - 1];
+                return (
+                  <motion.div variants={itemVariants} className="relative group">
+                     <div className={`absolute inset-0 bg-gradient-to-r ${currentTier.color} rounded-[3rem] blur-2xl opacity-10 transition duration-500`}></div>
+                     <div className="relative bg-white rounded-[3rem] p-10 border-2 border-emerald-500 shadow-xl overflow-hidden">
+                        
+                        <div className="flex justify-between items-start mb-10">
+                           <div className="flex items-center gap-6">
+                              <div className={`w-16 h-16 bg-gradient-to-br ${currentTier.color} rounded-3xl flex items-center justify-center text-white shadow-lg`}>
+                                 <currentTier.icon className="w-8 h-8" />
+                              </div>
+                              <div className="space-y-1">
+                                 <h3 className="text-2xl font-black text-slate-800 tracking-tight">{currentTier.name}</h3>
+                                 <div className="flex items-center gap-2">
+                                    <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Current Level</span>
+                                 </div>
+                              </div>
                            </div>
-                         ))}
-                      </div>
-                   </div>
+                        </div>
 
+                        <div className="space-y-4">
+                           <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 bg-emerald-50 inline-block px-3 py-1 rounded-full">已解鎖特權內容</p>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {currentTier.privileges.map((priv: string, j: number) => (
+                                <div key={j} className="flex items-center gap-3">
+                                   <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                                   <span className="text-sm font-bold text-slate-700">{priv}</span>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+
+                     </div>
+                  </motion.div>
+                );
+              })()}
+           </div>
+
+           {/* Dropdown for other tiers */}
+           <div className="space-y-6 pt-12 border-t border-slate-200">
+              <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-indigo-500" />
+                探索其他職級特權
+              </h3>
+              
+              <div className="relative">
+                <select 
+                  className="w-full p-5 rounded-2xl bg-white border-2 border-slate-100 text-slate-800 font-bold focus:outline-none focus:border-indigo-500 appearance-none shadow-sm cursor-pointer transition-colors"
+                  value={selectedDropdownTier}
+                  onChange={(e) => setSelectedDropdownTier(e.target.value)}
+                >
+                  <option value="">請選擇欲查看的職級...</option>
+                  {tiers.filter(t => t.name !== currentTierName).map((tier, i) => (
+                    <option key={i} value={tier.name}>{tier.name}</option>
+                  ))}
+                </select>
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <div className="w-3 h-3 border-r-2 border-b-2 border-slate-400 transform rotate-45"></div>
                 </div>
-             </motion.div>
-           ))}
+              </div>
+
+              {/* Selected Tier Preview */}
+              <AnimatePresence mode="wait">
+                {selectedDropdownTier && (() => {
+                  const selectedTier = tiers.find(t => t.name === selectedDropdownTier);
+                  if (!selectedTier) return null;
+                  return (
+                    <motion.div 
+                      key={selectedDropdownTier}
+                      initial={{ opacity: 0, y: 20 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      exit={{ opacity: 0, y: -20 }}
+                      className="relative group mt-6"
+                    >
+                       <div className="relative bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm overflow-hidden">
+                          
+                          <div className="flex justify-between items-start mb-10">
+                             <div className="flex items-center gap-6">
+                                <div className={`w-16 h-16 bg-gradient-to-br ${selectedTier.color} rounded-3xl flex items-center justify-center text-white shadow-lg opacity-80`}>
+                                   <selectedTier.icon className="w-8 h-8" />
+                                </div>
+                                <div className="space-y-1">
+                                   <h3 className="text-2xl font-black text-slate-600 tracking-tight">{selectedTier.name}</h3>
+                                   <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Preview Level</span>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="bg-slate-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-slate-100">
+                                <Lock className="w-3 h-3 text-slate-400" />
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">未解鎖</span>
+                             </div>
+                          </div>
+
+                          <div className="space-y-4">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">目標特權內容</p>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {selectedTier.privileges.map((priv: string, j: number) => (
+                                  <div key={j} className="flex items-center gap-3">
+                                     <CheckCircle2 className="w-5 h-5 text-slate-300 flex-shrink-0" />
+                                     <span className="text-sm font-bold text-slate-500">{priv}</span>
+                                  </div>
+                                ))}
+                             </div>
+                          </div>
+
+                       </div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
+           </div>
         </section>
 
         {/* Global Stats Counter (Fake Dynamic) */}
