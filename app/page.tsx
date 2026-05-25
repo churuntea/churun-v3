@@ -909,7 +909,7 @@ function DashboardContent() {
                 <ul className="space-y-2">
                    {newProducts.map((prod, idx) => (
                      <li key={prod.id}>
-                        <Link href={`/store?search=${encodeURIComponent(prod.name)}`} className="group flex items-center justify-between hover:bg-slate-50 p-3 -mx-3 rounded-2xl transition">
+                        <Link href={`/store?productId=${prod.id}`} className="group flex items-center justify-between hover:bg-slate-50 p-3 -mx-3 rounded-2xl transition">
                            <div className="flex items-center gap-4">
                               <span className="text-xs font-black text-slate-300 w-4">{idx + 1}.</span>
                               <div>

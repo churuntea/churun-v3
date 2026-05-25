@@ -117,6 +117,20 @@ function StoreContent() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams?.get("search") || "");
   const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const targetProductId = searchParams?.get("productId");
+    if (targetProductId && !isLoading && filteredProducts.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`product-${targetProductId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-4', 'ring-emerald-500', 'shadow-2xl');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-emerald-500', 'shadow-2xl'), 3000);
+        }
+      }, 300);
+    }
+  }, [searchParams, isLoading, filteredProducts]);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -1299,6 +1313,7 @@ function StoreContent() {
                  animate={{ opacity: 1, y: 0 }}
                  transition={{ delay: i * 0.05 }}
                  className="group"
+                 id={`product-${product.id}`}
                >
                  <div className="bg-white rounded-[3rem] overflow-hidden shadow-sm border border-slate-50 relative flex flex-col">
                     <div className="w-full bg-slate-50/50 relative overflow-hidden flex items-center justify-center">
