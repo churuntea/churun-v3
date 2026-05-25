@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabase";
 import { motion } from "framer-motion";
 import { 
@@ -111,10 +111,11 @@ const generateCvsStores = (brand: string, city: string, dist: string) => {
 
 function StoreContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get("search") || "");
   const [isLoading, setIsLoading] = useState(true);
   const [memberInfo, setMemberInfo] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部商品");
