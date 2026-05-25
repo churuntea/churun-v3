@@ -7,7 +7,7 @@ const DEFAULT_RULES = [
     min_spend: 50000, 
     reward_rate: 30, 
     description: '品牌核心領袖級別，享有最高回饋比例與專屬權益。',
-    privileges: ['專屬客服', '新品預購優先權', '最高級別回饋'],
+    privileges: ['紅利點數 1.5 倍送', 'VIP 私人品茗會', '新品搶先體驗權', '生日專屬豪禮', '累積消費滿 $50,000 晉升', '每月保級：消費 $1,000 或 直推 3 人', '未達標降級至 初潤知己'],
     display_order: 0,
     color_theme: 'from-indigo-600 to-indigo-900'
   },
@@ -16,7 +16,7 @@ const DEFAULT_RULES = [
     min_spend: 25000, 
     reward_rate: 40, 
     description: '核心支持者，穩定參與品牌活動。',
-    privileges: ['生日禮金', '活動受邀權', '進階級別回饋'],
+    privileges: ['紅利點數 1.2 倍送', '專屬節慶禮券', '首購優惠折扣', '累積消費滿 $25,000 晉升', '每月保級：消費 $600 或 直推 2 人', '未達標降級至 初潤閨蜜'],
     display_order: 1,
     color_theme: 'from-emerald-600 to-emerald-900'
   },
@@ -25,7 +25,7 @@ const DEFAULT_RULES = [
     min_spend: 12000, 
     reward_rate: 50, 
     description: '品牌好友，分享茶飲生活的伴侶。',
-    privileges: ['定期回饋', '免運優惠'],
+    privileges: ['專屬節慶禮券', '生日專屬豪禮', '累積滿 $12,000 (或儲值 1 萬直升)', '每季保級：消費 $1,200 或 直推 2 人', '未達標降級至 初潤好朋友'],
     display_order: 2,
     color_theme: 'from-amber-600 to-amber-900'
   },
@@ -34,7 +34,7 @@ const DEFAULT_RULES = [
     min_spend: 6000, 
     reward_rate: 60, 
     description: '活躍會員，品牌忠實粉絲。',
-    privileges: ['基本回饋', '會員專屬價'],
+    privileges: ['生日專屬豪禮', '累積消費滿 $6,000 晉升', '每季保級：消費 $600 或 直推 1 人', '未達標降級至 初潤青少年'],
     display_order: 3,
     color_theme: 'from-pink-600 to-pink-900'
   },
