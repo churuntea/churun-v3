@@ -336,8 +336,8 @@ function OrganizationContent() {
       return;
     }
     if (selectedApplyType === 'paid' || selectedApplyType === 'partner') {
-      if (!ambassadorFormData.last_five) {
-        setAmbassadorError("請填寫匯款帳號後五碼");
+      if (!ambassadorFormData.last_five || ambassadorFormData.last_five.length !== 5) {
+        setAmbassadorError("請填寫匯款帳號後五碼（需為完整的 5 位數字）");
         return;
       }
       if (!ambassadorFormData.remittance_photo) {

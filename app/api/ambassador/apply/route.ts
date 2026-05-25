@@ -18,19 +18,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (!id_card_number || !birthday || !city || !district || !address) {
-      return NextResponse.json(
-        { success: false, message: '詳細個人資料（生日、身分證字號、地址）為必填項目' },
-        { status: 400 }
-      );
-    }
-    
-    if (!id_card_front || !id_card_back) {
-      return NextResponse.json(
-        { success: false, message: '身分證正反面照片為必填項目' },
-        { status: 400 }
-      );
-    }
+    // 移除強制必填身分證與地址等資料，若有提供則更新，未提供則依賴後台人工審核或既有資料。
+    // (因為會員升級表單並不包含這些欄位)
 
     const validTypes = ['paid', 'free', 'partner'];
     if (!validTypes.includes(application_type)) {
