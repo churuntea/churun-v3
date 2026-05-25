@@ -126,6 +126,7 @@ export default function Rewards() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentTierName, setCurrentTierName] = useState<string>('初潤寶寶');
   const [selectedDropdownTier, setSelectedDropdownTier] = useState<string>('');
+  const [tierDate, setTierDate] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -137,8 +138,20 @@ export default function Rewards() {
         const rulesData = await rulesRes.json();
         const profileData = await profileRes.json();
 
-        if (profileData.member && profileData.member.tier) {
-          setCurrentTierName(profileData.member.tier);
+        if (profileData.member) {
+          if (profileData.member.tier) {
+            setCurrentTierName(profileData.member.tier);
+          }
+          let dateStr = profileData.member.created_at;
+          try {
+            const settings = typeof profileData.member.avatar_settings === 'string' 
+              ? JSON.parse(profileData.member.avatar_settings) 
+              : profileData.member.avatar_settings;
+            if (settings && settings.tier_updated_at) {
+              dateStr = settings.tier_updated_at;
+            }
+          } catch(e) {}
+          setTierDate(dateStr);
         }
 
         if (rulesData.success && Array.isArray(rulesData.data)) {
@@ -210,6 +223,82 @@ export default function Rewards() {
               初潤的八階成長體系，不僅記錄您的業績，更見證您的品牌影響力。升級後即可解鎖更強大的獲利引擎。
            </p>
         </motion.section>
+
+        {/* Tier Progress Bar */}
+        <section className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm overflow-hidden mb-12">
+           <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-3">
+             <TrendingUp className="w-6 h-6 text-emerald-500" />
+             您的晉升之路
+           </h3>
+           <div className="w-full overflow-x-auto no-scrollbar pb-6 pt-2">
+             <div className="flex items-start min-w-[800px] px-4 relative">
+               {(() => {
+                 const reversedTiers = [...tiers].reverse();
+                 const currentIdx = reversedTiers.findIndex(t => t.name === currentTierName);
+                 const validIdx = currentIdx === -1 ? 0 : currentIdx;
+
+                 return reversedTiers.map((tier, idx) => {
+                   const isAchieved = idx <= validIdx;
+                   const isCurrent = idx === validIdx;
+                   const isNext = idx === validIdx + 1;
+                   
+                   return (
+                     <div key={tier.name} className="flex-1 relative flex flex-col items-center group">
+                        {/* Connecting Line */}
+                        {idx !== reversedTiers.length - 1 && (
+                          <div className={`absolute top-6 left-[50%] w-full h-1.5 rounded-full ${isAchieved && idx < validIdx ? 'bg-emerald-500' : 'bg-slate-100'} -z-10 transition-colors duration-500`}></div>
+                        )}
+                        
+                        {/* Node */}
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-[3px] shadow-sm z-10 transition-all duration-300 ${
+                          isCurrent 
+                            ? 'border-amber-400 bg-white shadow-[0_0_20px_rgba(251,191,36,0.3)] scale-110' 
+                            : isAchieved 
+                              ? 'border-emerald-500 bg-emerald-500 text-white' 
+                              : isNext
+                                ? 'border-indigo-400 bg-white text-indigo-400 border-dashed'
+                                : 'border-slate-200 bg-slate-50 text-slate-300'
+                        }`}>
+                           {isAchieved && !isCurrent ? (
+                             <CheckCircle2 className="w-6 h-6 text-white" />
+                           ) : (
+                             <tier.icon className={`w-5 h-5 ${isCurrent ? 'text-amber-500' : ''}`} />
+                           )}
+                        </div>
+
+                        {/* Labels */}
+                        <div className="mt-4 text-center">
+                           <p className={`text-[11px] font-black ${isCurrent ? 'text-amber-600' : isAchieved ? 'text-emerald-700' : isNext ? 'text-indigo-600' : 'text-slate-400'}`}>
+                             {tier.name}
+                           </p>
+                           
+                           {/* Status Badge */}
+                           <div className="mt-2 flex flex-col items-center gap-1">
+                             {isCurrent ? (
+                               <>
+                                 <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">目前階級</span>
+                                 {tierDate && (
+                                   <span className="text-[9px] font-bold text-slate-400">
+                                     {new Date(tierDate).toLocaleDateString('zh-TW')} 達成
+                                   </span>
+                                 )}
+                               </>
+                             ) : isAchieved ? (
+                               <span className="text-[9px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">已達成</span>
+                             ) : isNext ? (
+                               <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">下一個目標</span>
+                             ) : (
+                               <Lock className="w-3 h-3 text-slate-300 mx-auto" />
+                             )}
+                           </div>
+                        </div>
+                     </div>
+                   );
+                 });
+               })()}
+             </div>
+           </div>
+        </section>
 
         {/* Tiers Display */}
         <section className="space-y-12">
