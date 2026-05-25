@@ -4,7 +4,44 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "./supabase";
+import { supabase } from './supabase';
+import { TAIWAN_CITIES } from './organization/taiwan-cities';
+
+const applyWatermark = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(e.target?.result as string);
+        ctx.drawImage(img, 0, 0);
+        const text = "僅供初潤申請資料使用";
+        const fontSize = Math.max(36, Math.floor(canvas.width / 12));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; 
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((-15 * Math.PI) / 180);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.strokeText(text, 0, 0);
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+};
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wallet, 
@@ -127,7 +164,11 @@ function DashboardContent() {
   const [showAmbassadorConfirm, setShowAmbassadorConfirm] = useState(false);
   const [showAmbassadorForm, setShowAmbassadorForm] = useState(false);
   const [selectedAmbassadorType, setSelectedAmbassadorType] = useState<'paid' | 'free' | 'partner'>('paid');
-  const [ambassadorFormData, setAmbassadorFormData] = useState({ last_five: '', remittance_photo: '' });
+  const [ambassadorFormData, setAmbassadorFormData] = useState({ 
+    last_five: '', remittance_photo: '', 
+    birthday: '', id_card_number: '', city: '', district: '', address: '', 
+    id_card_front: '', id_card_back: '' 
+  });
   const [isSubmittingAmbassador, setIsSubmittingAmbassador] = useState(false);
   const [ambassadorError, setAmbassadorError] = useState('');
   const [freeEligibilityScore, setFreeEligibilityScore] = useState(0);
@@ -435,6 +476,20 @@ function DashboardContent() {
         setAmbassadorError('請填寫匯款帳號後五碼（需為完整的 5 位數字）');
         return;
       }
+      if (!ambassadorFormData.remittance_photo) {
+        setAmbassadorError('請上傳匯款水單照片');
+        return;
+      }
+    }
+    
+    if (!ambassadorFormData.birthday || !ambassadorFormData.id_card_number || !ambassadorFormData.city || !ambassadorFormData.district || !ambassadorFormData.address) {
+      setAmbassadorError('請填寫所有必填的詳細個人資料（包含生日、身分證字號與地址）');
+      return;
+    }
+    
+    if (!ambassadorFormData.id_card_front || !ambassadorFormData.id_card_back) {
+      setAmbassadorError('請上傳身分證正反面照片');
+      return;
     }
     setIsSubmittingAmbassador(true);
     setAmbassadorError('');
@@ -446,7 +501,14 @@ function DashboardContent() {
           member_id: currentUserId,
           application_type: selectedAmbassadorType,
           last_five: ambassadorFormData.last_five,
-          remittance_photo: ambassadorFormData.remittance_photo
+          remittance_photo: ambassadorFormData.remittance_photo,
+          birthday: ambassadorFormData.birthday,
+          id_card_number: ambassadorFormData.id_card_number,
+          city: ambassadorFormData.city,
+          district: ambassadorFormData.district,
+          address: ambassadorFormData.address,
+          id_card_front: ambassadorFormData.id_card_front,
+          id_card_back: ambassadorFormData.id_card_back
         })
       });
       const data = await res.json();
@@ -1666,6 +1728,99 @@ function DashboardContent() {
                     </div>
                   </div>
                 )}
+
+                {/* 填寫詳細個人資料 */}
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">詳細個人資料 (必填)</p>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400">出生年月日 <span className="text-rose-500">*</span></label>
+                    <input type="date" value={ambassadorFormData.birthday} onChange={e => setAmbassadorFormData({...ambassadorFormData, birthday: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400">身分證字號 <span className="text-rose-500">*</span></label>
+                    <input type="text" placeholder="例如: A123456789" value={ambassadorFormData.id_card_number} onChange={e => setAmbassadorFormData({...ambassadorFormData, id_card_number: e.target.value.toUpperCase()})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none uppercase" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400">聯絡地址 <span className="text-rose-500">*</span></label>
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <select 
+                        value={ambassadorFormData.city}
+                        onChange={e => setAmbassadorFormData({...ambassadorFormData, city: e.target.value, district: ''})}
+                        className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none appearance-none"
+                      >
+                        <option value="">選擇縣市</option>
+                        {Object.keys(TAIWAN_CITIES).map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                      <select 
+                        value={ambassadorFormData.district}
+                        onChange={e => setAmbassadorFormData({...ambassadorFormData, district: e.target.value})}
+                        disabled={!ambassadorFormData.city}
+                        className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none appearance-none disabled:opacity-50"
+                      >
+                        <option value="">選擇區域</option>
+                        {ambassadorFormData.city && TAIWAN_CITIES[ambassadorFormData.city]?.map(dist => (
+                          <option key={dist} value={dist}>{dist}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <input type="text" placeholder="請填寫詳細地址" value={ambassadorFormData.address} onChange={e => setAmbassadorFormData({...ambassadorFormData, address: e.target.value})} className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold border border-slate-100 focus:border-emerald-500 outline-none" />
+                  </div>
+
+                  <div className="space-y-1.5 pt-2">
+                    <label className="text-[10px] font-black text-slate-400">身分證正面相片 <span className="text-rose-500">*</span></label>
+                    {ambassadorFormData.id_card_front ? (
+                      <div className="space-y-3">
+                        <img src={ambassadorFormData.id_card_front} className="w-full h-28 object-cover rounded-2xl border border-emerald-500" />
+                        <label className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer text-sm font-bold">
+                          <Camera className="w-4 h-4" /> 重選正面
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setAmbassadorFormData({...ambassadorFormData, id_card_front: await applyWatermark(file)});
+                          }} />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center gap-2 bg-slate-50 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl p-6 text-sm font-bold cursor-pointer hover:border-emerald-400">
+                        <Camera className="w-5 h-5 mb-1" />
+                        <span>上傳身分證正面</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setAmbassadorFormData({...ambassadorFormData, id_card_front: await applyWatermark(file)});
+                        }} />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-2">
+                    <label className="text-[10px] font-black text-slate-400">身分證反面相片 <span className="text-rose-500">*</span></label>
+                    {ambassadorFormData.id_card_back ? (
+                      <div className="space-y-3">
+                        <img src={ambassadorFormData.id_card_back} className="w-full h-28 object-cover rounded-2xl border border-emerald-500" />
+                        <label className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer text-sm font-bold">
+                          <Camera className="w-4 h-4" /> 重選反面
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setAmbassadorFormData({...ambassadorFormData, id_card_back: await applyWatermark(file)});
+                          }} />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center gap-2 bg-slate-50 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl p-6 text-sm font-bold cursor-pointer hover:border-emerald-400">
+                        <Camera className="w-5 h-5 mb-1" />
+                        <span>上傳身分證反面</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setAmbassadorFormData({...ambassadorFormData, id_card_back: await applyWatermark(file)});
+                        }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
 
                 {ambassadorError && (
                   <p className="text-xs font-bold text-rose-500 bg-rose-50 p-3 rounded-xl border border-rose-100">{ambassadorError}</p>
