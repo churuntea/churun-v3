@@ -77,7 +77,25 @@ function AdminSuppliersContent() {
         .order("created_at", { ascending: false });
         
       if (error) throw error;
-      setSuppliers(data || []);
+      
+      const parsedData = (data || []).map(s => {
+        let notes = s.notes || "";
+        let supplied_items = s.supplied_items || [];
+        const separator = "||_EXT_JSON_||";
+        if (notes.includes(separator)) {
+          const parts = notes.split(separator);
+          notes = parts[0];
+          try {
+            const extData = JSON.parse(parts[1]);
+            if (extData.supplied_items) {
+              supplied_items = extData.supplied_items;
+            }
+          } catch(e) {}
+        }
+        return { ...s, notes, supplied_items };
+      });
+      
+      setSuppliers(parsedData);
     } catch (err) {
       console.error("獲取供應商列表出錯:", err);
     }
@@ -164,22 +182,42 @@ function AdminSuppliersContent() {
     
     setIsSubmitting(true);
     try {
-      if (modalType === "add") {
-        const { error } = await supabase
-          .from("suppliers")
-          .insert([formData]);
-          
-        if (error) throw error;
-        alert("🎉 供應商新增成功！");
-      } else if (modalType === "edit" && editingId) {
-        const { error } = await supabase
-          .from("suppliers")
-          .update(formData)
-          .eq("id", editingId);
-          
-        if (error) throw error;
-        alert("🎉 供應商資料更新成功！");
+      let payload = { ...formData };
+      let attempt = 0;
+      let maxAttempts = 2;
+      let lastError = null;
+
+      while (attempt < maxAttempts) {
+        let error;
+        if (modalType === "add") {
+          const res = await supabase.from("suppliers").insert([payload]);
+          error = res.error;
+        } else if (modalType === "edit" && editingId) {
+          const res = await supabase.from("suppliers").update(payload).eq("id", editingId);
+          error = res.error;
+        }
+        
+        if (!error) {
+          lastError = null;
+          break;
+        }
+        
+        lastError = error;
+        if (error.message && error.message.includes("Could not find the 'supplied_items' column")) {
+          // Fallback: Embed supplied_items into notes
+          const itemsToEmbed = payload.supplied_items || formData.supplied_items;
+          const extJson = JSON.stringify({ supplied_items: itemsToEmbed });
+          payload.notes = (payload.notes || "") + "||_EXT_JSON_||" + extJson;
+          delete (payload as any).supplied_items;
+          attempt++;
+        } else {
+          break; // Break on other errors
+        }
       }
+
+      if (lastError) throw lastError;
+
+      alert(modalType === "add" ? "🎉 供應商新增成功！" : "🎉 供應商資料更新成功！");
       
       setShowModal(false);
       fetchSuppliers();
