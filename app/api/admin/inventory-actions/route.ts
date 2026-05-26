@@ -76,9 +76,24 @@ export async function POST(request: Request) {
     }
 
     if (action === 'confirm_smart_order') {
-      const { productId, productName, category, quantity, lossQuantity, warehouseId, logId, orderedQuantity } = payload;
+      const { productId, productName, category, quantity, lossQuantity, warehouseId, logId } = payload;
       
-      const remainingQty = orderedQuantity - quantity - (lossQuantity || 0);
+      let dbOrderedQuantity = payload.orderedQuantity || 0;
+      
+      // Fetch original quantity directly from DB to prevent frontend state issues
+      if (logId) {
+        const { data: logData } = await supabase.from('inventory_logs').select('quantity').eq('id', logId).single();
+        if (logData) {
+          dbOrderedQuantity = Number(logData.quantity || 0);
+        }
+      } else {
+        const { data: logsData } = await supabase.from('inventory_logs').select('quantity').eq('product_name', productName).like('notes', '%草稿待入庫%');
+        if (logsData) {
+          dbOrderedQuantity = logsData.reduce((sum, log) => sum + Number(log.quantity || 0), 0);
+        }
+      }
+
+      const remainingQty = dbOrderedQuantity - quantity - (lossQuantity || 0);
 
       // 1. Delete or update pending drafts
       if (logId) {
