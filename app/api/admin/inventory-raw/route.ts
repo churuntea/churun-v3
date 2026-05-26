@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     };
 
     const [
-      { data: prods },
+      { data: prodsRaw },
       { data: whs },
       { data: whInv },
       { data: sups },
@@ -59,6 +59,26 @@ export async function GET(request: Request) {
       // 6. Fetch sales
       fetchSales()
     ]);
+
+    const separator = "||_EXT_JSON_||";
+    const prods = (prodsRaw || []).map(p => {
+      let desc = p.description || "";
+      let extData: any = {};
+      if (desc.includes(separator)) {
+        const parts = desc.split(separator);
+        desc = parts[0];
+        try {
+          extData = JSON.parse(parts[1]);
+        } catch(e) {}
+      }
+      return {
+        ...p,
+        description: desc,
+        order_unit: extData.order_unit || "件",
+        order_unit_size: extData.order_unit_size || 1,
+        min_order_quantity: extData.min_order_quantity || 1
+      };
+    });
 
     return NextResponse.json({
       success: true,
