@@ -38,6 +38,8 @@ import {
 } from "lucide-react";
 import ReferralCard from "@/components/ReferralCard";
 import TeamTree from "@/components/TeamTree";
+import TopMembersLeaderboard from "@/components/TopMembersLeaderboard";
+import MemberLevelsDistribution from "@/components/MemberLevelsDistribution";
 import { 
   BarChart, 
   Bar, 
@@ -717,6 +719,13 @@ function OrganizationContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
+        
+        {/* NEW: Leaderboard & Distribution Dashboard */}
+        <div className="flex flex-col md:flex-row gap-6 mb-8 w-full">
+           <TopMembersLeaderboard members={downlines} />
+           <MemberLevelsDistribution members={downlines} />
+        </div>
+
         {/* Team Stats Summary */}
         <section className="grid grid-cols-2 gap-6">
            <div className="bg-white p-8 rounded-[3rem] border border-slate-50 shadow-sm space-y-4">
