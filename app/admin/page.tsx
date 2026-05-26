@@ -316,7 +316,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/auth/session");
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
         const data = await res.json();
         
         if (data.authenticated && data.user?.isAdmin) {
