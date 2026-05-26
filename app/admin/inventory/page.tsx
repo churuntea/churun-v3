@@ -291,7 +291,7 @@ function InventoryDashboard() {
       }
 
       // 透過後端 API 取得所有原始數據
-      const res = await fetch(`/api/admin/inventory-raw?startDateStr=${startDateStr}`);
+      const res = await fetch(`/api/admin/inventory-raw?startDateStr=${startDateStr}`, { cache: "no-store" });
       const result = await res.json();
       if (!result.success) throw new Error(result.error);
 
