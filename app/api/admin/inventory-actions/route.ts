@@ -76,12 +76,19 @@ export async function POST(request: Request) {
     }
 
     if (action === 'confirm_smart_order') {
-      const { productId, productName, category, quantity, lossQuantity, warehouseId, logId } = payload;
+      const { productId, productName, category, quantity, lossQuantity, warehouseId, logId, orderedQuantity } = payload;
       
-      // 1. Delete pending drafts
+      const remainingQty = orderedQuantity - quantity - (lossQuantity || 0);
+
+      // 1. Delete or update pending drafts
       if (logId) {
-        const { error: delErr } = await supabase.from('inventory_logs').delete().eq('id', logId);
-        if (delErr) throw delErr;
+        if (remainingQty > 0) {
+          const { error: updErr } = await supabase.from('inventory_logs').update({ quantity: remainingQty }).eq('id', logId);
+          if (updErr) throw updErr;
+        } else {
+          const { error: delErr } = await supabase.from('inventory_logs').delete().eq('id', logId);
+          if (delErr) throw delErr;
+        }
       } else {
         const { error: delErr } = await supabase
           .from('inventory_logs')
@@ -89,6 +96,19 @@ export async function POST(request: Request) {
           .eq('product_name', productName)
           .like('notes', '%草稿待入庫%');
         if (delErr) throw delErr;
+
+        if (remainingQty > 0) {
+          const { error: draftErr } = await supabase.from('inventory_logs').insert({
+            product_name: productName,
+            category: category || "極萃系列",
+            quantity: remainingQty,
+            unit_cost: 0,
+            supplier: "初潤南投茶園總廠",
+            type: 'inbound',
+            notes: "一鍵智慧採購單 (剩餘未到貨) - 草稿待入庫"
+          });
+          if (draftErr) throw draftErr;
+        }
       }
 
       // 2. Create actual inbound log

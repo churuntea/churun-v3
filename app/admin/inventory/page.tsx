@@ -245,7 +245,8 @@ function InventoryDashboard() {
             quantity: confirmInboundData.actualQuantity,
             lossQuantity: confirmInboundData.lossQuantity || 0,
             warehouseId: confirmInboundData.warehouseId,
-            logId: confirmInboundData.logId
+            logId: confirmInboundData.logId,
+            orderedQuantity: confirmInboundData.orderedQuantity
           }
         })
       });
