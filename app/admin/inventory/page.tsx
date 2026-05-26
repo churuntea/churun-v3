@@ -243,7 +243,9 @@ function InventoryDashboard() {
             productName: confirmInboundData.name,
             category: confirmInboundData.category,
             quantity: confirmInboundData.actualQuantity,
-            warehouseId: confirmInboundData.warehouseId
+            lossQuantity: confirmInboundData.lossQuantity || 0,
+            warehouseId: confirmInboundData.warehouseId,
+            logId: confirmInboundData.logId
           }
         })
       });
@@ -909,9 +911,32 @@ function InventoryDashboard() {
                                  <td className="py-4 text-right font-mono text-slate-800">NT$ {row.unit_cost.toLocaleString()}</td>
                                  <td className="py-4 text-center text-slate-400 font-mono text-[11px]">{row.created_at}</td>
                                  <td className="py-4 text-center pr-2">
-                                    <span className={`px-3 py-1 text-[10px] font-black rounded-full border ${row.notes && row.notes.includes('草稿待入庫') ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-                                       {row.notes && row.notes.includes('草稿待入庫') ? '待入庫' : '已入庫'}
-                                    </span>
+                                    {row.notes && row.notes.includes('草稿待入庫') ? (
+                                       <button
+                                          onClick={() => {
+                                             const prod = products.find(p => p.name === row.product_name);
+                                             setConfirmInboundData({
+                                                id: prod?.id,
+                                                name: row.product_name,
+                                                category: row.category || prod?.category || "極萃系列",
+                                                orderedQuantity: row.quantity,
+                                                actualQuantity: row.quantity,
+                                                lossQuantity: 0,
+                                                warehouseId: warehousesList[0]?.id || "",
+                                                logId: row.id
+                                             });
+                                             setShowConfirmInboundModal(true);
+                                          }}
+                                          className="px-3 py-1 text-[10px] font-black rounded-full border bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 transition cursor-pointer"
+                                          title="點擊確認到貨"
+                                       >
+                                          待入庫
+                                       </button>
+                                    ) : (
+                                       <span className="px-3 py-1 text-[10px] font-black rounded-full border bg-emerald-50 text-emerald-600 border-emerald-100">
+                                          已入庫
+                                       </span>
+                                    )}
                                  </td>
                               </tr>
                            ))}
@@ -1029,6 +1054,7 @@ function InventoryDashboard() {
                                                    category: p.category,
                                                    orderedQuantity,
                                                    actualQuantity: orderedQuantity,
+                                                   lossQuantity: 0,
                                                    warehouseId: warehousesList[0]?.id || ""
                                                 });
                                                 setShowConfirmInboundModal(true);
@@ -1358,6 +1384,75 @@ function InventoryDashboard() {
                   </button>
                </div>
             </motion.div>
+         </div>
+      )}
+
+      {/* 確認到貨 Modal */}
+      {showConfirmInboundModal && confirmInboundData && (
+         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-fade-in relative">
+               <button onClick={() => setShowConfirmInboundModal(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 transition">
+                  <X className="w-5 h-5" />
+               </button>
+               
+               <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-500">
+                     <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                     <h3 className="text-lg font-black text-slate-800">確認智慧採購單到貨</h3>
+                     <p className="text-xs font-bold text-slate-400">{confirmInboundData.name}</p>
+                  </div>
+               </div>
+
+               <form onSubmit={handleConfirmInbound} className="space-y-6">
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">選擇入庫倉庫</label>
+                     <select 
+                        value={confirmInboundData.warehouseId}
+                        onChange={e => setConfirmInboundData({...confirmInboundData, warehouseId: e.target.value})}
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                        required
+                     >
+                        {warehousesList.map(w => (
+                           <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                     </select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">實際到貨數量</label>
+                        <input 
+                           type="number" 
+                           min="0"
+                           value={confirmInboundData.actualQuantity}
+                           onChange={e => setConfirmInboundData({...confirmInboundData, actualQuantity: Number(e.target.value)})}
+                           className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                           required
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">損失/短少</label>
+                        <input 
+                           type="number" 
+                           min="0"
+                           value={confirmInboundData.lossQuantity || 0}
+                           onChange={e => setConfirmInboundData({...confirmInboundData, lossQuantity: Number(e.target.value)})}
+                           className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500/30 transition"
+                        />
+                     </div>
+                  </div>
+
+                  <button 
+                     type="submit" 
+                     disabled={isLoading}
+                     className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> 確認到貨並入庫</>}
+                  </button>
+               </form>
+            </div>
          </div>
       )}
 

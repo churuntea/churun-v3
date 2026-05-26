@@ -76,18 +76,26 @@ export async function POST(request: Request) {
     }
 
     if (action === 'confirm_smart_order') {
-      const { productId, productName, category, quantity, warehouseId } = payload;
+      const { productId, productName, category, quantity, lossQuantity, warehouseId, logId } = payload;
       
-      // 1. Delete all pending drafts for this product
-      const { error: delErr } = await supabase
-        .from('inventory_logs')
-        .delete()
-        .eq('product_name', productName)
-        .like('notes', '%草稿待入庫%');
-      
-      if (delErr) throw delErr;
+      // 1. Delete pending drafts
+      if (logId) {
+        const { error: delErr } = await supabase.from('inventory_logs').delete().eq('id', logId);
+        if (delErr) throw delErr;
+      } else {
+        const { error: delErr } = await supabase
+          .from('inventory_logs')
+          .delete()
+          .eq('product_name', productName)
+          .like('notes', '%草稿待入庫%');
+        if (delErr) throw delErr;
+      }
 
       // 2. Create actual inbound log
+      const notes = lossQuantity > 0 
+        ? `智慧採購單確認到貨入庫 (原訂 ${quantity + lossQuantity} 件, 實際到貨 ${quantity} 件, 損失 ${lossQuantity} 件)` 
+        : "智慧採購單確認到貨入庫";
+
       const { error: logErr } = await supabase.from('inventory_logs').insert({
         product_name: productName,
         category: category || "極萃系列",
@@ -95,7 +103,7 @@ export async function POST(request: Request) {
         unit_cost: 0,
         supplier: "智慧採購單入庫",
         type: 'inbound',
-        notes: "智慧採購單確認到貨入庫"
+        notes: notes
       });
       if (logErr) throw logErr;
 
