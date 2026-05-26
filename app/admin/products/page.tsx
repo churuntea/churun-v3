@@ -32,6 +32,7 @@ function AdminProductsContent() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [formData, setFormData] = useState({
@@ -52,7 +53,8 @@ function AdminProductsContent() {
     description: "",
     order_unit: "件",
     order_unit_size: 1,
-    min_order_quantity: 1
+    min_order_quantity: 1,
+    supplier_id: ""
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
@@ -78,7 +80,24 @@ function AdminProductsContent() {
     fetchProducts();
     fetchCategories();
     fetchCreators();
+    fetchSuppliers();
   }, [router]);
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id, name")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      
+      if (!error && data) {
+        setSuppliers(data);
+      }
+    } catch (err) {
+      console.error("載入供應商列表出錯:", err);
+    }
+  };
 
   const fetchCreators = async () => {
     try {
@@ -332,7 +351,8 @@ function AdminProductsContent() {
       description: productToEdit.description || "",
       order_unit: productToEdit.order_unit || "件",
       order_unit_size: productToEdit.order_unit_size || 1,
-      min_order_quantity: productToEdit.min_order_quantity || 1
+      min_order_quantity: productToEdit.min_order_quantity || 1,
+      supplier_id: productToEdit.supplier_id || ""
     });
     setActiveTab("add");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -358,7 +378,8 @@ function AdminProductsContent() {
       description: "",
       order_unit: "件",
       order_unit_size: 1,
-      min_order_quantity: 1
+      min_order_quantity: 1,
+      supplier_id: ""
     });
   };
 
@@ -415,7 +436,8 @@ function AdminProductsContent() {
           ambassador_direct_reward: Number(formData.ambassador_direct_reward),
           partner_personal_reward: Number(formData.partner_personal_reward),
           partner_direct_reward: Number(formData.partner_direct_reward),
-          stock_count: Number(formData.stock_count)
+          stock_count: Number(formData.stock_count),
+          supplier_id: formData.supplier_id
         })
       });
       
@@ -567,6 +589,21 @@ function AdminProductsContent() {
                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
                          </select>
                       </div>
+                   </div>
+
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">
+                         <Package className="w-3 h-3" /> 供應商 (資料來源：供應商資料庫)
+                      </label>
+                      <select 
+                        name="supplier_id" 
+                        value={formData.supplier_id} 
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 border-none p-5 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition"
+                      >
+                        <option value="">-- 不指定供應商 --</option>
+                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
                    </div>
 
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

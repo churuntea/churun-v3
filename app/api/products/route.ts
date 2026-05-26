@@ -31,6 +31,7 @@ export async function GET() {
         order_unit: extData.order_unit || '件',
         order_unit_size: extData.order_unit_size || 1,
         min_order_quantity: extData.min_order_quantity || 1,
+        supplier_id: extData.supplier_id || "",
         stock_count: Number(p.stock_count || 0)
       };
     });
@@ -59,9 +60,11 @@ export async function POST(request: Request) {
       stock_count,
       sku,
       description,
+      description,
       order_unit,
       order_unit_size,
-      min_order_quantity
+      min_order_quantity,
+      supplier_id
     } = await request.json();
 
     if (!name || price === undefined) {
@@ -102,7 +105,8 @@ export async function POST(request: Request) {
     const extJson = JSON.stringify({
       order_unit: order_unit || '件',
       order_unit_size: order_unit_size || 1,
-      min_order_quantity: min_order_quantity || 1
+      min_order_quantity: min_order_quantity || 1,
+      supplier_id: supplier_id || ''
     });
     const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
 
@@ -221,9 +225,11 @@ export async function PUT(request: Request) {
       stock_count,
       sku,
       description,
+      description,
       order_unit,
       order_unit_size,
-      min_order_quantity
+      min_order_quantity,
+      supplier_id
     } = await request.json();
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });
@@ -262,7 +268,8 @@ export async function PUT(request: Request) {
     const extJson = JSON.stringify({
       order_unit: order_unit || '件',
       order_unit_size: order_unit_size || 1,
-      min_order_quantity: min_order_quantity || 1
+      min_order_quantity: min_order_quantity || 1,
+      supplier_id: supplier_id || ''
     });
     const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
 
