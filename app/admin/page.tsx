@@ -57,9 +57,20 @@ const data = [
 
 function AdminDashboardContent() {
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem("churun_admin_auth") === "true";
+    }
+    return false;
+  });
   const [password, setPassword] = useState("");
-  const [adminUser, setAdminUser] = useState<any>(null);
+  const [adminUser, setAdminUser] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem("churun_admin_user");
+      return stored ? JSON.parse(stored) : null;
+    }
+    return null;
+  });
   const [account, setAccount] = useState("");
   const [stats, setStats] = useState({
     totalMembers: 0,
@@ -79,8 +90,18 @@ function AdminDashboardContent() {
   const [pickupStats, setPickupStats] = useState<any[]>([]);
   const [showTableBreakdown, setShowTableBreakdown] = useState(false);
   const [topProducts, setTopProducts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem("churun_admin_auth") !== "true";
+    }
+    return true;
+  });
+  const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem("churun_admin_auth") !== "true";
+    }
+    return true;
+  });
   const [reorderRate, setReorderRate] = useState(0);
   const [newVsOldRevenue, setNewVsOldRevenue] = useState({ newCustRev: 0, oldCustRev: 0 });
   const [peakHoursData, setPeakHoursData] = useState({ morning: 0, afternoon: 0, evening: 0, night: 0 });
