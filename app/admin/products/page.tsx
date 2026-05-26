@@ -47,9 +47,12 @@ function AdminProductsContent() {
     partner_personal_reward: "",
     partner_direct_reward: "",
     category: "極萃系列",
-    stock_count: "100",
+    stock_count: 0,
     sku: "",
-    description: ""
+    description: "",
+    order_unit: "件",
+    order_unit_size: 1,
+    min_order_quantity: 1
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
@@ -303,30 +306,33 @@ function AdminProductsContent() {
     setShowConfirm(true);
   };
 
-  const handleEditClick = (product: any) => {
-    setEditingId(product.id);
-    setOriginalProduct(product);
+  const handleEditClick = (productToEdit: any) => {
+    setEditingId(productToEdit.id);
+    setOriginalProduct(productToEdit);
     
-    if (product.category && !categories.includes(product.category)) {
-      setCategories(prev => [...prev, product.category]);
+    if (productToEdit.category && !categories.includes(productToEdit.category)) {
+      setCategories(prev => [...prev, productToEdit.category]);
     }
 
     setFormData({
-      name: product.name,
-      original_price: product.original_price?.toString() || "",
-      price: product.price.toString(),
-      image_url: product.image_url || "",
-      creator: product.creator || "陳總經理",
-      b2c_reward_percent: product.b2c_reward_percent.toString(),
-      b2b_commission_percent: product.b2b_commission_percent.toString(),
-      ambassador_personal_reward: product.ambassador_personal_reward?.toString() || "",
-      ambassador_direct_reward: product.ambassador_direct_reward?.toString() || "",
-      partner_personal_reward: product.partner_personal_reward?.toString() || "",
-      partner_direct_reward: product.partner_direct_reward?.toString() || "",
-      category: product.category || "極萃系列",
-      stock_count: product.stock_count?.toString() || "0",
-      sku: product.sku || "",
-      description: product.description || ""
+      name: productToEdit.name,
+      original_price: productToEdit.original_price?.toString() || "",
+      price: productToEdit.price.toString(),
+      image_url: productToEdit.image_url || "",
+      creator: productToEdit.creator || "陳總經理",
+      b2c_reward_percent: productToEdit.b2c_reward_percent.toString(),
+      b2b_commission_percent: productToEdit.b2b_commission_percent.toString(),
+      ambassador_personal_reward: productToEdit.ambassador_personal_reward?.toString() || "",
+      ambassador_direct_reward: productToEdit.ambassador_direct_reward?.toString() || "",
+      partner_personal_reward: productToEdit.partner_personal_reward?.toString() || "",
+      partner_direct_reward: productToEdit.partner_direct_reward?.toString() || "",
+      category: productToEdit.category || "極萃系列",
+      stock_count: productToEdit.stock_count || 0,
+      sku: productToEdit.sku || "",
+      description: productToEdit.description || "",
+      order_unit: productToEdit.order_unit || "件",
+      order_unit_size: productToEdit.order_unit_size || 1,
+      min_order_quantity: productToEdit.min_order_quantity || 1
     });
     setActiveTab("add");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -347,9 +353,12 @@ function AdminProductsContent() {
       partner_personal_reward: "",
       partner_direct_reward: "",
       category: "極萃系列",
-      stock_count: "100",
+      stock_count: 0,
       sku: "",
-      description: ""
+      description: "",
+      order_unit: "件",
+      order_unit_size: 1,
+      min_order_quantity: 1
     });
   };
 
@@ -571,10 +580,9 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
-                                       <div className="space-y-3">
+                    <div className="space-y-3">
                        <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品主圖來源</label>
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                          {/* File Drop/Click Area */}
                           <div className="md:col-span-2">
                              <div 
                                onDragOver={onDragOver}
@@ -603,7 +611,6 @@ function AdminProductsContent() {
                             </div>
                           </div>
 
-                          {/* Image URL Input & Preview */}
                           <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100/50 flex flex-col justify-between gap-4">
                              <div className="space-y-2">
                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">直接指定圖片網址 (選填)</span>
@@ -617,7 +624,6 @@ function AdminProductsContent() {
                                 />
                              </div>
                              
-                             {/* Mini Preview Box */}
                              <div className="w-full aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-100/50 relative">
                                 {formData.image_url ? (
                                    <>
@@ -641,24 +647,50 @@ function AdminProductsContent() {
                        </div>
                     </div>
 
-                    <div className="space-y-3">
-                       <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">
-                          <FileText className="w-3.5 h-3.5 text-slate-400" /> 商品描述 / 特色形容
-                       </label>
-                       <textarea 
-                         name="description" 
-                         value={formData.description || ""} 
-                         onChange={handleChange as any} 
-                         placeholder="請輸入此商品的特色形容、風味口感、規格容量或包裝細節等描述說明..." 
-                         rows={4}
-                         maxLength={300}
-                         className="w-full bg-slate-50 border-none p-6 rounded-[2rem] text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner outline-none resize-none leading-relaxed text-slate-800"
-                       />
-                       <div className="flex justify-end pr-2">
-                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{(formData.description || "").length} / 300 字</span>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">商品描述 (選填)</label>
+                      <textarea 
+                        value={formData.description} 
+                        onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                        placeholder="請輸入商品描述..." 
+                        className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all min-h-[80px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">採購單位</label>
+                          <input 
+                             type="text" 
+                             value={formData.order_unit} 
+                             onChange={(e) => setFormData({...formData, order_unit: e.target.value})} 
+                             placeholder="例如: 箱, 件" 
+                             className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                          />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="一單位等於幾件">單位換算 (件/單位)</label>
+                          <input 
+                             type="number" 
+                             min="1"
+                             value={formData.order_unit_size} 
+                             onChange={(e) => setFormData({...formData, order_unit_size: Number(e.target.value)})} 
+                             className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                          />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="每次進貨最少需採購的數量">最低採購量 (MOQ)</label>
+                          <input 
+                             type="number" 
+                             min="1"
+                             value={formData.min_order_quantity} 
+                             onChange={(e) => setFormData({...formData, min_order_quantity: Number(e.target.value)})} 
+                             className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                          />
                        </div>
                     </div>
 
+                    <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-2 mt-4 mb-4">價格與庫存設定</h3>
                     <div className="grid grid-cols-3 gap-8">
                       <div className="space-y-3">
                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">官方定價 (原價)</label>
@@ -685,12 +717,10 @@ function AdminProductsContent() {
                       </div>
                    </div>
 
-                   {/* 新品上線：進階分潤設定 */}
                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 space-y-6">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進階分潤設定 (新品上線)</h4>
                       
                       <div className="grid grid-cols-2 gap-8">
-                         {/* 品牌大使 */}
                          <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100/30 space-y-3">
                             <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">品牌大使：個人消費回饋 %</label>
                             <input type="number" name="ambassador_personal_reward" value={formData.ambassador_personal_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
@@ -700,7 +730,6 @@ function AdminProductsContent() {
                             <input type="number" name="ambassador_direct_reward" value={formData.ambassador_direct_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
                          </div>
                          
-                         {/* 合夥人 */}
                          <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 space-y-3">
                             <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">合夥人：個人消費回饋 %</label>
                             <input type="number" name="partner_personal_reward" value={formData.partner_personal_reward} onChange={handleChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-indigo-800 shadow-sm" />

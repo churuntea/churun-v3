@@ -40,7 +40,10 @@ export async function POST(request: Request) {
       category,
       stock_count,
       sku,
-      description
+      description,
+      order_unit,
+      order_unit_size,
+      min_order_quantity
     } = await request.json();
 
     if (!name || price === undefined) {
@@ -94,7 +97,10 @@ export async function POST(request: Request) {
       status: 'active',
       stock_count: stock_count || 0,
       sku: sku || null,
-      description: description || null
+      description: description || null,
+      order_unit: order_unit || '件',
+      order_unit_size: order_unit_size || 1,
+      min_order_quantity: min_order_quantity || 1
     };
 
     // 採用動態自我修復迴圈：若因欄位缺失報錯，則自動從寫入資料中剃除該欄位並重試
@@ -192,7 +198,10 @@ export async function PUT(request: Request) {
       category,
       stock_count,
       sku,
-      description
+      description,
+      order_unit,
+      order_unit_size,
+      min_order_quantity
     } = await request.json();
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });

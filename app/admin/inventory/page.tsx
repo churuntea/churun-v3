@@ -155,8 +155,13 @@ function InventoryDashboard() {
           
        const currentStock = Number(p.stock || 0);
        const minStock = Number(p.min_stock || 10);
+       const moq = Number(p.min_order_quantity || 1);
+       
        // 建議補貨量 = 安全水位 * 2 - (現有庫存 + 已訂貨)
-       let suggested = Math.max(10, (minStock * 2) - (currentStock + orderedQty));
+       let rawSuggested = Math.max(moq, (minStock * 2) - (currentStock + orderedQty));
+       
+       // 無條件進位至 MOQ 的倍數
+       let suggested = Math.ceil(rawSuggested / moq) * moq;
        
        return {
           id: p.id,
@@ -166,7 +171,10 @@ function InventoryDashboard() {
           min_stock: minStock,
           suggested_qty: suggested,
           cost_price: Number(p.price || 0) * 0.4,
-          supplier: "初潤南投茶園總廠"
+          supplier: "初潤南投茶園總廠",
+          order_unit: p.order_unit || "件",
+          order_unit_size: Number(p.order_unit_size || 1),
+          min_order_quantity: moq
        };
     });
     
@@ -174,10 +182,12 @@ function InventoryDashboard() {
     setShowSmartOrderModal(true);
   };
 
-  const handleSmartOrderQtyChange = (id: string, delta: number) => {
+  const handleSmartOrderQtyChange = (id: string, deltaSign: number) => {
     setSmartOrderItems(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, suggested_qty: Math.max(1, item.suggested_qty + delta) };
+        const moq = item.min_order_quantity || 1;
+        const change = deltaSign > 0 ? moq : -moq;
+        return { ...item, suggested_qty: Math.max(moq, item.suggested_qty + change) };
       }
       return item;
     }));
