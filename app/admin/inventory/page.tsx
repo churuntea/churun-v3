@@ -77,6 +77,10 @@ function InventoryDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
 
+  // 確認到貨 Modal
+  const [showConfirmInboundModal, setShowConfirmInboundModal] = useState(false);
+  const [confirmInboundData, setConfirmInboundData] = useState<any>(null);
+
   // 一鍵訂貨系統
   const [showSmartOrderModal, setShowSmartOrderModal] = useState(false);
   const [smartOrderItems, setSmartOrderItems] = useState<any[]>([]);
@@ -223,6 +227,39 @@ function InventoryDashboard() {
       alert("操作失敗: " + err.message);
     }
     setIsSmartOrdering(false);
+  };
+
+  const handleConfirmInbound = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/inventory-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "confirm_smart_order",
+          payload: {
+            productId: confirmInboundData.id,
+            productName: confirmInboundData.name,
+            category: confirmInboundData.category,
+            quantity: confirmInboundData.actualQuantity,
+            warehouseId: confirmInboundData.warehouseId
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ 成功確認到貨並完成入庫！");
+        setShowConfirmInboundModal(false);
+        setConfirmInboundData(null);
+        fetchData();
+      } else {
+        alert("操作失敗: " + data.error);
+      }
+    } catch (err: any) {
+      alert("系統錯誤: " + err.message);
+    }
+    setIsLoading(false);
   };
 
   const fetchData = async () => {
@@ -983,7 +1020,25 @@ function InventoryDashboard() {
                                     <td className="py-4 text-right font-mono text-indigo-600 font-black">{Math.max(0, allocatable)} 件</td>
                                     <td className={`py-4 text-right font-mono font-black ${isLow ? 'text-rose-600 text-sm' : 'text-slate-800'}`}>{stock} 件</td>
                                     <td className="py-4 text-right font-mono text-slate-500">
-                                       {orderedQuantity > 0 ? <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">+{orderedQuantity}</span> : <span className="text-slate-300">0</span>} 件
+                                       {orderedQuantity > 0 ? (
+                                          <button 
+                                             onClick={() => {
+                                                setConfirmInboundData({
+                                                   id: p.id,
+                                                   name: p.name,
+                                                   category: p.category,
+                                                   orderedQuantity,
+                                                   actualQuantity: orderedQuantity,
+                                                   warehouseId: warehousesList[0]?.id || ""
+                                                });
+                                                setShowConfirmInboundModal(true);
+                                             }}
+                                             className="text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition cursor-pointer"
+                                             title="點擊確認到貨"
+                                          >
+                                             +{orderedQuantity}
+                                          </button>
+                                       ) : <span className="text-slate-300">0</span>} 件
                                     </td>
                                     <td className="py-4 text-right font-mono text-slate-800 font-black">NT$ {Number(p.price || 0).toLocaleString()}</td>
                                     <td className="py-4 text-center pr-2">
