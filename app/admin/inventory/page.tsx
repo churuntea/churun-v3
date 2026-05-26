@@ -359,16 +359,9 @@ function InventoryDashboard() {
 
   const handleCreateAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modalType === "new_product") {
-      if (!newProductName || !newProductPrice || !quantity) {
-        alert("請輸入商品名稱、建議售價與首批進貨數量！");
-        return;
-      }
-    } else {
-      if (!selectedProductId || !quantity) {
-        alert("請選擇商品並輸入數量！");
-        return;
-      }
+    if (!selectedProductId || !quantity) {
+      alert("請選擇商品並輸入數量！");
+      return;
     }
 
     setIsLoading(true);
@@ -380,35 +373,7 @@ function InventoryDashboard() {
       let finalStock = 0;
       let minStock = 10;
 
-      if (modalType === "new_product") {
-        // 1. 建立新品建檔
-        const res = await fetch("/api/admin/inventory-actions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            action: "create_product", 
-            payload: { name: newProductName, price: Number(newProductPrice), category: newProductCategory || "極萃系列", stock: qty, min_stock: Number(newProductMinStock) || 30 } 
-          })
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.error);
-        
-        targetProdName = newProductName;
-        targetProdCategory = newProductCategory || "極萃系列";
-        finalStock = qty;
-        
-        // 更新倉庫庫存 (新品預設加在指定倉庫)
-        await fetch("/api/admin/inventory-actions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            action: "update_stock", 
-            payload: { productId: result.data.id, warehouseId: Number(selectedWarehouseId), qty, isNewProduct: true, type: "inbound" } 
-          })
-        });
-
-        alert(`🎉 成功建檔新品「${newProductName}」並完成首批進貨 ${qty} 件！`);
-      } else if (modalType === "inbound" || modalType === "stock") {
+      if (modalType === "inbound" || modalType === "stock") {
         // 更新庫存
         const targetProd = products.find(p => p.id === selectedProductId);
         targetProdName = targetProd?.name;
@@ -873,10 +838,10 @@ function InventoryDashboard() {
                      <Plus className="w-4 h-4" /> 既有品進貨
                    </button>
                    <button 
-                     onClick={() => { setModalType("new_product"); setShowAddModal(true); }}
+                     onClick={() => router.push("/admin/products?action=add")}
                      className="px-4 py-3 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 shadow-lg shadow-pink-600/20"
                    >
-                     ✨ 新品建檔進貨
+                     ✨ 前往新品建檔
                    </button>
                  </div>
                )}
@@ -1150,68 +1115,16 @@ function InventoryDashboard() {
             <motion.div 
                initial={{ opacity: 0, scale: 0.95 }}
                animate={{ opacity: 1, scale: 1 }}
-               className="bg-white rounded-[3rem] p-8 max-w-lg w-full border border-slate-100 shadow-2xl space-y-6"
+               className="bg-white rounded-[3rem] p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto no-scrollbar border border-slate-100 shadow-2xl space-y-6"
             >
                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                   <h3 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-2">
-                     {modalType === "new_product" ? "✨ 新品上市建檔與首批進貨" : modalType === "inbound" ? "📦 新增進貨入庫單據" : "🎯 庫存盤點與校正"}
+                     {modalType === "inbound" ? "📦 新增進貨入庫單據" : "🎯 庫存盤點與校正"}
                   </h3>
                   <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700">✕</button>
                </div>
 
                <form onSubmit={handleCreateAction} className="space-y-4 text-left">
-                  {modalType === "new_product" ? (
-                     <>
-                        <div className="space-y-1">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">新品茶飲名稱</label>
-                           <input 
-                              type="text" 
-                              placeholder="例如：初潤極致高山烏龍" 
-                              value={newProductName}
-                              onChange={e => setNewProductName(e.target.value)}
-                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/30 transition"
-                              required
-                           />
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                           <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">建議售價 (NT$)</label>
-                              <input 
-                                 type="number" 
-                                 placeholder="零售價" 
-                                 value={newProductPrice}
-                                 onChange={e => setNewProductPrice(e.target.value)}
-                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/30 transition"
-                                 required
-                              />
-                           </div>
-                           <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">所屬茶類大項</label>
-                              <select 
-                                 value={newProductCategory}
-                                 onChange={e => setNewProductCategory(e.target.value)}
-                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/30 transition"
-                              >
-                                 <option value="極萃系列">極萃系列</option>
-                                 <option value="高山特選">高山特選</option>
-                                 <option value="冷泡茶飲">冷泡茶飲</option>
-                                 <option value="典藏禮盒">典藏禮盒</option>
-                              </select>
-                           </div>
-                           <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">安全庫存量</label>
-                              <input 
-                                 type="number" 
-                                 placeholder="如: 30" 
-                                 value={newProductMinStock}
-                                 onChange={e => setNewProductMinStock(e.target.value)}
-                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500/30 transition"
-                                 required
-                              />
-                           </div>
-                        </div>
-                     </>
-                  ) : (
                      <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">選擇列管商品</label>
                         <select 
@@ -1226,7 +1139,6 @@ function InventoryDashboard() {
                            ))}
                         </select>
                      </div>
-                  )}
 
                   <div className="space-y-1">
                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">選擇入庫/盤點倉庫</label>
@@ -1245,7 +1157,7 @@ function InventoryDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">
-                           {modalType === "new_product" ? "首批進貨數量" : modalType === "inbound" ? "進貨數量" : "校正後實際數量"}
+                           {modalType === "inbound" ? "進貨數量" : "校正後實際數量"}
                         </label>
                         <input 
                            type="number" 
@@ -1256,7 +1168,7 @@ function InventoryDashboard() {
                            required
                         />
                      </div>
-                     {(modalType === "inbound" || modalType === "new_product") && (
+                     {modalType === "inbound" && (
                         <div className="space-y-1">
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">進貨成本單價 (NT$)</label>
                            <input 
@@ -1270,7 +1182,7 @@ function InventoryDashboard() {
                      )}
                   </div>
 
-                  {(modalType === "inbound" || modalType === "new_product") && (
+                  {modalType === "inbound" && (
                      <>
                         <div className="space-y-1">
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">供應商</label>
@@ -1324,7 +1236,7 @@ function InventoryDashboard() {
                         type="submit" 
                         className={`px-8 py-4 rounded-2xl text-white text-xs font-black uppercase tracking-wider transition shadow-xl ${modalType === "new_product" ? "bg-pink-600 hover:bg-pink-500 shadow-pink-600/20" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20"}`}
                      >
-                        {modalType === "new_product" ? "確認新品上市建檔" : "確認送出單據"}
+                        {modalType === "inbound" ? "確認新增進貨單" : "確認送出單據"}
                      </button>
                   </div>
                </form>

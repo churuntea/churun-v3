@@ -509,18 +509,23 @@ function WholesaleContent() {
                     {product.description && (
                        <p className="text-[11px] font-bold text-slate-400/90 leading-relaxed">{product.description}</p>
                     )}
+                    {(product.order_unit_size > 1) && (
+                       <p className="text-[11px] font-black text-indigo-500 leading-relaxed">
+                          * 訂購單位：1 {product.order_unit || '箱'} = {product.order_unit_size} 件
+                       </p>
+                    )}
                     <p className="text-emerald-600 font-black text-sm">${product.price}</p>
                  </div>
                 <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl">
                    <button 
-                     onClick={() => updateQuantity(product.id, -1)}
+                     onClick={() => updateQuantity(product.id, -(product.order_unit_size || 1))}
                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-500 transition"
                    >
                       <Minus className="w-4 h-4" />
                    </button>
                    <span className="text-sm font-black w-4 text-center">{cart[product.id] || 0}</span>
                    <button 
-                     onClick={() => updateQuantity(product.id, 1)}
+                     onClick={() => updateQuantity(product.id, (product.order_unit_size || 1))}
                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition"
                    >
                       <Plus className="w-4 h-4" />
@@ -767,12 +772,13 @@ function WholesaleContent() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (qty === 1) {
+                                    const step = product.order_unit_size || 1;
+                                    if (qty <= step) {
                                       if (confirm(`確定要從採購單中刪除「${product.name}」嗎？`)) {
-                                        updateQuantity(id, -1);
+                                        updateQuantity(id, -qty);
                                       }
                                     } else {
-                                      updateQuantity(id, -1);
+                                      updateQuantity(id, -step);
                                     }
                                   }}
                                   className="w-5 h-5 rounded-md bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition active:scale-95"
@@ -782,7 +788,7 @@ function WholesaleContent() {
                                 <span className="text-xs font-black text-slate-800 min-w-[14px] text-center">{qty}</span>
                                 <button
                                   type="button"
-                                  onClick={() => updateQuantity(id, 1)}
+                                  onClick={() => updateQuantity(id, (product.order_unit_size || 1))}
                                   className="w-5 h-5 rounded-md bg-slate-50 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition active:scale-95"
                                 >
                                    <Plus className="w-3 h-3" />

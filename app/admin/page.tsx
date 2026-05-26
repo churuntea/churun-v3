@@ -321,6 +321,8 @@ function AdminDashboardContent() {
         
         if (data.authenticated && data.user?.isAdmin) {
           // If valid admin session cookie, set it
+          sessionStorage.setItem("churun_admin_user", JSON.stringify(data.user));
+          sessionStorage.setItem("churun_admin_auth", "true");
           setAdminUser(data.user);
           setIsAdmin(true);
           fetchStats();
