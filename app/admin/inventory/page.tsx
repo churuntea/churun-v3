@@ -157,11 +157,13 @@ function InventoryDashboard() {
        const minStock = Number(p.min_stock || 10);
        const moq = Number(p.min_order_quantity || 1);
        
+       const unitSize = Number(p.order_unit_size || 1);
+       
        // 建議補貨量 = 安全水位 * 2 - (現有庫存 + 已訂貨)
        let rawSuggested = Math.max(moq, (minStock * 2) - (currentStock + orderedQty));
        
-       // 無條件進位至 MOQ 的倍數
-       let suggested = Math.ceil(rawSuggested / moq) * moq;
+       // 無條件進位至 unitSize 的倍數，並確保大於等於 MOQ
+       let suggested = Math.max(moq, Math.ceil(rawSuggested / unitSize) * unitSize);
        
        return {
           id: p.id,
@@ -173,7 +175,7 @@ function InventoryDashboard() {
           cost_price: Number(p.price || 0) * 0.4,
           supplier: "初潤南投茶園總廠",
           order_unit: p.order_unit || "件",
-          order_unit_size: Number(p.order_unit_size || 1),
+          order_unit_size: unitSize,
           min_order_quantity: moq
        };
     });
@@ -185,8 +187,9 @@ function InventoryDashboard() {
   const handleSmartOrderQtyChange = (id: string, deltaSign: number) => {
     setSmartOrderItems(prev => prev.map(item => {
       if (item.id === id) {
+        const unitSize = item.order_unit_size || 1;
         const moq = item.min_order_quantity || 1;
-        const change = deltaSign > 0 ? moq : -moq;
+        const change = deltaSign > 0 ? unitSize : -unitSize;
         return { ...item, suggested_qty: Math.max(moq, item.suggested_qty + change) };
       }
       return item;
