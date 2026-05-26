@@ -337,7 +337,14 @@ function AdminDashboardContent() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/auth/session?t=${timestamp}`, { 
+          cache: "no-store",
+          headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+          }
+        });
         const data = await res.json();
         
         if (data.authenticated && data.user?.isAdmin) {
@@ -351,6 +358,7 @@ function AdminDashboardContent() {
           // If not authenticated or not admin, clear any old state
           sessionStorage.removeItem("churun_admin_user");
           sessionStorage.removeItem("churun_admin_log_id");
+          sessionStorage.removeItem("churun_admin_auth");
           setIsAdmin(false);
         }
       } catch (e) {
