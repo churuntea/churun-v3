@@ -34,7 +34,7 @@ export default function MemberLevelsDistribution({ members }: Props) {
     { name: '初潤小朋友', count: getCount('小朋友'), color: '#9ca3af', dotColor: '#9ca3af', label: '初潤小朋友', useBadge: false },
     { name: '初潤幼兒園', count: getCount('幼兒園'), color: '#d1d5db', dotColor: '#d1d5db', label: '初潤幼兒園', useBadge: false },
     { name: '初潤寶寶', count: getCount('寶寶'), color: '#e5e7eb', dotColor: '#e5e7eb', label: '初潤寶寶', useBadge: false },
-  ];
+  ].sort((a, b) => b.count - a.count);
 
   const maxCount = Math.max(...tierStats.map(t => t.count), 1);
 
