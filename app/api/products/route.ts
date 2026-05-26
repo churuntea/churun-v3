@@ -15,7 +15,7 @@ export async function GET() {
 
     const correctedProducts = (data || []).map(p => {
       let desc = p.description || "";
-      let extData = {};
+      let extData: any = {};
       const separator = "||_EXT_JSON_||";
       if (desc.includes(separator)) {
         const parts = desc.split(separator);
