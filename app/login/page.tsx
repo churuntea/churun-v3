@@ -461,20 +461,7 @@ function LoginContent() {
                     </motion.div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">歡迎回來</h1>
                     
-                    <div className="flex bg-slate-100/50 p-1.5 rounded-[2rem] mb-10 border border-slate-100">
-                     <button 
-                       onClick={() => setLoginMode('password')}
-                       className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'password' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
-                     >
-                        密碼登入
-                     </button>
-                     <button 
-                       onClick={() => setLoginMode('pattern')}
-                       className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${loginMode === 'pattern' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-400'}`}
-                     >
-                        圖形鎖
-                     </button>
-                  </div>
+                    {/* 隱藏圖形鎖切換 */}
 
                   <form onSubmit={(e) => handleLogin(e)} className="space-y-8">
                      {loginMode === 'password' && (
