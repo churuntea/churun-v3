@@ -11,11 +11,27 @@ export async function GET() {
 
     if (error) throw error;
 
-    // 智慧型庫存資料全面補正引擎：保留原本庫存數量，不再強制補正為 500
-    const correctedProducts = (data || []).map(p => ({
-      ...p,
-      stock_count: Number(p.stock_count || 0)
-    }));
+    const correctedProducts = (data || []).map(p => {
+      let desc = p.description || "";
+      let extData = {};
+      const separator = "||_EXT_JSON_||";
+      if (desc.includes(separator)) {
+        const parts = desc.split(separator);
+        desc = parts[0];
+        try {
+          extData = JSON.parse(parts[1]);
+        } catch(e) {}
+      }
+
+      return {
+        ...p,
+        description: desc,
+        order_unit: extData.order_unit || '件',
+        order_unit_size: extData.order_unit_size || 1,
+        min_order_quantity: extData.min_order_quantity || 1,
+        stock_count: Number(p.stock_count || 0)
+      };
+    });
 
     return NextResponse.json({ success: true, products: correctedProducts });
   } catch (error: any) {
@@ -81,6 +97,13 @@ export async function POST(request: Request) {
       }
     }
 
+    const extJson = JSON.stringify({
+      order_unit: order_unit || '件',
+      order_unit_size: order_unit_size || 1,
+      min_order_quantity: min_order_quantity || 1
+    });
+    const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
+
     const insertData: any = {
       name,
       original_price: original_price || null,
@@ -97,10 +120,7 @@ export async function POST(request: Request) {
       status: 'active',
       stock_count: stock_count || 0,
       sku: sku || null,
-      description: description || null,
-      order_unit: order_unit || '件',
-      order_unit_size: order_unit_size || 1,
-      min_order_quantity: min_order_quantity || 1
+      description: finalDescription
     };
 
     // 採用動態自我修復迴圈：若因欄位缺失報錯，則自動從寫入資料中剃除該欄位並重試
@@ -237,6 +257,13 @@ export async function PUT(request: Request) {
       }
     }
 
+    const extJson = JSON.stringify({
+      order_unit: order_unit || '件',
+      order_unit_size: order_unit_size || 1,
+      min_order_quantity: min_order_quantity || 1
+    });
+    const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
+
     const updateData: any = {
       name,
       original_price: original_price || null,
@@ -253,7 +280,7 @@ export async function PUT(request: Request) {
       status: 'active',
       stock_count: stock_count || 0,
       sku: sku || null,
-      description: description || null
+      description: finalDescription
     };
 
     // 採用動態自我修復迴圈：若因欄位缺失報錯，則自動從更新資料中剃除該欄位並重試
