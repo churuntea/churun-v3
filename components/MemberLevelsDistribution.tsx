@@ -3,6 +3,7 @@ import React from 'react';
 interface Member {
   id: string;
   tier: string;
+  ambassador_status?: string;
 }
 
 interface Props {
@@ -14,23 +15,25 @@ export default function MemberLevelsDistribution({ members }: Props) {
   // This is a placeholder for new members. In a real app we would check `created_at`.
   const newMembersCount = Math.floor(totalMembers * 0.1); 
 
-  const getCount = (tierName: string) => members.filter(m => m.tier === tierName).length;
+  const getCount = (tierName: string) => members.filter(m => m.tier === tierName || m.tier === `初潤${tierName}`).length;
+  const getAmbassadorCount = () => members.filter(m => m.ambassador_status === 'active').length;
 
   const getProgressWidth = (count: number, maxCount: number) => {
     if (maxCount === 0) return '0%';
     return `${(count / maxCount) * 100}%`;
   };
 
-  // As per image, we focus on some specific tiers if they match, or just use our own tiers.
-  // Assuming tiers: 鑽石, 品牌大使, 初潤合夥人, 初潤寶寶 for the example (from the image)
-  // But our DB has: 初潤靈魂伴侶, 初潤知己, 初潤閨蜜, 初潤好朋友, 初潤青少年, 初潤小朋友, 初潤幼兒園, 初潤寶寶
-  // Let's use the top 4 populated tiers to match the layout.
-  
   const tierStats = [
-    { name: '初潤靈魂伴侶', count: getCount('初潤靈魂伴侶'), color: '#3b82f6', dotColor: '#d4af37', label: '鑽石', useBadge: true },
-    { name: '初潤閨蜜', count: getCount('初潤閨蜜') + getCount('初潤知己'), color: '#4b5563', dotColor: '#4b5563', label: '品牌大使', useBadge: false },
-    { name: '初潤小朋友', count: getCount('初潤小朋友') + getCount('初潤青少年') + getCount('初潤好朋友'), color: '#557048', dotColor: '#557048', label: '初潤合夥人', useBadge: false },
-    { name: '初潤寶寶', count: getCount('初潤寶寶') + getCount('初潤幼兒園'), color: '#e5e7eb', dotColor: '#e5e7eb', label: '初潤寶寶', useBadge: false },
+    { name: '超級合夥人', count: getCount('最高階合夥人') + getCount('超級合夥人'), color: '#3b82f6', dotColor: '#3b82f6', label: '超級合夥人', useBadge: true },
+    { name: '品牌大使', count: getAmbassadorCount(), color: '#4b5563', dotColor: '#4b5563', label: '品牌大使', useBadge: false },
+    { name: '初潤靈魂伴侶', count: getCount('靈魂伴侶'), color: '#d4af37', dotColor: '#d4af37', label: '初潤靈魂伴侶', useBadge: false },
+    { name: '初潤知己', count: getCount('知己'), color: '#557048', dotColor: '#557048', label: '初潤知己', useBadge: false },
+    { name: '初潤閨蜜', count: getCount('閨蜜'), color: '#10b981', dotColor: '#10b981', label: '初潤閨蜜', useBadge: false },
+    { name: '初潤好朋友', count: getCount('好朋友'), color: '#34d399', dotColor: '#34d399', label: '初潤好朋友', useBadge: false },
+    { name: '初潤青少年', count: getCount('青少年'), color: '#6ee7b7', dotColor: '#6ee7b7', label: '初潤青少年', useBadge: false },
+    { name: '初潤小朋友', count: getCount('小朋友'), color: '#9ca3af', dotColor: '#9ca3af', label: '初潤小朋友', useBadge: false },
+    { name: '初潤幼兒園', count: getCount('幼兒園'), color: '#d1d5db', dotColor: '#d1d5db', label: '初潤幼兒園', useBadge: false },
+    { name: '初潤寶寶', count: getCount('寶寶'), color: '#e5e7eb', dotColor: '#e5e7eb', label: '初潤寶寶', useBadge: false },
   ];
 
   const maxCount = Math.max(...tierStats.map(t => t.count), 1);
