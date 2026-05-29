@@ -200,9 +200,11 @@ export async function POST(request: Request) {
     let totalB2CPoints = 0;
     let totalB2BCommission = 0;
 
-    // 平階脫離邏輯：先取得推廣者與購買者階級
+    // 平階脫離邏輯與點數升級邏輯：先取得推廣者與購買者階級
     let canGiveCommission = false;
-    if (buyer.is_b2b && buyer.upline_id) {
+    let uplineLevel = 0;
+    
+    if (buyer.upline_id) {
       const { data: upline } = await supabase
         .from('members')
         .select('ambassador_type, ambassador_status, is_b2b')
@@ -217,7 +219,7 @@ export async function POST(request: Request) {
         };
 
         const buyerLevel = getLevel(buyer);
-        const uplineLevel = getLevel(upline);
+        uplineLevel = getLevel(upline);
         canGiveCommission = uplineLevel > buyerLevel;
       }
     }
@@ -243,7 +245,11 @@ export async function POST(request: Request) {
     const finalAmount = Math.max(0, subtotalAfterDiscount - balanceRedeemed - pointsRedeemed);
 
     // B2C 點數回饋改為依據「扣除折抵後的商品實付淨額」計算（運費絕對不計入回饋點數）
-    const tierRate = TIER_RATES[buyer.tier] || 100;
+    // 若直推上線為品牌大使或以上 (uplineLevel >= 1)，則購買者的點數發放率直接升級為品牌大使超高趴數 (30元換1點)
+    let tierRate = TIER_RATES[buyer.tier] || 100;
+    if (uplineLevel >= 1) {
+      tierRate = 30; // 強制升級比照初潤靈魂伴侶
+    }
     
     const TIER_NEW_ARRIVAL_QUOTA: Record<string, number> = {
       '初潤靈魂伴侶': 8,

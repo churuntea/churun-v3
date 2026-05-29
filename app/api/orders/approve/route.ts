@@ -390,9 +390,11 @@ export async function POST(request: Request) {
         
         let calculatedCommission = 0;
 
-        // 平階脫離邏輯：先取得推廣者與購買者階級
+        // 平階脫離邏輯與點數升級邏輯：先取得推廣者與購買者階級
         let canGiveCommission = false;
-        if (buyer.is_b2b && buyer.upline_id) {
+        let uplineLevel = 0;
+        
+        if (buyer.upline_id) {
           const { data: upline } = await supabase
             .from('members')
             .select('ambassador_type, ambassador_status, is_b2b')
@@ -407,7 +409,7 @@ export async function POST(request: Request) {
             };
 
             const buyerLevel = getLevel(buyer);
-            const uplineLevel = getLevel(upline);
+            uplineLevel = getLevel(upline);
             canGiveCommission = uplineLevel > buyerLevel;
           }
         }
@@ -429,7 +431,12 @@ export async function POST(request: Request) {
           '初潤青少年': 70, '初潤小朋友': 80, '初潤幼兒園': 90, '初潤寶寶': 100
         });
 
-        const tierRate = TIER_RATES[buyer.tier] || 100;
+        // 若直推上線為品牌大使或以上 (uplineLevel >= 1)，則購買者的點數發放率直接升級為品牌大使超高趴數 (30元換1點)
+        let tierRate = TIER_RATES[buyer.tier] || 100;
+        if (uplineLevel >= 1) {
+          tierRate = 30;
+        }
+        
         rewardPoints = Math.floor(totalAmount / tierRate);
       }
 
