@@ -5,8 +5,13 @@ import { getSession } from '@/lib/auth';
 export async function GET() {
   try {
     const session = await getSession();
+    const headers = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
     if (!session || !session.memberId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
     }
     const currentUserId = session.memberId;
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -61,7 +66,7 @@ export async function GET() {
     ]);
 
     if (memberError) {
-      return NextResponse.json({ error: memberError.message }, { status: 500 });
+      return NextResponse.json({ error: memberError.message }, { status: 500, headers });
     }
 
     return NextResponse.json({
@@ -73,10 +78,11 @@ export async function GET() {
       ambassadorStatus: ambassadorStatusData?.ambassador_status || null,
       ambassadorApplication: ambassadorApp || null,
       newProducts: newProducts || []
-    });
+    }, { headers });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache', 'Expires': '0' };
+    return NextResponse.json({ error: error.message }, { status: 500, headers });
   }
 }
 

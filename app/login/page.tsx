@@ -82,7 +82,7 @@ function LoginContent() {
               console.warn("更新最後登入時間失敗", err);
             }
             
-            router.push("/profile");
+            router.replace("/profile");
           } else if (data.status === "new_user") {
             // 未綁定過 ➔ 開啟手機號碼與推薦人資料輸入框
             setLineUser({
@@ -103,6 +103,17 @@ function LoginContent() {
       handleCallback();
     }
   }, [searchParams, router]);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const memberId = localStorage.getItem("churun_member_id");
+      if (session && memberId) {
+        router.replace("/");
+      }
+    };
+    checkSession();
+  }, [router]);
 
   useEffect(() => {
     const handleGoogleCallback = async () => {
@@ -135,7 +146,7 @@ function LoginContent() {
               console.warn("更新最後登入時間失敗", err);
             }
             
-            router.push("/profile");
+            router.replace("/profile");
           } else if (data.status === "new_user") {
             const user = data.user;
             // 找不到會員，開啟手機號碼補填 (複用 LINE 的註冊表單)
@@ -206,7 +217,7 @@ function LoginContent() {
         } else {
           alert(`🎉 恭喜您註冊成功！`);
         }
-        router.push("/profile");
+        router.replace("/profile");
       } else {
         // LINE 新會員註冊 (原本的邏輯)
         const res = await fetch("/api/auth/line/register", {
@@ -244,7 +255,7 @@ function LoginContent() {
         } else {
           alert(`🎉 恭喜您註冊成功！迎新好禮折價券已存入您的券包，開始下單吧！`);
         }
-        router.push("/profile");
+        router.replace("/profile");
       }
     } catch (err) {
       console.error("Register error:", err);
@@ -315,7 +326,7 @@ function LoginContent() {
         localStorage.removeItem("churun_remembered_phone");
       }
 
-      router.push("/");
+      router.replace("/");
     } catch (err) {
       console.error("Login error:", err);
       alert("連線異常，請稍後再試");

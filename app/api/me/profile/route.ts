@@ -7,8 +7,13 @@ export const runtime = 'edge';
 export async function GET(request: Request) {
   try {
     const session = await getSession();
+    const headers = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
     if (!session || !session.memberId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
     }
 
     const { data: member, error } = await supabaseAdmin
@@ -18,12 +23,13 @@ export async function GET(request: Request) {
       .single();
 
     if (error || !member) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Member not found' }, { status: 404, headers });
     }
 
-    return NextResponse.json({ member });
+    return NextResponse.json({ member }, { headers });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache', 'Expires': '0' };
+    return NextResponse.json({ error: error.message }, { status: 500, headers });
   }
 }
 

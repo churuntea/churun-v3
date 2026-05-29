@@ -513,7 +513,7 @@ function StoreContent() {
     }
   };
   
-  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice, totalOriginalPrice } = useCart();
 
   const handleAddBundleToCart = (deal: any) => {
     deal.items.forEach((ruleItem: any) => {
@@ -524,9 +524,7 @@ function StoreContent() {
         image_url: ''
       };
       
-      for (let i = 0; i < ruleItem.quantity; i++) {
-        addToCart(product);
-      }
+      addToCart(product, ruleItem.quantity);
     });
     
     alert(`已將「${deal.name}」商品加入購物車！`);
@@ -1400,8 +1398,8 @@ function StoreContent() {
                               )}
                            </div>
                           <div className="text-right">
+                             {product.original_price && <p className="text-xs text-slate-300 line-through">${Number(product.original_price).toLocaleString()}</p>}
                              <p className="text-xl font-black text-slate-900">${Number(product.price).toLocaleString()}</p>
-                             {product.original_price && <p className="text-xs text-slate-300 line-through">${product.original_price}</p>}
                           </div>
                        </div>
 
@@ -1514,9 +1512,7 @@ function StoreContent() {
                            <button 
                              onClick={() => {
                                if (product.stock_count !== undefined && product.stock_count <= 0) return;
-                               for (let i = 0; i < getProductQty(product.id); i++) {
-                                 addToCart(product);
-                               }
+                               addToCart(product, getProductQty(product.id));
                                setProductQuantities(prev => ({ ...prev, [product.id]: 1 }));
                              }}
                              disabled={product.stock_count !== undefined && product.stock_count <= 0}
@@ -1874,8 +1870,14 @@ function StoreContent() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest">
                     <span>商品小計</span>
-                    <span>${totalPrice.toLocaleString()}</span>
+                    <span>${totalOriginalPrice.toLocaleString()}</span>
                   </div>
+                  {totalOriginalPrice > totalPrice && (
+                    <div className="flex justify-between items-center text-xs font-bold text-rose-500 uppercase tracking-widest">
+                      <span>推廣價優惠折抵</span>
+                      <span>-${(totalOriginalPrice - totalPrice).toLocaleString()}</span>
+                    </div>
+                  )}
                   {discountAmount > 0 && (
                     <div className="flex justify-between items-center text-xs font-bold text-rose-500 uppercase tracking-widest">
                       <span>{activeCoupon ? `優惠折抵 (${activeCoupon.name})` : '套組與活動折抵'}</span>
