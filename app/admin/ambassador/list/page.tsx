@@ -332,6 +332,43 @@ function AdminAmbassadorListContent() {
 
       <main className="max-w-7xl mx-auto p-10 space-y-10">
         
+        
+        {/* KPI Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-amber-500/20 transition-all" />
+              <div className="relative z-10 flex flex-col gap-2">
+                 <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 mb-2">
+                    <Crown className="w-5 h-5 text-white" />
+                 </div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">活躍大使總數</p>
+                 <h3 className="text-3xl font-black text-slate-800">{members.length}</h3>
+              </div>
+           </div>
+           
+           <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-indigo-500/20 transition-all" />
+              <div className="relative z-10 flex flex-col gap-2">
+                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-2">
+                    <Users className="w-5 h-5 text-white" />
+                 </div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">大使體系總直推</p>
+                 <h3 className="text-3xl font-black text-slate-800">{members.reduce((sum, m) => sum + (m.downlines ? m.downlines.length : 0), 0)}</h3>
+              </div>
+           </div>
+           
+           <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-emerald-500/20 transition-all" />
+              <div className="relative z-10 flex flex-col gap-2">
+                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-2">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                 </div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">大使創造總業績</p>
+                 <h3 className="text-3xl font-black text-slate-800">${members.reduce((sum, m) => sum + (Number(m.team_total_sales) || 0), 0).toLocaleString()}</h3>
+              </div>
+           </div>
+        </div>
+
         {/* Search Bar & Total Counter */}
         <div className="flex gap-6">
            <div className="flex-1 relative">
@@ -396,8 +433,18 @@ function AdminAmbassadorListContent() {
                                   {m.name?.slice(0, 1)}
                                </div>
                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                      <p className="text-sm font-black text-slate-800">{m.name}</p>
+                                     {m.downlines && m.downlines.length >= 10 && (
+                                        <span className="px-2 py-0.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-md text-[9px] font-black tracking-widest flex items-center gap-1 shadow-md shadow-rose-500/20 shrink-0">
+                                           🔥 招募王
+                                        </span>
+                                     )}
+                                     {Number(m.team_total_sales) >= 100000 && (
+                                        <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-md text-[9px] font-black tracking-widest flex items-center gap-1 shadow-md shadow-amber-500/20 shrink-0">
+                                           💎 業績王
+                                        </span>
+                                     )}
                                      {m.status === 'warning' && (
                                         <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-0.5 border border-rose-200 shrink-0">
                                            ⚠️ 警示帳戶
@@ -517,24 +564,24 @@ function AdminAmbassadorListContent() {
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-white rounded-[3rem] p-6 sm:p-10 w-full max-w-xl shadow-2xl relative z-10 max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col gap-6 border border-slate-100"
+              className="bg-slate-900 rounded-[3rem] p-6 sm:p-10 w-full max-w-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-10 max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col gap-6 border border-slate-800"
               onClick={e => e.stopPropagation()}
             >
                {/* Modal Header */}
-               <div className="flex items-center justify-between border-b border-slate-100 pb-5 shrink-0">
+               <div className="flex items-center justify-between border-b border-slate-800 pb-5 shrink-0">
                   <div className="flex items-center gap-3">
-                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-md">
-                        <Users className="w-6 h-6 animate-pulse" />
+                     <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <MonitorSmartphone className="w-6 h-6 animate-pulse" />
                      </div>
                      <div>
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">會員帳戶總部控制面板</h3>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Admin Member Control Desk</p>
+                        <h3 className="text-base sm:text-lg font-black text-white tracking-tight">總部最高控制台</h3>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Admin Executive Console</p>
                      </div>
                   </div>
                   <button 
                     disabled={isSaving} 
                     onClick={() => setShowEditModal(false)} 
-                    className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 transition text-sm font-bold"
+                    className="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition text-sm font-bold"
                   >
                     ✕
                   </button>
@@ -557,7 +604,7 @@ function AdminAmbassadorListContent() {
                              type="text" 
                              value={editForm.name} 
                              onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                             className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                             className="w-full bg-slate-800/50 text-white border border-slate-700 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
                              required
                            />
                         </div>
@@ -567,7 +614,7 @@ function AdminAmbassadorListContent() {
                              type="text" 
                              value={editForm.phone} 
                              onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                             className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                             className="w-full bg-slate-800/50 text-white border border-slate-700 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
                              required
                            />
                         </div>
@@ -579,7 +626,7 @@ function AdminAmbassadorListContent() {
                              type="email" 
                              value={editForm.email} 
                              onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                             className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                             className="w-full bg-slate-800/50 text-white border border-slate-700 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
                              placeholder="未設定信箱"
                            />
                         </div>
@@ -607,7 +654,7 @@ function AdminAmbassadorListContent() {
                            <select 
                              value={editForm.tier} 
                              onChange={e => setEditForm(prev => ({ ...prev, tier: e.target.value }))}
-                             className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer"
+                             className="w-full bg-slate-800/50 text-white border border-slate-700 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer"
                            >
                               {MEMBER_TIERS_OPTIONS.map(opt => (
                                  <option key={opt.val} value={opt.val}>{opt.label}</option>
@@ -761,7 +808,7 @@ function AdminAmbassadorListContent() {
                           type="text" 
                           value={editForm.adjustmentReason} 
                           onChange={e => setEditForm(prev => ({ ...prev, adjustmentReason: e.target.value }))}
-                          className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                          className="w-full bg-slate-800/50 text-white border border-slate-700 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
                           placeholder="例如：手動增額、入會訂金折抵、測試帳戶調整"
                           required={!!editForm.balanceAdjustment || !!editForm.pointsAdjustment}
                         />
