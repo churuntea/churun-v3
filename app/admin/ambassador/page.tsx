@@ -90,6 +90,7 @@ export default function AmbassadorManagementPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("pending");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
 
   // Review
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
@@ -434,6 +435,42 @@ export default function AmbassadorManagementPage() {
     }
   };
 
+  // ───────── Bulk Review ─────────
+  const handleBulkReview = async (action: "approve" | "reject") => {
+    if (selectedApps.length === 0) return;
+    const actionName = action === "approve" ? "核准" : "駁回";
+    if (!confirm(`確定要批次${actionName}這 ${selectedApps.length} 筆申請嗎？`)) return;
+    setIsSubmitting(true);
+    let successCount = 0;
+    try {
+      const promises = selectedApps.map(appId => 
+        fetch("/api/ambassador/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            application_id: appId,
+            action: action,
+            notes: reviewNotes[appId] || (action === "approve" ? "批次核准" : "批次駁回"),
+            reviewed_by: adminUser?.name || "管理員",
+          }),
+        }).then(r => r.json())
+      );
+      const results = await Promise.all(promises);
+      successCount = results.filter(r => r.success).length;
+      if (successCount > 0) {
+        showToast(`已成功${actionName} ${successCount} 筆申請`, "success");
+        setSelectedApps([]);
+        fetchApplications();
+      } else {
+        showToast(`批次操作失敗`, "error");
+      }
+    } catch (err: any) {
+      showToast("批次操作網路錯誤：" + err.message, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
@@ -655,6 +692,46 @@ export default function AmbassadorManagementPage() {
         </div>
 
         {/* ═══════════ Application List ═══════════ */}
+        {activeTab === "pending" && sorted.length > 0 && (
+          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-4 shadow-sm mb-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedApps.length === sorted.length && sorted.length > 0}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedApps(sorted.map(a => a.id));
+                  } else {
+                    setSelectedApps([]);
+                  }
+                }}
+                className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span className="text-sm font-bold text-indigo-900">
+                已選擇 {selectedApps.length} 筆待審核申請
+              </span>
+            </div>
+            {selectedApps.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleBulkReview("reject")}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-xl text-xs font-black hover:bg-rose-50 transition"
+                >
+                  批次駁回
+                </button>
+                <button
+                  onClick={() => handleBulkReview("approve")}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition"
+                >
+                  批次核准
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-4" />
@@ -703,6 +780,17 @@ export default function AmbassadorManagementPage() {
                   {/* ── Top: Member Info + Status ── */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
+                      {app.status === "pending" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedApps.includes(app.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedApps(prev => [...prev, app.id]);
+                            else setSelectedApps(prev => prev.filter(id => id !== app.id));
+                          }}
+                          className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      )}
                       {/* Avatar */}
                       <div className="w-12 h-12 bg-slate-900 rounded-[1rem] flex items-center justify-center text-white font-black text-base shrink-0">
                         {member.avatar_url ? (
@@ -755,6 +843,17 @@ export default function AmbassadorManagementPage() {
                       
                       {app.status === "approved" && (
                         <div className="flex flex-col gap-1.5">
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              navigator.clipboard.writeText(`${window.location.origin}/register?ref=${member.member_code}`); 
+                              showToast("已複製專屬推廣連結", "success"); 
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-indigo-600 hover:bg-indigo-50 rounded-md transition"
+                          >
+                            <Copy className="w-3 h-3" />
+                            專屬連結
+                          </button>
                           <button 
                             onClick={() => handleSuspend(app.id, app.member_id, member.name)}
                             className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-amber-600 hover:bg-amber-50 rounded-md transition"
@@ -1434,18 +1533,30 @@ export default function AmbassadorManagementPage() {
                       
                       {memberDetail.downlines.length > 0 ? (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                          {memberDetail.downlines.map((d: any) => (
-                            <div key={d.id} className="bg-white border border-slate-100 rounded-xl p-3 flex justify-between items-center hover:border-indigo-100 hover:shadow-sm transition">
-                              <div>
-                                <p className="text-xs font-black text-slate-800">{d.name} <span className="text-[10px] font-bold text-slate-400 ml-1">({d.member_code})</span></p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-0.5">註冊：{new Date(d.created_at).toLocaleDateString()}</p>
-                              </div>
-                              <div className="text-right">
-                                <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-md text-[9px] font-black tracking-wider">{d.tier || '一般會員'}</span>
-                                <p className="text-[10px] font-black text-emerald-600 mt-1">累積: ${d.lifetime_spend?.toLocaleString() || 0}</p>
-                              </div>
-                            </div>
-                          ))}
+                          {[...memberDetail.downlines]
+                            .sort((a: any, b: any) => (b.lifetime_spend || 0) - (a.lifetime_spend || 0))
+                            .map((d: any, index: number) => {
+                              let rankIcon = null;
+                              if (index === 0) rankIcon = <Crown className="w-5 h-5 text-amber-400 drop-shadow-sm" />;
+                              else if (index === 1) rankIcon = <Award className="w-5 h-5 text-slate-300 drop-shadow-sm" />;
+                              else if (index === 2) rankIcon = <Award className="w-5 h-5 text-amber-600 drop-shadow-sm" />;
+
+                              return (
+                                <div key={d.id} className="bg-white border border-slate-100 rounded-xl p-3 flex justify-between items-center hover:border-indigo-100 hover:shadow-sm transition">
+                                  <div className="flex items-center gap-3">
+                                    {rankIcon && <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">{rankIcon}</div>}
+                                    <div>
+                                      <p className="text-xs font-black text-slate-800">{d.name} <span className="text-[10px] font-bold text-slate-400 ml-1">({d.member_code})</span></p>
+                                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">註冊：{new Date(d.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-md text-[9px] font-black tracking-wider">{d.tier || '一般會員'}</span>
+                                    <p className="text-[10px] font-black text-emerald-600 mt-1">累積: ${d.lifetime_spend?.toLocaleString() || 0}</p>
+                                  </div>
+                                </div>
+                              );
+                          })}
                         </div>
                       ) : (
                         <div className="bg-slate-50 rounded-xl py-6 flex flex-col items-center justify-center border border-dashed border-slate-200">
