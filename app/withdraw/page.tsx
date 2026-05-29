@@ -52,6 +52,7 @@ function WithdrawContent() {
         return 15;
       case "初潤青少年":
       case "初潤好朋友":
+      case "超級小幫手":
       case "初潤中產階級":
         return 10;
       case "初潤社會支柱":

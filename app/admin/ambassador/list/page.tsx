@@ -39,6 +39,7 @@ const MEMBER_TIERS_OPTIONS = [
   { val: "初潤靈魂伴侶", label: "初潤靈魂伴侶 (品牌大使職級)" },
   { val: "invited_team", label: "初潤特邀團 (invited_team)" },
   { val: "partner", label: "創業夥伴合夥人 (partner)" },
+  { val: "超級小幫手", label: "超級小幫手 (合夥人福利)" },
   { val: "ambassador", label: "品牌推廣大使 (ambassador)" }
 ];
 
@@ -202,7 +203,7 @@ function AdminAmbassadorListContent() {
       '姓名': m.name,
       '電話': m.phone,
       '信箱': m.email || '',
-      '職級': m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' ? '合夥人' :
+      '職級': m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手' ? '合夥人' :
              m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '品牌大使' :
              m.tier === 'invited_team' || m.tier === '初潤特邀團' ? '初潤特邀團' : '一般會員',
       '實際職級': m.tier || '一般會員',
@@ -416,14 +417,14 @@ function AdminAmbassadorListContent() {
                          </td>
                          <td className="p-6">
                             <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest inline-flex items-center gap-1 ${
-                               (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                               (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手') ? 'bg-amber-50 text-amber-600 border border-amber-100' :
                                (m.tier === 'ambassador' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                                (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? 'bg-purple-50 text-purple-600 border border-purple-100' :
                                'bg-slate-100 text-slate-500'
                             }`}>
-                               {(m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') && <Crown className="w-3 h-3" />}
+                               {(m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手') && <Crown className="w-3 h-3" />}
                                {
-                                 (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') ? '合夥人' :
+                                 (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手') ? '合夥人' :
                                  (m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '品牌大使' :
                                  (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? '初潤特邀團' : '一般會員'
                                }

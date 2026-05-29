@@ -118,6 +118,7 @@ function TransactionContent() {
       case "初潤閨蜜":
         return { percent: "12%", desc: "閨蜜專屬權利", fee: "無", badge: "閨蜜" };
       case "初潤好朋友":
+      case "超級小幫手":
         return { percent: "10%", desc: "好朋友專屬權利", fee: "無", badge: "好朋友" };
       case "初潤青少年":
         return { percent: "8%", desc: "青少年專屬權利", fee: "無", badge: "青少年" };

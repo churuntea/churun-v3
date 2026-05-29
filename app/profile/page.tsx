@@ -287,6 +287,7 @@ function ProfileContent() {
       case "初潤青少年":
         return { percent: "1.0%", desc: "享零售額外回饋", fee: "無", badge: "新星級" };
       case "初潤好朋友":
+      case "超級小幫手":
         return { percent: "1.2%", desc: "享二級經銷合夥 1.2% 加碼回饋", fee: "無", badge: "好朋友級" };
       case "初潤中產階級":
         return { percent: "1.5%", desc: "享有下線組織儲值 1.5% 額外回饋", fee: "無", badge: "中堅級" };

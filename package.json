@@ -15,7 +15,7 @@
     "audit": "npm audit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.47.10",
+    "@supabase/supabase-js": "^2.106.2",
     "antigravity": "^0.0.0",
     "autoprefixer": "^10.4.16",
     "clsx": "^2.1.1",
