@@ -1,6 +1,23 @@
 const fs = require('fs');
 let c = fs.readFileSync('app/admin/ambassador/list/page.tsx', 'utf8');
 
+// Replace top buttons completely
+c = c.replace(/<div className="flex gap-3">\s*<Link href="\/admin\/deleted-members"[^>]*>[\s\S]*?<\/Link>\s*<button onClick=\{handleExport\}[^>]*>[\s\S]*?<\/button>\s*<\/div>/g, 
+  `<div className="flex gap-3">
+            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-[1.5rem] hover:from-amber-600 hover:to-orange-500 transition shadow-lg shadow-amber-500/20 text-[10px] font-black uppercase tracking-widest active:scale-95 cursor-pointer">
+               <Download className="w-4 h-4" /> 匯出專屬報表 (CSV)
+            </button>
+         </div>`);
+
+// Replace table wrapper
+c = c.replace(/<div className="bg-white rounded-\[3rem\] border border-slate-50 shadow-sm overflow-hidden overflow-x-auto">\s*<table className="w-full min-w-\[1000px\] text-left border-collapse">\s*<thead>\s*<tr className="bg-slate-50\/50 border-b border-slate-50 text-\[10px\] font-black text-slate-400 uppercase tracking-widest">/g, 
+  `<div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto relative z-10">
+           <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 to-transparent pointer-events-none" />
+           <table className="w-full min-w-[1100px] text-left border-collapse relative">
+              <thead>
+                 <tr className="border-b border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/50 backdrop-blur-md">`);
+
+
 c = c.replace(/className="hover:bg-slate-50\/50 transition group"/g, 'className="hover:bg-amber-50/30 transition-all group border-b border-slate-50/50 last:border-0"');
 
 c = c.replace(/<div className="w-12 h-12 bg-slate-900 rounded-\\[1rem\\] flex items-center justify-center text-white font-black">\s*\{m\.name\?\.slice\(0, 1\)\}\s*<\/div>/g, 

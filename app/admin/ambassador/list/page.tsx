@@ -28,18 +28,18 @@ import BrandAmbassadorCard from '@/components/BrandAmbassadorCard';
 
 
 const MEMBER_TIERS_OPTIONS = [
-  { val: "一?��???, label: "一?��???(?�設)" },
-  { val: "?�潤寶寶", label: "?�潤寶寶" },
-  { val: "?�潤幼�???, label: "?�潤幼�??? },
-  { val: "?�潤小�???, label: "?�潤小�??? },
-  { val: "?�潤?��?�?, label: "?�潤?��?�? },
-  { val: "?�潤好�???, label: "?�潤好�???(?�夥?��?)" },
-  { val: "?�潤?��?", label: "?�潤?��? (?�夥?��?)" },
-  { val: "?�潤?�己", label: "?�潤?�己 (?��?大使?��?)" },
-  { val: "?�潤?��?伴侶", label: "?�潤?��?伴侶 (?��?大使?��?)" },
-  { val: "invited_team", label: "?�潤?��???(invited_team)" },
-  { val: "partner", label: "?�業夥伴?�夥�?(partner)" },
-  { val: "ambassador", label: "?��??�廣大使 (ambassador)" }
+  { val: "一般會員", label: "一般會員 (預設)" },
+  { val: "初潤寶寶", label: "初潤寶寶" },
+  { val: "初潤幼兒園", label: "初潤幼兒園" },
+  { val: "初潤小朋友", label: "初潤小朋友" },
+  { val: "初潤青少年", label: "初潤青少年" },
+  { val: "初潤好朋友", label: "初潤好朋友 (合夥職級)" },
+  { val: "初潤閨蜜", label: "初潤閨蜜 (合夥職級)" },
+  { val: "初潤知己", label: "初潤知己 (品牌大使職級)" },
+  { val: "初潤靈魂伴侶", label: "初潤靈魂伴侶 (品牌大使職級)" },
+  { val: "invited_team", label: "初潤特邀團 (invited_team)" },
+  { val: "partner", label: "創業夥伴合夥人 (partner)" },
+  { val: "ambassador", label: "品牌推廣大使 (ambassador)" }
 ];
 
 function AdminAmbassadorListContent() {
@@ -59,7 +59,7 @@ function AdminAmbassadorListContent() {
     phone: "",
     email: "",
     member_code: "",
-    tier: "一?��???,
+    tier: "一般會員",
     is_b2b: false,
     balanceAdjustment: "",
     pointsAdjustment: "",
@@ -160,7 +160,7 @@ function AdminAmbassadorListContent() {
       const { data, error } = await supabase
         .from("members")
         .select("*, upline:upline_id(id, name, member_code, phone), downlines:members!upline_id(id)")
-        .in('tier', ['ambassador', '?�潤?��?大使', '?�潤?�己', '?�潤?��?伴侶'])
+        .in('tier', ['ambassador', '初潤品牌大使', '初潤知己', '初潤靈魂伴侶'])
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -195,25 +195,25 @@ function AdminAmbassadorListContent() {
     if (filteredMembers.length === 0) return;
     
     const exportData = filteredMembers.map(m => ({
-      '註�??��?': new Date(m.created_at).toLocaleString(),
-      '?�員編�?': m.member_code || '',
-      '?�薦人�???: m.upline?.name || '??,
-      '?�薦人代�?: m.upline?.member_code || '??,
-      '姓�?': m.name,
-      '?�話': m.phone,
+      '註冊日期': new Date(m.created_at).toLocaleString(),
+      '會員編號': m.member_code || '',
+      '推薦人姓名': m.upline?.name || '無',
+      '推薦人代碼': m.upline?.member_code || '無',
+      '姓名': m.name,
+      '電話': m.phone,
       '信箱': m.email || '',
-      '?��?': m.tier === 'partner' || m.tier === '?�潤好�??? || m.tier === '?�潤?��?' ? '?�夥�? :
-             m.tier === 'ambassador' || m.tier === '?�潤?��?大使' || m.tier === '?�潤?�己' || m.tier === '?�潤?��?伴侶' ? '?��?大使' :
-             m.tier === 'invited_team' || m.tier === '?�潤?��??? ? '?�潤?��??? : '一?��???,
-      '實�??��?': m.tier || '一?��???,
-      '?�用餘�?': m.virtual_balance || 0,
-      '?�用紅利點數': m.points_balance || 0,
-      '?�推人數': m.downlines ? m.downlines.length : 0,
-      '?��?累�?業績': m.team_total_sales || 0,
-      '?�推累�?業績': m.direct_total_sales || 0
+      '職級': m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' ? '合夥人' :
+             m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '品牌大使' :
+             m.tier === 'invited_team' || m.tier === '初潤特邀團' ? '初潤特邀團' : '一般會員',
+      '實際職級': m.tier || '一般會員',
+      '可用餘額': m.virtual_balance || 0,
+      '可用紅利點數': m.points_balance || 0,
+      '直推人數': m.downlines ? m.downlines.length : 0,
+      '團隊累積業績': m.team_total_sales || 0,
+      '直推累積業績': m.direct_total_sales || 0
     }));
 
-    exportToCsv(`?�潤_?��?大使?�單_${new Date().toISOString().split('T')[0]}.csv`, exportData);
+    exportToCsv(`初潤_品牌大使名單_${new Date().toISOString().split('T')[0]}.csv`, exportData);
   };
 
   const handleSaveChanges = async (e: React.FormEvent) => {
@@ -237,7 +237,7 @@ function AdminAmbassadorListContent() {
         status: editForm.status
       };
 
-      // 串接 API ?��?後端?��??��??�日誌寫??
+      // 串接 API 進行後端特權異動與日誌寫入
       const res = await fetch("/api/admin/members", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -247,14 +247,14 @@ function AdminAmbassadorListContent() {
       const data = await res.json();
       if (data.success) {
         setShowEditModal(false);
-        alert("?? 帳戶?��?完全?��?！異?��??��?對帳?�已寫入?�端?��???);
+        alert("🎉 帳戶異動完全成功！異動記錄與對帳單已寫入雲端數據。");
         fetchMembers();
       } else {
-        setErrorMessage(data.error || "?��?變更失�?");
+        setErrorMessage(data.error || "儲存變更失敗");
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMessage("網路請�??�誤�? + err.message);
+      setErrorMessage("網路請求錯誤：" + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -262,17 +262,17 @@ function AdminAmbassadorListContent() {
 
   const handleDeleteMember = async () => {
     if (!selectedMember || !adminUser) return;
-    if (adminUser.title !== '總�??? && adminUser.title !== '超�?管�???) {
-      alert("?? 權�?不足！只?��?高管?�員（總經�?/超�?管�??��??��??��??�除程�???);
+    if (adminUser.title !== '總經理' && adminUser.title !== '超級管理員') {
+      alert("🔒 權限不足！只有最高管理員（總經理/超級管理員）有權執行刪除程序。");
       return;
     }
 
-    const firstConfirm = confirm(`?�� 警�?：您?��?永�??�除?�員??{selectedMember.name}?��?帳戶！\n此�?作�?將該?�員?�錢?��?額、�??��??�、�??��?細、交?��??��??��??�相?��??�」在資�?庫中安全永�??�除，�??��??�復！\n\n?�確定�?繼�??��?`);
+    const firstConfirm = confirm(`🚨 警告：您即將永久刪除會員「${selectedMember.name}」的帳戶！\n此操作會將該會員的錢包餘額、紅利點數、訂單明細、交易紀錄等「所有相關資料」在資料庫中安全永久抹除，且無法回復！\n\n您確定要繼續嗎？`);
     if (!firstConfirm) return;
 
-    const secondConfirm = prompt(`??請輸?��??��?姓�???{selectedMember.name}?�以確�??��??�除：`);
+    const secondConfirm = prompt(`❗ 請輸入會員的姓名「${selectedMember.name}」以確認授權刪除：`);
     if (secondConfirm !== selectedMember.name) {
-      alert("??驗�?姓�?不符，已?��??�除程�???);
+      alert("❌ 驗證姓名不符，已取消刪除程序。");
       return;
     }
 
@@ -285,14 +285,14 @@ function AdminAmbassadorListContent() {
       const data = await res.json();
       if (data.success) {
         setShowEditModal(false);
-        alert("?? ?�員?? + selectedMember.name + "?��??�相?��??�已?��?從雲端�??�庫安全永�??�除�?);
+        alert("🎉 會員「" + selectedMember.name + "」所有相關資料已成功從雲端資料庫安全永久抹除！");
         fetchMembers();
       } else {
-        setErrorMessage(data.error || "?�除?�員失�?");
+        setErrorMessage(data.error || "刪除會員失敗");
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMessage("網路?�誤�? + err.message);
+      setErrorMessage("網路錯誤：" + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -316,17 +316,15 @@ function AdminAmbassadorListContent() {
          <div className="flex items-center gap-6">
             <Link href="/admin" className="p-2 hover:bg-slate-50 rounded-full transition">
                <ArrowLeft className="w-5 h-5 text-slate-400" />
-            
+            </Link>
             <div>
-               <h1 className="text-xl font-black tracking-tight flex items-center gap-2"><Crown className="w-6 h-6 text-amber-500" /> ?��?大使總覽?�帳?�管??/h1>
+               <h1 className="text-xl font-black tracking-tight flex items-center gap-2"><Crown className="w-6 h-6 text-amber-500" /> 品牌大使總覽與帳戶管理</h1>
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Brand Ambassadors Directory</p>
             </div>
          </div>
          <div className="flex gap-3">
-               <Trash2 className="w-3.5 h-3.5 text-rose-500" /> 已刪?��??�總�?
-            
-            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest active:scale-95 cursor-pointer">
-               <Download className="w-4 h-4" /> ?�出?�單 (CSV)
+            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-[1.5rem] hover:from-amber-600 hover:to-orange-500 transition shadow-lg shadow-amber-500/20 text-[10px] font-black uppercase tracking-widest active:scale-95 cursor-pointer">
+               <Download className="w-4 h-4" /> 匯出專屬報表 (CSV)
             </button>
          </div>
       </nav>
@@ -339,7 +337,7 @@ function AdminAmbassadorListContent() {
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
               <input 
                 type="text" 
-                placeholder="?��?姓�??�電話�??�員�?��..." 
+                placeholder="搜尋姓名、電話或會員代碼..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full bg-white border border-slate-100 p-6 pl-16 rounded-[2rem] text-sm font-bold focus:ring-2 focus:ring-indigo-500/5 transition shadow-sm"
@@ -356,31 +354,31 @@ function AdminAmbassadorListContent() {
            <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 to-transparent pointer-events-none" />
            <table className="w-full min-w-[1100px] text-left border-collapse relative">
               <thead>
-<tr className="border-b border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/50 backdrop-blur-md">
-                    <th className="p-6 pl-8">?�員資�?</th>
-                    <th className="p-6">身份?��?</th>
-                    <th className="p-6">?�員編�??�推?�人</th>
-                    <th className="p-6 text-right">?�用餘�?</th>
+                 <tr className="border-b border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/50 backdrop-blur-md">
+                    <th className="p-6 pl-8">會員資訊</th>
+                    <th className="p-6">身份職級</th>
+                    <th className="p-6">會員編號與推薦人</th>
+                    <th className="p-6 text-right">可用餘額</th>
                     <th className="p-6 text-right">紅利點數</th>
-                    <th className="p-6 text-center">?�推人數</th>
-                    <th className="p-6 text-right">?��?累�?業績</th>
-                    <th className="p-6 pr-8 text-right">管�??��?</th>
+                    <th className="p-6 text-center">直推人數</th>
+                    <th className="p-6 text-right">團隊累積業績</th>
+                    <th className="p-6 pr-8 text-right">管理操作</th>
                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                  {isLoading ? (
                     <tr>
-                       <td colSpan={8} className="p-20 text-center">
+                       <td colSpan={7} className="p-20 text-center">
                           <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
                        </td>
                     </tr>
                  ) : filteredMembers.length === 0 ? (
                     <tr>
-                       <td colSpan={8} className="p-20 text-center">
+                       <td colSpan={7} className="p-20 text-center">
                           <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
                              <Users className="w-8 h-8 text-slate-200" />
                           </div>
-                          <p className="text-sm font-bold text-slate-400">?��?沒�?符�?條件?��???/p>
+                          <p className="text-sm font-bold text-slate-400">目前沒有符合條件的會員</p>
                        </td>
                     </tr>
                  ) : (
@@ -401,12 +399,12 @@ function AdminAmbassadorListContent() {
                                      <p className="text-sm font-black text-slate-800">{m.name}</p>
                                      {m.status === 'warning' && (
                                         <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-0.5 border border-rose-200 shrink-0">
-                                           ?��? 警示帳戶
+                                           ⚠️ 警示帳戶
                                         </span>
                                      )}
                                      {m.status === 'exited' && (
                                         <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[8px] font-black tracking-widest uppercase flex items-center gap-0.5 border border-slate-200 shrink-0">
-                                           ?�� 已退??
+                                           🔴 已退會
                                         </span>
                                      )}
                                   </div>
@@ -418,25 +416,25 @@ function AdminAmbassadorListContent() {
                          </td>
                          <td className="p-6">
                             <span className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest inline-flex items-center gap-1 ${
-                               (m.tier === 'partner' || m.tier === '?�潤好�??? || m.tier === '?�潤?��?') ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                               (m.tier === 'ambassador' || m.tier === '?�潤?�己' || m.tier === '?�潤?��?伴侶') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                               (m.tier === 'invited_team' || m.tier === '?�潤?��???) ? 'bg-purple-50 text-purple-600 border border-purple-100' :
+                               (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                               (m.tier === 'ambassador' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                               (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? 'bg-purple-50 text-purple-600 border border-purple-100' :
                                'bg-slate-100 text-slate-500'
                             }`}>
-                               {(m.tier === 'partner' || m.tier === '?�潤好�??? || m.tier === '?�潤?��?') && <Crown className="w-3 h-3" />}
+                               {(m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') && <Crown className="w-3 h-3" />}
                                {
-                                 (m.tier === 'partner' || m.tier === '?�潤好�??? || m.tier === '?�潤?��?') ? '?�夥�? :
-                                 (m.tier === 'ambassador' || m.tier === '?�潤?��?大使' || m.tier === '?�潤?�己' || m.tier === '?�潤?��?伴侶') ? '?��?大使' :
-                                 (m.tier === 'invited_team' || m.tier === '?�潤?��???) ? '?�潤?��??? : '一?��???
+                                 (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜') ? '合夥人' :
+                                 (m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '品牌大使' :
+                                 (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? '初潤特邀團' : '一般會員'
                                }
                             </span>
-                            <span className="text-[8px] font-mono font-bold block text-slate-400 mt-1 opacity-60">[{m.tier || "一?��???}]</span>
+                            <span className="text-[8px] font-mono font-bold block text-slate-400 mt-1 opacity-60">[{m.tier || "一般會員"}]</span>
                          </td>
                          <td className="p-6">
                             <div className="space-y-1">
                                <p className="text-xs font-mono font-bold text-indigo-600">{m.member_code}</p>
                                <p className="text-[9px] font-bold text-slate-400">
-                                 ?�薦�? {m.upline ? `${m.upline.name} (${m.upline.member_code || '?�代�?})` : '??}
+                                 推薦人: {m.upline ? `${m.upline.name} (${m.upline.member_code || '無代碼'})` : '無'}
                                </p>
                             </div>
                          </td>
@@ -464,7 +462,7 @@ function AdminAmbassadorListContent() {
                                   phone: m.phone || "",
                                   email: m.email || "",
                                   member_code: m.member_code || "",
-                                  tier: m.tier || "一?��???,
+                                  tier: m.tier || "一般會員",
                                   is_b2b: !!m.is_b2b,
                                   balanceAdjustment: "",
                                   pointsAdjustment: "",
@@ -480,7 +478,7 @@ function AdminAmbassadorListContent() {
                               }}
                               className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition shadow-md shadow-slate-900/10 active:scale-95"
                             >
-                               編輯帳戶 ?��?
+                               編輯帳戶 ⚙️
                             </button>
                             {canApplyForAmbassador(m) && m.tier !== 'ambassador' && (
                               <button
@@ -490,7 +488,7 @@ function AdminAmbassadorListContent() {
                                 }}
                                 className="ml-2 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold"
                               >
-                                ?��??��?大使
+                                申請品牌大使
                               </button>
                             )}
                          </td>
@@ -528,7 +526,7 @@ function AdminAmbassadorListContent() {
                         <Users className="w-6 h-6 animate-pulse" />
                      </div>
                      <div>
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">?�員帳戶總部?�制?�板</h3>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">會員帳戶總部控制面板</h3>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Admin Member Control Desk</p>
                      </div>
                   </div>
@@ -537,23 +535,23 @@ function AdminAmbassadorListContent() {
                     onClick={() => setShowEditModal(false)} 
                     className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 transition text-sm font-bold"
                   >
-                    ??
+                    ✕
                   </button>
                </div>
 
                {errorMessage && (
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-xs font-bold text-rose-600">
-                     ?��? {errorMessage}
+                     ⚠️ {errorMessage}
                   </div>
                )}
 
                <form onSubmit={handleSaveChanges} className="space-y-6">
                   {/* Basic Profile Editing Grid */}
                   <div className="space-y-4">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">?? ?�本?�人資�?設�?</span>
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">🔒 基本個人資料設定</span>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?�員姓�?</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">會員姓名</label>
                            <input 
                              type="text" 
                              value={editForm.name} 
@@ -563,7 +561,7 @@ function AdminAmbassadorListContent() {
                            />
                         </div>
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?�絡?�話</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">聯絡電話</label>
                            <input 
                              type="text" 
                              value={editForm.phone} 
@@ -575,24 +573,24 @@ function AdminAmbassadorListContent() {
                      </div>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?��?信箱 (?�填)</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">電子信箱 (選填)</label>
                            <input 
                              type="email" 
                              value={editForm.email} 
                              onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
                              className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
-                             placeholder="?�設定信�?
+                             placeholder="未設定信箱"
                            />
                         </div>
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?�員編�? {adminUser?.title !== '總�??? && adminUser?.title !== '超�?管�??? && "(?��??�高管?�員修改)"}</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">會員編號 {adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員' && "(僅限最高管理員修改)"}</label>
                            <input 
                              type="text" 
                              value={editForm.member_code} 
                              onChange={e => setEditForm(prev => ({ ...prev, member_code: e.target.value }))}
-                             disabled={adminUser?.title !== '總�??? && adminUser?.title !== '超�?管�???}
-                             className={`w-full border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none ${adminUser?.title !== '總�??? && adminUser?.title !== '超�?管�??? ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-50 text-amber-900'}`}
-                             placeholder="例�?：CR24M0101123"
+                             disabled={adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員'}
+                             className={`w-full border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none ${adminUser?.title !== '總經理' && adminUser?.title !== '超級管理員' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-50 text-amber-900'}`}
+                             placeholder="例如：CR24M0101123"
                              required
                            />
                         </div>
@@ -601,10 +599,10 @@ function AdminAmbassadorListContent() {
 
                   {/* Tier & B2B Partner Selector */}
                   <div className="space-y-4 pt-2">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">?? ?��??��?調�?</span>
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">👑 階級職務調動</span>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?��??�潤?��?</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">當前初潤職級</label>
                            <select 
                              value={editForm.tier} 
                              onChange={e => setEditForm(prev => ({ ...prev, tier: e.target.value }))}
@@ -617,7 +615,7 @@ function AdminAmbassadorListContent() {
                         </div>
                         <div className="space-y-1.5 flex flex-col justify-end">
                            <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
-                              <span className="text-xs font-bold text-slate-700">?�用 B2B ?�夥?��?資格</span>
+                              <span className="text-xs font-bold text-slate-700">啟用 B2B 合夥團隊資格</span>
                               <input 
                                 type="checkbox" 
                                 checked={editForm.is_b2b}
@@ -629,22 +627,22 @@ function AdminAmbassadorListContent() {
                      </div>
                   </div>
 
-                  {/* ?�� ?�薦?��?設�? */}
+                  {/* 👥 推薦關係設定 */}
                   <div className="space-y-4 pt-2">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">?�� ?�薦?��?設�?</span>
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">👥 推薦關係設定</span>
                      <div className="bg-slate-50 p-5 rounded-2xl space-y-4 border border-slate-100/50">
                         <div className="flex items-center justify-between">
                            <div className="space-y-1">
-                              <span className="text-[8px] font-black text-slate-400 block uppercase">?��??�薦�?/span>
+                              <span className="text-[8px] font-black text-slate-400 block uppercase">當前推薦人</span>
                               <p className="text-xs font-bold text-slate-700">
                                  {selectedUplineId ? (
                                     uplineSearchResult && uplineSearchResult.id === selectedUplineId ? (
-                                       `${uplineSearchResult.name} (${uplineSearchResult.member_code || uplineSearchResult.phone || '?�代�?})`
+                                       `${uplineSearchResult.name} (${uplineSearchResult.member_code || uplineSearchResult.phone || '無代碼'})`
                                     ) : (
-                                       "已選?�新?�薦�?(見�???"
+                                       "已選擇新推薦人 (見下方)"
                                     )
                                  ) : (
-                                    <span className="text-slate-400 font-bold">?�推?�人 (系統?�設)</span>
+                                    <span className="text-slate-400 font-bold">無推薦人 (系統預設)</span>
                                  )}
                               </p>
                            </div>
@@ -658,13 +656,13 @@ function AdminAmbassadorListContent() {
                                  }}
                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[9px] font-black tracking-widest uppercase transition"
                               >
-                                 ??清除?�薦�?
+                                 ✕ 清除推薦人
                               </button>
                            )}
                         </div>
 
                         <div className="space-y-1.5 pt-2 border-t border-slate-200/50 relative">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?��?並�??�推?�人 (輸入�?��?��?機�?�?</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">搜尋並變更推薦人 (輸入代碼或手機號碼)</label>
                            <div className="relative">
                               <input
                                  type="text"
@@ -673,7 +671,7 @@ function AdminAmbassadorListContent() {
                                     const val = e.target.value;
                                     setUplineSearch(val);
                                  }}
-                                 placeholder="�? CR26M311991 ??0912345678"
+                                 placeholder="例: CR26M311991 或 0912345678"
                                  className="w-full bg-white border border-slate-100 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
                               />
                               {isSearchingUpline && (
@@ -687,18 +685,18 @@ function AdminAmbassadorListContent() {
                               <div className="mt-2 ml-1">
                                  {uplineSearchResult === null && !isSearchingUpline && (
                                     <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                                       ???��??�該?�薦人�?請確認代碼�??��??�碼?�否�?��
+                                       ❌ 找不到該推薦人，請確認代碼或手機號碼是否正確
                                     </p>
                                  )}
                                  {uplineSearchResult && uplineSearchResult.error === "self" && (
                                     <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
-                                       ?��? 不能將�??�自己設?�自己�??�薦人�?
+                                       ⚠️ 不能將會員自己設為自己的推薦人！
                                     </p>
                                  )}
                                  {uplineSearchResult && !uplineSearchResult.error && uplineSearchResult.id && (
                                     <div className="flex items-center justify-between bg-emerald-50/50 border border-emerald-100/50 p-2.5 rounded-xl mt-2">
                                        <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                                          ???�到?�薦人�?{uplineSearchResult.name} ({uplineSearchResult.member_code || '?�代�?})
+                                          ✨ 找到推薦人：{uplineSearchResult.name} ({uplineSearchResult.member_code || '無代碼'})
                                        </p>
                                        {selectedUplineId !== uplineSearchResult.id && (
                                           <button
@@ -708,7 +706,7 @@ function AdminAmbassadorListContent() {
                                              }}
                                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[8px] font-black tracking-widest uppercase transition"
                                           >
-                                             套用變更 ??
+                                             套用變更 ✓
                                           </button>
                                        )}
                                     </div>
@@ -721,10 +719,10 @@ function AdminAmbassadorListContent() {
 
                   {/* Account Balance and Points Adjustment Panel */}
                   <div className="space-y-4 pt-2">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">?�� 資�??��??�調�?(?�空�?��不異??</span>
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">💰 資金與點數調度 (留空代表不異動)</span>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                           <label className="text-[9px] font-black text-slate-400 ml-1">?�用?�收款儲????��?��? (NT$)</label>
+                           <label className="text-[9px] font-black text-slate-400 ml-1">可用預收款儲值/扣除金額 (NT$)</label>
                            <input 
                              type="text" 
                              value={editForm.balanceAdjustment} 
@@ -735,9 +733,9 @@ function AdminAmbassadorListContent() {
                                 }
                              }}
                              className="w-full bg-indigo-50/30 border border-indigo-100/50 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none text-indigo-900"
-                             placeholder="�? 5000 ??-1000"
+                             placeholder="例: 5000 或 -1000"
                            />
-                           <span className="text-[8px] font-bold text-slate-400 block ml-1">?��?餘�?: ${Number(selectedMember.virtual_balance || 0).toLocaleString()}</span>
+                           <span className="text-[8px] font-bold text-slate-400 block ml-1">現有餘額: ${Number(selectedMember.virtual_balance || 0).toLocaleString()}</span>
                         </div>
                         <div className="space-y-1.5">
                            <label className="text-[9px] font-black text-slate-400 ml-1">紅利點數調整 (Points)</label>
@@ -751,41 +749,41 @@ function AdminAmbassadorListContent() {
                                 }
                              }}
                              className="w-full bg-emerald-50/30 border border-emerald-100/50 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/10 outline-none text-emerald-900"
-                             placeholder="�? 200 ??-50"
+                             placeholder="例: 200 或 -50"
                            />
-                           <span className="text-[8px] font-bold text-slate-400 block ml-1">?��?點數: {Number(selectedMember.points_balance || 0).toLocaleString()} pt</span>
+                           <span className="text-[8px] font-bold text-slate-400 block ml-1">現有點數: {Number(selectedMember.points_balance || 0).toLocaleString()} pt</span>
                         </div>
                      </div>
                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 ml-1">資�??��??��?/?�註 (?��??��?，此欄為必填)</label>
+                        <label className="text-[9px] font-black text-slate-400 ml-1">資金異動原因/備註 (若有異動，此欄為必填)</label>
                         <input 
                           type="text" 
                           value={editForm.adjustmentReason} 
                           onChange={e => setEditForm(prev => ({ ...prev, adjustmentReason: e.target.value }))}
                           className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 outline-none"
-                          placeholder="例�?：�??��?額、入?��??��??�、測試帳?�調??
+                          placeholder="例如：手動增額、入會訂金折抵、測試帳戶調整"
                           required={!!editForm.balanceAdjustment || !!editForm.pointsAdjustment}
                         />
                      </div>
                   </div>
 
-                  {/* ?���??�高管?��??��??� (?�總經�?/超�?管�??? */}
-                  {(adminUser?.title === '總�??? || adminUser?.title === '超�?管�???) && (
+                  {/* 🛡️ 最高管理權限專區 (限總經理/超級管理員) */}
+                  {(adminUser?.title === '總經理' || adminUser?.title === '超級管理員') && (
                      <div className="space-y-4 pt-4 border-t border-rose-100/50">
-                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest block ml-1">?���??�高管?��??��??� (?�總經�?/超�?管�???</span>
+                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest block ml-1">🛡️ 最高管理權限專區 (限總經理/超級管理員)</span>
                         <div className="bg-rose-50/20 p-5 rounded-[2rem] space-y-4 border border-rose-100/30">
                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               {/* Status Selector */}
                               <div className="space-y-1.5">
-                                 <label className="text-[9px] font-black text-slate-500 ml-1">帳戶?��??�??/label>
+                                 <label className="text-[9px] font-black text-slate-500 ml-1">帳戶運作狀態</label>
                                  <select 
                                    value={editForm.status || "active"} 
                                    onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
                                    className="w-full bg-white border border-rose-100 p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-rose-500/10 outline-none cursor-pointer text-slate-800"
                                  >
-                                    <option value="active">?�� �?��?��? (Active)</option>
-                                    <option value="warning">?��? 警示帳戶 (Warning)</option>
-                                    <option value="exited">?�� 已退??(Exited)</option>
+                                    <option value="active">🟢 正常運作 (Active)</option>
+                                    <option value="warning">⚠️ 警示帳戶 (Warning)</option>
+                                    <option value="exited">🔴 已退會 (Exited)</option>
                                  </select>
                               </div>
 
@@ -796,7 +794,7 @@ function AdminAmbassadorListContent() {
                                     onClick={handleDeleteMember}
                                     className="w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black tracking-widest uppercase transition flex items-center justify-center gap-2 shadow-lg shadow-rose-600/10 active:scale-95 cursor-pointer"
                                  >
-                                    ?�� 永�??�除該�??��???
+                                    🚨 永久刪除該會員資料
                                  </button>
                               </div>
                            </div>
@@ -812,14 +810,14 @@ function AdminAmbassadorListContent() {
                        onClick={() => setShowEditModal(false)}
                        className="flex-1 py-4 bg-slate-50 hover:bg-slate-100 rounded-xl font-black text-[10px] uppercase tracking-widest transition text-slate-500"
                      >
-                        ?��?返�?
+                        取消返回
                      </button>
                      <button 
                        type="submit"
                        disabled={isSaving}
                        className="flex-1 py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2"
                      >
-                        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "確�??��?修改 ??}
+                        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "確認儲存修改 ✓"}
                      </button>
                   </div>
                </form>
@@ -840,7 +838,7 @@ function AdminAmbassadorListContent() {
                   fetchMembers();
                   setShowAmbassadorModal(false);
                   setSelectedAmbassadorMember(null);
-                  alert('?? ?��?大使?��??��?！已?�新?�員?��???);
+                  alert('🎉 品牌大使申請成功！已更新會員職級。');
                 }}
               />
             )}
