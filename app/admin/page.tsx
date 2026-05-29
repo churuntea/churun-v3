@@ -115,7 +115,7 @@ function AdminDashboardContent() {
   const [b2bVsB2cShare, setB2bVsB2cShare] = useState({ b2bRev: 0, b2cRev: 0 });
   const [orderTiers, setOrderTiers] = useState({ tier1: 0, tier2: 0, tier3: 0, tier4: 0 });
   const [productRepeatScores, setProductRepeatScores] = useState<any[]>([]);
-  const [marketingSubTab, setMarketingSubTab] = useState<"persona" | "pricing">("persona");
+  const [marketingSubTab, setMarketingSubTab] = useState<"persona" | "pricing" | "strategy">("strategy");
   const [isGeneratingBackup, setIsGeneratingBackup] = useState(false);
   const [backupData, setBackupData] = useState<any>(null);
 
