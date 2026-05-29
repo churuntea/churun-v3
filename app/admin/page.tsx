@@ -1285,7 +1285,8 @@ function AdminDashboardContent() {
                            className="space-y-2 overflow-hidden"
                         >
                            {[
-                              { label: "👑 品牌大使申請審核", icon: Crown, action: "/admin/ambassador" }
+                              { label: "👥 品牌大使名單總覽", icon: Users, action: "/admin/ambassador/list" },
+                              { label: "👑 升級審核與業績監控", icon: Crown, action: "/admin/ambassador" }
                            ].map((act, i) => (
                               <button 
                                  key={act.label}
