@@ -25,7 +25,11 @@ import {
   Download,
   Calendar,
   MoreVertical,
-  X
+  X,
+  Phone,
+  Copy,
+  ShieldAlert,
+  PauseCircle
 } from "lucide-react";
 
 // ───────── Types ─────────
@@ -55,7 +59,8 @@ interface ApplicationRow {
   };
 }
 
-type TabKey = "all" | "pending" | "ambassador" | "rejected";
+type TabKey = "all" | "pending" | "ambassador" | "suspended" | "rejected";
+type SortKey = "newest" | "lifetime_spend";
 
 // ───────── Helpers ─────────
 function formatDate(iso: string): string {
@@ -70,7 +75,7 @@ function isBase64Image(str: string | null | undefined): boolean {
 }
 
 // ───────── Component ─────────
-export default function AmbassadorAdminPage() {
+export default function AmbassadorManagementPage() {
   const router = useRouter();
 
   // Auth
@@ -82,8 +87,9 @@ export default function AmbassadorAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
-  const [activeTab, setActiveTab] = useState<TabKey>("all");
+  const [activeTab, setActiveTab] = useState<TabKey>("pending");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
 
   // Review
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
@@ -201,6 +207,7 @@ export default function AmbassadorAdminPage() {
   const stats = {
     pending: applications.filter((a) => a.status === "pending").length,
     approved: applications.filter((a) => a.status === "approved" && a.application_type !== "partner").length,
+    suspended: applications.filter((a) => a.status === "suspended").length,
     rejected: applications.filter((a) => a.status === "rejected").length,
   };
 
@@ -212,6 +219,7 @@ export default function AmbassadorAdminPage() {
     // Tab filter
     if (activeTab === "pending" && app.status !== "pending") return false;
     if (activeTab === "ambassador" && app.status !== "approved") return false;
+    if (activeTab === "suspended" && app.status !== "suspended") return false;
     if (activeTab === "rejected" && app.status !== "rejected") return false;
 
     // Search filter
@@ -241,6 +249,13 @@ export default function AmbassadorAdminPage() {
     return true;
   });
 
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "lifetime_spend") {
+      return (b.members?.lifetime_spend || 0) - (a.members?.lifetime_spend || 0);
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   // ───────── Export CSV ─────────
   const handleExportCSV = () => {
     if (filtered.length === 0) {
@@ -260,7 +275,7 @@ export default function AmbassadorAdminPage() {
       "匯款後五碼"
     ].join(",");
 
-    const rows = filtered.map(app => {
+    const rows = sorted.map(app => {
       const m = app.members;
       const typeLabel = getTypeBadge(app.application_type).label;
       const statusLabel = getStatusBadge(app.status).label;
@@ -329,6 +344,38 @@ export default function AmbassadorAdminPage() {
     } catch (err: any) {
       showToast("網路錯誤", "error");
     }
+  };
+
+  // ───────── Suspend Action ─────────
+  const handleSuspend = async (appId: string, memberId: string, memberName: string) => {
+    if (!confirm(`確定要暫時停權「${memberName}」嗎？這會暫時凍結他的 B2B 推廣權限。`)) return;
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "suspend", payload: { applicationId: appId, memberId } })
+      });
+      if ((await res.json()).success) {
+        showToast(`已暫時停權「${memberName}」`, "success");
+        fetchApplications();
+      }
+    } catch (err) {}
+  };
+
+  // ───────── Restore Action ─────────
+  const handleRestore = async (appId: string, memberId: string, memberName: string) => {
+    if (!confirm(`確定要恢復「${memberName}」的大使權限嗎？`)) return;
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", payload: { applicationId: appId, memberId } })
+      });
+      if ((await res.json()).success) {
+        showToast(`已恢復「${memberName}」的權限`, "success");
+        fetchApplications();
+      }
+    } catch (err) {}
   };
 
   // ───────── Revoke Action ─────────
@@ -412,6 +459,8 @@ export default function AmbassadorAdminPage() {
         return { label: "待審核", color: "bg-amber-100 text-amber-800", icon: <Clock className="w-3 h-3" /> };
       case "approved":
         return { label: "已核准", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle2 className="w-3 h-3" /> };
+      case "suspended":
+        return { label: "已停權", color: "bg-slate-200 text-slate-700", icon: <ShieldAlert className="w-3 h-3" /> };
       case "rejected":
         return { label: "已駁回", color: "bg-rose-100 text-rose-800", icon: <XCircle className="w-3 h-3" /> };
       default:
@@ -424,6 +473,7 @@ export default function AmbassadorAdminPage() {
     { key: "all", label: "全部", count: applications.filter(a => a.application_type !== "partner").length },
     { key: "pending", label: "待審核", count: stats.pending },
     { key: "ambassador", label: "已核准大使", count: stats.approved },
+    { key: "suspended", label: "已停權", count: stats.suspended },
     { key: "rejected", label: "已駁回", count: stats.rejected },
   ];
 
@@ -568,30 +618,40 @@ export default function AmbassadorAdminPage() {
           </div>
         </div>
 
-        {/* ═══════════ Tab Filter ═══════════ */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeTab === tab.key
-                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                  : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"
-              }`}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span
-                  className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[8px] ${
-                    activeTab === tab.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* ═══════════ Tab Filter & Sort ═══════════ */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`shrink-0 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  activeTab === tab.key
+                    ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
+                    : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"
+                }`}
+              >
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span
+                    className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[8px] ${
+                      activeTab === tab.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            className="shrink-0 bg-white border border-slate-100 py-2.5 px-4 rounded-xl text-[10px] font-black text-slate-600 focus:ring-2 focus:ring-emerald-500/10 outline-none shadow-sm cursor-pointer uppercase tracking-widest"
+          >
+            <option value="newest">最新申請排序</option>
+            <option value="lifetime_spend">累積消費最高</option>
+          </select>
         </div>
 
         {/* ═══════════ Application List ═══════════ */}
@@ -626,7 +686,7 @@ export default function AmbassadorAdminPage() {
             }}
             className="space-y-4"
           >
-            {filtered.map((app) => {
+            {sorted.map((app) => {
               const typeBadge = getTypeBadge(app.application_type);
               const statusBadge = getStatusBadge(app.status);
               const member = app.members;
@@ -661,9 +721,16 @@ export default function AmbassadorAdminPage() {
                           <Eye className="w-3.5 h-3.5 text-slate-400" />
                         </button>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                          <span className="text-[10px] font-bold text-slate-400">{member.phone}</span>
+                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                            {member.phone}
+                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(member.phone); showToast("已複製電話號碼", "success"); }} className="p-0.5 hover:bg-slate-100 rounded text-slate-300 hover:text-emerald-600 transition"><Copy className="w-2.5 h-2.5" /></button>
+                            <a href={`tel:${member.phone}`} className="p-0.5 hover:bg-slate-100 rounded text-slate-300 hover:text-indigo-600 transition"><Phone className="w-2.5 h-2.5" /></a>
+                          </span>
                           {member.email && (
-                            <span className="text-[10px] font-bold text-slate-300">· {member.email}</span>
+                            <span className="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+                              · {member.email}
+                              <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(member.email || ""); showToast("已複製信箱", "success"); }} className="p-0.5 hover:bg-slate-100 rounded text-slate-300 hover:text-emerald-600 transition"><Copy className="w-2.5 h-2.5" /></button>
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
@@ -687,13 +754,41 @@ export default function AmbassadorAdminPage() {
                       </div>
                       
                       {app.status === "approved" && (
-                        <button 
-                          onClick={() => handleRevoke(app.id, app.member_id, member.name)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-rose-500 hover:bg-rose-50 rounded-md transition"
-                        >
-                          <XCircle className="w-3 h-3" />
-                          撤銷資格
-                        </button>
+                        <div className="flex flex-col gap-1.5">
+                          <button 
+                            onClick={() => handleSuspend(app.id, app.member_id, member.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-amber-600 hover:bg-amber-50 rounded-md transition"
+                          >
+                            <PauseCircle className="w-3 h-3" />
+                            暫時停權
+                          </button>
+                          <button 
+                            onClick={() => handleRevoke(app.id, app.member_id, member.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-rose-500 hover:bg-rose-50 rounded-md transition"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            撤銷資格
+                          </button>
+                        </div>
+                      )}
+
+                      {app.status === "suspended" && (
+                        <div className="flex flex-col gap-1.5">
+                          <button 
+                            onClick={() => handleRestore(app.id, app.member_id, member.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-emerald-600 hover:bg-emerald-50 rounded-md transition"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            恢復權限
+                          </button>
+                          <button 
+                            onClick={() => handleRevoke(app.id, app.member_id, member.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-rose-500 hover:bg-rose-50 rounded-md transition"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            撤銷資格
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

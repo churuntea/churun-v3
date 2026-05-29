@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       const { error: updateMemberErr } = await supabase
         .from('members')
         .update({
+          is_b2b: false,
           ambassador_status: null,
           ambassador_type: null,
           ambassador_since: null,
@@ -38,6 +39,48 @@ export async function POST(request: Request) {
         })
         .eq('id', memberId);
 
+      if (updateMemberErr) throw updateMemberErr;
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'suspend') {
+      const { applicationId, memberId } = payload;
+      
+      const { error: updateAppErr } = await supabase
+        .from('ambassador_applications')
+        .update({ status: 'suspended' })
+        .eq('id', applicationId);
+      if (updateAppErr) throw updateAppErr;
+
+      const { error: updateMemberErr } = await supabase
+        .from('members')
+        .update({
+          is_b2b: false,
+          ambassador_status: 'suspended'
+        })
+        .eq('id', memberId);
+      if (updateMemberErr) throw updateMemberErr;
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'restore') {
+      const { applicationId, memberId } = payload;
+      
+      const { error: updateAppErr } = await supabase
+        .from('ambassador_applications')
+        .update({ status: 'approved' })
+        .eq('id', applicationId);
+      if (updateAppErr) throw updateAppErr;
+
+      const { error: updateMemberErr } = await supabase
+        .from('members')
+        .update({
+          is_b2b: true,
+          ambassador_status: 'active'
+        })
+        .eq('id', memberId);
       if (updateMemberErr) throw updateMemberErr;
 
       return NextResponse.json({ success: true });
