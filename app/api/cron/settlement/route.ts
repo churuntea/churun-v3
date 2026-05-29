@@ -202,6 +202,47 @@ async function performSettlement() {
 
                 pointsIssuedCount += rewardPoints;
                 pointsOrdersCount++;
+
+                // 🌟 新增：靈魂伴侶專屬 B2C 推薦紅利機制
+                if (buyer.tier === '初潤靈魂伴侶' && buyer.upline_id) {
+                  const { data: upline } = await supabase
+                    .from('members')
+                    .select('id, name, is_b2b, tier, points_balance')
+                    .eq('id', buyer.upline_id)
+                    .single();
+
+                  if (upline && !upline.is_b2b && upline.tier === '初潤靈魂伴侶') {
+                    // Check if the upline already got the points for this order
+                    const { data: existingRefPts } = await supabase
+                      .from('point_transactions')
+                      .select('id')
+                      .eq('order_id', order.id)
+                      .eq('member_id', upline.id)
+                      .eq('transaction_type', 'earned_from_order');
+
+                    if (!existingRefPts || existingRefPts.length === 0) {
+                      await supabase.from('point_transactions').insert({
+                        member_id: upline.id,
+                        order_id: order.id,
+                        amount: rewardPoints,
+                        transaction_type: 'earned_from_order'
+                      });
+
+                      await supabase.from('members').update({
+                        points_balance: (upline.points_balance || 0) + rewardPoints
+                      }).eq('id', upline.id);
+
+                      await supabase.from('notifications').insert({
+                        member_id: upline.id,
+                        title: '🎁 專屬推薦紅利點數已自動入帳！',
+                        content: `您的下線夥伴 ${buyer.name} 的消費已滿 30 天，由於您與夥伴皆為最高會員「初潤靈魂伴侶」，系統已自動為您存入等比例的推薦紅利點數 ${rewardPoints} 點！`,
+                        type: 'system'
+                      });
+
+                      pointsIssuedCount += rewardPoints;
+                    }
+                  }
+                }
               }
             }
           }
