@@ -113,8 +113,15 @@ export default function AmbassadorAdminPage() {
     open: boolean;
     data: any | null;
     downlines: any[];
+    commissionEarned: number;
+    commissionWithdrawn: number;
     isLoading: boolean;
-  }>({ open: false, data: null, downlines: [], isLoading: false });
+  }>({ open: false, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, isLoading: false });
+
+  // Manual Assign Modal
+  const [manualAssignModal, setManualAssignModal] = useState(false);
+  const [manualSearchKey, setManualSearchKey] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Advanced Filters
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
@@ -152,7 +159,11 @@ export default function AmbassadorAdminPage() {
       });
       const result = await res.json();
       if (!result.success) throw new Error(result.error);
-      setApplications((result.data as unknown as ApplicationRow[]) || []);
+      const appData = (result.data as unknown as ApplicationRow[]) || [];
+      setApplications(appData);
+      const notesObj: Record<string, string> = {};
+      appData.forEach(a => { if (a.notes) notesObj[a.id] = a.notes; });
+      setReviewNotes(notesObj);
     } catch (err) {
       console.error("Fetch ambassador applications error:", err);
     } finally {
@@ -161,7 +172,7 @@ export default function AmbassadorAdminPage() {
   };
 
   const openMemberDetail = async (memberId: string) => {
-    setMemberDetail({ open: true, data: null, downlines: [], isLoading: true });
+    setMemberDetail({ open: true, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, isLoading: true });
     try {
       const res = await fetch("/api/admin/ambassador-raw", {
         method: "POST",
@@ -176,6 +187,8 @@ export default function AmbassadorAdminPage() {
         open: true,
         data: memberRes.data,
         downlines: downlinesRes.data || [],
+        commissionEarned: result.commissionEarned || 0,
+        commissionWithdrawn: result.commissionWithdrawn || 0,
         isLoading: false
       });
     } catch (err) {
@@ -273,6 +286,49 @@ export default function AmbassadorAdminPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // ───────── Manual Assign ─────────
+  const handleManualAssign = async () => {
+    if (!manualSearchKey.trim()) return showToast("請輸入手機號碼或會員代碼", "error");
+    setIsAssigning(true);
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual_assign", payload: { searchKey: manualSearchKey.trim(), adminName: adminUser?.name } })
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(result.message, "success");
+        setManualAssignModal(false);
+        setManualSearchKey("");
+        fetchApplications();
+      } else {
+        showToast(result.error || "操作失敗", "error");
+      }
+    } catch (err: any) {
+      showToast("網路錯誤：" + err.message, "error");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  // ───────── Update Admin Note ─────────
+  const handleUpdateAdminNote = async (appId: string) => {
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_admin_note", payload: { applicationId: appId, notes: reviewNotes[appId] || "" } })
+      });
+      if ((await res.json()).success) {
+        showToast("已儲存備註", "success");
+        fetchApplications();
+      }
+    } catch (err: any) {
+      showToast("網路錯誤", "error");
+    }
   };
 
   // ───────── Revoke Action ─────────
@@ -393,6 +449,13 @@ export default function AmbassadorAdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setManualAssignModal(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-lg shadow-emerald-600/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              手動指派
+            </button>
             <button
               onClick={handleExportCSV}
               className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
@@ -813,26 +876,34 @@ export default function AmbassadorAdminPage() {
                     </div>
                   )}
 
-                  {/* ── Action Buttons (Pending Only) ── */}
-                  {app.status === "pending" && (
-                    <div className="border-t border-slate-100 pt-4 space-y-3">
-                      {/* Notes input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                          審核備註 (選填)
-                        </label>
-                        <textarea
-                          value={reviewNotes[app.id] || ""}
-                          onChange={(e) =>
-                            setReviewNotes((prev) => ({ ...prev, [app.id]: e.target.value }))
-                          }
-                          placeholder="輸入審核備註或補充說明..."
-                          rows={2}
-                          className="w-full bg-slate-50 border-none p-3 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/10 outline-none resize-none"
-                        />
-                      </div>
+                  {/* ── Action Buttons & Notes ── */}
+                  <div className="border-t border-slate-100 pt-4 space-y-3">
+                    {/* Notes input */}
+                    <div className="space-y-1.5 relative">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">
+                        總部專屬備註 (不公開)
+                      </label>
+                      <textarea
+                        value={reviewNotes[app.id] || ""}
+                        onChange={(e) =>
+                          setReviewNotes((prev) => ({ ...prev, [app.id]: e.target.value }))
+                        }
+                        placeholder={app.status === "pending" ? "輸入審核備註..." : "輸入關於此大使的內部備註..."}
+                        rows={2}
+                        className="w-full bg-slate-50 border-none p-3 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/10 outline-none resize-none"
+                      />
+                      {app.status !== "pending" && reviewNotes[app.id] !== app.notes && (
+                        <button
+                          onClick={() => handleUpdateAdminNote(app.id)}
+                          className="absolute bottom-2 right-2 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition"
+                        >
+                          儲存備註
+                        </button>
+                      )}
+                    </div>
 
-                      {/* Buttons */}
+                    {/* Buttons (Pending Only) */}
+                    {app.status === "pending" && (
                       <div className="flex gap-3">
                         <button
                           onClick={() =>
@@ -863,8 +934,8 @@ export default function AmbassadorAdminPage() {
                           ❌ 駁回
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </motion.div>
               );
             })}
@@ -1243,10 +1314,27 @@ export default function AmbassadorAdminPage() {
                       </div>
                     </div>
 
-                    {/* Team Info */}
+                    {/* Team & Commission Info */}
                     <div>
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                          <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" /> 累計賺取獎金
+                          </p>
+                          <p className="text-base font-black text-indigo-700">NT$ {memberDetail.commissionEarned.toLocaleString()}</p>
+                          <p className="text-[9px] font-bold text-indigo-400 mt-1">已提領: ${memberDetail.commissionWithdrawn.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <Award className="w-3 h-3" /> 團隊直推總額
+                          </p>
+                          <p className="text-base font-black text-emerald-700">NT$ {memberDetail.downlines.reduce((s, d) => s + (d.lifetime_spend || 0), 0).toLocaleString()}</p>
+                          <p className="text-[9px] font-bold text-emerald-400 mt-1">直推人數: {memberDetail.downlines.length} 人</p>
+                        </div>
+                      </div>
+
                       <h4 className="text-sm font-black tracking-widest text-slate-800 uppercase flex items-center gap-2 mb-3">
-                        <Users className="w-4 h-4 text-indigo-500" /> 團隊直推夥伴 ({memberDetail.downlines.length})
+                        <Users className="w-4 h-4 text-indigo-500" /> 團隊直推夥伴名單
                       </h4>
                       
                       {memberDetail.downlines.length > 0 ? (
@@ -1274,6 +1362,66 @@ export default function AmbassadorAdminPage() {
                 ) : (
                   <p className="text-center text-sm font-bold text-rose-500 py-10">無法載入會員資料</p>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════ Manual Assign Modal ═══════════ */}
+      <AnimatePresence>
+        {manualAssignModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setManualAssignModal(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl relative z-10 border border-slate-100 flex flex-col p-6"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-emerald-500" /> 手動指派品牌大使
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1">無需填寫表單，直接升級現有會員</p>
+                </div>
+                <button
+                  onClick={() => setManualAssignModal(false)}
+                  className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-full text-slate-400 hover:text-slate-800 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1 block">
+                    會員手機號碼 或 會員代碼
+                  </label>
+                  <input
+                    type="text"
+                    value={manualSearchKey}
+                    onChange={(e) => setManualSearchKey(e.target.value)}
+                    placeholder="例如: 0912345678"
+                    className="w-full bg-slate-50 border-none p-3.5 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 outline-none placeholder:text-slate-300"
+                  />
+                </div>
+
+                <button
+                  onClick={handleManualAssign}
+                  disabled={isAssigning}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-widest transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 mt-2"
+                >
+                  {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
+                  {isAssigning ? "處理中..." : "立即開通大使資格"}
+                </button>
               </div>
             </motion.div>
           </div>

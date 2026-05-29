@@ -43,16 +43,85 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'manual_assign') {
+      const { searchKey, adminName } = payload;
+      
+      const { data: member, error: findErr } = await supabase
+        .from('members')
+        .select('*')
+        .or(`phone.eq.${searchKey},member_code.eq.${searchKey}`)
+        .single();
+        
+      if (findErr || !member) {
+        return NextResponse.json({ success: false, error: '找不到該會員，請確認手機號碼或會員代碼是否正確。' }, { status: 404 });
+      }
+
+      if (member.ambassador_status === 'active') {
+        return NextResponse.json({ success: false, error: '該會員已經是有效大使。' }, { status: 400 });
+      }
+
+      // 1. Upgrade member
+      const { error: updateMemberErr } = await supabase
+        .from('members')
+        .update({
+          is_b2b: true,
+          ambassador_status: 'active',
+          ambassador_type: 'paid', // default type
+          ambassador_since: new Date().toISOString()
+        })
+        .eq('id', member.id);
+
+      if (updateMemberErr) throw updateMemberErr;
+
+      // 2. Insert dummy application
+      const { error: insertAppErr } = await supabase
+        .from('ambassador_applications')
+        .insert({
+          member_id: member.id,
+          application_type: 'manual_upgrade',
+          status: 'approved',
+          reviewed_by: adminName || 'Admin',
+          reviewed_at: new Date().toISOString(),
+          notes: '總部手動開通'
+        });
+
+      if (insertAppErr) throw insertAppErr;
+
+      return NextResponse.json({ success: true, message: '已成功開通品牌大使資格！' });
+    }
+
+    if (action === 'update_admin_note') {
+      const { applicationId, notes } = payload;
+      const { error } = await supabase
+        .from('ambassador_applications')
+        .update({ notes })
+        .eq('id', applicationId);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
     if (action === 'open_member_detail') {
       const { memberId } = payload;
-      const [memberRes, downlinesRes] = await Promise.all([
+      const [memberRes, downlinesRes, txRes] = await Promise.all([
         supabase.from("members").select("*, upline:upline_id(name, member_code)").eq("id", memberId).single(),
-        supabase.from("members").select("id, name, member_code, tier, created_at, lifetime_spend").eq("upline_id", memberId).order("created_at", { ascending: false })
+        supabase.from("members").select("id, name, member_code, tier, created_at, lifetime_spend").eq("upline_id", memberId).order("created_at", { ascending: false }),
+        supabase.from("wallet_transactions").select("amount, transaction_type").eq("member_id", memberId)
       ]);
+      
+      const transactions = txRes.data || [];
+      const commissionEarned = transactions
+        .filter(t => t.transaction_type === 'commission_refund' && t.amount > 0)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const commissionWithdrawn = transactions
+        .filter(t => t.transaction_type === 'withdrawal' && t.amount < 0)
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+
       return NextResponse.json({ 
         success: true, 
         data: memberRes.data, 
-        downlines: downlinesRes.data || [] 
+        downlines: downlinesRes.data || [],
+        commissionEarned,
+        commissionWithdrawn
       });
     }
 
