@@ -1072,7 +1072,7 @@ function AdminDashboardContent() {
              { label: "待核准提領", val: `NT$ ${stats.pendingSettlement.toLocaleString()}`, icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
              { label: "待處理訂單", val: `${stats.activeOrders} 筆`, icon: Package, color: "text-blue-500", href: "/admin/orders" },
              { label: "總註冊會員", val: `${stats.totalMembers} 員`, icon: Users, color: "text-emerald-500", href: "/admin/members" },
-             { label: "B2B 合夥人", val: `${stats.totalB2B} 員`, icon: ShieldCheck, color: "text-cyan-500", href: "/admin/members" },
+             { label: "B2B 合夥人", val: `${stats.totalB2B} 員`, icon: ShieldCheck, color: "text-cyan-500", href: "/admin/ambassador/list" },
              
            ].map((stat, i) => (
              <Link href={stat.href} key={i}>
