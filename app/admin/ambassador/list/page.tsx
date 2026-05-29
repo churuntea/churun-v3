@@ -20,9 +20,9 @@ import {
   ShieldAlert,
   Sparkles,
   Award,
-  Trash2, TrendingUp, MonitorSmartphone,
-  TrendingUp, MonitorSmartphone
-  TrendingUp, MonitorSmartphone
+  Trash2,
+  TrendingUp,
+  MonitorSmartphone
 } from "lucide-react";
 import { canApplyForAmbassador, autoUpgradeEligibility } from '@/utils/eligibility';
 
