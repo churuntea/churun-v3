@@ -148,7 +148,7 @@ export async function POST(request: Request) {
       const [memberRes, downlinesRes, txRes] = await Promise.all([
         supabase.from("members").select("*, upline:upline_id(name, member_code)").eq("id", memberId).single(),
         supabase.from("members").select("id, name, member_code, tier, created_at, lifetime_spend").eq("upline_id", memberId).order("created_at", { ascending: false }),
-        supabase.from("wallet_transactions").select("amount, transaction_type").eq("member_id", memberId)
+        supabase.from("wallet_transactions").select("amount, transaction_type, created_at").eq("member_id", memberId)
       ]);
       
       const transactions = txRes.data || [];
@@ -164,8 +164,24 @@ export async function POST(request: Request) {
         data: memberRes.data, 
         downlines: downlinesRes.data || [],
         commissionEarned,
-        commissionWithdrawn
+        commissionWithdrawn,
+        transactions: transactions.filter(t => t.transaction_type === 'commission_refund')
       });
+    }
+
+    if (action === 'send_notification') {
+      const { memberId, title, content } = payload;
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          member_id: memberId,
+          title,
+          content,
+          type: 'system',
+          is_read: false
+        });
+      if (error) throw error;
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });

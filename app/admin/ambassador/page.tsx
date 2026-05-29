@@ -29,7 +29,11 @@ import {
   Phone,
   Copy,
   ShieldAlert,
-  PauseCircle
+  PauseCircle,
+  Send,
+  TrendingUp,
+  Target,
+  MessageSquare
 } from "lucide-react";
 
 // ───────── Types ─────────
@@ -122,8 +126,12 @@ export default function AmbassadorManagementPage() {
     downlines: any[];
     commissionEarned: number;
     commissionWithdrawn: number;
+    transactions: any[];
     isLoading: boolean;
-  }>({ open: false, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, isLoading: false });
+  }>({ open: false, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, transactions: [], isLoading: false });
+
+  // Notification Modal
+  const [notificationModal, setNotificationModal] = useState<{ open: boolean; memberId: string; memberName: string; title: string; content: string } | null>(null);
 
   // Manual Assign Modal
   const [manualAssignModal, setManualAssignModal] = useState(false);
@@ -179,7 +187,7 @@ export default function AmbassadorManagementPage() {
   };
 
   const openMemberDetail = async (memberId: string) => {
-    setMemberDetail({ open: true, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, isLoading: true });
+    setMemberDetail({ open: true, data: null, downlines: [], commissionEarned: 0, commissionWithdrawn: 0, transactions: [], isLoading: true });
     try {
       const res = await fetch("/api/admin/ambassador-raw", {
         method: "POST",
@@ -196,6 +204,7 @@ export default function AmbassadorManagementPage() {
         downlines: downlinesRes.data || [],
         commissionEarned: result.commissionEarned || 0,
         commissionWithdrawn: result.commissionWithdrawn || 0,
+        transactions: result.transactions || [],
         isLoading: false
       });
     } catch (err) {
@@ -379,6 +388,27 @@ export default function AmbassadorManagementPage() {
     } catch (err) {}
   };
 
+  // ───────── Send Notification ─────────
+  const handleSendNotification = async () => {
+    if (!notificationModal || !notificationModal.title || !notificationModal.content) {
+      showToast("請填寫通知標題與內容", "error");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_notification", payload: { memberId: notificationModal.memberId, title: notificationModal.title, content: notificationModal.content } })
+      });
+      if ((await res.json()).success) {
+        showToast(`已成功發送通知給「${notificationModal.memberName}」`, "success");
+        setNotificationModal(null);
+      }
+    } catch (err) {}
+    setIsSubmitting(false);
+  };
+
   // ───────── Revoke Action ─────────
   const handleRevoke = async (appId: string, memberId: string, memberName: string) => {
     if (!confirm(`確定要撤銷「${memberName}」的品牌大使資格嗎？此動作將會將其降級並拒絕此申請。`)) return;
@@ -474,6 +504,27 @@ export default function AmbassadorManagementPage() {
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
+  };
+
+  // ───────── Phase 5 CRM Helpers ─────────
+  const getMonthlyCommissions = () => {
+    if (!memberDetail.transactions || memberDetail.transactions.length === 0) return [];
+    const map: Record<string, number> = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${String(d.getMonth() + 1).padStart(2, '0')}月`;
+      map[key] = 0;
+    }
+    memberDetail.transactions.forEach((t: any) => {
+      if (!t.created_at) return;
+      const d = new Date(t.created_at);
+      const key = `${String(d.getMonth() + 1).padStart(2, '0')}月`;
+      if (map[key] !== undefined) {
+        map[key] += Number(t.amount);
+      }
+    });
+    return Object.entries(map).map(([month, amount]) => ({ month, amount }));
   };
 
   // ───────── Application type helpers ─────────
@@ -853,6 +904,13 @@ export default function AmbassadorManagementPage() {
                           >
                             <Copy className="w-3 h-3" />
                             專屬連結
+                          </button>
+                          <button 
+                            onClick={() => setNotificationModal({ open: true, memberId: app.member_id, memberName: member.name, title: "", content: "" })}
+                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-sky-600 hover:bg-sky-50 rounded-md transition"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            發送通知
                           </button>
                           <button 
                             onClick={() => handleSuspend(app.id, app.member_id, member.name)}
@@ -1527,6 +1585,49 @@ export default function AmbassadorManagementPage() {
                         </div>
                       </div>
 
+                      {/* CRM Progress & Sparklines */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
+                        <div className="mb-5">
+                          <div className="flex justify-between items-end mb-2">
+                            <h4 className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-1.5">
+                              <Target className="w-3 h-3 text-indigo-500" /> 晉升合夥人進度 ($298,000)
+                            </h4>
+                            <span className="text-[10px] font-bold text-indigo-600">
+                              {Math.min(100, Math.round((memberDetail.downlines.reduce((s, d) => s + (d.lifetime_spend || 0), 0) / 298000) * 100))}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full"
+                              style={{ width: `${Math.min(100, Math.round((memberDetail.downlines.reduce((s, d) => s + (d.lifetime_spend || 0), 0) / 298000) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-[10px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-1.5 mb-3">
+                            <TrendingUp className="w-3 h-3 text-emerald-500" /> 近六個月分潤趨勢
+                          </h4>
+                          <div className="flex items-end gap-2 h-20">
+                            {getMonthlyCommissions().length > 0 ? getMonthlyCommissions().map((data, i, arr) => {
+                              const maxAmount = Math.max(...arr.map(d => d.amount), 1);
+                              const heightPercent = Math.max(10, Math.round((data.amount / maxAmount) * 100));
+                              return (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                                  <div className="w-full bg-emerald-100 rounded-t-sm flex items-end justify-center relative hover:bg-emerald-200 transition-colors cursor-pointer" style={{ height: `${heightPercent}%` }}>
+                                    <span className="absolute -top-6 text-[8px] font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">${data.amount}</span>
+                                  </div>
+                                  <span className="text-[8px] font-bold text-slate-400">{data.month}</span>
+                                </div>
+                              );
+                            }) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <span className="text-[10px] font-bold text-slate-300">尚無分潤資料</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       <h4 className="text-sm font-black tracking-widest text-slate-800 uppercase flex items-center gap-2 mb-3">
                         <Users className="w-4 h-4 text-indigo-500" /> 團隊直推夥伴名單
                       </h4>
@@ -1573,6 +1674,55 @@ export default function AmbassadorManagementPage() {
           </div>
         )}
       </AnimatePresence>
+
+        {/* ═══════════ Notification Modal ═══════════ */}
+        {notificationModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-[2rem] p-6 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <Send className="w-5 h-5 text-sky-500" /> 發送通知給 {notificationModal.memberName}
+                </h3>
+                <button onClick={() => setNotificationModal(null)} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">通知標題</label>
+                  <input 
+                    type="text" 
+                    value={notificationModal.title} 
+                    onChange={e => setNotificationModal(prev => prev ? { ...prev, title: e.target.value } : null)}
+                    placeholder="請輸入通知標題"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">通知內容</label>
+                  <textarea 
+                    value={notificationModal.content} 
+                    onChange={e => setNotificationModal(prev => prev ? { ...prev, content: e.target.value } : null)}
+                    placeholder="請輸入通知內容"
+                    rows={4}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none"
+                  />
+                </div>
+                <button 
+                  onClick={handleSendNotification} 
+                  disabled={isSubmitting}
+                  className="w-full bg-sky-500 text-white font-black py-3 rounded-xl hover:bg-sky-600 transition flex justify-center items-center gap-2 shadow-md shadow-sky-500/20"
+                >
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> 立即發送</>}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
       {/* ═══════════ Manual Assign Modal ═══════════ */}
       <AnimatePresence>
