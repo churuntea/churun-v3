@@ -21,8 +21,11 @@ import {
   Eye,
   DollarSign,
   Award,
-  X,
   User,
+  Download,
+  Calendar,
+  MoreVertical,
+  X
 } from "lucide-react";
 
 // ───────── Types ─────────
@@ -48,10 +51,11 @@ interface ApplicationRow {
     member_code: string;
     tier: string;
     avatar_url: string | null;
+    lifetime_spend: number | null;
   };
 }
 
-type TabKey = "all" | "pending" | "ambassador" | "partner" | "rejected";
+type TabKey = "all" | "pending" | "ambassador" | "rejected";
 
 // ───────── Helpers ─────────
 function formatDate(iso: string): string {
@@ -111,6 +115,10 @@ export default function AmbassadorAdminPage() {
     downlines: any[];
     isLoading: boolean;
   }>({ open: false, data: null, downlines: [], isLoading: false });
+
+  // Advanced Filters
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   // ───────── Auth check ─────────
   useEffect(() => {
@@ -179,37 +187,115 @@ export default function AmbassadorAdminPage() {
   // ───────── Stats ─────────
   const stats = {
     pending: applications.filter((a) => a.status === "pending").length,
-    approved: applications.filter(
-      (a) => a.status === "approved" && a.application_type !== "partner"
-    ).length,
+    approved: applications.filter((a) => a.status === "approved" && a.application_type !== "partner").length,
     rejected: applications.filter((a) => a.status === "rejected").length,
-    partner: applications.filter(
-      (a) => a.application_type === "partner" && a.status === "approved"
-    ).length,
   };
 
   // ───────── Filter ─────────
   const filtered = applications.filter((app) => {
+    // Exclude partner applications from ambassador page
+    if (app.application_type === "partner") return false;
+
     // Tab filter
     if (activeTab === "pending" && app.status !== "pending") return false;
-    if (activeTab === "ambassador" && (app.application_type === "partner" || app.status !== "approved"))
-      return false;
-    if (activeTab === "partner" && (app.application_type !== "partner" || app.status !== "approved"))
-      return false;
+    if (activeTab === "ambassador" && app.status !== "approved") return false;
     if (activeTab === "rejected" && app.status !== "rejected") return false;
 
     // Search filter
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       const m = app.members;
-      return (
+      if (!(
         m.name?.toLowerCase().includes(q) ||
         m.phone?.includes(q) ||
         m.member_code?.toLowerCase().includes(q)
-      );
+      )) {
+        return false;
+      }
     }
+
+    // Type filter
+    if (typeFilter !== "all" && app.application_type !== typeFilter) return false;
+
+    // Date filter
+    if (dateRange.start && new Date(app.created_at) < new Date(dateRange.start)) return false;
+    if (dateRange.end) {
+      const endDate = new Date(dateRange.end);
+      endDate.setHours(23, 59, 59, 999);
+      if (new Date(app.created_at) > endDate) return false;
+    }
+
     return true;
   });
+
+  // ───────── Export CSV ─────────
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      showToast("沒有資料可匯出", "error");
+      return;
+    }
+
+    const headers = [
+      "申請編號",
+      "會員姓名",
+      "會員代碼",
+      "會員等級",
+      "申請類型",
+      "狀態",
+      "累積消費金額",
+      "申請時間",
+      "匯款後五碼"
+    ].join(",");
+
+    const rows = filtered.map(app => {
+      const m = app.members;
+      const typeLabel = getTypeBadge(app.application_type).label;
+      const statusLabel = getStatusBadge(app.status).label;
+      return [
+        app.id,
+        m.name,
+        m.member_code,
+        m.tier || "一般會員",
+        typeLabel,
+        statusLabel,
+        m.lifetime_spend || 0,
+        new Date(app.created_at).toLocaleString(),
+        app.remittance_last_five || "無"
+      ].map(v => `"${v}"`).join(",");
+    });
+
+    const csvContent = "\uFEFF" + headers + "\n" + rows.join("\n"); // Add BOM for Excel
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `大使申請清單_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // ───────── Revoke Action ─────────
+  const handleRevoke = async (appId: string, memberId: string, memberName: string) => {
+    if (!confirm(`確定要撤銷「${memberName}」的品牌大使資格嗎？此動作將會將其降級並拒絕此申請。`)) return;
+    
+    try {
+      const res = await fetch("/api/admin/ambassador-raw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revoke", payload: { applicationId: appId, memberId } })
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(`已成功撤銷「${memberName}」的品牌大使資格`, "success");
+        fetchApplications();
+      } else {
+        showToast("操作失敗：" + result.error, "error");
+      }
+    } catch (err: any) {
+      showToast("網路錯誤：" + err.message, "error");
+    }
+  };
 
   // ───────── Review handler ─────────
   const handleReview = async () => {
@@ -279,10 +365,9 @@ export default function AmbassadorAdminPage() {
 
   // ───────── Tab config ─────────
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: "all", label: "全部", count: applications.length },
+    { key: "all", label: "全部", count: applications.filter(a => a.application_type !== "partner").length },
     { key: "pending", label: "待審核", count: stats.pending },
-    { key: "ambassador", label: "品牌大使", count: stats.approved },
-    { key: "partner", label: "合夥人", count: stats.partner },
+    { key: "ambassador", label: "已核准大使", count: stats.approved },
     { key: "rejected", label: "已駁回", count: stats.rejected },
   ];
 
@@ -300,26 +385,35 @@ export default function AmbassadorAdminPage() {
             <div>
               <h1 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
                 <Crown className="w-5 h-5 text-amber-500" />
-                品牌大使與合夥人專區
+                品牌大使管理區
               </h1>
               <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-0.5">
-                Ambassador &amp; Partner Management
+                Brand Ambassador Management
               </p>
             </div>
           </div>
-          <button
-            onClick={fetchApplications}
-            disabled={isLoading}
-            className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-700"
-          >
-            <Loader2 className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportCSV}
+              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              匯出 CSV
+            </button>
+            <button
+              onClick={fetchApplications}
+              disabled={isLoading}
+              className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-700"
+            >
+              <Loader2 className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
       </nav>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-8">
         {/* ═══════════ Stats Dashboard ═══════════ */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {/* Pending */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -367,34 +461,48 @@ export default function AmbassadorAdminPage() {
             </div>
             <p className="text-3xl font-black text-rose-600">{stats.rejected}</p>
           </motion.div>
-
-          {/* Partners */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-indigo-500" />
-              </div>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">合夥人</span>
-            </div>
-            <p className="text-3xl font-black text-indigo-600">{stats.partner}</p>
-          </motion.div>
         </div>
 
-        {/* ═══════════ Search Bar ═══════════ */}
-        <div className="relative">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-          <input
-            type="text"
-            placeholder="搜尋姓名、電話或會員代碼..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-slate-100 py-4 pl-12 pr-5 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/10 transition shadow-sm outline-none"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="relative md:col-span-5">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+            <input
+              type="text"
+              placeholder="搜尋姓名、電話或會員代碼..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-full min-h-[52px] bg-white border border-slate-100 py-3 pl-12 pr-5 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/10 transition shadow-sm outline-none"
+            />
+          </div>
+          <div className="md:col-span-3">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full h-full min-h-[52px] bg-white border border-slate-100 py-3 px-4 rounded-2xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-emerald-500/10 outline-none shadow-sm cursor-pointer"
+            >
+              <option value="all">所有方案類型</option>
+              <option value="paid_upgrade">付費升級</option>
+              <option value="free_performance">業績達標免費升級</option>
+            </select>
+          </div>
+          <div className="md:col-span-4 flex items-center gap-2 bg-white border border-slate-100 p-1.5 rounded-2xl shadow-sm">
+            <div className="flex items-center px-3 text-slate-400">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <input 
+              type="date" 
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="w-full text-xs font-bold text-slate-600 outline-none bg-transparent cursor-pointer"
+            />
+            <span className="text-slate-300 font-bold">-</span>
+            <input 
+              type="date" 
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="w-full text-xs font-bold text-slate-600 outline-none bg-transparent cursor-pointer"
+            />
+          </div>
         </div>
 
         {/* ═══════════ Tab Filter ═══════════ */}
@@ -506,25 +614,44 @@ export default function AmbassadorAdminPage() {
                       </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <div
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusBadge.color}`}
-                    >
-                      {statusBadge.icon}
-                      {statusBadge.label}
+                    {/* Status Badge & Actions */}
+                    <div className="flex flex-col items-end gap-2">
+                      <div
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusBadge.color}`}
+                      >
+                        {statusBadge.icon}
+                        {statusBadge.label}
+                      </div>
+                      
+                      {app.status === "approved" && (
+                        <button 
+                          onClick={() => handleRevoke(app.id, app.member_id, member.name)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-rose-500 hover:bg-rose-50 rounded-md transition"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          撤銷資格
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {/* ── Type & Date ── */}
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black border ${typeBadge.color}`}
-                    >
-                      {typeBadge.label}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-300">
-                      申請時間：{formatDate(app.created_at)}
-                    </span>
+                  {/* ── Type, Date & Performance ── */}
+                  <div className="flex flex-wrap items-center justify-between mb-4 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black border ${typeBadge.color}`}
+                      >
+                        {typeBadge.label}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        申請時間：{formatDate(app.created_at)}
+                      </span>
+                    </div>
+                    {/* Performance Tracking */}
+                    <div className="text-right">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">累積歷史消費 / 業績</p>
+                       <p className="text-sm font-black text-indigo-600">NT$ {(member.lifetime_spend || 0).toLocaleString()}</p>
+                    </div>
                   </div>
 
                   {/* ── Remittance / Performance Info ── */}
