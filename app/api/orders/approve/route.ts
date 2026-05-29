@@ -389,10 +389,36 @@ export async function POST(request: Request) {
         const { data: items } = await supabase.from('order_items').select('*, products(*)').eq('order_id', order.id);
         
         let calculatedCommission = 0;
-        for (const item of items || []) {
-          const comm = (item.price * item.quantity) * (item.products?.b2b_commission_percent / 100);
-          calculatedCommission += Math.floor(comm);
+
+        // 平階脫離邏輯：先取得推廣者與購買者階級
+        let canGiveCommission = false;
+        if (buyer.is_b2b && buyer.upline_id) {
+          const { data: upline } = await supabase
+            .from('members')
+            .select('ambassador_type, ambassador_status, is_b2b')
+            .eq('id', buyer.upline_id)
+            .single();
+
+          if (upline) {
+            const getLevel = (m: any) => {
+              if (m.ambassador_type === 'partner') return 2;
+              if (m.ambassador_status === 'active' || m.ambassador_type === 'paid' || m.ambassador_type === 'free_performance') return 1;
+              return 0;
+            };
+
+            const buyerLevel = getLevel(buyer);
+            const uplineLevel = getLevel(upline);
+            canGiveCommission = uplineLevel > buyerLevel;
+          }
         }
+
+        if (buyer.is_b2b && canGiveCommission) {
+          for (const item of items || []) {
+            const comm = (item.price * item.quantity) * (item.products?.b2b_commission_percent / 100);
+            calculatedCommission += Math.floor(comm);
+          }
+        }
+        
         b2bCommission = calculatedCommission;
 
         const TIER_RATES: Record<string, number> = (dbRules || []).reduce((acc: any, curr: any) => {

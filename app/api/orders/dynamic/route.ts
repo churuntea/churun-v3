@@ -200,6 +200,28 @@ export async function POST(request: Request) {
     let totalB2CPoints = 0;
     let totalB2BCommission = 0;
 
+    // 平階脫離邏輯：先取得推廣者與購買者階級
+    let canGiveCommission = false;
+    if (buyer.is_b2b && buyer.upline_id) {
+      const { data: upline } = await supabase
+        .from('members')
+        .select('ambassador_type, ambassador_status, is_b2b')
+        .eq('id', buyer.upline_id)
+        .single();
+
+      if (upline) {
+        const getLevel = (m: any) => {
+          if (m.ambassador_type === 'partner') return 2;
+          if (m.ambassador_status === 'active' || m.ambassador_type === 'paid' || m.ambassador_type === 'free_performance') return 1;
+          return 0;
+        };
+
+        const buyerLevel = getLevel(buyer);
+        const uplineLevel = getLevel(upline);
+        canGiveCommission = uplineLevel > buyerLevel;
+      }
+    }
+
     for (const item of items) {
       const product = products.find(p => p.id === item.id);
       if (!product) continue;
@@ -211,8 +233,7 @@ export async function POST(request: Request) {
       const itemSubtotal = product.price * item.quantity;
       totalAmount += itemSubtotal;
       
-      // 只有當買家具備 B2B 創業合夥人身分時，才計算 B2B 專屬退傭
-      if (buyer.is_b2b) {
+      if (buyer.is_b2b && canGiveCommission) {
         totalB2BCommission += Math.floor(itemSubtotal * (product.b2b_commission_percent / 100));
       }
     }
