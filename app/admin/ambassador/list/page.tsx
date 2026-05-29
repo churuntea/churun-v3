@@ -323,7 +323,6 @@ function AdminAmbassadorListContent() {
             </div>
          </div>
          <div className="flex gap-3">
-            <Link href="/admin/deleted-members" className="flex items-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 border border-rose-100/50 rounded-[1.5rem] hover:bg-rose-100 transition text-[10px] font-black uppercase tracking-widest active:scale-95">
                <Trash2 className="w-3.5 h-3.5 text-rose-500" /> 已刪除名單總覽
             </Link>
             <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-[1.5rem] hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 text-[10px] font-black uppercase tracking-widest active:scale-95 cursor-pointer">
@@ -353,10 +352,11 @@ function AdminAmbassadorListContent() {
         </div>
 
         {/* Members Table */}
-        <div className="bg-white rounded-[3rem] border border-slate-50 shadow-sm overflow-hidden overflow-x-auto">
-           <table className="w-full min-w-[1000px] text-left border-collapse">
+        <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto relative z-10">
+           <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 to-transparent pointer-events-none" />
+           <table className="w-full min-w-[1100px] text-left border-collapse relative">
               <thead>
-                 <tr className="bg-slate-50/50 border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+<tr className="border-b border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/50 backdrop-blur-md">
                     <th className="p-6 pl-8">會員資訊</th>
                     <th className="p-6">身份職級</th>
                     <th className="p-6">會員編號與推薦人</th>
@@ -370,13 +370,13 @@ function AdminAmbassadorListContent() {
               <tbody className="divide-y divide-slate-50">
                  {isLoading ? (
                     <tr>
-                       <td colSpan={7} className="p-20 text-center">
+                       <td colSpan={8} className="p-20 text-center">
                           <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
                        </td>
                     </tr>
                  ) : filteredMembers.length === 0 ? (
                     <tr>
-                       <td colSpan={7} className="p-20 text-center">
+                       <td colSpan={8} className="p-20 text-center">
                           <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
                              <Users className="w-8 h-8 text-slate-200" />
                           </div>
@@ -389,7 +389,7 @@ function AdminAmbassadorListContent() {
                         key={m.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="hover:bg-slate-50/50 transition group"
+                        className="hover:bg-amber-50/30 transition-all group border-b border-slate-50/50 last:border-0"
                       >
                          <td className="p-6 pl-8">
                             <div className="flex items-center gap-4">
@@ -441,17 +441,20 @@ function AdminAmbassadorListContent() {
                             </div>
                          </td>
                          <td className="p-6 text-right">
-                            <p className="text-sm font-black text-slate-800">${Number(m.virtual_balance || 0).toLocaleString()}</p>
-                         </td>
-                         <td className="p-6 text-right">
-                            <p className="text-sm font-black text-slate-800">{Number(m.points_balance || 0).toLocaleString()} pt</p>
-                         </td>
-                         <td className="p-6 text-center">
-                            <p className="text-sm font-black text-slate-800 bg-slate-100 py-1 px-3 rounded-full inline-block">{m.downlines ? m.downlines.length : 0}</p>
-                         </td>
-                         <td className="p-6 text-right">
-                            <p className="text-sm font-black text-slate-800">${Number(m.team_total_sales || 0).toLocaleString()}</p>
-                         </td>
+     <p className="text-sm font-black text-slate-800 tracking-tight">${Number(m.virtual_balance || 0).toLocaleString()}</p>
+  </td>
+  <td className="p-6 text-right">
+     <p className="text-sm font-black text-amber-600 tracking-tight">{Number(m.points_balance || 0).toLocaleString()} <span className="text-[10px] text-amber-400">pt</span></p>
+  </td>
+  <td className="p-6 text-center">
+     <div className="inline-flex items-center gap-1.5 bg-indigo-50/80 text-indigo-600 px-3 py-1.5 rounded-full border border-indigo-100/50">
+        <Users className="w-3.5 h-3.5" />
+        <span className="text-xs font-black">{m.downlines ? m.downlines.length : 0}</span>
+     </div>
+  </td>
+  <td className="p-6 text-right">
+     <p className="text-sm font-black text-emerald-600 tracking-tight">${Number(m.team_total_sales || 0).toLocaleString()}</p>
+  </td>
                          <td className="p-6 pr-8 text-right">
                             <button
                               onClick={() => {
