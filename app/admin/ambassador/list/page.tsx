@@ -20,7 +20,9 @@ import {
   ShieldAlert,
   Sparkles,
   Award,
-  Trash2
+  Trash2,
+  TrendingUp,
+  MonitorSmartphone
   TrendingUp,
   MonitorSmartphone
 } from "lucide-react";
