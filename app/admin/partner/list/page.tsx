@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
@@ -42,7 +42,7 @@ import {
 } from "recharts";
 import { canApplyForAmbassador, autoUpgradeEligibility } from '@/utils/eligibility';
 
-import BrandAmbassadorCard from '@/components/BrandAmbassadorCard';
+import BrandPartnerCard from '@/components/BrandPartnerCard';
 
 
 const MEMBER_TIERS_OPTIONS = [
@@ -53,8 +53,8 @@ const MEMBER_TIERS_OPTIONS = [
   { val: "初潤青少年", label: "初潤青少年" },
   { val: "初潤好朋友", label: "初潤好朋友 (合夥職級)" },
   { val: "初潤閨蜜", label: "初潤閨蜜 (合夥職級)" },
-  { val: "初潤知己", label: "初潤知己 (品牌大使職級)" },
-  { val: "初潤靈魂伴侶", label: "初潤靈魂伴侶 (品牌大使職級)" },
+  { val: "初潤知己", label: "初潤知己 (合夥人職級)" },
+  { val: "初潤靈魂伴侶", label: "初潤靈魂伴侶 (合夥人職級)" },
   { val: "invited_team", label: "初潤特邀團 (invited_team)" },
   { val: "partner", label: "創業夥伴合夥人 (partner)" },
   { val: "超級小幫手", label: "超級小幫手 (合夥人福利)" },
@@ -71,8 +71,8 @@ function AdminAmbassadorListContent() {
 
   // Modal States
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
-  const [showAmbassadorModal, setShowAmbassadorModal] = useState(false);
-  const [selectedAmbassadorMember, setSelectedAmbassadorMember] = useState<any | null>(null);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [selectedPartnerMember, setselectedPartnerMember] = useState<any | null>(null);
   const [showDownlineModal, setShowDownlineModal] = useState(false);
   const [downlineMember, setDownlineMember] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -140,7 +140,7 @@ function AdminAmbassadorListContent() {
 
   const fetchInsights = async () => {
     try {
-      const res = await fetch("/api/admin/ambassador-raw", {
+      const res = await fetch("/api/admin/partner-raw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "fetch_insights", payload: {} })
@@ -159,7 +159,7 @@ function AdminAmbassadorListContent() {
   const fetchTopProducts = async (dateRange: string) => {
     setIsTopProductsLoading(true);
     try {
-      const res = await fetch("/api/admin/ambassador-raw", {
+      const res = await fetch("/api/admin/partner-raw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "fetch_top_products", payload: { dateRange } })
@@ -179,7 +179,7 @@ function AdminAmbassadorListContent() {
     setShowDashboardModal(true);
     setIsDashboardLoading(true);
     try {
-      const res = await fetch("/api/admin/ambassador-raw", {
+      const res = await fetch("/api/admin/partner-raw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "open_member_detail", payload: { memberId: member.id } })
@@ -279,7 +279,7 @@ function AdminAmbassadorListContent() {
       const { data, error } = await supabase
         .from("members")
         .select("*, upline:upline_id(id, name, member_code, phone), downlines:members!upline_id(id, name, member_code, phone, tier, created_at, team_total_sales, direct_total_sales)")
-        .in('tier', ['ambassador', '初潤品牌大使', '初潤知己', '初潤靈魂伴侶'])
+        .in('tier', ['ambassador', '初潤合夥人', '初潤知己', '初潤靈魂伴侶'])
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -322,7 +322,7 @@ function AdminAmbassadorListContent() {
       '電話': m.phone,
       '信箱': m.email || '',
       '職級': m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手' ? '合夥人' :
-             m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '品牌大使' :
+             m.tier === 'ambassador' || m.tier === '初潤合夥人' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶' ? '合夥人' :
              m.tier === 'invited_team' || m.tier === '初潤特邀團' ? '初潤特邀團' : '一般會員',
       '實際職級': m.tier || '一般會員',
       '可用餘額': m.virtual_balance || 0,
@@ -332,7 +332,7 @@ function AdminAmbassadorListContent() {
       '直推累積業績': m.direct_total_sales || 0
     }));
 
-    exportToCsv(`初潤_品牌大使名單_${new Date().toISOString().split('T')[0]}.csv`, exportData);
+    exportToCsv(`初潤_合夥人名單_${new Date().toISOString().split('T')[0]}.csv`, exportData);
   };
 
   const handleSaveChanges = async (e: React.FormEvent) => {
@@ -463,7 +463,7 @@ function AdminAmbassadorListContent() {
                <ArrowLeft className="w-5 h-5 text-slate-400" />
             </Link>
             <div>
-               <h1 className="text-xl font-black tracking-tight flex items-center gap-2"><Crown className="w-6 h-6 text-amber-500" /> 品牌大使總覽與帳戶管理</h1>
+               <h1 className="text-xl font-black tracking-tight flex items-center gap-2"><Crown className="w-6 h-6 text-amber-500" /> 合夥人總覽與帳戶管理</h1>
                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Brand Ambassadors Directory</p>
             </div>
          </div>
@@ -578,7 +578,7 @@ function AdminAmbassadorListContent() {
              <div className="relative z-10 mb-8 flex justify-between items-end">
                 <div>
                    <h2 className="text-xl font-black text-white flex items-center gap-3">
-                      <Crown className="w-6 h-6 text-amber-400" /> 品牌大使戰力排行榜
+                      <Crown className="w-6 h-6 text-amber-400" /> 合夥人戰力排行榜
                    </h2>
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top Performing Ambassadors</p>
                 </div>
@@ -650,12 +650,12 @@ function AdminAmbassadorListContent() {
           </div>
         )}
 
-        {/* --- 品牌大使推廣暢銷商品排行 --- */}
+        {/* --- 合夥人推廣暢銷商品排行 --- */}
         <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                <Target className="w-5 h-5 text-rose-500" /> 品牌大使暢銷商品排行
+                <Target className="w-5 h-5 text-rose-500" /> 合夥人暢銷商品排行
               </h2>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top Selling Products by Ambassador Network</p>
             </div>
@@ -734,7 +734,7 @@ function AdminAmbassadorListContent() {
                   {[
                     { label: '初潤靈魂伴侶', count: members.filter(m => m.tier === '初潤靈魂伴侶').length, color: 'bg-purple-500' },
                     { label: '初潤知己', count: members.filter(m => m.tier === '初潤知己').length, color: 'bg-indigo-500' },
-                    { label: '初潤品牌大使', count: members.filter(m => m.tier === '初潤品牌大使' || m.tier === 'ambassador').length, color: 'bg-emerald-500' },
+                    { label: '初潤合夥人', count: members.filter(m => m.tier === '初潤合夥人' || m.tier === 'ambassador').length, color: 'bg-emerald-500' },
                   ].map(t => (
                     <div key={t.label}>
                       <div className="flex justify-between text-xs font-bold mb-1">
@@ -769,7 +769,7 @@ function AdminAmbassadorListContent() {
                         </div>
                         <button onClick={async () => {
                           if (confirm(`確定要對 ${m.name} 發送激勵推播嗎？`)) {
-                            await fetch("/api/admin/ambassador-raw", {
+                            await fetch("/api/admin/partner-raw", {
                               method: "POST", headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ action: "send_notification", payload: { memberId: m.id, title: "總部表揚", content: "恭喜您近期推廣表現優異，請繼續保持！" } })
                             });
@@ -802,7 +802,7 @@ function AdminAmbassadorListContent() {
                         </div>
                         <button onClick={async () => {
                           if (confirm(`確定要對 ${m.name} 發送關懷推播嗎？`)) {
-                            await fetch("/api/admin/ambassador-raw", {
+                            await fetch("/api/admin/partner-raw", {
                               method: "POST", headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ action: "send_notification", payload: { memberId: m.id, title: "總部關懷", content: "近期未見您的推廣活動，有任何需要總部協助的地方嗎？" } })
                             });
@@ -823,7 +823,7 @@ function AdminAmbassadorListContent() {
            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4 pr-2">篩選職級</span>
            {[
               { id: "all", label: "全部顯示", icon: "🌐" },
-              { id: "初潤品牌大使", label: "初潤品牌大使", icon: "💎" },
+              { id: "初潤合夥人", label: "初潤合夥人", icon: "💎" },
               { id: "初潤知己", label: "初潤知己", icon: "🤝" },
               { id: "初潤靈魂伴侶", label: "初潤靈魂伴侶", icon: "🌟" },
               { id: "超級小幫手", label: "超級小幫手", icon: "👑" },
@@ -960,7 +960,7 @@ function AdminAmbassadorListContent() {
                                {(m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手') && <Crown className="w-3 h-3" />}
                                {
                                  (m.tier === 'partner' || m.tier === '初潤好朋友' || m.tier === '初潤閨蜜' || m.tier === '超級小幫手') ? '合夥人' :
-                                 (m.tier === 'ambassador' || m.tier === '初潤品牌大使' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '品牌大使' :
+                                 (m.tier === 'ambassador' || m.tier === '初潤合夥人' || m.tier === '初潤知己' || m.tier === '初潤靈魂伴侶') ? '合夥人' :
                                  (m.tier === 'invited_team' || m.tier === '初潤特邀團') ? '初潤特邀團' : '一般會員'
                                }
                             </span>
@@ -1044,12 +1044,12 @@ function AdminAmbassadorListContent() {
                             {canApplyForAmbassador(m) && m.tier !== 'ambassador' && (
                               <button
                                 onClick={() => {
-                                  setSelectedAmbassadorMember(m);
-                                  setShowAmbassadorModal(true);
+                                  setselectedPartnerMember(m);
+                                  setShowPartnerModal(true);
                                 }}
                                 className="ml-2 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold"
                               >
-                                申請品牌大使
+                                申請合夥人
                               </button>
                             )}
                          </td>
@@ -1386,20 +1386,20 @@ function AdminAmbassadorListContent() {
           </div>
         )}
       </AnimatePresence>
-            {/* Brand Ambassador Application Modal */}
-            {showAmbassadorModal && selectedAmbassadorMember && (
-              <BrandAmbassadorCard
-                member={selectedAmbassadorMember}
+            {/* Partner Application Modal */}
+            {showPartnerModal && selectedPartnerMember && (
+              <BrandPartnerCard
+                member={selectedPartnerMember}
                 onClose={() => {
-                  setShowAmbassadorModal(false);
-                  setSelectedAmbassadorMember(null);
+                  setShowPartnerModal(false);
+                  setselectedPartnerMember(null);
                 }}
                 onSuccess={() => {
                   // Refresh members list to reflect new tier
                   fetchMembers();
-                  setShowAmbassadorModal(false);
-                  setSelectedAmbassadorMember(null);
-                  alert('🎉 品牌大使申請成功！已更新會員職級。');
+                  setShowPartnerModal(false);
+                  setselectedPartnerMember(null);
+                  alert('🎉 合夥人申請成功！已更新會員職級。');
                 }}
               />
             )}

@@ -1290,20 +1290,14 @@ function AdminDashboardContent() {
                            ].map((act, i) => (
                               <button 
                                  key={act.label}
-                                 onClick={() => {
-                                    if (act.action !== "#") {
-                                       router.push(act.action);
-                                    } else {
-                                       alert("合夥人管理功能即將推出，敬請期待！");
-                                    }
-                                 }}
-                                 className={`w-full flex items-center justify-between p-3.5 rounded-xl transition group ${act.action === "#" ? 'bg-slate-50 opacity-60 cursor-not-allowed' : 'bg-slate-50 hover:bg-slate-900 hover:text-white'}`}
+                                 onClick={() => router.push(act.action)}
+                                 className="w-full flex items-center justify-between p-3.5 rounded-xl transition group bg-slate-50 hover:bg-slate-900 hover:text-white"
                               >
                                  <div className="flex items-center gap-3">
-                                    <act.icon className={`w-4 h-4 ${act.action === "#" ? 'text-slate-300' : 'text-slate-400 group-hover:text-white'}`} />
-                                    <span className={`text-xs font-bold ${act.action === "#" ? 'text-slate-400' : 'text-slate-700 group-hover:text-white'}`}>{act.label}</span>
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
                                  </div>
-                                 {act.action !== "#" && <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />}
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
                               </button>
                            ))}
                         </motion.div>
@@ -1338,24 +1332,18 @@ function AdminDashboardContent() {
                            className="space-y-2 overflow-hidden"
                         >
                            {[
-                              { label: "🤝 合夥人管理 (即將推出)", icon: Users, action: "#" }
+                              { label: "🤝 合夥人管理與名單總覽", icon: Users, action: "/admin/partner/list" }
                            ].map((act, i) => (
                               <button 
                                  key={act.label}
-                                 onClick={() => {
-                                    if (act.action !== "#") {
-                                       router.push(act.action);
-                                    } else {
-                                       alert("合夥人管理功能即將推出，敬請期待！");
-                                    }
-                                 }}
-                                 className={`w-full flex items-center justify-between p-3.5 rounded-xl transition group ${act.action === "#" ? 'bg-slate-50 opacity-60 cursor-not-allowed' : 'bg-slate-50 hover:bg-slate-900 hover:text-white'}`}
+                                 onClick={() => router.push(act.action)}
+                                 className="w-full flex items-center justify-between p-3.5 rounded-xl transition group bg-slate-50 hover:bg-slate-900 hover:text-white"
                               >
                                  <div className="flex items-center gap-3">
-                                    <act.icon className={`w-4 h-4 ${act.action === "#" ? 'text-slate-300' : 'text-slate-400 group-hover:text-white'}`} />
-                                    <span className={`text-xs font-bold ${act.action === "#" ? 'text-slate-400' : 'text-slate-700 group-hover:text-white'}`}>{act.label}</span>
+                                    <act.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-white">{act.label}</span>
                                  </div>
-                                 {act.action !== "#" && <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />}
+                                 <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
                               </button>
                            ))}
                         </motion.div>

@@ -202,22 +202,22 @@ export async function POST(request: Request) {
     }
 
     if (action === 'fetch_top_products') {
-      // Get all ambassadors
-      const { data: ambassadors } = await supabase
+      // Get all partners
+      const { data: partners } = await supabase
         .from('members')
         .select('id')
-        .in('tier', ['ambassador', '初潤品牌大使', '初潤知己', '初潤靈魂伴侶']);
+        .in('tier', ['partner', '初潤好朋友', '初潤閨蜜', '超級小幫手']);
       
-      const ambassadorIds = ambassadors?.map(a => a.id) || [];
-      if (ambassadorIds.length === 0) return NextResponse.json({ success: true, data: [] });
+      const partnerIds = partners?.map(a => a.id) || [];
+      if (partnerIds.length === 0) return NextResponse.json({ success: true, data: [] });
 
       // Get their downlines
       const { data: downlines } = await supabase
         .from('members')
         .select('id')
-        .in('upline_id', ambassadorIds);
+        .in('upline_id', partnerIds);
 
-      const networkIds = [...ambassadorIds, ...(downlines?.map(d => d.id) || [])];
+      const networkIds = [...partnerIds, ...(downlines?.map(d => d.id) || [])];
       
       if (networkIds.length === 0) return NextResponse.json({ success: true, data: [] });
 
@@ -272,15 +272,15 @@ export async function POST(request: Request) {
     }
 
     if (action === 'fetch_insights') {
-      const { data: ambassadors } = await supabase
+      const { data: partners } = await supabase
         .from('members')
         .select('id, name, member_code, phone, tier, created_at, last_login_at')
-        .in('tier', ['ambassador', '初潤品牌大使', '初潤知己', '初潤靈魂伴侶']);
+        .in('tier', ['partner', '初潤好朋友', '初潤閨蜜', '超級小幫手']);
         
-      const ambassadorsList = ambassadors || [];
-      if (ambassadorsList.length === 0) return NextResponse.json({ success: true, risingStars: [], atRisk: [] });
+      const partnersList = partners || [];
+      if (partnersList.length === 0) return NextResponse.json({ success: true, risingStars: [], atRisk: [] });
 
-      const ambassadorIds = ambassadorsList.map(a => a.id);
+      const partnerIds = partnersList.map(a => a.id);
       
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -289,19 +289,19 @@ export async function POST(request: Request) {
       const { data: downlines } = await supabase
         .from('members')
         .select('upline_id, created_at')
-        .in('upline_id', ambassadorIds)
+        .in('upline_id', partnerIds)
         .gte('created_at', ninetyDaysAgo);
 
       const { data: txs } = await supabase
         .from('wallet_transactions')
         .select('member_id, amount, created_at')
-        .in('member_id', ambassadorIds)
+        .in('member_id', partnerIds)
         .eq('transaction_type', 'commission_refund')
         .gte('created_at', ninetyDaysAgo);
 
-      const ambStats = ambassadorsList.map(amb => {
-        const recentTxs = txs?.filter(t => t.member_id === amb.id) || [];
-        const recentDownlines = downlines?.filter(d => d.upline_id === amb.id) || [];
+      const partnerStats = partnersList.map(p => {
+        const recentTxs = txs?.filter(t => t.member_id === p.id) || [];
+        const recentDownlines = downlines?.filter(d => d.upline_id === p.id) || [];
         
         const last30DaysCommission = recentTxs
           .filter(t => new Date(t.created_at) >= new Date(thirtyDaysAgo))
@@ -309,23 +309,23 @@ export async function POST(request: Request) {
           
         const last90DaysCommission = recentTxs.reduce((sum, t) => sum + Number(t.amount), 0);
         return {
-           ...amb,
+           ...p,
            last30DaysCommission,
            last90DaysCommission,
            recentDownlinesCount: recentDownlines.length
         }
       });
 
-      const risingStars = ambStats
-         .filter(a => a.last30DaysCommission > 0)
+      const risingStars = partnerStats
+         .filter(p => p.last30DaysCommission > 0)
          .sort((a, b) => b.last30DaysCommission - a.last30DaysCommission)
          .slice(0, 3)
-         .map(a => ({ ...a, reason: `近30天獲得獎金 $${a.last30DaysCommission.toLocaleString()}` }));
+         .map(p => ({ ...p, reason: `近30天獲得獎金 $${p.last30DaysCommission.toLocaleString()}` }));
 
-      const atRisk = ambStats
-         .filter(a => a.last90DaysCommission === 0 && a.recentDownlinesCount === 0)
+      const atRisk = partnerStats
+         .filter(p => p.last90DaysCommission === 0 && p.recentDownlinesCount === 0)
          .slice(0, 3)
-         .map(a => ({ ...a, reason: `近90天無任何新增業績與下線` }));
+         .map(p => ({ ...p, reason: `近90天無任何新增業績與下線` }));
          
       return NextResponse.json({ success: true, risingStars, atRisk });
     }
