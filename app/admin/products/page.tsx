@@ -503,7 +503,14 @@ function AdminProductsContent() {
     <div className="min-h-screen bg-[#FDFBF7] text-slate-900 pb-20 font-sans">
       <nav className="bg-slate-900 text-white sticky top-0 z-50 px-8 py-4 flex justify-between items-center shadow-2xl">
         <div className="flex items-center gap-4">
-           <button onClick={() => router.push("/admin")} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition backdrop-blur-md">
+           <button onClick={() => {
+              if (activeTab !== 'list') {
+                 if (editingId) handleCancelEdit();
+                 setActiveTab('list');
+              } else {
+                 router.push("/admin");
+              }
+           }} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white transition backdrop-blur-md">
               <ChevronLeft className="w-5 h-5" />
            </button>
             <h1 className="text-sm font-black tracking-[0.2em] uppercase">商品管理</h1>
