@@ -944,71 +944,174 @@ function AdminSuppliersContent() {
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-3">
                              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品名稱</label>
-                             <input type="text" name="name" value={productFormData.name} onChange={handleProductChange} placeholder="請輸入完整商品品名" className="w-full bg-slate-50 border-none p-5 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
+                             <input type="text" name="name" value={productFormData.name} onChange={handleProductChange} placeholder="請輸入完整商品品名" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
                           </div>
                           <div className="space-y-3">
                              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2"><Hash className="w-3 h-3" /> 商品貨號 (SKU)</label>
-                             <input type="text" name="sku" value={productFormData.sku} onChange={handleProductChange} placeholder="例: CRT-001" className="w-full bg-slate-50 border-none p-5 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" />
+                             <input type="text" name="sku" value={productFormData.sku} onChange={handleProductChange} placeholder="例: CRT-001" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" />
                           </div>
                        </div>
 
                        <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品主圖</label>
-                          <div className="flex items-center gap-6">
-                             <div 
-                               onClick={() => fileInputRef.current?.click()}
-                               className="w-32 h-32 border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-indigo-300 transition overflow-hidden relative shrink-0"
-                             >
-                               <input type="file" ref={fileInputRef} onChange={handleProductFileChange} className="hidden" accept=".jpg,.jpeg,.png" />
-                               {productFormData.image_url ? (
-                                  <img src={productFormData.image_url} alt="" className="w-full h-full object-cover" />
-                               ) : (
-                                  <>
-                                     <Upload className="w-6 h-6 text-slate-300 mb-2" />
-                                     <span className="text-[8px] font-bold text-slate-400">上傳圖片</span>
-                                  </>
-                               )}
+                          <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品主圖來源</label>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                             <div className="md:col-span-2">
+                                <div 
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="border-2 border-dashed border-slate-100 bg-slate-50 rounded-[2.5rem] p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-indigo-300 transition group relative min-h-[180px] h-full"
+                                >
+                                  <input type="file" ref={fileInputRef} onChange={handleProductFileChange} className="hidden" accept=".jpg,.jpeg,.png" />
+                                  {productFormData.image_url && productFormData.image_url.startsWith('data:image') ? (
+                                    <div className="text-center space-y-2">
+                                       <div className="bg-indigo-100 text-indigo-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-sm">
+                                          <CheckCircle2 className="w-6 h-6 animate-pulse" />
+                                       </div>
+                                       <p className="text-xs font-bold text-indigo-500">已載入本機圖片檔</p>
+                                       <span className="text-[9px] text-slate-300 font-bold">點擊可重新上傳</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center">
+                                       <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 mx-auto group-hover:scale-110 transition duration-500">
+                                          <Upload className="w-6 h-6 text-slate-300" />
+                                       </div>
+                                       <p className="text-xs font-bold text-slate-400">點擊上傳商品圖檔</p>
+                                       <span className="text-[8px] text-slate-300 font-bold block mt-1">(支援 JPG, PNG，限制 3MB 以內)</span>
+                                    </div>
+                                  )}
+                               </div>
                              </div>
-                             <div className="flex-1 space-y-2">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">或輸入圖片網址</span>
-                                <input 
-                                  type="text" name="image_url" value={productFormData.image_url && productFormData.image_url.startsWith('data:image') ? "" : productFormData.image_url} 
-                                  onChange={handleProductChange} placeholder="https://..." 
-                                  className="w-full bg-slate-50 border-none p-4 rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 transition"
-                                />
+
+                             <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100/50 flex flex-col justify-between gap-4">
+                                <div className="space-y-2">
+                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">直接指定圖片網址 (選填)</span>
+                                   <input 
+                                     type="text" 
+                                     name="image_url" 
+                                     value={productFormData.image_url && productFormData.image_url.startsWith('data:image') ? "" : productFormData.image_url} 
+                                     onChange={handleProductChange} 
+                                     placeholder="例如：https://images.unsplash.com/..." 
+                                     className="w-full bg-white border-none p-4 rounded-xl text-xs font-bold shadow-inner focus:ring-2 focus:ring-indigo-500/10 outline-none"
+                                   />
+                                </div>
+                                
+                                <div className="w-full aspect-[4/3] bg-white rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-100/50 relative">
+                                   {productFormData.image_url ? (
+                                      <>
+                                         <img src={productFormData.image_url} alt="Mini Preview" className="w-full h-full object-cover" />
+                                         <button 
+                                           type="button"
+                                           onClick={(e) => { e.stopPropagation(); setProductFormData(prev => ({ ...prev, image_url: "" })); }}
+                                           className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white backdrop-blur-md active:scale-90 transition"
+                                         >
+                                            <X className="w-3.5 h-3.5" />
+                                         </button>
+                                      </>
+                                   ) : (
+                                      <div className="text-center text-slate-300 space-y-1">
+                                         <ImageIcon className="w-6 h-6 mx-auto" />
+                                         <span className="text-[8px] font-bold uppercase tracking-widest block">圖片預覽</span>
+                                      </div>
+                                   )}
+                                </div>
                              </div>
                           </div>
                        </div>
 
                        <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">商品描述</label>
-                         <textarea name="description" value={productFormData.description} onChange={handleProductChange} placeholder="商品描述..." className="w-full bg-slate-50 border-none p-4 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/10 transition min-h-[80px] resize-none" />
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">商品描述 (選填)</label>
+                         <textarea 
+                           name="description"
+                           value={productFormData.description} 
+                           onChange={handleProductChange} 
+                           placeholder="請輸入商品描述..." 
+                           className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all min-h-[80px]"
+                         />
                        </div>
 
-                       <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-2 mt-4">價格與庫存</h3>
-                       <div className="grid grid-cols-3 gap-6">
-                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">定價 (原價)</label>
-                            <input type="number" name="original_price" value={productFormData.original_price} onChange={handleProductChange} className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold" />
-                         </div>
-                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-indigo-500 ml-1 uppercase tracking-widest">結帳售價 (必填)</label>
-                            <input type="number" name="price" value={productFormData.price} onChange={handleProductChange} className="w-full bg-indigo-50 border-none p-4 rounded-2xl text-sm font-bold text-indigo-900" required />
-                         </div>
-                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-emerald-600 ml-1 uppercase tracking-widest flex items-center gap-1"><Boxes className="w-3 h-3"/> 庫存量</label>
-                            <input type="number" name="stock_count" value={productFormData.stock_count} onChange={handleProductChange} className="w-full bg-emerald-50 border-none p-4 rounded-2xl text-sm font-black text-emerald-900" required />
-                         </div>
-                       </div>
-
-                       <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                          <div className="space-y-3">
-                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">B2C 會員積分 %</label>
-                             <input type="number" name="b2c_reward_percent" value={productFormData.b2c_reward_percent} onChange={handleProductChange} className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold" />
+                       <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">採購單位</label>
+                             <input 
+                                type="text"
+                                name="order_unit"
+                                value={productFormData.order_unit} 
+                                onChange={handleProductChange} 
+                                placeholder="例如: 箱, 件" 
+                                className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                             />
                           </div>
-                          <div className="space-y-3">
-                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">B2B 分潤比例 %</label>
-                             <input type="number" name="b2b_commission_percent" value={productFormData.b2b_commission_percent} onChange={handleProductChange} className="w-full bg-slate-50 border-none p-4 rounded-2xl text-sm font-bold" />
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="一單位等於幾件">單位換算 (件/單位)</label>
+                             <input 
+                                type="number" 
+                                min="1"
+                                name="order_unit_size"
+                                value={productFormData.order_unit_size} 
+                                onChange={handleProductChange} 
+                                className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                             />
+                          </div>
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="每次進貨最少需採購的數量">最低採購量 (MOQ)</label>
+                             <input 
+                                type="number" 
+                                min="1"
+                                name="min_order_quantity"
+                                value={productFormData.min_order_quantity} 
+                                onChange={handleProductChange} 
+                                className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                             />
+                          </div>
+                       </div>
+
+                       <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-2 mt-4 mb-4">價格與庫存設定</h3>
+                       <div className="grid grid-cols-3 gap-8">
+                         <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">官方定價 (原價)</label>
+                            <input type="number" name="original_price" value={productFormData.original_price} onChange={handleProductChange} placeholder="例: 1200" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" />
+                         </div>
+                         <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">結帳售價 (必填)</label>
+                            <input type="number" name="price" value={productFormData.price} onChange={handleProductChange} placeholder="例: 800" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" required />
+                         </div>
+                         <div className="space-y-3">
+                            <label className="text-[10px] font-black text-indigo-600 ml-1 uppercase tracking-widest flex items-center gap-2"><Boxes className="w-3 h-3" /> 目前庫存量</label>
+                            <input type="number" name="stock_count" value={productFormData.stock_count} onChange={handleProductChange} placeholder="100" className="w-full bg-indigo-50/30 border-none p-6 rounded-3xl text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
+                         </div>
+                      </div>
+
+                       <div className="grid grid-cols-2 gap-8">
+                          <div className="bg-emerald-50/50 p-8 rounded-[2.5rem] border border-emerald-100/50 space-y-4">
+                             <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2"><Star className="w-4 h-4 fill-emerald-200" /> B2C 會員積分 %</label>
+                             <input type="number" name="b2c_reward_percent" value={productFormData.b2c_reward_percent} onChange={handleProductChange} className="w-full bg-white border-none p-4 rounded-2xl text-sm font-black text-emerald-800 shadow-sm" />
+                          </div>
+                          <div className="bg-indigo-50/50 p-8 rounded-[2.5rem] border border-indigo-100/50 space-y-4">
+                             <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2"><Zap className="w-4 h-4 fill-indigo-200" /> B2B 分潤比例 %</label>
+                             <input type="number" name="b2b_commission_percent" value={productFormData.b2b_commission_percent} onChange={handleProductChange} className="w-full bg-white border-none p-4 rounded-2xl text-sm font-black text-indigo-800 shadow-sm" />
+                          </div>
+                       </div>
+
+                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 space-y-6">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進階分潤設定 (新品上線)</h4>
+                          
+                          <div className="grid grid-cols-2 gap-8">
+                             <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100/30 space-y-3">
+                                <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">品牌大使：個人消費回饋 %</label>
+                                <input type="number" name="ambassador_personal_reward" value={productFormData.ambassador_personal_reward} onChange={handleProductChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
+                             </div>
+                             <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100/30 space-y-3">
+                                <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">品牌大使：直推會員回饋 %</label>
+                                <input type="number" name="ambassador_direct_reward" value={productFormData.ambassador_direct_reward} onChange={handleProductChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-emerald-800 shadow-sm" />
+                             </div>
+                             
+                             <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 space-y-3">
+                                <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">合夥人：個人消費回饋 %</label>
+                                <input type="number" name="partner_personal_reward" value={productFormData.partner_personal_reward} onChange={handleProductChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-indigo-800 shadow-sm" />
+                             </div>
+                             <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 space-y-3">
+                                <label className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">合夥人：會員直推回饋 %</label>
+                                <input type="number" name="partner_direct_reward" value={productFormData.partner_direct_reward} onChange={handleProductChange} className="w-full bg-white border-none p-3 rounded-xl text-xs font-black text-indigo-800 shadow-sm" />
+                             </div>
                           </div>
                        </div>
                      </form>
