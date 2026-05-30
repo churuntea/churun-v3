@@ -222,7 +222,11 @@ function AdminSuppliersContent() {
       setShowModal(false);
       fetchSuppliers();
     } catch (err: any) {
-      alert("操作失敗: " + err.message);
+      if (err.message?.includes("duplicate key value") || err.message?.includes("suppliers_name_key")) {
+        alert("新增失敗：此供應商名稱已經存在，請勿重複新增！");
+      } else {
+        alert("操作失敗: " + err.message);
+      }
     }
     setIsSubmitting(false);
   };
