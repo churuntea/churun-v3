@@ -190,10 +190,10 @@ function AdminSuppliersContent() {
       while (attempt < maxAttempts) {
         let error;
         if (modalType === "add") {
-          const res = await supabase.from("suppliers").insert([payload]);
+          const res = await supabase.from("suppliers").insert([payload]).select();
           error = res.error;
         } else if (modalType === "edit" && editingId) {
-          const res = await supabase.from("suppliers").update(payload).eq("id", editingId);
+          const res = await supabase.from("suppliers").update(payload).eq("id", editingId).select();
           error = res.error;
         }
         
