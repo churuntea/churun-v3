@@ -31,7 +31,9 @@ import {
   Boxes,
   Star,
   Zap,
-  LayoutDashboard
+  LayoutDashboard,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 function AdminSuppliersContent() {
@@ -83,6 +85,7 @@ function AdminSuppliersContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedSupplierId, setExpandedSupplierId] = useState<string | null>(null);
 
   const categories = ["原料商", "包材商", "設備商", "物流商", "其他"];
 
@@ -529,7 +532,8 @@ function AdminSuppliersContent() {
                       </thead>
                       <tbody>
                          {filteredSuppliers.map((sup) => (
-                            <tr key={sup.id} className="border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition">
+                            <React.Fragment key={sup.id}>
+                            <tr onClick={() => setExpandedSupplierId(prev => prev === sup.id ? null : sup.id)} className={`border-b border-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-50/50 transition cursor-pointer ${expandedSupplierId === sup.id ? 'bg-slate-50/50' : ''}`}>
                                <td className="py-5 pl-2">
                                   <div className="flex flex-col gap-2">
                                      <div className="flex items-center gap-3">
@@ -560,37 +564,42 @@ function AdminSuppliersContent() {
                                   </div>
                                </td>
                                <td className="py-5 text-slate-500 align-top">
-                                  {(() => {
-                                     const linkedProducts = products.filter(p => p.supplier_id === sup.id);
-                                     if (linkedProducts.length > 0) {
-                                       return (
-                                         <div className="flex flex-col gap-1 items-start">
-                                           {linkedProducts.slice(0, 2).map((product: any) => (
-                                             <span key={product.id} className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-[10px] font-bold inline-block truncate max-w-[140px] border border-indigo-100/50">
-                                               {product.name}
-                                             </span>
-                                           ))}
-                                           {linkedProducts.length > 2 && (
-                                             <span className="text-[9px] text-slate-400 font-bold ml-1">+{linkedProducts.length - 2} 個商品</span>
-                                           )}
-                                         </div>
-                                       );
-                                     } else {
-                                       return <span className="text-slate-400 italic text-[10px]">無</span>;
-                                     }
-                                  })()}
+                                  <div className="flex items-start justify-between">
+                                    {(() => {
+                                       const linkedProducts = products.filter(p => p.supplier_id === sup.id);
+                                       if (linkedProducts.length > 0) {
+                                         return (
+                                           <div className="flex flex-col gap-1 items-start">
+                                             {linkedProducts.slice(0, 2).map((product: any) => (
+                                               <span key={product.id} className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-[10px] font-bold inline-block truncate max-w-[140px] border border-indigo-100/50">
+                                                 {product.name}
+                                               </span>
+                                             ))}
+                                             {linkedProducts.length > 2 && (
+                                               <span className="text-[9px] text-slate-400 font-bold ml-1">+{linkedProducts.length - 2} 個商品</span>
+                                             )}
+                                           </div>
+                                         );
+                                       } else {
+                                         return <span className="text-slate-400 italic text-[10px]">無</span>;
+                                       }
+                                    })()}
+                                    <div className="text-slate-300 ml-4 mt-1">
+                                      {expandedSupplierId === sup.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    </div>
+                                  </div>
                                </td>
                                <td className="py-5 text-center pr-2 align-top">
                                   <div className="flex items-center justify-center gap-2">
                                      <button 
-                                       onClick={() => handleOpenEditModal(sup)}
+                                       onClick={(e) => { e.stopPropagation(); handleOpenEditModal(sup); }}
                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
                                        title="編輯"
                                      >
                                         <Edit className="w-4 h-4" />
                                      </button>
                                      <button 
-                                       onClick={() => handleDeleteClick(sup.id)}
+                                       onClick={(e) => { e.stopPropagation(); handleDeleteClick(sup.id); }}
                                        className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition"
                                        title="刪除"
                                      >
@@ -599,6 +608,47 @@ function AdminSuppliersContent() {
                                   </div>
                                </td>
                             </tr>
+                            <AnimatePresence>
+                               {expandedSupplierId === sup.id && (
+                                  <tr className="bg-slate-50/30 border-b border-slate-100">
+                                     <td colSpan={6} className="p-0">
+                                        <motion.div 
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: "auto", opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          className="overflow-hidden"
+                                        >
+                                           <div className="p-6 pl-10 border-l-4 border-indigo-200/50 m-2 ml-4 mb-4 rounded-r-xl">
+                                              <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Package className="w-3 h-3"/> 供應商品完整清單</h6>
+                                              {(() => {
+                                                 const linkedProducts = products.filter(p => p.supplier_id === sup.id);
+                                                 if (linkedProducts.length === 0) return <p className="text-xs text-slate-400 font-bold">目前無任何關聯商品</p>;
+                                                 return (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                       {linkedProducts.map(product => (
+                                                          <div key={product.id} className="bg-white border border-slate-100 p-3 rounded-xl flex items-center gap-3 shadow-sm hover:border-indigo-100 transition">
+                                                             <div className="w-12 h-12 bg-slate-50 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                                                {product.image_url ? <img src={product.image_url} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-4 h-4 text-slate-300" />}
+                                                             </div>
+                                                             <div className="overflow-hidden">
+                                                                <h5 className="text-xs font-black text-slate-800 truncate" title={product.name}>{product.name}</h5>
+                                                                <div className="flex items-center gap-3 mt-1">
+                                                                  <span className="text-[11px] font-black text-indigo-600">${product.price.toLocaleString()}</span>
+                                                                  <span className="text-[9px] text-slate-400 font-bold flex items-center gap-1"><Boxes className="w-3 h-3"/> {product.stock_count}</span>
+                                                                </div>
+                                                             </div>
+                                                          </div>
+                                                       ))}
+                                                    </div>
+                                                 );
+                                              })()}
+                                           </div>
+                                        </motion.div>
+                                     </td>
+                                  </tr>
+                               )}
+                            </AnimatePresence>
+                            </React.Fragment>
                          ))}
                          {filteredSuppliers.length === 0 && (
                             <tr>
@@ -667,7 +717,7 @@ function AdminSuppliersContent() {
                         onClick={() => setActiveTab("items")}
                         className={`pb-4 text-xs font-black tracking-widest uppercase transition border-b-2 ${activeTab === 'items' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                       >
-                        供應品項 ({formData.supplied_items.length})
+                        供應品項 ({products.filter(p => p.supplier_id === editingId).length})
                       </button>
                    </div>
 
