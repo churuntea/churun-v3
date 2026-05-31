@@ -53,8 +53,8 @@ function AdminSuppliersContent() {
     b2c_reward_percent: "10", b2b_commission_percent: "15",
     ambassador_personal_reward: "", ambassador_direct_reward: "",
     partner_personal_reward: "", partner_direct_reward: "",
-    category: "極萃系列", stock_count: 0, sku: "", description: "",
-    order_unit: "件", order_unit_size: 1, min_order_quantity: 1, supplier_id: ""
+    category: "極萃系列", stock_count: 0, safe_stock_count: 10, sku: "", description: "",
+    order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: ""
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -220,9 +220,10 @@ function AdminSuppliersContent() {
         partner_direct_reward: productToEdit.partner_direct_reward?.toString() || "",
         category: productToEdit.category || productCategories[0] || "極萃系列",
         stock_count: productToEdit.stock_count || 0,
+        safe_stock_count: productToEdit.safe_stock_count || 10,
         sku: productToEdit.sku || "",
         description: productToEdit.description || "",
-        order_unit: productToEdit.order_unit || "件",
+        order_unit: productToEdit.order_unit || "數量",
         order_unit_size: productToEdit.order_unit_size || 1,
         min_order_quantity: productToEdit.min_order_quantity || 1,
         supplier_id: productToEdit.supplier_id || editingId
@@ -234,8 +235,8 @@ function AdminSuppliersContent() {
         b2c_reward_percent: "10", b2b_commission_percent: "15",
         ambassador_personal_reward: "", ambassador_direct_reward: "",
         partner_personal_reward: "", partner_direct_reward: "",
-        category: productCategories[0] || "極萃系列", stock_count: 0, sku: "", description: "",
-        order_unit: "件", order_unit_size: 1, min_order_quantity: 1, supplier_id: editingId || ""
+        category: productCategories[0] || "極萃系列", stock_count: 0, safe_stock_count: 10, sku: "", description: "",
+        order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: editingId || ""
       });
     }
     setShowProductModal(true);
@@ -259,6 +260,7 @@ function AdminSuppliersContent() {
         partner_personal_reward: Number(productFormData.partner_personal_reward),
         partner_direct_reward: Number(productFormData.partner_direct_reward),
         stock_count: Number(productFormData.stock_count),
+        safe_stock_count: Number(productFormData.safe_stock_count),
         supplier_id: editingId || productFormData.supplier_id
       };
       
@@ -1091,7 +1093,7 @@ function AdminSuppliersContent() {
                              />
                           </div>
                           <div className="space-y-2">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="一單位等於幾件">單位換算 (件/單位)</label>
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2" title="一單位等於幾件">單位換算 (數量/單位)</label>
                              <input 
                                 type="number" 
                                 min="1"
@@ -1115,7 +1117,7 @@ function AdminSuppliersContent() {
                        </div>
 
                        <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-2 mt-4 mb-4">價格與庫存設定</h3>
-                       <div className="grid grid-cols-3 gap-8">
+                       <div className="grid grid-cols-4 gap-8">
                          <div className="space-y-3">
                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">官方定價 (原價)</label>
                             <input type="number" name="original_price" value={productFormData.original_price} onChange={handleProductChange} placeholder="例: 1200" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold" />
@@ -1127,6 +1129,10 @@ function AdminSuppliersContent() {
                          <div className="space-y-3">
                             <label className="text-[10px] font-black text-indigo-600 ml-1 uppercase tracking-widest flex items-center gap-2"><Boxes className="w-3 h-3" /> 目前庫存量</label>
                             <input type="number" name="stock_count" value={productFormData.stock_count} onChange={handleProductChange} placeholder="100" className="w-full bg-indigo-50/30 border-none p-6 rounded-3xl text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
+                         </div>
+                         <div className="space-y-3">
+                            <label className="text-[10px] font-black text-rose-600 ml-1 uppercase tracking-widest flex items-center gap-2"><Boxes className="w-3 h-3" /> 安全庫存量</label>
+                            <input type="number" name="safe_stock_count" value={productFormData.safe_stock_count} onChange={handleProductChange} placeholder="10" className="w-full bg-rose-50/30 border-none p-6 rounded-3xl text-sm font-black text-rose-900 focus:ring-4 focus:ring-rose-500/10 transition shadow-inner" required />
                          </div>
                       </div>
 

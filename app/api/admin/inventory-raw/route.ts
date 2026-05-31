@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       return {
         ...p,
         description: desc,
-        order_unit: extData.order_unit || "件",
+        order_unit: extData.order_unit || "數量",
         order_unit_size: extData.order_unit_size || 1,
         min_order_quantity: extData.min_order_quantity || 1
       };

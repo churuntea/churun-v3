@@ -28,11 +28,12 @@ export async function GET() {
       return {
         ...p,
         description: desc,
-        order_unit: extData.order_unit || '件',
+        order_unit: extData.order_unit || '數量',
         order_unit_size: extData.order_unit_size || 1,
         min_order_quantity: extData.min_order_quantity || 1,
         supplier_id: extData.supplier_id || "",
-        stock_count: Number(p.stock_count || 0)
+        stock_count: Number(p.stock_count || 0),
+        safe_stock_count: Number(p.safe_stock_count || 10)
       };
     });
 
@@ -63,7 +64,8 @@ export async function POST(request: Request) {
       order_unit,
       order_unit_size,
       min_order_quantity,
-      supplier_id
+      supplier_id,
+      safe_stock_count
     } = await request.json();
 
     if (!name || price === undefined) {
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
     }
 
     const extJson = JSON.stringify({
-      order_unit: order_unit || '件',
+      order_unit: order_unit || '數量',
       order_unit_size: order_unit_size || 1,
       min_order_quantity: min_order_quantity || 1,
       supplier_id: supplier_id || ''
@@ -124,6 +126,7 @@ export async function POST(request: Request) {
       category: category || '全部商品',
       status: 'active',
       stock_count: stock_count || 0,
+      safe_stock_count: safe_stock_count || 10,
       sku: sku || null,
       description: finalDescription
     };
@@ -227,7 +230,8 @@ export async function PUT(request: Request) {
       order_unit,
       order_unit_size,
       min_order_quantity,
-      supplier_id
+      supplier_id,
+      safe_stock_count
     } = await request.json();
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });
@@ -264,7 +268,7 @@ export async function PUT(request: Request) {
     }
 
     const extJson = JSON.stringify({
-      order_unit: order_unit || '件',
+      order_unit: order_unit || '數量',
       order_unit_size: order_unit_size || 1,
       min_order_quantity: min_order_quantity || 1,
       supplier_id: supplier_id || ''
@@ -286,6 +290,7 @@ export async function PUT(request: Request) {
       category: category || '全部商品',
       status: 'active',
       stock_count: stock_count || 0,
+      safe_stock_count: safe_stock_count || 10,
       sku: sku || null,
       description: finalDescription
     };

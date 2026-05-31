@@ -139,7 +139,7 @@ function InventoryDashboard() {
              .filter((log: any) => log.product_name === p.name && log.notes && log.notes.includes('草稿待入庫') && log.type === 'inbound')
              .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
           
-          return (Number(p.stock || 0) + orderedQty) < Number(p.min_stock || 10);
+          return (Number(p.stock || 0) + orderedQty) < Number(p.safe_stock_count || 10);
        });
     }
 
@@ -154,7 +154,7 @@ function InventoryDashboard() {
           .reduce((sum: number, log: any) => sum + (Number(log.quantity) || 0), 0);
           
        const currentStock = Number(p.stock || 0);
-       const minStock = Number(p.min_stock || 10);
+       const minStock = Number(p.safe_stock_count || 10);
        const moq = Number(p.min_order_quantity || 1);
        
        const unitSize = Number(p.order_unit_size || 1);
@@ -174,7 +174,7 @@ function InventoryDashboard() {
           suggested_qty: suggested,
           cost_price: Number(p.price || 0) * 0.4,
           supplier: "初潤南投茶園總廠",
-          order_unit: p.order_unit || "件",
+          order_unit: p.order_unit || "數量",
           order_unit_size: unitSize,
           min_order_quantity: moq
        };
@@ -381,7 +381,7 @@ function InventoryDashboard() {
         const targetProd = products.find(p => p.id === selectedProductId);
         targetProdName = targetProd?.name;
         targetProdCategory = targetProd?.category || "極萃系列";
-        minStock = targetProd?.min_stock || 10;
+        minStock = targetProd?.safe_stock_count || 10;
 
         if (modalType === "stock" && targetProd) {
           const daan = Number(targetProd.stock_daan || 0);
@@ -498,7 +498,7 @@ function InventoryDashboard() {
     const selectedProds = products.filter(p => selectedRowIds.has(p.id));
     let csvContent = "商品編號,商品名稱,現有庫存,建議採購量\n";
     selectedProds.forEach(p => {
-       const suggestion = Math.max(0, (p.min_stock || 10) * 2 - (p.stock || 0));
+       const suggestion = Math.max(0, (p.safe_stock_count || 10) * 2 - (p.stock || 0));
        csvContent += `${p.id},${p.name},${p.stock},${suggestion}\n`;
     });
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
@@ -529,9 +529,9 @@ function InventoryDashboard() {
         p.name, 
         p.category || "極萃系列", 
         p.stock || 0, 
-        p.min_stock || 10, 
+        p.safe_stock_count || 10, 
         p.price || 0, 
-        (p.stock || 0) < (p.min_stock || 10) ? "補貨預警" : "庫存充足"
+        (p.stock || 0) < (p.safe_stock_count || 10) ? "補貨預警" : "庫存充足"
       ]);
     }
 
@@ -609,7 +609,7 @@ function InventoryDashboard() {
     return sortedProducts.slice(0, 7).map(p => ({
       name: p.name.substring(0, 6) + (p.name.length > 6 ? '...' : ''),
       stock: p.stock || 0,
-      min_stock: p.min_stock || 10
+      min_stock: p.safe_stock_count || 10
     }));
   }, [sortedProducts]);
 
@@ -695,7 +695,7 @@ function InventoryDashboard() {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">安全庫存預警</p>
                </div>
                <div className="flex justify-between items-end">
-                  <h3 className="text-xl font-black text-rose-600 tracking-tight">{products.filter(p => (p.stock || 0) < (p.min_stock || 10)).length} <span className="text-xs font-bold text-rose-400">項需補貨</span></h3>
+                  <h3 className="text-xl font-black text-rose-600 tracking-tight">{products.filter(p => (p.stock || 0) < (p.safe_stock_count || 10)).length} <span className="text-xs font-bold text-rose-400">項需補貨</span></h3>
                   <button 
                     onClick={handleSmartOrderClick}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-[10px] font-black tracking-widest shadow-md shadow-rose-600/20 transition-all active:scale-95 group"
