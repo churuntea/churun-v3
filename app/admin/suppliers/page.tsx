@@ -341,7 +341,7 @@ function AdminSuppliersContent() {
   const handleOpenEditModal = (supplier: any) => {
     setModalType("edit");
     setEditingId(supplier.id);
-    setActiveTab("basic");
+    setActiveTab("items");
     setFormData({
       name: supplier.name || "",
       phone: supplier.phone || "",
