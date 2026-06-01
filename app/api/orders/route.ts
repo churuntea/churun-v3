@@ -137,10 +137,10 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { orderId, lastFive, remitterName, remitterBank } = await request.json();
+    const { orderId, lastFive, remitterName, remitterBank, remitterAmount } = await request.json();
 
-    if (!orderId || !lastFive || lastFive.length !== 5 || !remitterName || !remitterBank) {
-      return NextResponse.json({ success: false, error: '請完整填寫匯款人姓名、銀行與 5 碼帳號末碼' }, { status: 400 });
+    if (!orderId || !lastFive || lastFive.length !== 5 || !remitterName || !remitterBank || !remitterAmount) {
+      return NextResponse.json({ success: false, error: '請完整填寫匯款人姓名、銀行、匯款金額與 5 碼帳號末碼' }, { status: 400 });
     }
 
     console.log(`[API PUT Orders] Received request to update remittance info: ${remitterName}, ${remitterBank}, ${lastFive} for Order ${orderId}`);
@@ -152,7 +152,8 @@ export async function PUT(request: Request) {
         payment_last_five: lastFive,
         bank_last_five: lastFive,
         remitter_name: remitterName,
-        remitter_bank: remitterBank
+        remitter_bank: remitterBank,
+        remitter_amount: remitterAmount
       })
       .eq('id', orderId);
 
@@ -184,6 +185,7 @@ export async function PUT(request: Request) {
         existingJSON.bank_last_five = lastFive;
         existingJSON.remitter_name = remitterName;
         existingJSON.remitter_bank = remitterBank;
+        existingJSON.remitter_amount = remitterAmount;
 
         const fallbackStr = 'FALLBACK_JSON:' + JSON.stringify(existingJSON);
 

@@ -110,6 +110,7 @@ function OrdersContent() {
   const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
   const [loadingItems, setLoadingItems] = useState<string | null>(null);
   const [remittanceInputs, setRemittanceInputs] = useState<Record<string, string>>({});
+  const [remittanceAmounts, setRemittanceAmounts] = useState<Record<string, string>>({});
   const [remitterNames, setRemitterNames] = useState<Record<string, string>>({});
   const [remitterBanks, setRemitterBanks] = useState<Record<string, string>>({});
   const [isEditingRemittance, setIsEditingRemittance] = useState<Record<string, boolean>>({});
@@ -417,9 +418,9 @@ function OrdersContent() {
     setLoadingItems(null);
   };
 
-  const handleUpdatePaymentLastFive = async (orderId: string, lastFive: string, remitterName: string, remitterBank: string) => {
-    if (!remitterName || !remitterBank || !lastFive || lastFive.length !== 5) {
-      alert("請完整填寫匯款人姓名、匯款銀行與 5 碼帳號末碼");
+  const handleUpdatePaymentLastFive = async (orderId: string, lastFive: string, remitterName: string, remitterBank: string, remitterAmount: string) => {
+    if (!remitterName || !remitterBank || !lastFive || lastFive.length !== 5 || !remitterAmount) {
+      alert("請完整填寫匯款人姓名、匯款銀行、匯款金額與 5 碼帳號末碼");
       return;
     }
     setIsLoading(true);
@@ -428,7 +429,7 @@ function OrdersContent() {
       const res = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, lastFive, remitterName, remitterBank })
+        body: JSON.stringify({ orderId, lastFive, remitterName, remitterBank, remitterAmount })
       });
       const data = await res.json();
       
@@ -625,6 +626,7 @@ function OrdersContent() {
                                        <div className="text-xs font-black text-slate-700 mt-1.5 space-y-1">
                                           <p>👤 匯款姓名：{order.remitter_name || "未填寫"}</p>
                                           <p>🏦 匯款銀行：{order.remitter_bank || "未填寫"}</p>
+                                          <p>💰 匯款金額：<span className="font-mono text-emerald-700">${Number(order.remitter_amount || 0).toLocaleString()}</span></p>
                                           <p>🔢 帳號末五碼：<span className="font-mono text-emerald-700">{order.payment_last_five}</span></p>
                                        </div>
                                     </div>
@@ -633,6 +635,7 @@ function OrdersContent() {
                                      <button 
                                        onClick={() => {
                                          setRemittanceInputs(prev => ({ ...prev, [order.id]: order.payment_last_five || memberProfileInfo?.lastFive || "" }));
+                                         setRemittanceAmounts(prev => ({ ...prev, [order.id]: order.remitter_amount || "" }));
                                          setRemitterNames(prev => ({ ...prev, [order.id]: order.remitter_name || memberProfileInfo?.name || localStorage.getItem("churun_member_name") || "" }));
                                          setRemitterBanks(prev => ({ ...prev, [order.id]: order.remitter_bank || memberProfileInfo?.bankName || "" }));
                                          setIsEditingRemittance(prev => ({ ...prev, [order.id]: true }));
@@ -667,7 +670,7 @@ function OrdersContent() {
                                        🏦 選擇常用帳號
                                      </button>
                                   </div>
-                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                 <div className="grid grid-cols-2 gap-2.5">
                                     <div>
                                       <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款人姓名</label>
                                       <input 
@@ -726,6 +729,16 @@ function OrdersContent() {
                                       )}
                                     </div>
                                     <div>
+                                      <label className="text-[9px] font-bold text-slate-500 mb-1 block">匯款金額</label>
+                                      <input 
+                                        type="number" 
+                                        placeholder="例：1200"
+                                        value={remittanceAmounts[order.id] || ""}
+                                        onChange={e => setRemittanceAmounts(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                        className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-300 font-mono"
+                                      />
+                                    </div>
+                                    <div>
                                       <label className="text-[9px] font-bold text-slate-500 mb-1 block">帳號末五碼</label>
                                       <input 
                                         type="text" 
@@ -742,7 +755,7 @@ function OrdersContent() {
                                  </div>
                                  <div className="flex justify-end pt-1">
                                     <button 
-                                      onClick={() => handleUpdatePaymentLastFive(order.id, remittanceInputs[order.id] || "", remitterNames[order.id] || "", remitterBanks[order.id] || "")}
+                                      onClick={() => handleUpdatePaymentLastFive(order.id, remittanceInputs[order.id] || "", remitterNames[order.id] || "", remitterBanks[order.id] || "", remittanceAmounts[order.id] || "")}
                                       className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition shadow-lg shadow-amber-500/10 flex items-center gap-1"
                                     >
                                        送出對帳 ✓
