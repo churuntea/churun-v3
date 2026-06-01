@@ -1417,8 +1417,8 @@ function StoreContent() {
                           <div className="space-y-2">
                               <h3 className="text-xl font-black text-slate-800">{product.name}</h3>
                               <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">回饋 {product.b2c_reward_percent}%</span>
-                              {product.description && (
-                                 <p className="text-[11px] font-bold text-slate-400/90 mt-1.5 leading-relaxed">{product.description}</p>
+                              {product.description && product.description.split("||_EXT_JSON_||")[0] && (
+                                 <p className="text-[11px] font-bold text-slate-400/90 mt-1.5 leading-relaxed">{product.description.split("||_EXT_JSON_||")[0]}</p>
                               )}
                            </div>
                           <div className="text-right">
