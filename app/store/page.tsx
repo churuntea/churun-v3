@@ -654,7 +654,7 @@ function StoreContent() {
         const orderIds = oData.map((o: any) => o.id);
         const { data: allItems } = await supabase
           .from("order_items")
-          .select("order_id, name, quantity")
+          .select("order_id, product_id, name, quantity")
           .in("order_id", orderIds);
 
         const mappedOrders = oData.map((o: any) => {
@@ -674,6 +674,30 @@ function StoreContent() {
       }
     } catch (oErr) {
       console.error("載入歷史訂單失敗:", oErr);
+    }
+  };
+
+  const handleReorder = (order: any) => {
+    let addedCount = 0;
+    order.items.forEach((item: any) => {
+      let product = products.find(p => p.id === item.product_id);
+      if (!product) {
+        product = products.find(p => p.name === item.name);
+      }
+      
+      if (product) {
+        addToCart(product, item.quantity);
+        addedCount++;
+      }
+    });
+
+    if (addedCount > 0) {
+      alert(`已將 ${addedCount} 項商品加入購物車！`);
+      setIsCartOpen(true);
+      setShowOrderListModal(false);
+      setShowHistoryOrders(false);
+    } else {
+      alert("無法加入購物車，可能是商品已下架或找不到對應商品。");
     }
   };
 
@@ -2823,7 +2847,15 @@ function StoreContent() {
                                 </div>
                                 <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
                               </div>
-                              <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleReorder(order); }}
+                                  className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 border border-emerald-200 rounded-lg text-[10px] font-black hover:bg-emerald-100 active:scale-95 transition-all shadow-sm"
+                                >
+                                  <ShoppingCart className="w-3 h-3" /> 再次購買
+                                </button>
+                              </div>
                             </div>
 
                             {/* 購買品項清單 */}
@@ -2979,7 +3011,15 @@ function StoreContent() {
                                       </div>
                                       <span className="text-[10px] font-bold text-slate-400 mt-1 block">訂購日期：{orderDate}</span>
                                     </div>
-                                    <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                                    <div className="flex flex-col items-end gap-2">
+                                      <span className="text-sm font-black text-slate-900">${Number(order.total_amount).toLocaleString()}</span>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleReorder(order); }}
+                                        className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 border border-emerald-200 rounded-lg text-[10px] font-black hover:bg-emerald-100 active:scale-95 transition-all shadow-sm"
+                                      >
+                                        <ShoppingCart className="w-3 h-3" /> 再次購買
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {/* 購買品項清單 */}
