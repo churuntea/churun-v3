@@ -1067,8 +1067,8 @@ function AdminDashboardContent() {
         {/* HQ Stats Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-6 px-2">
            {[
-             { label: "今日成交額", val: `NT$ ${stats.todayRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-indigo-500", href: "#" },
-             { label: "本月累計業績", val: `NT$ ${stats.monthRevenue.toLocaleString()}`, icon: Activity, color: "text-pink-500", href: "#" },
+             { label: "今日成交額", val: `NT$ ${stats.todayRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-indigo-500", href: "/admin/orders?filter=today" },
+             { label: "本月累計業績", val: `NT$ ${stats.monthRevenue.toLocaleString()}`, icon: Activity, color: "text-pink-500", href: "/admin/orders?filter=this_month" },
              { label: "待核准提領", val: `NT$ ${stats.pendingSettlement.toLocaleString()}`, icon: Wallet, color: "text-amber-500", href: "/admin/withdrawals" },
              { label: "待處理訂單", val: `${stats.activeOrders} 筆`, icon: Package, color: "text-blue-500", href: "/admin/orders" },
              { label: "總註冊會員", val: `${stats.totalMembers} 員`, icon: Users, color: "text-emerald-500", href: "/admin/members" },

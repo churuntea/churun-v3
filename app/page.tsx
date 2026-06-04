@@ -955,10 +955,13 @@ function DashboardContent() {
                          <img 
                            src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} 
                            alt={news.title} 
+                           onError={(e) => {
+                             e.currentTarget.src = "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80";
+                           }}
                            onClick={(e) => {
                              e.preventDefault();
                              e.stopPropagation();
-                             setPreviewImage(news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80");
+                             setPreviewImage(e.currentTarget.src);
                            }}
                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out cursor-zoom-in relative z-20" 
                          />

@@ -65,7 +65,8 @@ export async function POST(request: Request) {
       order_unit_size,
       min_order_quantity,
       supplier_id,
-      safe_stock_count
+      safe_stock_count,
+      status
     } = await request.json();
 
     if (!name || price === undefined) {
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
       partner_personal_reward: partner_personal_reward || 0,
       partner_direct_reward: partner_direct_reward || 0,
       category: category || '全部商品',
-      status: 'active',
+      status: status || 'active',
       stock_count: stock_count || 0,
       safe_stock_count: safe_stock_count || 10,
       sku: sku || null,
@@ -231,7 +232,8 @@ export async function PUT(request: Request) {
       order_unit_size,
       min_order_quantity,
       supplier_id,
-      safe_stock_count
+      safe_stock_count,
+      status
     } = await request.json();
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });
@@ -288,7 +290,7 @@ export async function PUT(request: Request) {
       partner_personal_reward: partner_personal_reward || 0,
       partner_direct_reward: partner_direct_reward || 0,
       category: category || '全部商品',
-      status: 'active',
+      status: status || 'active',
       stock_count: stock_count || 0,
       safe_stock_count: safe_stock_count || 10,
       sku: sku || null,

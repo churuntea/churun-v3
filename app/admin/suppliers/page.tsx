@@ -43,6 +43,8 @@ function AdminSuppliersContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>(["極萃系列", "精品茶具", "典藏禮盒"]);
   const [creators, setCreators] = useState<string[]>(["陳總經理", "王副總", "張主任", "系統管理員"]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
   
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -54,7 +56,7 @@ function AdminSuppliersContent() {
     ambassador_personal_reward: "", ambassador_direct_reward: "",
     partner_personal_reward: "", partner_direct_reward: "",
     category: "極萃系列", stock_count: 0, safe_stock_count: 10, sku: "", description: "",
-    order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: ""
+    order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: "", status: "inactive"
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -188,6 +190,33 @@ function AdminSuppliersContent() {
     } catch (err) { console.error("載入人事資料出錯:", err); }
   };
 
+  const handleAddCategory = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return alert("請輸入大項/分類名稱");
+    if (productCategories.includes(trimmed)) return alert("此大項/分類已存在");
+
+    setIsSavingCategory(true);
+    const updated = [...productCategories, trimmed];
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .update({ content: JSON.stringify(updated) })
+        .eq("title", "[SYSTEM_CATEGORIES]");
+      
+      if (error) throw error;
+      
+      dbCache.invalidate("churun_cache:categories");
+      setProductCategories(updated);
+      setNewCategoryName("");
+      alert("🎉 新增分類大項成功！");
+    } catch (err: any) {
+      alert("新增分類失敗: " + err.message);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProductFormData(prev => ({ ...prev, [name]: value }));
@@ -226,7 +255,8 @@ function AdminSuppliersContent() {
         order_unit: productToEdit.order_unit || "數量",
         order_unit_size: productToEdit.order_unit_size || 1,
         min_order_quantity: productToEdit.min_order_quantity || 1,
-        supplier_id: productToEdit.supplier_id || editingId
+        supplier_id: productToEdit.supplier_id || editingId,
+        status: productToEdit.status || "inactive"
       });
     } else {
       setEditingProduct(null);
@@ -236,7 +266,7 @@ function AdminSuppliersContent() {
         ambassador_personal_reward: "", ambassador_direct_reward: "",
         partner_personal_reward: "", partner_direct_reward: "",
         category: productCategories[0] || "極萃系列", stock_count: 0, safe_stock_count: 10, sku: "", description: "",
-        order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: editingId || ""
+        order_unit: "數量", order_unit_size: 1, min_order_quantity: 1, supplier_id: editingId || "", status: "inactive"
       });
     }
     setShowProductModal(true);
@@ -261,7 +291,8 @@ function AdminSuppliersContent() {
         partner_direct_reward: Number(productFormData.partner_direct_reward),
         stock_count: Number(productFormData.stock_count),
         safe_stock_count: Number(productFormData.safe_stock_count),
-        supplier_id: editingId || productFormData.supplier_id
+        supplier_id: editingId || productFormData.supplier_id,
+        status: productFormData.status
       };
       
       const res = await fetch("/api/products", {
@@ -974,7 +1005,7 @@ function AdminSuppliersContent() {
                    {/* Form Body */}
                    <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
                      <form id="productForm" onSubmit={submitProduct} className="space-y-8">
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                           <div className="space-y-3">
                              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">
                                 <CheckCircle2 className="w-3 h-3" /> 建檔者身分
@@ -991,9 +1022,21 @@ function AdminSuppliersContent() {
                                {productCategories.map(c => <option key={c} value={c}>{c}</option>)}
                              </select>
                           </div>
+                          <div className="space-y-3">
+                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2">
+                                <Plus className="w-3 h-3" /> 大項分類管理
+                             </label>
+                             <div className="flex gap-2 h-[60px]">
+                               <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="新分類名稱" className="w-full bg-slate-50 border-none px-4 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition" />
+                               <button type="button" onClick={handleAddCategory} disabled={isSavingCategory} className="px-5 bg-slate-900 text-white rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition flex items-center gap-1 shrink-0 whitespace-nowrap shadow-md">
+                                  {isSavingCategory ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                                  新增
+                               </button>
+                             </div>
+                          </div>
                        </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                           <div className="space-y-3">
                              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">商品名稱</label>
                              <input type="text" name="name" value={productFormData.name} onChange={handleProductChange} placeholder="請輸入完整商品品名" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" required />
@@ -1001,6 +1044,13 @@ function AdminSuppliersContent() {
                           <div className="space-y-3">
                              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2"><Hash className="w-3 h-3" /> 商品貨號 (SKU)</label>
                              <input type="text" name="sku" value={productFormData.sku} onChange={handleProductChange} placeholder="例: CRT-001" className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner" />
+                          </div>
+                          <div className="space-y-3">
+                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest flex items-center gap-2"><CheckCircle2 className="w-3 h-3" /> 上架狀態</label>
+                             <select name="status" value={productFormData.status} onChange={handleProductChange} className="w-full bg-slate-50 border-none p-6 rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition shadow-inner">
+                               <option value="active">可上架</option>
+                               <option value="inactive">不上架</option>
+                             </select>
                           </div>
                        </div>
 

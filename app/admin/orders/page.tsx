@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -122,6 +122,7 @@ const isThisMonth = (dateStr: string) => {
 
 function AdminOrdersContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isAdmin, setIsAdmin] = useState(false);
   const [showBulkShipModal, setShowBulkShipModal] = useState(false);
   const [bulkShipData, setBulkShipData] = useState<Record<string, { carrier: string; trackingNum: string }>>({});
@@ -308,6 +309,22 @@ function AdminOrdersContent() {
     fetchOrders();
     fetchPickupPoints();
   }, [router]);
+
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    if (filterParam === "today") {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (filterParam === "this_month") {
+      const today = new Date();
+      const firstDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      setStartDate(firstDay);
+      setEndDate(todayStr);
+    }
+  }, [searchParams]);
 
   const handlePrintPackingSlip = (order: any) => {
     const printWindow = window.open('', '_blank');
