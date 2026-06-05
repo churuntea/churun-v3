@@ -868,6 +868,7 @@ async function handleUnlinkedUserFlow(botType: string, replyToken: string, userI
     }
 
     await sendLineReply(
+      botType,
       replyToken,
       `🍵 熱銷茶葉精品推薦 (公開資訊)
 ━━━━━━━━━━━━━━━━━━
