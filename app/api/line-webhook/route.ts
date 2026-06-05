@@ -325,7 +325,7 @@ function mapUserTextToCommand(text: string): string {
 /**
  * 處理「已綁定會員」的回覆邏輯
  */
-async function handleLinkedUserFlow(replyToken: string, userId: string, member: any, input: string, testReplies?: any[]) {
+async function handleLinkedUserFlow(botType: string, replyToken: string, userId: string, member: any, input: string, testReplies?: any[]) {
   let replyMsg = "";
 
   switch (input) {
