@@ -24,19 +24,33 @@ export async function POST(request: Request) {
     const arrayBuffer = await imageResp.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Call Gemini
+    // Call Gemini with fallback
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash", "gemini-1.5-pro"];
+    let visual_description = "";
     
     const prompt = "Describe the visual appearance of this packaging specifically focusing on color, shape, and prominent visual design elements. Keep it very brief, under 20 words, in Traditional Chinese. Do not read the text on the package, just describe the visual look. E.g. 紅色亮面長方形包裝袋, 綠色底白色方格圖案包裝, 牛皮紙袋.";
 
-    const result = await model.generateContent([
-      prompt,
-      { inlineData: { data: buffer.toString('base64'), mimeType: 'image/jpeg' } }
-    ]);
-    
-    const visual_description = result.response.text().trim();
-    console.log(`[Auto-Visual-Desc] 分析完成: ${visual_description}`);
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([
+          prompt,
+          { inlineData: { data: buffer.toString('base64'), mimeType: 'image/jpeg' } }
+        ]);
+        visual_description = result.response.text().trim();
+        if (visual_description) {
+          console.log(`[Auto-Visual-Desc] 分析完成 (${modelName}): ${visual_description}`);
+          break; // 成功就跳出迴圈
+        }
+      } catch (err: any) {
+        console.warn(`[Auto-Visual-Desc] Model ${modelName} failed:`, err.message);
+      }
+    }
+
+    if (!visual_description || visual_description === "UNKNOWN") {
+      visual_description = "無明顯特徵"; // 如果所有模型都失敗，給一個預設值，避免後續匹配完全抓不到
+    }
 
     // Update the product's description field by injecting it into ||_EXT_JSON_||
     // First, fetch the current product
