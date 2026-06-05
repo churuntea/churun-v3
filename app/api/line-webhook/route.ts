@@ -8,31 +8,15 @@ export const dynamic = 'force-dynamic';
 import * as fs from 'fs';
 import * as path from 'path';
 
-function getLineAccessToken(): string {
-  if (process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    return process.env.LINE_CHANNEL_ACCESS_TOKEN;
+function getLineAccessToken(botType: string): string {
+  if (botType === 'main') {
+    return process.env.LINE_CHANNEL_ACCESS_TOKEN_MAIN || "";
   }
-  try {
-    const possiblePaths = [
-      path.join(process.cwd(), '.env.local'),
-      'd:/0_事業體/初潤製茶所_Gemini/churun-frontend/.env.local',
-      path.resolve(process.cwd(), '../.env.local')
-    ];
-    for (const envPath of possiblePaths) {
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, 'utf8');
-        const lines = content.split(/\r?\n/);
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('LINE_CHANNEL_ACCESS_TOKEN=')) {
-            return trimmed.replace('LINE_CHANNEL_ACCESS_TOKEN=', '').trim();
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('讀取 .env.local 失敗:', err);
+  
+  if (process.env.LINE_CHANNEL_ACCESS_TOKEN_ORDER) {
+    return process.env.LINE_CHANNEL_ACCESS_TOKEN_ORDER;
   }
+  // 預設出貨系統的硬編碼 Token
   return "zZ2xNjSpxGORDJ4RtQLwxm70PmN4SXmyT+tAknCS279x42aZAKnaYh3+cGxiw7ek4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoPxULNME0+xV4dz+Hzu1CA8FKgsXE3iYjmdA9RrrWtVwQdB04t89/1O/w1cDnyilFU=";
 }
 
@@ -62,7 +46,12 @@ function getGeminiApiKey(): string {
   return "";
 }
 
-const LINE_CHANNEL_SECRET: string = "62fe3ed0c41fc24d2959dc2977c11db6";
+function getLineChannelSecret(botType: string): string {
+  if (botType === 'main') {
+    return process.env.LINE_CHANNEL_SECRET_MAIN || "";
+  }
+  return process.env.LINE_CHANNEL_SECRET_ORDER || "62fe3ed0c41fc24d2959dc2977c11db6";
+}
 
 const LINKED_QUICK_REPLIES = [
   { type: "action", action: { type: "message", label: "👤 帳號資訊", text: "1" } },
@@ -88,6 +77,8 @@ const UNLINKED_QUICK_REPLIES = [
  */
 export async function POST(req: NextRequest) {
   try {
+    const botType = req.nextUrl.searchParams.get("bot") || "order";
+    const channelSecret = getLineChannelSecret(botType);
     const bodyText = await req.text();
     const signature = req.headers.get("x-line-signature") || "";
     const isTestMode = req.headers.get("x-test-mode") === "true";
@@ -95,10 +86,10 @@ export async function POST(req: NextRequest) {
 
     console.log("[LINE Webhook] 收到請求長度:", bodyText.length);
 
-    // 1. 安全簽章驗證（若設定了 LINE_CHANNEL_SECRET 且非測試模式則進行嚴格檢查）
-    if (LINE_CHANNEL_SECRET && !isTestMode) {
+    // 1. 安全簽章驗證
+    if (channelSecret && !isTestMode) {
       const hash = crypto
-        .createHmac("sha256", LINE_CHANNEL_SECRET)
+        .createHmac("sha256", channelSecret)
         .update(bodyText)
         .digest("base64");
       
@@ -125,18 +116,18 @@ export async function POST(req: NextRequest) {
 
         // 圖片訊息處理：AI 解析
         if (event.message.type === "image") {
-          const imageBuffer = await fetchLineImage(event.message.id);
+          const imageBuffer = await fetchLineImage(botType, event.message.id);
           if (imageBuffer) {
             try {
               const teaName = await identifyTeaFromImage(imageBuffer);
-              if (teaName === "UNKNOWN" || !teaName) {
-                await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+              if (teaName !== "UNKNOWN") {
+                await handleProductSearch(botType, teaName, replyToken, isTestMode ? testReplies : undefined);
               } else {
-                await handleProductSearch(teaName, replyToken, isTestMode ? testReplies : undefined);
+                await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
               }
             } catch (err: any) {
               console.error("AI 影像解析失敗:", err);
-              await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+              await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
             }
           }
           continue;
@@ -152,6 +143,7 @@ export async function POST(req: NextRequest) {
 
           if (member) {
             await sendLineReply(
+              botType,
               replyToken,
               `💡 【初潤溫馨提示】\n━━━━━━━━━━━━━━━━━━\n抱歉，小幫手目前只能閱讀「文字」、「圖片」或「按鈕」喔！\n\n👉 請直接點擊下方精美、方便的「浮動快捷鍵」或輸入數字 1 - 9，即可一秒查詢您的錢包與訂單資產！`,
               LINKED_QUICK_REPLIES,
@@ -159,6 +151,7 @@ export async function POST(req: NextRequest) {
             );
           } else {
             await sendLineReply(
+              botType,
               replyToken,
               `💡 【初潤溫馨提示】\n━━━━━━━━━━━━━━━━━━\n抱歉，小幫手目前只能閱讀「文字」、「圖片」或「按鈕」喔！\n\n👉 請在對話框直接「回覆您的手機號碼」完成綁定，或點擊下方快捷鍵搶先體驗精品推薦！`,
               UNLINKED_QUICK_REPLIES,
@@ -184,12 +177,12 @@ export async function POST(req: NextRequest) {
           // ==========================================
           // A. 方案：已綁定會員的交談邏輯 (1-9 選單回覆)
           // ==========================================
-          await handleLinkedUserFlow(replyToken, userId, member, mappedInput, isTestMode ? testReplies : undefined);
+          await handleLinkedUserFlow(botType, replyToken, userId, member, mappedInput, isTestMode ? testReplies : undefined);
         } else {
           // ==========================================
           // B. 方案：未綁定會員的交談邏輯 (引導綁定流程)
           // ==========================================
-          await handleUnlinkedUserFlow(replyToken, userId, mappedInput, isTestMode ? testReplies : undefined);
+          await handleUnlinkedUserFlow(botType, replyToken, userId, mappedInput, isTestMode ? testReplies : undefined);
         }
       }
     }
@@ -205,8 +198,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function fetchLineImage(messageId: string): Promise<Buffer | null> {
-  const token = getLineAccessToken();
+async function fetchLineImage(botType: string, messageId: string): Promise<Buffer | null> {
+  const token = getLineAccessToken(botType);
   try {
     const res = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -241,7 +234,7 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   return result.response.text().trim();
 }
 
-async function handleProductSearch(query: string, replyToken: string, testReplies?: any[]) {
+async function handleProductSearch(botType: string, query: string, replyToken: string, testReplies?: any[]) {
   const { data: products } = await supabaseAdmin
     .from("products")
     .select("name, price, category, description")
@@ -252,14 +245,18 @@ async function handleProductSearch(query: string, replyToken: string, testReplie
   if (products && products.length > 0) {
     let prodStr = "";
     products.forEach((p, idx) => {
-      const desc = p.description ? p.description.slice(0, 40) + "..." : "初潤特選極品茶葉，回甘清甜、冷礦果香";
+      let rawDesc = p.description || "";
+      if (rawDesc.includes("||_EXT_JSON_||")) {
+        rawDesc = rawDesc.split("||_EXT_JSON_||")[0];
+      }
+      const desc = rawDesc ? rawDesc.trim().slice(0, 40) + "..." : "初潤特選極品茶葉，回甘清甜、冷礦果香";
       prodStr += `🍵 [搜尋結果 ${idx + 1}] ${p.name}\n● 獨家價：$${p.price} 元 / 斤 (${p.category})\n● 風味：${desc}\n\n`;
     });
     
     const replyMsg = `🔍 【商品搜尋結果】\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
-    await sendLineReply(replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
+    await sendLineReply(botType, replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
   } else {
-    await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, testReplies);
+    await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, testReplies);
   }
 }
 
@@ -747,7 +744,7 @@ ${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製
 
     default: {
       if (input !== "查詢") {
-        await handleProductSearch(input, replyToken, testReplies);
+        await handleProductSearch(botType, input, replyToken, testReplies);
         return;
       }
 
@@ -773,13 +770,13 @@ ${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製
     }
   }
 
-  await sendLineReply(replyToken, replyMsg, LINKED_QUICK_REPLIES, testReplies);
+  await sendLineReply(botType, replyToken, replyMsg, LINKED_QUICK_REPLIES, testReplies);
 }
 
 /**
  * 處理「未綁定會員」的回覆邏輯 (引導綁定)
  */
-async function handleUnlinkedUserFlow(replyToken: string, userId: string, input: string, testReplies?: any[]) {
+async function handleUnlinkedUserFlow(botType: string, replyToken: string, userId: string, input: string, testReplies?: any[]) {
   const isPhone = /^09\d{8}$/.test(input);
   const isMemberCode = /^CR\d+.*$/i.test(input) || (input.startsWith("CR") && input.length >= 8);
 
@@ -798,6 +795,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         // 已經被其他 line_id 綁定了
         const maskedLine = matchedMember.line_id.slice(0, 5) + "..." + matchedMember.line_id.slice(-4);
         await sendLineReply(
+          botType,
           replyToken,
           `⚠️ 綁定失敗：此帳號已綁定過其他 LINE 帳號 (${maskedLine})。如有疑問，請聯繫總部客服解除綁定。`,
           UNLINKED_QUICK_REPLIES,
@@ -813,7 +811,7 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
         .eq("id", matchedMember.id);
 
       if (updateErr) {
-        await sendLineReply(replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES, testReplies);
+        await sendLineReply(botType, replyToken, `❌ 資料庫寫入失敗：${updateErr.message}`, UNLINKED_QUICK_REPLIES, testReplies);
       } else {
         const welcomeMsg = `🎉 恭喜您！您的 LINE 帳號已安全綁定成功！
 
@@ -836,10 +834,11 @@ async function handleUnlinkedUserFlow(replyToken: string, userId: string, input:
 【9】 📞 聯絡總部客服 (專線、地址、留言)
 ━━━━━━━━━━━━━━━━━━
 💡 提示：任何時候直接在對話框點擊底部的浮動按鈕或輸入口語（如：「查出貨」、「餘額」），即可立刻讀取即時數據！`;
-        await sendLineReply(replyToken, welcomeMsg, LINKED_QUICK_REPLIES, testReplies);
+        await sendLineReply(botType, replyToken, welcomeMsg, LINKED_QUICK_REPLIES, testReplies);
       }
     } else {
       await sendLineReply(
+        botType,
         replyToken,
         `❌ 找不到符合此資訊的會員帳號。
         
@@ -897,6 +896,7 @@ ${prodStr}
     const content = ann ? (ann.content ? ann.content.slice(0, 120) + "..." : "熱銷茶葉活動") : "以初心、致潤澤。精品茶葉數位連鎖平台全新體驗！";
 
     await sendLineReply(
+      botType,
       replyToken,
       `📢 總部 brand 公告 (公開資訊)
 ━━━━━━━━━━━━━━━━━━
@@ -913,6 +913,7 @@ ${prodStr}
 
   if (input === "9") {
     await sendLineReply(
+      botType,
       replyToken,
       `📞 聯絡總部與客服 (公開資訊)
 ━━━━━━━━━━━━━━━━━━
@@ -932,7 +933,7 @@ ${prodStr}
 
   // 針對其他非指令文字，進行商品模糊搜尋
   if (input !== "查詢") {
-    await handleProductSearch(input, replyToken, testReplies);
+    await handleProductSearch(botType, input, replyToken, testReplies);
   } else {
     // 預設未綁定導引訊息
     const welcomeStr = `🍵 歡迎來到【初潤製茶所】官方 LINE 帳號！ 🍵
@@ -953,14 +954,14 @@ ${prodStr}
 【8】 📢 總部品牌公告
 【9】 📞 聯絡總部與客服`;
 
-    await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES, testReplies);
+    await sendLineReply(botType, replyToken, welcomeStr, UNLINKED_QUICK_REPLIES, testReplies);
   }
 }
 
 /**
  * 呼叫 LINE Reply API 回覆訊息
  */
-async function sendLineReply(replyToken: string, text: string, quickReplies?: any[], testReplies?: any[]) {
+async function sendLineReply(botType: string, replyToken: string, text: string, quickReplies?: any[], testReplies?: any[]) {
   if (testReplies) {
     testReplies.push({
       replyToken,
@@ -971,7 +972,7 @@ async function sendLineReply(replyToken: string, text: string, quickReplies?: an
     return;
   }
 
-  const token = getLineAccessToken();
+  const token = getLineAccessToken(botType);
   if (token === "DEFAULT_ACCESS_TOKEN") {
     console.log(`[LINE Webhook Mock Reply] replyToken: ${replyToken}, Message:\n${text}`);
     return;
