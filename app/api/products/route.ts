@@ -200,19 +200,6 @@ export async function POST(request: Request) {
         });
       }
       
-      // 觸發背景視覺分析
-      if (data && data.image_url) {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-        try {
-          await fetch(`${baseUrl}/api/admin/generate-visual-desc`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: data.id, image_url: data.image_url })
-          });
-        } catch (e) {
-          console.error('[Auto-Visual-Desc] 觸發失敗:', e);
-        }
-      }
     } catch (anonErr) {
       console.error('Auto Announcement Failed:', anonErr);
     }
@@ -365,20 +352,6 @@ export async function PUT(request: Request) {
     }
 
     if (error) throw error;
-
-    // 觸發背景視覺分析
-    if (data && data.image_url) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-      try {
-        await fetch(`${baseUrl}/api/admin/generate-visual-desc`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: data.id, image_url: data.image_url })
-        });
-      } catch (e) {
-        console.error('[Auto-Visual-Desc] 觸發失敗:', e);
-      }
-    }
 
     return NextResponse.json({ success: true, product: data });
   } catch (error: any) {

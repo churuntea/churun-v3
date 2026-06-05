@@ -462,6 +462,16 @@ function AdminProductsContent() {
         // 主動使商品與分類列表快取失效，確保管理員送出即看見最新資料
         dbCache.invalidate("churun_cache:products_admin");
         alert(editingId ? "🎉 更新成功！" : "🎉 新增成功！");
+        
+        // 觸發背景視覺分析
+        if (formData.image_url) {
+          fetch("/api/admin/generate-visual-desc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: data.product?.id || editingId, image_url: formData.image_url })
+          }).catch(console.error);
+        }
+
         handleCancelEdit();
         fetchProducts(true); // 強制重整抓取最新
         setActiveTab("list");
