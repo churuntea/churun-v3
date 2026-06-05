@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
               }
             } catch (err: any) {
               console.error("AI 影像解析失敗:", err);
-              await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+              await sendLineReply(botType, replyToken, `📸 圖片解析發生錯誤 (可能是 GEMINI_API_KEY 無效或額度不足)：${err.message}`, UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
             }
           }
           continue;
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (isTestMode) {
-      return NextResponse.json({ success: true, testReplies });
+      return NextResponse.json({ success: true, testReplies, main_token: !!process.env.LINE_CHANNEL_ACCESS_TOKEN_MAIN, main_secret: !!process.env.LINE_CHANNEL_SECRET_MAIN });
     }
 
     return NextResponse.json({ success: true });
@@ -219,7 +219,7 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
-  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆茶葉名稱，不要加上其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
+  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』或『初潤紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
   
   const result = await model.generateContent([
     prompt,
@@ -256,7 +256,7 @@ async function handleProductSearch(botType: string, query: string, replyToken: s
     const replyMsg = `🔍 【商品搜尋結果】\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
     await sendLineReply(botType, replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
   } else {
-    await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, testReplies);
+    await sendLineReply(botType, replyToken, `目前無「${query}」此商品。請留下聯繫方式.我們會盡快與您聯繫`, UNLINKED_QUICK_REPLIES, testReplies);
   }
 }
 
