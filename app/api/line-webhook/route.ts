@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
               if (teaName !== "UNKNOWN") {
                 await handleProductSearch(botType, teaName, replyToken, isTestMode ? testReplies : undefined);
               } else {
-                await sendLineReply(botType, replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+                await sendLineReply(botType, replyToken, "目前無法從圖片辨識出商品名稱 (回傳: UNKNOWN)。請嘗試拍攝更清晰的正反面，或直接輸入文字查詢喔！", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
               }
             } catch (err: any) {
               console.error("AI 影像解析失敗:", err);
@@ -262,7 +262,7 @@ async function handleProductSearch(botType: string, query: string, replyToken: s
       prodStr += `🍵 [搜尋結果 ${idx + 1}] ${p.name}\n● 獨家價：$${p.price} 元 / 斤 (${p.category})\n● 風味：${desc}\n\n`;
     });
     
-    const replyMsg = `🔍 【商品搜尋結果】\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
+    const replyMsg = `🔍 【商品搜尋結果】 (關鍵字: ${query})\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
     await sendLineReply(botType, replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
   } else {
     await sendLineReply(botType, replyToken, `目前無「${query}」此商品。請留下聯繫方式.我們會盡快與您聯繫`, UNLINKED_QUICK_REPLIES, testReplies);
