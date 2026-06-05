@@ -240,7 +240,12 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
     }
   }
   
-  throw new Error(`AI 解析失敗，已嘗試過所有模型 (可能是 API_KEY 權限不足)。詳細錯誤:\\n${errors.join("\\n")}`);
+  const allErrors = errors.join("\\n");
+  if (allErrors.includes("429") || allErrors.includes("Resource has been exhausted") || allErrors.includes("quota")) {
+    throw new Error("API 呼叫次數太頻繁啦！Google 的 AI 需要稍微喘口氣 💦 請您等候約 1 分鐘後，再重新傳送一次圖片喔！");
+  }
+  
+  throw new Error(`AI 解析失敗，已嘗試過所有模型 (可能是 API_KEY 權限不足)。詳細錯誤:\\n${allErrors}`);
 }
 
 async function handleProductSearch(botType: string, query: string, replyToken: string, testReplies?: any[]) {
