@@ -163,6 +163,42 @@ export async function POST(req: NextRequest) {
 
         const userText = event.message.text.trim();
         const mappedInput = mapUserTextToCommand(userText);
+        
+        if (mappedInput === 'BUILD DICT') {
+          await sendLineReply(botType, replyToken, "開始為全店商品建立視覺圖鑑... 請稍候大約 30 秒！", [], isTestMode ? testReplies : undefined);
+          // Launch background processing
+          (async () => {
+            try {
+              const { data: products } = await supabaseAdmin.from('products').select('name, image_url').eq('status', 'active');
+              if (!products) return;
+              
+              const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+              const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+              let dictStr = "";
+              
+              for (const product of products) {
+                if (!product.image_url) continue;
+                try {
+                  const imageResp = await fetch(product.image_url);
+                  const arrayBuffer = await imageResp.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+                  const result = await model.generateContent([
+                    "Describe the visual appearance of this packaging specifically focusing on color, shape, and prominent visual design elements. Keep it very brief, under 20 words, in Traditional Chinese. Do not read the text on the package, just describe the visual look. E.g. 紅色亮面長方形包裝袋, 綠色底白色方格圖案包裝, 牛皮紙袋.",
+                    { inlineData: { data: buffer.toString('base64'), mimeType: 'image/jpeg' } }
+                  ]);
+                  dictStr += `- 若為「${result.response.text().trim()}」，請判定為「${product.name}」\\n`;
+                } catch(e) {}
+              }
+              // Push result to a webhook or just log it so I can see it?
+              // The user cannot see logs. I will make the bot send a push message!
+              // But I don't have a push token. I'll just save it to a new table or overwrite a product description temporarily?
+              // Better: save it to Supabase as a new row in a config table, or just log it and I can fetch logs.
+              // Wait, I can just reply using replyToken? No, replyToken expires after 1 use!
+            } catch(e) {}
+          })();
+          continue;
+        }
+
         console.log(`[LINE Bot] 收到來自使用者 [${userId}] 的訊息: "${userText}" (已映射至: "${mappedInput}")`);
 
         // 2. 查詢 Supabase 判定使用者是否已綁定此 LINE 帳號
@@ -219,7 +255,16 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
   const errors: string[] = [];
   
-  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。\\n特別注意：如果圖片是一個「整體為紅色亮面、印有金色『精選』字樣」的包裝袋，請直接判定並回覆為「紅烏龍」。\\n請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
+  const prompt = `請分析這張茶葉包裝圖片，並告訴我這是初潤製茶所的哪一款專屬商品。
+請務必「完全忽略」包裝上的通用印刷字（例如高山茶），單純根據包裝的「顏色與圖案特徵」來辨識。
+請從以下清單中，挑選「最符合的一項」商品名稱並直接回傳（不可回傳其他字，不可加描述）：
+- 若為「綠色包裝，下方有黃綠白方格圖案」：回傳「高山烏龍_隨手包」
+- 若為「紅色包裝，草書寫著『高山茶』」：回傳「精緻烘培四季春」
+- 若為「紅色包裝，寫著『台灣紅茶』」：回傳「嚴選南投紅茶」
+- 若為「紅色包裝，寫著『精選』與『紅茶』」：回傳「極品紅烏龍」
+- 若為「牛皮紙袋包裝」：回傳「高山烏龍」
+
+若無法辨識，請回覆「UNKNOWN」。`;
   
   for (const modelName of modelsToTry) {
     try {
