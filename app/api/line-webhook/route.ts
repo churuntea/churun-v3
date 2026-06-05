@@ -217,21 +217,31 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) throw new Error("未設定 GEMINI_API_KEY");
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro-vision"];
+  let lastError;
   
   const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』或『初潤紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
   
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: imageBuffer.toString("base64"),
-        mimeType: "image/jpeg"
-      }
+  for (const modelName of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: imageBuffer.toString("base64"),
+            mimeType: "image/jpeg"
+          }
+        }
+      ]);
+      return result.response.text().trim();
+    } catch (err: any) {
+      console.warn(`Model ${modelName} failed:`, err.message);
+      lastError = err;
     }
-  ]);
+  }
   
-  return result.response.text().trim();
+  throw lastError;
 }
 
 async function handleProductSearch(botType: string, query: string, replyToken: string, testReplies?: any[]) {
