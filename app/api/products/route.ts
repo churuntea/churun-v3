@@ -270,11 +270,24 @@ export async function PUT(request: Request) {
       }
     }
 
+    // 為了保留先前的視覺特徵，先查詢現有資料
+    const { data: existingProduct } = await supabaseAdmin.from('products').select('description').eq('id', id).single();
+    let existingVisualDesc = "";
+    if (existingProduct && existingProduct.description && existingProduct.description.includes('||_EXT_JSON_||')) {
+      try {
+        const extData = JSON.parse(existingProduct.description.split('||_EXT_JSON_||')[1]);
+        if (extData.visual_description) {
+          existingVisualDesc = extData.visual_description;
+        }
+      } catch (e) {}
+    }
+
     const extJson = JSON.stringify({
       order_unit: order_unit || '數量',
       order_unit_size: order_unit_size || 1,
       min_order_quantity: min_order_quantity || 1,
-      supplier_id: supplier_id || ''
+      supplier_id: supplier_id || '',
+      ...(existingVisualDesc ? { visual_description: existingVisualDesc } : {})
     });
     const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
 
