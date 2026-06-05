@@ -287,6 +287,7 @@ ${dynamicList}
   const errors: string[] = [];
   
   for (const modelName of modelsToTry) {
+    try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent([
         prompt,
