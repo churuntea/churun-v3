@@ -163,6 +163,17 @@ export async function POST(req: NextRequest) {
 
         const userText = event.message.text.trim();
         const mappedInput = mapUserTextToCommand(userText);
+        if (mappedInput === 'LIST MODELS') {
+          const key = process.env.GEMINI_API_KEY;
+          try {
+            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + key);
+            const data = await res.json();
+            await sendLineReply(botType, replyToken, JSON.stringify(data).slice(0, 800), [], isTestMode ? testReplies : undefined);
+          } catch (e: any) {
+            await sendLineReply(botType, replyToken, "Error: " + e.message, [], isTestMode ? testReplies : undefined);
+          }
+          continue;
+        }
 
         console.log(`[LINE Bot] 收到來自使用者 [${userId}] 的訊息: "${userText}" (已映射至: "${mappedInput}")`);
 
