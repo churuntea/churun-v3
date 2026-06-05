@@ -253,21 +253,40 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   if (!apiKey) throw new Error("未設定 GEMINI_API_KEY");
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
-  const errors: string[] = [];
+  const { data: products } = await supabaseAdmin.from('products').select('name, description').eq('status', 'active');
   
-  const prompt = `請分析這張茶葉包裝圖片，並告訴我這是初潤製茶所的哪一款專屬商品。
-請務必「完全忽略」包裝上的通用印刷字（例如高山茶），單純根據包裝的「顏色與圖案特徵」來辨識。
-請從以下清單中，挑選「最符合的一項」商品名稱並直接回傳（不可回傳其他字，不可加描述）：
-- 若為「綠色包裝，下方有黃綠白方格圖案」：回傳「高山烏龍_隨手包」
+  let dynamicList = "";
+  if (products) {
+    for (const p of products) {
+      if (p.description && p.description.includes("||_EXT_JSON_||")) {
+        try {
+          const extData = JSON.parse(p.description.split("||_EXT_JSON_||")[1]);
+          if (extData.visual_description) {
+            dynamicList += `- 若為「${extData.visual_description}」：回傳「${p.name}」\\n`;
+          }
+        } catch(e) {}
+      }
+    }
+  }
+
+  // Fallback 如果資料庫完全沒有設定 visual_description
+  if (!dynamicList) {
+    dynamicList = `- 若為「綠色包裝，下方有黃綠白方格圖案」：回傳「高山烏龍_隨手包」
 - 若為「紅色包裝，草書寫著『高山茶』」：回傳「精緻烘培四季春」
 - 若為「紅色包裝，寫著『台灣紅茶』」：回傳「嚴選南投紅茶」
 - 若為「紅色包裝，寫著『精選』與『紅茶』」：回傳「極品紅烏龍」
-- 若為「牛皮紙袋包裝」：回傳「高山烏龍」
+- 若為「牛皮紙袋包裝」：回傳「高山烏龍」`;
+  }
+
+  const prompt = `請分析這張茶葉包裝圖片，並告訴我這是初潤製茶所的哪一款專屬商品。
+請務必「完全忽略」包裝上的通用印刷字（例如高山茶），單純根據包裝的「顏色與圖案特徵」來辨識。
+請從以下清單中，挑選「最符合的一項」商品名稱並直接回傳（不可回傳其他字，不可加描述）：
+${dynamicList}
 
 若無法辨識，請回覆「UNKNOWN」。`;
+  const errors: string[] = [];
   
   for (const modelName of modelsToTry) {
-    try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent([
         prompt,

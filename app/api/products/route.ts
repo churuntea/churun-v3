@@ -187,7 +187,7 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-    // 新品新增成功時，自動發布新品上市公告
+    // 新品新增成功時，自動發布新品上市公告與觸發視覺分析
     try {
       if (data && data.name) {
         await supabaseAdmin.from('announcements').insert({
@@ -198,6 +198,16 @@ export async function POST(request: Request) {
           action_label: '立即查看',
           action_href: '/store'
         });
+      }
+      
+      // 觸發背景視覺分析
+      if (data && data.image_url) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+        fetch(`${baseUrl}/api/admin/generate-visual-desc`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: data.id, image_url: data.image_url })
+        }).catch(e => console.error('[Auto-Visual-Desc] 觸發失敗:', e));
       }
     } catch (anonErr) {
       console.error('Auto Announcement Failed:', anonErr);
@@ -351,6 +361,17 @@ export async function PUT(request: Request) {
     }
 
     if (error) throw error;
+
+    // 觸發背景視覺分析
+    if (data && data.image_url) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      fetch(`${baseUrl}/api/admin/generate-visual-desc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: data.id, image_url: data.image_url })
+      }).catch(e => console.error('[Auto-Visual-Desc] 觸發失敗:', e));
+    }
+
     return NextResponse.json({ success: true, product: data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
