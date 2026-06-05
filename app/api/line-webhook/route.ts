@@ -163,18 +163,6 @@ export async function POST(req: NextRequest) {
 
         const userText = event.message.text.trim();
         const mappedInput = mapUserTextToCommand(userText);
-        if (mappedInput === 'LIST MODELS') {
-          const key = process.env.GEMINI_API_KEY;
-          try {
-            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + key);
-            const data = await res.json();
-            await sendLineReply(botType, replyToken, JSON.stringify(data).slice(0, 800), [], isTestMode ? testReplies : undefined);
-          } catch (e: any) {
-            await sendLineReply(botType, replyToken, "Error: " + e.message, [], isTestMode ? testReplies : undefined);
-          }
-          continue;
-        }
-
         console.log(`[LINE Bot] 收到來自使用者 [${userId}] 的訊息: "${userText}" (已映射至: "${mappedInput}")`);
 
         // 2. 查詢 Supabase 判定使用者是否已綁定此 LINE 帳號
@@ -228,7 +216,7 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) throw new Error("未設定 GEMINI_API_KEY");
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-pro-vision"];
+  const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
   const errors: string[] = [];
   
   const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』或『初潤紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
@@ -247,12 +235,12 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
       ]);
       return result.response.text().trim();
     } catch (err: any) {
-      console.warn(`Model ${modelName} failed:`, err.message);
+      console.error(`Model ${modelName} failed:`, err.message);
       errors.push(`${modelName}: ${err.message}`);
     }
   }
   
-  throw new Error(`All models failed. Details:\\n${errors.join("\\n")}`);
+  throw new Error(`AI 解析失敗，已嘗試過所有模型 (可能是 API_KEY 權限不足)。詳細錯誤:\\n${errors.join("\\n")}`);
 }
 
 async function handleProductSearch(botType: string, query: string, replyToken: string, testReplies?: any[]) {
