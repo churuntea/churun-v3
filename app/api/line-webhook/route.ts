@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/supabase-admin";
 import * as crypto from "crypto";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,32 @@ function getLineAccessToken(): string {
     console.warn('讀取 .env.local 失敗:', err);
   }
   return "zZ2xNjSpxGORDJ4RtQLwxm70PmN4SXmyT+tAknCS279x42aZAKnaYh3+cGxiw7ek4MPS8ZBUyJPzXv77Z8ZAvHcZFhJqhguUR74ZfEMQIoPxULNME0+xV4dz+Hzu1CA8FKgsXE3iYjmdA9RrrWtVwQdB04t89/1O/w1cDnyilFU=";
+}
+
+function getGeminiApiKey(): string {
+  if (process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  try {
+    const possiblePaths = [
+      path.join(process.cwd(), '.env.local'),
+      'd:/0_事業體/初潤製茶所_Gemini/churun-frontend/.env.local',
+      path.resolve(process.cwd(), '../.env.local')
+    ];
+    for (const envPath of possiblePaths) {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        const lines = content.split(/\r?\n/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('GEMINI_API_KEY=')) {
+            return trimmed.replace('GEMINI_API_KEY=', '').trim();
+          }
+        }
+      }
+    }
+  } catch (err) {}
+  return "";
 }
 
 const LINE_CHANNEL_SECRET: string = "62fe3ed0c41fc24d2959dc2977c11db6";
@@ -96,7 +123,26 @@ export async function POST(req: NextRequest) {
         const replyToken = event.replyToken;
         const userId = event.source.userId;
 
-        // 非文字訊息（如貼圖、圖片、位置等）優雅容錯與指引
+        // 圖片訊息處理：AI 解析
+        if (event.message.type === "image") {
+          const imageBuffer = await fetchLineImage(event.message.id);
+          if (imageBuffer) {
+            try {
+              const teaName = await identifyTeaFromImage(imageBuffer);
+              if (teaName === "UNKNOWN" || !teaName) {
+                await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+              } else {
+                await handleProductSearch(teaName, replyToken, isTestMode ? testReplies : undefined);
+              }
+            } catch (err: any) {
+              console.error("AI 影像解析失敗:", err);
+              await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
+            }
+          }
+          continue;
+        }
+
+        // 非文字訊息（如貼圖、位置等）優雅容錯與指引
         if (event.message.type !== "text") {
           const { data: member } = await supabaseAdmin
             .from("members")
@@ -107,22 +153,14 @@ export async function POST(req: NextRequest) {
           if (member) {
             await sendLineReply(
               replyToken,
-              `💡 【初潤溫馨提示】
-━━━━━━━━━━━━━━━━━━
-抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
-
-👉 請直接點擊下方精美、方便的「浮動快捷鍵」或輸入數字 1 - 9，即可一秒查詢您的錢包與訂單資產！`,
+              `💡 【初潤溫馨提示】\n━━━━━━━━━━━━━━━━━━\n抱歉，小幫手目前只能閱讀「文字」、「圖片」或「按鈕」喔！\n\n👉 請直接點擊下方精美、方便的「浮動快捷鍵」或輸入數字 1 - 9，即可一秒查詢您的錢包與訂單資產！`,
               LINKED_QUICK_REPLIES,
               isTestMode ? testReplies : undefined
             );
           } else {
             await sendLineReply(
               replyToken,
-              `💡 【初潤溫馨提示】
-━━━━━━━━━━━━━━━━━━
-抱歉，小幫手目前只能閱讀「文字」或「按鈕」喔！
-
-👉 請在對話框直接「回覆您的手機號碼」完成綁定，或點擊下方快捷鍵搶先體驗精品推薦！`,
+              `💡 【初潤溫馨提示】\n━━━━━━━━━━━━━━━━━━\n抱歉，小幫手目前只能閱讀「文字」、「圖片」或「按鈕」喔！\n\n👉 請在對話框直接「回覆您的手機號碼」完成綁定，或點擊下方快捷鍵搶先體驗精品推薦！`,
               UNLINKED_QUICK_REPLIES,
               isTestMode ? testReplies : undefined
             );
@@ -164,6 +202,64 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("[LINE Webhook] 執行中出錯:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+async function fetchLineImage(messageId: string): Promise<Buffer | null> {
+  const token = getLineAccessToken();
+  try {
+    const res = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Fetch failed " + res.status);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error("下載 LINE 圖片失敗:", err);
+    return null;
+  }
+}
+
+async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) throw new Error("未設定 GEMINI_API_KEY");
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  
+  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆茶葉名稱，不要加上其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
+  
+  const result = await model.generateContent([
+    prompt,
+    {
+      inlineData: {
+        data: imageBuffer.toString("base64"),
+        mimeType: "image/jpeg"
+      }
+    }
+  ]);
+  
+  return result.response.text().trim();
+}
+
+async function handleProductSearch(query: string, replyToken: string, testReplies?: any[]) {
+  const { data: products } = await supabaseAdmin
+    .from("products")
+    .select("name, price, category, description")
+    .eq("status", "active")
+    .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`)
+    .limit(3);
+
+  if (products && products.length > 0) {
+    let prodStr = "";
+    products.forEach((p, idx) => {
+      const desc = p.description ? p.description.slice(0, 40) + "..." : "初潤特選極品茶葉，回甘清甜、冷礦果香";
+      prodStr += `🍵 [搜尋結果 ${idx + 1}] ${p.name}\n● 獨家價：$${p.price} 元 / 斤 (${p.category})\n● 風味：${desc}\n\n`;
+    });
+    
+    const replyMsg = `🔍 【商品搜尋結果】\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
+    await sendLineReply(replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
+  } else {
+    await sendLineReply(replyToken, "目前無此商品.請留下聯繫方式.我們會盡快與您聯繫", UNLINKED_QUICK_REPLIES, testReplies);
   }
 }
 
@@ -650,6 +746,11 @@ ${ann.content ? ann.content.slice(0, 150) + "..." : "歡迎隨時查看初潤製
     }
 
     default: {
+      if (input !== "查詢") {
+        await handleProductSearch(input, replyToken, testReplies);
+        return;
+      }
+
       // 回覆 1-9 選單首頁
       replyMsg = `🍵 【初潤製茶所 · 會員服務中心】 🍵
 ━━━━━━━━━━━━━━━━━━
@@ -829,8 +930,12 @@ ${prodStr}
     return;
   }
 
-  // 預設未綁定導引訊息
-  const welcomeStr = `🍵 歡迎來到【初潤製茶所】官方 LINE 帳號！ 🍵
+  // 針對其他非指令文字，進行商品模糊搜尋
+  if (input !== "查詢") {
+    await handleProductSearch(input, replyToken, testReplies);
+  } else {
+    // 預設未綁定導引訊息
+    const welcomeStr = `🍵 歡迎來到【初潤製茶所】官方 LINE 帳號！ 🍵
 ━━━━━━━━━━━━━━━━━━
 您目前尚未綁定您的初潤數位會員帳號。
 
@@ -848,7 +953,8 @@ ${prodStr}
 【8】 📢 總部品牌公告
 【9】 📞 聯絡總部與客服`;
 
-  await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES, testReplies);
+    await sendLineReply(replyToken, welcomeStr, UNLINKED_QUICK_REPLIES, testReplies);
+  }
 }
 
 /**
