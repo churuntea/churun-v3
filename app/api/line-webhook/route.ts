@@ -219,7 +219,7 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
   const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
   const errors: string[] = [];
   
-  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』或『初潤紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
+  const prompt = "請分析這張茶葉包裝圖片，並告訴我這是哪一款茶（例如：高山烏龍、金萱、紅烏龍、大禹嶺雪片茶等）。\\n特別注意：如果圖片是一個「整體為紅色亮面、印有金色『精選』字樣」的包裝袋，請直接判定並回覆為「紅烏龍」。\\n請只回覆『最核心的茶種名稱』（例如：只要回覆『紅烏龍』，不要回覆『極品紅烏龍』）。不要加上任何其他描述。如果無法辨識出茶葉，請回覆「UNKNOWN」。";
   
   for (const modelName of modelsToTry) {
     try {
