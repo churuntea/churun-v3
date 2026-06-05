@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     // Call Gemini
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
     const prompt = "Describe the visual appearance of this packaging specifically focusing on color, shape, and prominent visual design elements. Keep it very brief, under 20 words, in Traditional Chinese. Do not read the text on the package, just describe the visual look. E.g. 紅色亮面長方形包裝袋, 綠色底白色方格圖案包裝, 牛皮紙袋.";
 
