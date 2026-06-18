@@ -32,14 +32,11 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
   const [isLoading, setIsLoading] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(1248);
+  const [likeCount, setLikeCount] = useState(0);
   const [copied, setCopied] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState([
-    { id: 1, user: "茶友阿明", text: "這款茶葉真的很讚！回甘強烈。", time: "2 小時前" },
-    { id: 2, user: "林小姐", text: "包裝非常有質感，送禮很適合。", time: "5 小時前" }
-  ]);
+  const [comments, setComments] = useState<any[]>([]);
 
   // Toast States
   const [toastMsg, setToastMsg] = useState("");
@@ -73,7 +70,7 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
             tag: data.tag || "NEW",
             color: resolvedColor,
             image: data.image_url || null,
-            content: data.content || "",
+            content: (data.content || "").split('||_EXT_JSON_||')[0],
             action: { 
               label: data.action_label || "立即查看", 
               href: data.action_href || "/" 
@@ -275,18 +272,13 @@ export default function NewsDetail({ params }: { params: Promise<{ id: string }>
                    className="flex items-center gap-3 p-2 -m-2 group transition-all active:scale-90"
                  >
                     <MessageCircle className={`w-5 h-5 transition-all ${showCommentInput ? 'text-emerald-600 fill-emerald-50' : 'text-slate-300 group-hover:text-emerald-600'}`} />
-                    <span className={`text-[11px] font-bold ${showCommentInput ? 'text-emerald-600' : 'text-slate-400'}`}>{comments.length + 84}</span>
+                    <span className={`text-[11px] font-bold ${showCommentInput ? 'text-emerald-600' : 'text-slate-400'}`}>{comments.length}</span>
                  </button>
               </div>
               <div className="flex items-center gap-3">
                  <div className="flex -space-x-2">
-                    {[1,2,3].map(i => (
-                       <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden shadow-sm shrink-0">
-                          <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="user" />
-                       </div>
-                    ))}
                  </div>
-                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">已有 48 位夥伴轉發</span>
+                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">已有 0 位夥伴轉發</span>
               </div>
            </div>
 

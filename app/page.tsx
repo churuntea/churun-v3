@@ -984,7 +984,7 @@ function DashboardContent() {
                          </h4>
                          {news.content && (
                             <p className="text-[10px] font-bold text-slate-400 line-clamp-2 leading-relaxed">
-                               {news.content}
+                               {news.content.split('||_EXT_JSON_||')[0]}
                             </p>
                          )}
                       </div>
