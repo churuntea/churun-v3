@@ -275,6 +275,9 @@ function AdminSuppliersContent() {
   const submitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productFormData.name || !productFormData.price) return alert("品名與結帳售價為必填");
+    if (productFormData.original_price && Number(productFormData.price) > Number(productFormData.original_price)) {
+      return alert("結帳售價不能高於官方定價");
+    }
     setIsSubmittingProduct(true);
     try {
       const method = editingProduct ? "PUT" : "POST";

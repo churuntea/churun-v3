@@ -953,10 +953,11 @@ function DashboardContent() {
                    >
                       <div className="h-44 w-full relative overflow-hidden">
                          <img 
-                           src={news.image_url || "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80"} 
+                           src={news.image_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23064e3b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23ffffff'%3EChurun Tea%3C/text%3E%3C/svg%3E"} 
                            alt={news.title} 
                            onError={(e) => {
-                             e.currentTarget.src = "https://images.unsplash.com/photo-1594631252845-29fc458631b6?w=400&q=80";
+                             e.currentTarget.onerror = null; // Prevent infinite loop
+                             e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23064e3b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23ffffff'%3EChurun Tea%3C/text%3E%3C/svg%3E";
                            }}
                            onClick={(e) => {
                              e.preventDefault();

@@ -55,7 +55,9 @@ function AdminProductsContent() {
     order_unit: "數量",
     order_unit_size: 1,
     min_order_quantity: 1,
-    supplier_id: ""
+    supplier_id: "",
+    external_link: "",
+    notes: ""
   });
   
   const [showConfirm, setShowConfirm] = useState(false);
@@ -321,7 +323,10 @@ function AdminProductsContent() {
 
   const handleSubmitAttempt = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price) return alert("品名與嘗鮮價為必填");
+    if (!formData.name || !formData.price) return alert("品名與結帳售價為必填");
+    if (formData.original_price && Number(formData.price) > Number(formData.original_price)) {
+      return alert("結帳售價不能高於官方定價");
+    }
     setIsDiffConfirmed(false);
     setShowConfirm(true);
   };
@@ -354,7 +359,9 @@ function AdminProductsContent() {
       order_unit: productToEdit.order_unit || "數量",
       order_unit_size: productToEdit.order_unit_size || 1,
       min_order_quantity: productToEdit.min_order_quantity || 1,
-      supplier_id: productToEdit.supplier_id || ""
+      supplier_id: productToEdit.supplier_id || "",
+      external_link: productToEdit.external_link || "",
+      notes: productToEdit.notes || ""
     });
     setActiveTab("add");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -382,7 +389,9 @@ function AdminProductsContent() {
       order_unit: "數量",
       order_unit_size: 1,
       min_order_quantity: 1,
-      supplier_id: ""
+      supplier_id: "",
+      external_link: "",
+      notes: ""
     });
   };
 
@@ -441,7 +450,9 @@ function AdminProductsContent() {
           partner_direct_reward: Number(formData.partner_direct_reward),
           stock_count: Number(formData.stock_count),
           safe_stock_count: Number(formData.safe_stock_count),
-          supplier_id: formData.supplier_id
+          supplier_id: formData.supplier_id,
+          external_link: formData.external_link,
+          notes: formData.notes
         })
       });
       
@@ -464,11 +475,12 @@ function AdminProductsContent() {
         alert(editingId ? "🎉 更新成功！" : "🎉 新增成功！");
         
         // 觸發背景視覺分析
-        if (formData.image_url) {
+        const finalImageUrl = data.product?.image_url || formData.image_url;
+        if (finalImageUrl) {
           fetch("/api/admin/generate-visual-desc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: data.product?.id || editingId, image_url: formData.image_url })
+            body: JSON.stringify({ id: data.product?.id || editingId, image_url: finalImageUrl })
           }).catch(console.error);
         }
 
@@ -713,6 +725,31 @@ function AdminProductsContent() {
                         placeholder="請輸入商品描述..." 
                         className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all min-h-[80px]"
                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">網址連結</label>
+                          <input 
+                             type="text" 
+                             name="external_link"
+                             value={formData.external_link} 
+                             onChange={handleChange} 
+                             placeholder="例如: https://..." 
+                             className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                          />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">備註</label>
+                          <input 
+                             type="text" 
+                             name="notes"
+                             value={formData.notes} 
+                             onChange={handleChange} 
+                             placeholder="內部備註資訊..." 
+                             className="w-full bg-slate-50/50 border-2 border-transparent p-4 rounded-2xl text-xs font-bold focus:outline-none focus:bg-white focus:border-indigo-900/5 transition-all"
+                          />
+                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">

@@ -119,9 +119,10 @@ export async function POST(req: NextRequest) {
           const imageBuffer = await fetchLineImage(botType, event.message.id);
           if (imageBuffer) {
             try {
-              const teaName = await identifyTeaFromImage(imageBuffer);
-              if (teaName !== "UNKNOWN") {
-                await handleProductSearch(botType, teaName, replyToken, isTestMode ? testReplies : undefined);
+              const teaNamesStr = await identifyTeaFromImage(imageBuffer);
+              if (teaNamesStr !== "UNKNOWN") {
+                const teaNames = teaNamesStr.split(',').map(n => n.trim()).filter(Boolean);
+                await handleProductSearch(botType, teaNames, replyToken, isTestMode ? testReplies : undefined);
               } else {
                 await sendLineReply(botType, replyToken, "目前無法從圖片辨識出商品名稱 (回傳: UNKNOWN)。請嘗試拍攝更清晰的正反面，或直接輸入文字查詢喔！", UNLINKED_QUICK_REPLIES, isTestMode ? testReplies : undefined);
               }
@@ -278,12 +279,13 @@ async function identifyTeaFromImage(imageBuffer: Buffer): Promise<string> {
 - 若為「牛皮紙袋包裝」：回傳「高山烏龍」`;
   }
 
-  const prompt = `請分析這張茶葉包裝圖片，並告訴我這是初潤製茶所的哪一款專屬商品。
+  const prompt = `請分析這張茶葉包裝圖片，並告訴我這是初潤製茶所的哪一款（或哪幾款）專屬商品。
 請務必「完全忽略」包裝上的通用印刷字（例如高山茶），單純根據包裝的「顏色與圖案特徵」來辨識。
-請從以下清單中，挑選「最符合的一項」商品名稱並直接回傳（不可回傳其他字，不可加描述）：
+請從以下清單中，挑選「最符合的」商品名稱並直接回傳（不可回傳其他字，不可加描述）：
 ${dynamicList}
 
-若無法辨識，請回覆「UNKNOWN」。`;
+若圖片中包含多種商品，請將辨識出的所有商品名稱用半形逗號分隔回傳（例如：商品A,商品B）。
+若無法辨識任何商品，請回覆「UNKNOWN」。`;
   const errors: string[] = [];
   
   for (const modelName of modelsToTry) {
@@ -313,13 +315,16 @@ ${dynamicList}
   throw new Error(`AI 解析失敗，已嘗試過所有模型 (可能是 API_KEY 權限不足)。詳細錯誤:\\n${allErrors}`);
 }
 
-async function handleProductSearch(botType: string, query: string, replyToken: string, testReplies?: any[]) {
+async function handleProductSearch(botType: string, query: string | string[], replyToken: string, testReplies?: any[]) {
+  const queries = Array.isArray(query) ? query : [query];
+  const orConditions = queries.map(q => `name.ilike.%${q}%,category.ilike.%${q}%,description.ilike.%${q}%`).join(',');
+
   const { data: products } = await supabaseAdmin
     .from("products")
     .select("name, price, category, description")
     .eq("status", "active")
-    .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`)
-    .limit(3);
+    .or(orConditions)
+    .limit(20);
 
   if (products && products.length > 0) {
     let prodStr = "";
@@ -332,10 +337,12 @@ async function handleProductSearch(botType: string, query: string, replyToken: s
       prodStr += `🍵 [搜尋結果 ${idx + 1}] ${p.name}\n● 獨家價：$${p.price} 元 / 斤 (${p.category})\n● 風味：${desc}\n\n`;
     });
     
-    const replyMsg = `🔍 【商品搜尋結果】 (關鍵字: ${query})\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
+    const queryStr = queries.join(", ");
+    const replyMsg = `🔍 【商品搜尋結果】 (圖片/關鍵字: ${queryStr})\n━━━━━━━━━━━━━━━━━━\n為您找到以下符合的商品：\n\n${prodStr}━━━━━━━━━━━━━━━━━━\n🛒 立即線上秒速搶購：https://churun-v3.vercel.app/store`;
     await sendLineReply(botType, replyToken, replyMsg, UNLINKED_QUICK_REPLIES, testReplies);
   } else {
-    await sendLineReply(botType, replyToken, `目前無「${query}」此商品。請留下聯繫方式.我們會盡快與您聯繫`, UNLINKED_QUICK_REPLIES, testReplies);
+    const queryStr = queries.join(", ");
+    await sendLineReply(botType, replyToken, `目前無「${queryStr}」此商品。請留下聯繫方式.我們會盡快與您聯繫`, UNLINKED_QUICK_REPLIES, testReplies);
   }
 }
 

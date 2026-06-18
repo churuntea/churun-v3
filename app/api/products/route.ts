@@ -32,6 +32,8 @@ export async function GET() {
         order_unit_size: extData.order_unit_size || 1,
         min_order_quantity: extData.min_order_quantity || 1,
         supplier_id: extData.supplier_id || "",
+        external_link: extData.external_link || "",
+        notes: extData.notes || "",
         stock_count: Number(p.stock_count || 0),
         safe_stock_count: Number(p.safe_stock_count || 10)
       };
@@ -66,7 +68,9 @@ export async function POST(request: Request) {
       min_order_quantity,
       supplier_id,
       safe_stock_count,
-      status
+      status,
+      external_link,
+      notes
     } = await request.json();
 
     if (!name || price === undefined) {
@@ -108,7 +112,9 @@ export async function POST(request: Request) {
       order_unit: order_unit || '數量',
       order_unit_size: order_unit_size || 1,
       min_order_quantity: min_order_quantity || 1,
-      supplier_id: supplier_id || ''
+      supplier_id: supplier_id || '',
+      external_link: external_link || '',
+      notes: notes || ''
     });
     const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
 
@@ -234,7 +240,9 @@ export async function PUT(request: Request) {
       min_order_quantity,
       supplier_id,
       safe_stock_count,
-      status
+      status,
+      external_link,
+      notes
     } = await request.json();
 
     if (!id) return NextResponse.json({ success: false, error: '缺少 ID' }, { status: 400 });
@@ -287,6 +295,8 @@ export async function PUT(request: Request) {
       order_unit_size: order_unit_size || 1,
       min_order_quantity: min_order_quantity || 1,
       supplier_id: supplier_id || '',
+      external_link: external_link || '',
+      notes: notes || '',
       ...(existingVisualDesc ? { visual_description: existingVisualDesc } : {})
     });
     const finalDescription = (description || "") + "||_EXT_JSON_||" + extJson;
