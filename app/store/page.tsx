@@ -1416,7 +1416,10 @@ function StoreContent() {
                        <div className="flex justify-between items-start">
                           <div className="space-y-2">
                               <h3 className="text-xl font-black text-slate-800">{product.name}</h3>
-                              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">回饋 {product.b2c_reward_percent}%</span>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">回饋 {product.b2c_reward_percent}%</span>
+                                 <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">商品編號: {product.sku || product.id.split('-')[0].toUpperCase()}</span>
+                              </div>
                               {product.description && product.description.split("||_EXT_JSON_||")[0] && (
                                  <p className="text-[11px] font-bold text-slate-400/90 mt-1.5 leading-relaxed">{product.description.split("||_EXT_JSON_||")[0]}</p>
                               )}
