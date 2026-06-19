@@ -1254,7 +1254,7 @@ function StoreContent() {
         </motion.div>
 
         {/* B2C 專屬模組：紅利點數熱門商品一鍵直接兌換 */}
-        {memberInfo && !memberInfo.is_b2b && (
+        {false && memberInfo && !memberInfo.is_b2b && (
           <div className="bg-white border border-slate-100 rounded-[3.5rem] p-8 sm:p-10 space-y-6 shadow-sm mb-8">
              <div>
                 <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
